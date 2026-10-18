@@ -1070,8 +1070,8 @@
           var now = Date.now();
           return {
             docs: [
-              { id: uid(), title: 'Welcome to FolioDocs', content: welcome, updated: now },
-              { id: uid(), title: 'Ideas', content: ideas, updated: now - 1000 },
+              { id: 'seed-welcome', title: 'Welcome to FolioDocs', content: welcome, updated: now },
+              { id: 'seed-ideas', title: 'Ideas', content: ideas, updated: now - 1000 },
             ],
             currentId: null,
           };
@@ -2116,9 +2116,33 @@
           return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
         }
         function remoteIdFor(kind, localId) { return idmap[kind][localId] || null; }
+        // Deterministic remote id for a local document/folder: the same
+        // local id maps to the same remote row on every origin, so a doc
+        // can never be uploaded as a second row just because this browser
+        // started with an empty id map. Scoped to the signed-in user so
+        // different accounts never derive the same row id.
+        function deriveRemoteId(kind, localId) {
+          var str = kind + ':' + (sbUser ? sbUser.id : '') + ':' + localId;
+          var h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+          for (var i = 0, k; i < str.length; i++) {
+            k = str.charCodeAt(i);
+            h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+            h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+            h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+            h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+          }
+          h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+          h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+          h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+          h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+          function hex(n) { return ('0000000' + (n >>> 0).toString(16)).slice(-8); }
+          var s = hex(h1) + hex(h2) + hex(h3) + hex(h4);
+          s = s.slice(0, 12) + '5' + s.slice(13, 16) + 'a' + s.slice(17);
+          return s.slice(0, 8) + '-' + s.slice(8, 12) + '-' + s.slice(12, 16) + '-' + s.slice(16, 20) + '-' + s.slice(20);
+        }
         function ensureRemoteId(kind, localId) {
           var rid = idmap[kind][localId];
-          if (!rid) { rid = newUuid(); idmap[kind][localId] = rid; saveIdmap(); }
+          if (!rid) { rid = deriveRemoteId(kind, localId); idmap[kind][localId] = rid; saveIdmap(); }
           return rid;
         }
         function localIdFor(kind, remoteId) {
@@ -2147,13 +2171,12 @@
         function pushAll() {
           if (!sb || !sbUser) return Promise.resolve(false);
           setSyncState('Syncing\u2026');
-          var jobs = [];
-          tombstones.docs.forEach(function (rid) { jobs.push(sb.from('documents').delete().eq('id', rid)); });
-          tombstones.folders.forEach(function (rid) { jobs.push(sb.from('folders').delete().eq('id', rid)); });
+          var deletes = [];
+          tombstones.docs.forEach(function (rid) { deletes.push(sb.from('documents').delete().eq('id', rid)); });
+          tombstones.folders.forEach(function (rid) { deletes.push(sb.from('folders').delete().eq('id', rid)); });
           var folderRows = lib.folders.map(function (f) {
             return { id: ensureRemoteId('folders', f.id), owner_id: sbUser.id, name: f.name };
           });
-          if (folderRows.length) jobs.push(sb.from('folders').upsert(folderRows, { onConflict: 'id' }));
           var docRows = lib.docs.map(function (d) {
             return {
               id: ensureRemoteId('docs', d.id),
@@ -2165,13 +2188,28 @@
               updated_at: new Date(d.updated || Date.now()).toISOString(),
             };
           });
-          if (docRows.length) jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }));
-          return Promise.all(jobs).then(function (results) {
+          // Deletes land before upserts: a row removed locally stays
+          // removed even when a copy of it is uploaded in the same push.
+          // Uploads are upserts keyed by id, never blind inserts, so
+          // pushing the same document twice can never create a second row.
+          return Promise.all(deletes).then(function (dres) {
+            if (dres.some(function (r) { return r && r.error; })) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
+            var jobs = [];
+            if (folderRows.length) jobs.push(sb.from('folders').upsert(folderRows, { onConflict: 'id' }));
+            if (docRows.length) jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }));
+            return Promise.all(jobs);
+          }).then(function (results) {
+            if (!Array.isArray(results)) return false;
             var failed = results.some(function (r) { return r && r.error; });
             if (failed) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
             tombstones = { docs: [], folders: [] };
             saveTombstones();
-            saveSyncMeta({ lastSync: Date.now(), migrated: true });
+            saveSyncMeta({
+              lastSync: Date.now(),
+              migrated: true,
+              knownDocs: docRows.map(function (r) { return r.id; }),
+              knownFolders: folderRows.map(function (r) { return r.id; }),
+            });
             setSyncState('Synced');
             return true;
           }).catch(function () {
@@ -2198,7 +2236,39 @@
           var meta = myMeta();
           var lastSync = meta.lastSync || 0;
           dedupeDocsById();
+          var remoteDocIds = {};
+          remoteDocs.forEach(function (rd) { remoteDocIds[rd.id] = true; });
+          var remoteFolderIds = {};
+          remoteFolders.forEach(function (rf) { remoteFolderIds[rf.id] = true; });
+          // Rows that were on the server at the last sync but are gone
+          // now were deleted remotely — drop the local copies too, so a
+          // later push can't resurrect them. Rows never seen on the
+          // server are local-only and stay.
+          var knownDocs = meta.knownDocs || [];
+          if (knownDocs.length) {
+            lib.docs = lib.docs.filter(function (d) {
+              var rid = idmap.docs[d.id];
+              if (rid && knownDocs.indexOf(rid) !== -1 && !remoteDocIds[rid]) {
+                delete idmap.docs[d.id];
+                return false;
+              }
+              return true;
+            });
+          }
+          var knownFolders = meta.knownFolders || [];
+          if (knownFolders.length) {
+            lib.folders = lib.folders.filter(function (f) {
+              var rid = idmap.folders[f.id];
+              if (rid && knownFolders.indexOf(rid) !== -1 && !remoteFolderIds[rid]) {
+                delete idmap.folders[f.id];
+                delete lib.collapsedFolders[f.id];
+                return false;
+              }
+              return true;
+            });
+          }
           remoteFolders.forEach(function (rf) {
+            if (tombstones.folders.indexOf(rf.id) !== -1) return; // deleted locally, delete pending
             var lid = localIdFor('folders', rf.id);
             if (!lid) {
               idmap.folders[rf.id] = rf.id;
@@ -2219,6 +2289,7 @@
           }
           var seenDocs = {};
           remoteDocs.forEach(function (rd) {
+            if (tombstones.docs.indexOf(rd.id) !== -1) return; // deleted locally, delete pending
             var rUpdated = Date.parse(rd.updated_at) || 0;
             var lid = localIdFor('docs', rd.id);
             if (!lid && lib.docs.some(function (d) { return d.id === rd.id; })) {
@@ -2264,6 +2335,45 @@
             lib.docs.push({ id: uid(), title: 'Untitled', content: { type: 'doc', content: [{ type: 'paragraph' }] }, folderId: null, updated: Date.now() });
             lib.currentId = lib.docs[0].id;
           }
+          saveSyncMeta({
+            knownDocs: remoteDocs.map(function (rd) { return rd.id; }),
+            knownFolders: remoteFolders.map(function (rf) { return rf.id; }),
+          });
+        }
+
+        // One-time repair: copies uploaded from different origins before
+        // document ids were stable can share a title and identical
+        // content under different ids. Merge each such group into its
+        // earliest copy and delete the rest, here and on the server.
+        function repairDuplicateDocs() {
+          if (!sbUser || myMeta().dupesRepaired) return;
+          var groups = {};
+          lib.docs.forEach(function (d) {
+            var key = (d.title || 'Untitled') + '\n' + JSON.stringify(d.content || null);
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(d);
+          });
+          var loserIds = {};
+          Object.keys(groups).forEach(function (key) {
+            var g = groups[key];
+            if (g.length < 2) return;
+            g.sort(function (a, b) {
+              var diff = (a.updated || 0) - (b.updated || 0);
+              if (diff) return diff;
+              if (a.id === lib.currentId) return -1;
+              if (b.id === lib.currentId) return 1;
+              return 0;
+            });
+            for (var i = 1; i < g.length; i++) loserIds[g[i].id] = true;
+          });
+          saveSyncMeta({ dupesRepaired: true });
+          if (!Object.keys(loserIds).length) return;
+          Object.keys(loserIds).forEach(function (id) { recordTombstone('docs', id); });
+          lib.docs = lib.docs.filter(function (d) { return !loserIds[d.id]; });
+          if (!lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs[0].id;
+          persist(false);
+          openDoc(lib.currentId, false);
+          renderDocList();
         }
 
         function pullMerge() {
@@ -2288,7 +2398,7 @@
         function initialSync() {
           if (!sb || !sbUser || syncStartedFor === sbUser.id) return;
           syncStartedFor = sbUser.id;
-          pullMerge().then(function () { return pushAll(); }).then(function () { refreshShareBadge(); });
+          pullMerge().then(function () { repairDuplicateDocs(); return pushAll(); }).then(function () { refreshShareBadge(); });
         }
 
         /* ---------------- auth UI ---------------- */
