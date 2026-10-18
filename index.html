@@ -2180,9 +2180,24 @@
           });
         }
 
+        // Collapse entries that share a document id (a remote doc appended
+        // without matching its local copy leaves two entries with one id) —
+        // keep the most recently updated one.
+        function dedupeDocsById() {
+          var best = {};
+          var order = [];
+          lib.docs.forEach(function (d) {
+            var prev = best[d.id];
+            if (!prev) { best[d.id] = d; order.push(d.id); }
+            else if ((d.updated || 0) > (prev.updated || 0)) best[d.id] = d;
+          });
+          lib.docs = order.map(function (id) { return best[id]; });
+        }
+
         function mergeRemote(remoteFolders, remoteDocs) {
           var meta = myMeta();
           var lastSync = meta.lastSync || 0;
+          dedupeDocsById();
           remoteFolders.forEach(function (rf) {
             var lid = localIdFor('folders', rf.id);
             if (!lid) {
@@ -2206,6 +2221,10 @@
           remoteDocs.forEach(function (rd) {
             var rUpdated = Date.parse(rd.updated_at) || 0;
             var lid = localIdFor('docs', rd.id);
+            if (!lid && lib.docs.some(function (d) { return d.id === rd.id; })) {
+              idmap.docs[rd.id] = rd.id;
+              lid = rd.id;
+            }
             var fl = rd.folder_id ? localIdFor('folders', rd.folder_id) : null;
             if (fl && !lib.folders.some(function (f) { return f.id === fl; })) fl = null;
             if (!lid) {
@@ -2236,6 +2255,7 @@
               return (d.updated || 0) > lastSync;
             });
           }
+          dedupeDocsById();
           saveIdmap();
           lib.docs.forEach(function (d) {
             if (d.folderId && !lib.folders.some(function (f) { return f.id === d.folderId; })) d.folderId = null;
