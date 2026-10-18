@@ -2221,6 +2221,42 @@
           });
         }
 
+        // Plain-text signature of a document: every text run and wiki-link
+        // title, in order. Two copies of the same document keep the same
+        // signature even after the editor re-serializes their JSON (attrs
+        // and empty-node shapes change; the words don't), so duplicate
+        // detection keys on this instead of raw JSON.
+        function docTextSignature(content) {
+          var parts = [];
+          (function walk(node) {
+            if (!node || typeof node !== 'object') return;
+            if (node.type === 'text' && typeof node.text === 'string') parts.push(node.text);
+            else if (node.type === 'wikiLink' && node.attrs && node.attrs.title) parts.push('[[' + node.attrs.title + ']]');
+            if (Array.isArray(node.content)) node.content.forEach(walk);
+          })(content);
+          return parts.join('\n');
+        }
+        var seedSignatures = null;
+        function pristineSeedSignature(title) {
+          if (!seedSignatures) {
+            seedSignatures = {};
+            seedLibrary().docs.forEach(function (s) {
+              seedSignatures[(s.title || '').trim().toLowerCase()] = docTextSignature(s.content);
+            });
+          }
+          var sig = seedSignatures[(title || '').trim().toLowerCase()];
+          return sig === undefined ? null : sig;
+        }
+        // True when a document is an untouched starter document: its title
+        // is a seed title and its text still matches the built-in seed
+        // exactly. Fresh installs (a new origin, or the home-screen web
+        // app with its own storage) recreate these automatically, so a
+        // pristine copy is never the one worth keeping.
+        function isPristineSeedCopy(d) {
+          var sig = pristineSeedSignature(d.title);
+          return sig !== null && docTextSignature(d.content) === sig;
+        }
+
         // Collapse entries that share a document id (a remote doc appended
         // without matching its local copy leaves two entries with one id) —
         // keep the most recently updated one.
@@ -2299,6 +2335,26 @@
               idmap.docs[rd.id] = rd.id;
               lid = rd.id;
             }
+            if (!lid) {
+              // Fresh storage (a new origin, or the home-screen web app,
+              // which keeps its own localStorage) starts over with
+              // untouched starter documents under local seed ids, while
+              // the account's real copies live under unrelated remote
+              // ids. Adopt this remote row as the starter's real copy —
+              // map the seed id to it and zero the seed's timestamp so
+              // the account's content wins the merge below — instead of
+              // appending a duplicate (which the next push would then
+              // upload as yet another remote row).
+              var seedDoc = lib.docs.find(function (d) {
+                return !idmap.docs[d.id] && !seenDocs[d.id] && isPristineSeedCopy(d) &&
+                  (d.title || '').trim().toLowerCase() === (rd.title || 'Untitled').trim().toLowerCase();
+              });
+              if (seedDoc) {
+                idmap.docs[seedDoc.id] = rd.id;
+                seedDoc.updated = 0;
+                lid = seedDoc.id;
+              }
+            }
             var fl = rd.folder_id ? localIdFor('folders', rd.folder_id) : null;
             if (fl && !lib.folders.some(function (f) { return f.id === fl; })) fl = null;
             if (!lid) {
@@ -2344,15 +2400,32 @@
           });
         }
 
-        // One-time repair: copies uploaded from different origins before
-        // document ids were stable can share a title and identical
-        // content under different ids. Merge each such group into its
-        // earliest copy and delete the rest, here and on the server.
+        // One-time repair (v2): the same document can exist under several
+        // ids — copies uploaded from different origins or storage contexts
+        // before ids were stable, or starter documents a fresh context
+        // pushed as new rows. Group by title and compare text signatures
+        // (raw JSON differs after editor re-serialization, which is why
+        // the first repair missed copies it should have merged):
+        // - copies whose text is identical merge into the earliest one;
+        // - when copies differ, an untouched starter copy still loses to
+        //   any real copy — its text is the built-in seed, recreated by
+        //   every fresh install, so it is never the copy worth keeping.
+        //   That only applies where a pristine copy is provably a stray:
+        //   during a context's first sync (fresh storage starts with
+        //   seeds that duplicate the account's documents), or when the
+        //   pristine copy arrived as an appended remote row (its local
+        //   id is its remote id). In an established library a pristine
+        //   starter under its seed id is the user's real document, and
+        //   a second same-title document is their own business.
+        // Genuinely different documents that merely share a title are
+        // left alone. The v2 flag is separate so this runs once more in
+        // contexts where the first repair already spent its flag.
         function repairDuplicateDocs() {
-          if (!sbUser || myMeta().dupesRepaired) return;
+          if (!sbUser || myMeta().dupesRepairedV2) return;
+          var freshContext = !myMeta().migrated;
           var groups = {};
           lib.docs.forEach(function (d) {
-            var key = (d.title || 'Untitled') + '\n' + JSON.stringify(d.content || null);
+            var key = (d.title || 'Untitled').trim().toLowerCase();
             if (!groups[key]) groups[key] = [];
             groups[key].push(d);
           });
@@ -2360,16 +2433,27 @@
           Object.keys(groups).forEach(function (key) {
             var g = groups[key];
             if (g.length < 2) return;
-            g.sort(function (a, b) {
-              var diff = (a.updated || 0) - (b.updated || 0);
-              if (diff) return diff;
-              if (a.id === lib.currentId) return -1;
-              if (b.id === lib.currentId) return 1;
-              return 0;
+            var sigs = g.map(function (d) { return docTextSignature(d.content); });
+            var allSame = sigs.every(function (s) { return s === sigs[0]; });
+            if (allSame) {
+              var byAge = g.slice().sort(function (a, b) {
+                var diff = (a.updated || 0) - (b.updated || 0);
+                if (diff) return diff;
+                if (a.id === lib.currentId) return -1;
+                if (b.id === lib.currentId) return 1;
+                return 0;
+              });
+              for (var i = 1; i < byAge.length; i++) loserIds[byAge[i].id] = true;
+              return;
+            }
+            var pristine = g.filter(function (d) {
+              return isPristineSeedCopy(d) && (freshContext || idmap.docs[d.id] === d.id);
             });
-            for (var i = 1; i < g.length; i++) loserIds[g[i].id] = true;
+            if (pristine.length && pristine.length < g.length) {
+              pristine.forEach(function (d) { loserIds[d.id] = true; });
+            }
           });
-          saveSyncMeta({ dupesRepaired: true });
+          saveSyncMeta({ dupesRepaired: true, dupesRepairedV2: true });
           if (!Object.keys(loserIds).length) return;
           Object.keys(loserIds).forEach(function (id) { recordTombstone('docs', id); });
           lib.docs = lib.docs.filter(function (d) { return !loserIds[d.id]; });
