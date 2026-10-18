@@ -415,6 +415,41 @@
         border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
       }
 
+      /* ---------------- Edit folder popover ---------------- */
+      .folder-pop {
+        position: fixed; z-index: 116; width: 252px;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+        box-shadow: var(--shadow); padding: 10px;
+      }
+      .folder-pop[hidden] { display: none; }
+      .fp-head { display: flex; align-items: center; gap: 9px; padding: 0 2px 4px; }
+      .fp-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .fp-emojis { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px; }
+      .fp-tile {
+        width: 40px; height: 40px; border-radius: 9px; flex: 0 0 auto;
+        border: 1px solid var(--line); background: var(--surface);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 20px; line-height: 1; color: var(--ink-2);
+      }
+      .fp-tile:hover { filter: brightness(0.96); }
+      :root[data-theme="midnight"] .fp-tile:hover { filter: brightness(1.15); }
+      .fp-tile.on { box-shadow: inset 0 0 0 2px var(--ink); }
+      .fp-custom {
+        display: flex; align-items: center; gap: 9px;
+        padding: 8px 4px 2px; margin-top: 6px; border-top: 1px solid var(--line-soft);
+        font-size: 13px; font-weight: 600; color: var(--ink-2);
+      }
+      .fp-custom input[type="color"] {
+        width: 44px; height: 32px; padding: 2px; cursor: pointer;
+        border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+      }
+      .fp-emoji-input {
+        flex: 1; min-width: 0; font: inherit; font-size: 17px;
+        padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px;
+        background: var(--surface); color: var(--ink); outline: none;
+      }
+      .fp-emoji-input:focus { border-color: var(--accent); }
+
       /* ---------------- Code copy buttons ---------------- */
       .code-ui { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
       .code-copy-btn {
@@ -517,6 +552,21 @@
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       }
       .folder-count { font-size: 11.5px; font-weight: 600; color: var(--ink-3); padding-right: 2px; }
+      .folder-badge {
+        width: 28px; height: 28px; flex: 0 0 28px; border-radius: 8px;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--ink-2); font-size: 16px; line-height: 1;
+      }
+      .folder-badge.tinted {
+        color: var(--fb);
+        background: color-mix(in srgb, var(--fb) 16%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 35%, transparent);
+      }
+      :root[data-theme="midnight"] .folder-badge.tinted {
+        background: color-mix(in srgb, var(--fb) 30%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 45%, transparent);
+        color: color-mix(in srgb, var(--fb) 60%, #ffffff);
+      }
       .folder-act {
         width: 30px; height: 30px; border-radius: 7px; flex: 0 0 auto;
         display: none; align-items: center; justify-content: center; color: var(--ink-2);
@@ -930,6 +980,7 @@
         <input type="color" id="fmtCustomColor" value="#e03131" aria-label="Custom text color" />
       </div>
     </div>
+    <div class="folder-pop" id="folderPop" hidden role="dialog" aria-label="Edit folder"></div>
     <div class="suggest" id="suggest" role="listbox" aria-label="Link to a document"></div>
 
     <div class="overlay" id="shareModal" hidden>
@@ -1183,6 +1234,10 @@
         // Folders: normalize libraries saved before folders existed.
         if (!Array.isArray(lib.folders)) lib.folders = [];
         if (!lib.collapsedFolders || typeof lib.collapsedFolders !== 'object') lib.collapsedFolders = {};
+        lib.folders.forEach(function (f) {
+          if (typeof f.icon !== 'string' || !f.icon) f.icon = null;
+          if (typeof f.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(f.color)) f.color = null;
+        });
         lib.docs.forEach(function (d) {
           if (d.folderId === undefined) d.folderId = null;
           if (d.folderId && !lib.folders.some(function (f) { return f.id === d.folderId; })) d.folderId = null;
@@ -1227,9 +1282,13 @@
         var tagFilter = null;
         var moveMenuEl = document.getElementById('moveMenu');
         var moveMenuDocId = null;
+        var folderPopEl = document.getElementById('folderPop');
+        var folderPopId = null;
+        var folderLongPressAt = 0;
 
         var TRASH_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6"/></svg>';
         var FOLDER_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+        var PALETTE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3-4 3h-2.18a2.4 2.4 0 0 0-1.87 4c.57.6.53 1.47-.12 2.05A2.42 2.42 0 0 1 12 22Z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/></svg>';
         var CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
         /* ---------------- tags ---------------- */
@@ -1352,7 +1411,7 @@
             moveMenuEl.appendChild(b);
           }
           item('No folder', null);
-          lib.folders.forEach(function (f) { item(f.name, f.id); });
+          lib.folders.forEach(function (f) { item((f.icon ? f.icon + '  ' : '') + f.name, f.id); });
           moveMenuEl.className = 'menu open';
           var r = anchor.getBoundingClientRect();
           var menuH = 84 + lib.folders.length * 48;
@@ -1422,6 +1481,7 @@
           toggle.setAttribute('data-tip', collapsed ? 'Expand folder' : 'Collapse folder');
           toggle.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
           head.appendChild(toggle);
+          head.appendChild(folderBadge(f));
           if (renamingFolderId === f.id) {
             var input = document.createElement('input');
             input.className = 'folder-rename-input';
@@ -1466,6 +1526,17 @@
               createDocInFolder(f.id);
             });
             head.appendChild(addBtn);
+            var editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'folder-act folder-edit-act';
+            editBtn.setAttribute('aria-label', 'Edit folder ' + f.name + ' — icon and color');
+            editBtn.setAttribute('data-tip', 'Folder icon & color');
+            editBtn.innerHTML = PALETTE_SVG;
+            editBtn.addEventListener('click', function (ev) {
+              ev.stopPropagation();
+              openFolderPop(f.id, editBtn);
+            });
+            head.appendChild(editBtn);
             var ren = document.createElement('button');
             ren.type = 'button';
             ren.className = 'folder-act';
@@ -1504,9 +1575,30 @@
           }
           head.addEventListener('click', function () {
             if (renamingFolderId === f.id) return;
+            if (Date.now() - folderLongPressAt < 400) return; // the long-press already opened the editor
             lib.collapsedFolders[f.id] = !lib.collapsedFolders[f.id];
             persist(false);
             renderDocList();
+          });
+          head.addEventListener('contextmenu', function (ev) {
+            if (renamingFolderId === f.id) return;
+            ev.preventDefault();
+            if (folderPopId !== f.id) openFolderPop(f.id, head, true);
+          });
+          var lpTimer = null;
+          head.addEventListener('pointerdown', function (ev) {
+            if (renamingFolderId === f.id) return;
+            if (ev.target.closest && ev.target.closest('button, input')) return;
+            lpTimer = setTimeout(function () {
+              lpTimer = null;
+              folderLongPressAt = Date.now();
+              openFolderPop(f.id, head, true);
+            }, 550);
+          });
+          ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (t) {
+            head.addEventListener(t, function () {
+              if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+            });
           });
           wrap.appendChild(head);
           if (!collapsed) {
@@ -1532,6 +1624,163 @@
           confirmDeleteFolderId = null;
           persist(true);
           renderDocList();
+        }
+
+        /* ---------------- folder icon & color ---------------- */
+        var FOLDER_EMOJIS = ['📁', '📚', '📖', '📝', '✏️', '💡', '🌱', '⭐', '❤️', '🔥', '🎵', '🎨', '📷', '🧳', '🏠', '💼', '🎓', '🔬', '🍳', '✈️', '💬', '📌', '🗓️', '🧠', '🌍'];
+        var FOLDER_COLORS = ['#e03131', '#e8590c', '#f08c00', '#2f9e44', '#0ca678', '#1971c2', '#6741d9', '#d6336c', '#868e96'];
+
+        function folderBadge(f) {
+          var b = document.createElement('span');
+          b.className = 'folder-badge' + (f.color ? ' tinted' : '');
+          if (f.color) b.style.setProperty('--fb', f.color);
+          if (f.icon) b.textContent = f.icon;
+          else b.innerHTML = FOLDER_SVG;
+          return b;
+        }
+        function firstGrapheme(s) {
+          s = String(s || '').trim();
+          if (!s) return '';
+          if (window.Intl && Intl.Segmenter) {
+            var seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+            for (var part of seg.segment(s)) return part.segment;
+          }
+          return Array.from(s)[0] || '';
+        }
+        function closeFolderPop() {
+          folderPopEl.hidden = true;
+          folderPopEl.innerHTML = '';
+          folderPopId = null;
+        }
+        function setFolderIcon(f, icon) {
+          f.icon = icon || null;
+          persist(true);
+          renderDocList();
+          buildFolderPop(f);
+        }
+        function setFolderColor(f, color) {
+          f.color = color || null;
+          persist(true);
+          renderDocList();
+          buildFolderPop(f);
+        }
+        function buildFolderPop(f) {
+          folderPopEl.innerHTML = '';
+          var head = document.createElement('div');
+          head.className = 'fp-head';
+          head.appendChild(folderBadge(f));
+          var nm = document.createElement('span');
+          nm.className = 'fp-name';
+          nm.textContent = f.name;
+          head.appendChild(nm);
+          folderPopEl.appendChild(head);
+
+          var iconLabel = document.createElement('div');
+          iconLabel.className = 'pop-label';
+          iconLabel.textContent = 'Icon';
+          folderPopEl.appendChild(iconLabel);
+          var grid = document.createElement('div');
+          grid.className = 'fp-emojis';
+          var defTile = document.createElement('button');
+          defTile.type = 'button';
+          defTile.className = 'fp-tile' + (!f.icon ? ' on' : '');
+          defTile.innerHTML = FOLDER_SVG.replace('15', '19').replace('15', '19');
+          defTile.setAttribute('aria-label', 'Default folder icon');
+          defTile.setAttribute('data-tip', 'Default icon');
+          defTile.addEventListener('click', function () { setFolderIcon(f, null); });
+          grid.appendChild(defTile);
+          FOLDER_EMOJIS.forEach(function (e) {
+            var t = document.createElement('button');
+            t.type = 'button';
+            t.className = 'fp-tile' + (f.icon === e ? ' on' : '');
+            t.textContent = e;
+            t.setAttribute('aria-label', 'Folder icon ' + e);
+            t.addEventListener('click', function () { setFolderIcon(f, e); });
+            grid.appendChild(t);
+          });
+          folderPopEl.appendChild(grid);
+          var emojiRow = document.createElement('div');
+          emojiRow.className = 'fp-custom';
+          var emojiLab = document.createElement('span');
+          emojiLab.textContent = 'Any emoji';
+          emojiRow.appendChild(emojiLab);
+          var emojiInput = document.createElement('input');
+          emojiInput.className = 'fp-emoji-input';
+          emojiInput.type = 'text';
+          emojiInput.value = f.icon || '';
+          emojiInput.placeholder = 'Type or paste…';
+          emojiInput.setAttribute('aria-label', 'Custom folder emoji');
+          emojiInput.addEventListener('keydown', function (ev) {
+            ev.stopPropagation();
+            if (ev.key === 'Enter') { ev.preventDefault(); emojiInput.blur(); }
+          });
+          emojiInput.addEventListener('change', function () {
+            var g = firstGrapheme(emojiInput.value);
+            setFolderIcon(f, g || null);
+          });
+          emojiRow.appendChild(emojiInput);
+          folderPopEl.appendChild(emojiRow);
+
+          var colorLabel = document.createElement('div');
+          colorLabel.className = 'pop-label';
+          colorLabel.textContent = 'Color';
+          colorLabel.style.marginTop = '10px';
+          folderPopEl.appendChild(colorLabel);
+          var sw = document.createElement('div');
+          sw.className = 'fmt-swatches';
+          var noneC = document.createElement('button');
+          noneC.type = 'button';
+          noneC.className = 'fmt-swatch fmt-swatch-none' + (!f.color ? ' on' : '');
+          noneC.innerHTML = FMT_X_SVG;
+          noneC.setAttribute('aria-label', 'Default folder color');
+          noneC.setAttribute('data-tip', 'Default color');
+          noneC.addEventListener('click', function () { setFolderColor(f, null); });
+          sw.appendChild(noneC);
+          FOLDER_COLORS.forEach(function (hex) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'fmt-swatch' + (f.color === hex ? ' on' : '');
+            b.style.background = hex;
+            b.setAttribute('aria-label', 'Folder color ' + hex);
+            b.setAttribute('data-tip', hex);
+            b.addEventListener('click', function () { setFolderColor(f, hex); });
+            sw.appendChild(b);
+          });
+          folderPopEl.appendChild(sw);
+          var customRow = document.createElement('div');
+          customRow.className = 'fp-custom';
+          var customLab = document.createElement('span');
+          customLab.textContent = 'Custom color';
+          customRow.appendChild(customLab);
+          var customInput = document.createElement('input');
+          customInput.type = 'color';
+          customInput.value = f.color || '#2e6b4c';
+          customInput.setAttribute('aria-label', 'Custom folder color');
+          customInput.addEventListener('change', function () { setFolderColor(f, customInput.value); });
+          customRow.appendChild(customInput);
+          if (f.color && FOLDER_COLORS.indexOf(f.color) === -1) {
+            var cur = document.createElement('span');
+            cur.textContent = f.color;
+            customRow.appendChild(cur);
+          }
+          folderPopEl.appendChild(customRow);
+        }
+        function openFolderPop(folderId, anchor, force) {
+          var f = lib.folders.find(function (x) { return x.id === folderId; });
+          if (!f) return;
+          if (folderPopId === folderId && !folderPopEl.hidden && !force) { closeFolderPop(); return; }
+          closeMoveMenu();
+          closeFmtPop();
+          folderPopId = folderId;
+          buildFolderPop(f);
+          folderPopEl.hidden = false;
+          var r = anchor.getBoundingClientRect();
+          var w = 252, h = folderPopEl.offsetHeight;
+          var left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+          var top = r.bottom + 6;
+          if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+          folderPopEl.style.left = left + 'px';
+          folderPopEl.style.top = top + 'px';
         }
 
         function renderDocList() {
@@ -2368,7 +2617,7 @@
         });
         document.getElementById('newFolderBtn').addEventListener('click', function () {
           if (tagFilter) setTagFilter(null);
-          var f = { id: uid(), name: 'New folder', created: Date.now() };
+          var f = { id: uid(), name: 'New folder', icon: null, color: null, created: Date.now() };
           lib.folders.push(f);
           renamingFolderId = f.id;
           persist(false);
@@ -2398,16 +2647,21 @@
           if (!fmtPop.hidden && !fmtPop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#hlBtn, #colorBtn'))) {
             closeFmtPop();
           }
+          if (!folderPopEl.hidden && !folderPopEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('.folder-edit-act'))) {
+            closeFolderPop();
+          }
           hideTip();
         });
         document.querySelector('.sidebar-scroll').addEventListener('scroll', function () {
           if (moveMenuDocId) closeMoveMenu();
+          if (!folderPopEl.hidden) closeFolderPop();
         }, { passive: true });
         document.addEventListener('keydown', function (ev) {
           if (ev.key === 'Escape') {
             if (moveMenuDocId) closeMoveMenu();
             if (!themePop.hidden) closeThemePop();
             if (!fmtPop.hidden) closeFmtPop();
+            if (!folderPopEl.hidden) closeFolderPop();
           }
         });
 
@@ -2569,6 +2823,9 @@
           tombstones.docs.forEach(function (rid) { deletes.push(sb.from('documents').delete().eq('id', rid)); });
           tombstones.folders.forEach(function (rid) { deletes.push(sb.from('folders').delete().eq('id', rid)); });
           var folderRows = lib.folders.map(function (f) {
+            return { id: ensureRemoteId('folders', f.id), owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null };
+          });
+          var folderRowsBasic = lib.folders.map(function (f) {
             return { id: ensureRemoteId('folders', f.id), owner_id: sbUser.id, name: f.name };
           });
           var docRows = lib.docs.map(function (d) {
@@ -2589,7 +2846,15 @@
           return Promise.all(deletes).then(function (dres) {
             if (dres.some(function (r) { return r && r.error; })) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
             var jobs = [];
-            if (folderRows.length) jobs.push(sb.from('folders').upsert(folderRows, { onConflict: 'id' }));
+            if (folderRows.length) {
+              // Icon/color ride along when the folders table has those
+              // columns; if it doesn't yet, retry name-only so folder
+              // sync itself never breaks.
+              jobs.push(sb.from('folders').upsert(folderRows, { onConflict: 'id' }).then(function (r) {
+                if (r && r.error) return sb.from('folders').upsert(folderRowsBasic, { onConflict: 'id' });
+                return r;
+              }));
+            }
             if (docRows.length) jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }));
             return Promise.all(jobs);
           }).then(function (results) {
@@ -2702,11 +2967,15 @@
             var lid = localIdFor('folders', rf.id);
             if (!lid) {
               idmap.folders[rf.id] = rf.id;
-              lib.folders.push({ id: rf.id, name: rf.name, created: 0 });
+              lib.folders.push({ id: rf.id, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0 });
             } else {
               var lf = lib.folders.find(function (f) { return f.id === lid; });
-              if (lf) lf.name = rf.name;
-              else lib.folders.push({ id: lid, name: rf.name, created: 0 });
+              if (lf) {
+                lf.name = rf.name;
+                if ('icon' in rf) lf.icon = rf.icon || null;
+                if ('color' in rf) lf.color = rf.color || null;
+              }
+              else lib.folders.push({ id: lid, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0 });
             }
           });
           if (meta.migrated) {
@@ -2857,8 +3126,12 @@
         function pullMerge() {
           if (!sb || !sbUser) return Promise.resolve(false);
           setSyncState('Syncing\u2026');
+          var foldersReq = sb.from('folders').select('id, name, icon, color').then(function (r) {
+            if (r && r.error) return sb.from('folders').select('id, name');
+            return r;
+          });
           return Promise.all([
-            sb.from('folders').select('id, name'),
+            foldersReq,
             sb.from('documents').select('id, folder_id, title, content, updated_at'),
           ]).then(function (res) {
             if (res[0].error || res[1].error) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
