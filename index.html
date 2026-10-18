@@ -658,6 +658,11 @@
       }
       .comment-del:hover { background: var(--hover); color: var(--danger); }
       .comment-body { font-size: 14.5px; line-height: 1.55; margin-top: 3px; white-space: pre-wrap; word-break: break-word; }
+      .comment-group + .comment-group { margin-top: 16px; }
+      .comment-group-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+      .comment-group-perm { font-size: 13px; font-weight: 700; }
+      .comment-group-meta { font-size: 12px; color: var(--ink-3); }
+      .comment-group .share-link { margin-top: 1px; }
 
       /* ---------------- Public share view ---------------- */
       .share-view { position: fixed; inset: 0; z-index: 120; background: var(--bg); overflow-y: auto; }
@@ -2427,16 +2432,39 @@
         var sharePermChoice = 'view';
         var shareModalDocId = null;
 
+        // Comments are scoped to the share link they came through: post_comment
+        // stamps each one with its share_token as well as the document_id. Match
+        // on either, so a comment surfaces for the owner as long as the link (or
+        // the document) points at this doc.
+        function commentsQuery(rid, tokens, columns) {
+          var q = sb.from('comments').select(columns);
+          if (tokens && tokens.length) {
+            q = q.or('document_id.eq.' + rid + ',share_token.in.(' + tokens.join(',') + ')');
+          } else {
+            q = q.eq('document_id', rid);
+          }
+          return q;
+        }
+        function docShares(rid) {
+          return sb.from('shares').select('token, permission, created_at').eq('document_id', rid)
+            .order('created_at', { ascending: false }).then(function (res) {
+              return (!res.error && res.data) ? res.data : [];
+            }).catch(function () { return []; });
+        }
+
         function refreshShareBadge() {
           var badge = document.getElementById('shareBadge');
           if (!badge) return;
           var doc = lib.docs.find(function (d) { return d.id === lib.currentId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
           if (!sb || !sbUser || !rid) { badge.hidden = true; return; }
-          sb.from('comments').select('id', { count: 'exact', head: true }).eq('document_id', rid).then(function (res) {
+          docShares(rid).then(function (shares) {
+            var tokens = shares.map(function (s) { return s.token; });
+            return commentsQuery(rid, tokens, 'id');
+          }).then(function (res) {
             var cur = lib.docs.find(function (d) { return d.id === lib.currentId; });
             if (!cur || remoteIdFor('docs', cur.id) !== rid) return;
-            var n = res && typeof res.count === 'number' ? res.count : 0;
+            var n = res && !res.error && res.data ? res.data.length : 0;
             badge.hidden = !n;
             badge.textContent = n;
           }).catch(function () { badge.hidden = true; });
@@ -2509,34 +2537,90 @@
           row.appendChild(revoke);
           return row;
         }
+        function commentGroupEl(share, comments) {
+          var wrap = document.createElement('div');
+          wrap.className = 'comment-group';
+          var head = document.createElement('div');
+          head.className = 'comment-group-head';
+          var perm = document.createElement('span');
+          perm.className = 'comment-group-perm';
+          perm.textContent = share
+            ? (share.permission === 'comment' ? 'Can comment' : 'View only')
+            : 'Earlier link';
+          head.appendChild(perm);
+          var meta = document.createElement('span');
+          meta.className = 'comment-group-meta';
+          var count = comments.length + (comments.length === 1 ? ' comment' : ' comments');
+          meta.textContent = share ? 'link created ' + fmtDate(share.created_at) + ' \u00B7 ' + count : count;
+          head.appendChild(meta);
+          wrap.appendChild(head);
+          if (share) {
+            var link = document.createElement('div');
+            link.className = 'share-link';
+            link.textContent = shareLinkFor(share.token);
+            wrap.appendChild(link);
+          }
+          comments.forEach(function (c) {
+            wrap.appendChild(commentRowEl(c, true, function () {
+              sb.from('comments').delete().eq('id', c.id).then(function () {
+                loadOwnerComments();
+                refreshShareBadge();
+              });
+            }));
+          });
+          return wrap;
+        }
         function loadOwnerComments() {
           var listEl = document.getElementById('ownerComments');
-          var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
+          var forDocId = shareModalDocId;
+          var doc = lib.docs.find(function (d) { return d.id === forDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
           listEl.innerHTML = '';
           if (!sb || !sbUser || !rid) {
             listEl.innerHTML = '<div class="list-empty">No comments yet.</div>';
             return;
           }
-          sb.from('comments').select('id, author_name, body, created_at').eq('document_id', rid)
-            .order('created_at', { ascending: false }).then(function (res) {
-              listEl.innerHTML = '';
-              if (res.error || !res.data || !res.data.length) {
-                listEl.innerHTML = '<div class="list-empty">No comments yet. When someone comments through a share link, it shows up here.</div>';
-                return;
-              }
-              res.data.forEach(function (c) {
-                listEl.appendChild(commentRowEl(c, true, function () {
-                  sb.from('comments').delete().eq('id', c.id).then(function () {
-                    loadOwnerComments();
-                    refreshShareBadge();
-                  });
-                }));
-              });
-            }).catch(function () {
+          listEl.innerHTML = '<div class="list-empty">Loading comments\u2026</div>';
+          docShares(rid).then(function (shares) {
+            var tokens = shares.map(function (s) { return s.token; });
+            return commentsQuery(rid, tokens, 'id, author_name, body, created_at, share_token')
+              .order('created_at', { ascending: false })
+              .then(function (cres) { return { shares: shares, cres: cres }; });
+          }).then(function (out) {
+            if (shareModalDocId !== forDocId) return;
+            listEl.innerHTML = '';
+            if (out.cres.error || !out.cres.data) {
               listEl.innerHTML = '<div class="list-empty">Couldn\u2019t load comments \u2014 check your connection.</div>';
+              return;
+            }
+            var comments = out.cres.data;
+            if (!comments.length) {
+              listEl.innerHTML = '<div class="list-empty">No comments yet. When someone comments through a share link, it shows up here, grouped under the link it came through.</div>';
+              return;
+            }
+            var known = {};
+            out.shares.forEach(function (s) { known[s.token] = s; });
+            var byToken = {};
+            var orphans = [];
+            comments.forEach(function (c) {
+              if (c.share_token && known[c.share_token]) {
+                (byToken[c.share_token] = byToken[c.share_token] || []).push(c);
+              } else {
+                orphans.push(c);
+              }
             });
+            out.shares.forEach(function (s) {
+              if (byToken[s.token] && byToken[s.token].length) {
+                listEl.appendChild(commentGroupEl(s, byToken[s.token]));
+              }
+            });
+            if (orphans.length) listEl.appendChild(commentGroupEl(null, orphans));
+          }).catch(function () {
+            if (shareModalDocId !== forDocId) return;
+            listEl.innerHTML = '<div class="list-empty">Couldn\u2019t load comments \u2014 check your connection.</div>';
+          });
         }
+
         document.getElementById('shareBtn').addEventListener('click', openShareModal);
         document.getElementById('shareClose').addEventListener('click', closeShareModal);
         document.getElementById('shareModal').addEventListener('click', function (ev) {
