@@ -235,13 +235,6 @@
       }
       .doc-item.current .doc-dot { background: var(--accent); }
       .doc-item .doc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .doc-item .doc-del {
-        flex: 0 0 auto; width: 30px; height: 30px; border-radius: 7px;
-        display: none; align-items: center; justify-content: center; color: var(--ink-2);
-      }
-      .doc-item:hover .doc-del, .doc-item.current .doc-del { display: inline-flex; }
-      .doc-item .doc-del:hover { background: var(--hover); color: var(--danger); }
-      .doc-item .doc-del.confirm { display: inline-flex; width: auto; padding: 0 9px; background: var(--danger); color: #fff; font-size: 12px; font-weight: 700; }
       .outline-item {
         display: block; width: 100%; text-align: left;
         padding: 6px 10px; border-radius: 7px; min-height: 34px;
@@ -617,6 +610,25 @@
       @media (hover: none) {
         .doc-item .doc-act { display: inline-flex; }
       }
+      /* Suppress the native iOS long-press callout ("Writing Tools" etc.) on
+         sidebar folder and note rows so only the app's own context menu opens.
+         The editor is untouched: text selection stays available in documents. */
+      .folder-head, .doc-item,
+      .folder-head *, .doc-item * {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      /* The folder rename field is a real text input and must stay editable. */
+      .folder-head .folder-rename-input {
+        -webkit-touch-callout: default;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
 
       /* ---------------- Move menu ---------------- */
       .menu {
@@ -634,8 +646,9 @@
         padding: 10px; border-radius: 8px; font-size: 14.5px; font-weight: 500; min-height: 44px;
       }
       .menu-item:hover { background: var(--hover); }
-      .menu-item .check { flex: 0 0 auto; color: var(--accent); visibility: hidden; }
+      .menu-item .check { flex: 0 0 16px; width: 16px; display: inline-flex; align-items: center; justify-content: center; color: var(--accent); visibility: hidden; }
       .menu-item.on .check { visibility: visible; }
+      .menu-item .check.lead-icon { visibility: visible; color: var(--ink-2); }
       .menu-item .m-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .menu-item .m-icon { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2); }
       .menu-item.danger { color: var(--danger); }
@@ -1351,10 +1364,8 @@
         /* ---------------- sidebar rendering ---------------- */
         var docListEl = document.getElementById('docList');
         var outlineEl = document.getElementById('outlineList');
-        var confirmDeleteId = null;
         var confirmDeleteFolderId = null;
         var renamingFolderId = null;
-        var confirmTimer = null;
         var tagFilter = null;
         var moveMenuEl = document.getElementById('moveMenu');
         var moveMenuDocId = null;
@@ -1728,16 +1739,18 @@
             b.type = 'button';
             b.className = 'menu-item' + (docViewMode === mode ? ' on' : '');
             b.setAttribute('role', 'menuitem');
-            var check = document.createElement('span');
-            check.className = 'check';
-            check.innerHTML = CHECK_SVG;
-            b.appendChild(check);
-            if (icon) {
-              var ic = document.createElement('span');
-              ic.className = 'm-icon';
-              ic.innerHTML = icon;
-              b.appendChild(ic);
+            var lead = document.createElement('span');
+            if (docViewMode === mode || !icon) {
+              /* Leading slot: checkmark (visible only when this view is selected). */
+              lead.className = 'check';
+              lead.innerHTML = CHECK_SVG;
+            } else {
+              /* Unselected view: its icon occupies the same leading slot, so
+                 both items' labels start at the same x. */
+              lead.className = 'check lead-icon';
+              lead.innerHTML = icon;
             }
+            b.appendChild(lead);
             var s = document.createElement('span');
             s.className = 'm-label';
             s.textContent = label;
@@ -1801,41 +1814,6 @@
             openDocMenu(d.id, menuBtn);
           });
           btn.appendChild(menuBtn);
-          var move = document.createElement('span');
-          move.className = 'doc-act';
-          move.setAttribute('role', 'button');
-          move.setAttribute('aria-label', 'Move ' + (d.title || 'Untitled') + ' to a folder');
-          move.setAttribute('data-tip', lib.folders.length ? 'Move to folder' : 'Move to folder — create a folder first with the folder button above');
-          move.innerHTML = FOLDER_SVG;
-          move.addEventListener('click', function (ev) {
-            ev.stopPropagation();
-            openMoveMenu(move, d.id);
-          });
-          btn.appendChild(move);
-          if (lib.docs.length > 1) {
-            var del = document.createElement('span');
-            del.className = 'doc-del' + (confirmDeleteId === d.id ? ' confirm' : '');
-            del.setAttribute('role', 'button');
-            del.setAttribute('aria-label', 'Delete ' + d.title);
-            del.setAttribute('data-tip', confirmDeleteId === d.id ? 'Tap again to delete for good' : 'Delete document');
-            if (confirmDeleteId === d.id) {
-              del.textContent = 'Delete?';
-            } else {
-              del.innerHTML = TRASH_SVG;
-            }
-            del.addEventListener('click', function (ev) {
-              ev.stopPropagation();
-              if (confirmDeleteId === d.id) {
-                deleteDoc(d.id);
-              } else {
-                confirmDeleteId = d.id;
-                renderDocList();
-                if (confirmTimer) clearTimeout(confirmTimer);
-                confirmTimer = setTimeout(function () { confirmDeleteId = null; renderDocList(); }, 2600);
-              }
-            });
-            btn.appendChild(del);
-          }
           btn.addEventListener('click', function () {
             if (Date.now() - docLongPressAt < 400) return; // the long-press already opened the menu
             openDoc(d.id, true);
@@ -1846,7 +1824,7 @@
           });
           var docLpTimer = null;
           btn.addEventListener('pointerdown', function (ev) {
-            if (ev.target.closest && ev.target.closest('.doc-act, .doc-del')) return;
+            if (ev.target.closest && ev.target.closest('.doc-act')) return;
             docLpTimer = setTimeout(function () {
               docLpTimer = null;
               docLongPressAt = Date.now();
@@ -2432,7 +2410,6 @@
           if (!doc) return;
           persist(false);
           lib.currentId = id;
-          confirmDeleteId = null;
           document.getElementById('titleInput').value = doc.title;
           if (editorHandle) {
             editorHandle.setContent(doc.content);
@@ -2486,7 +2463,6 @@
           if (lib.docs.length <= 1) return;
           recordTombstone('docs', id);
           lib.docs = lib.docs.filter(function (d) { return d.id !== id; });
-          confirmDeleteId = null;
           if (lib.currentId === id) {
             lib.currentId = sortedDocs()[0].id;
             openDoc(lib.currentId, false);
