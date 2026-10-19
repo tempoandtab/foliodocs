@@ -1400,6 +1400,7 @@
         var docMenuDocId = null;
         var docMenuAnchor = null;
         var docLongPressAt = 0;
+        var secTapAt = 0; // last time watchSecondaryTap opened a menu itself
         var viewMenuEl = document.getElementById('viewMenu');
         var viewMenuOpen = false;
         var docViewMode = 'documents';
@@ -1804,6 +1805,80 @@
           applySectionCollapse();
         }
 
+        /* ---------------- secondary-tap detection ----------------
+           A mouse right-click and a trackpad two-finger CLICK both reach
+           the page as a real contextmenu event, and the rows' contextmenu
+           handlers open the app menu from it. A trackpad two-finger TAP
+           never produces one: iPadOS delivers it to Safari as a pair of
+           simultaneous touch pointers instead, so a page that only
+           listens for contextmenu never hears about the tap at all.
+           Watch the pointer stream on each row and open the same menu
+           for the tap shapes contextmenu misses:
+             - two touch pointers landing together and lifting quickly
+               with barely any drift (a tap, not a two-finger scroll);
+             - a secondary-button press whose contextmenu never arrives
+               (if it does arrive, it cancels this fallback and the
+               normal handler opens the menu).
+           Opening stamps secTapAt so a contextmenu that turns up late
+           cannot re-trigger the doc menu or toggle the folder menu
+           shut again, and each caller stamps its long-press timestamp
+           so the tap's trailing synthesized click cannot also open
+           the doc or collapse the folder underneath the menu. */
+        function watchSecondaryTap(el, openAt) {
+          var active = {};
+          var activeCount = 0;
+          var firstAt = 0, firstX = 0, firstY = 0;
+          var twoDown = false, moved = false;
+          var btnTimer = null;
+          el.addEventListener('pointerdown', function (ev) {
+            if (ev.button === 2) {
+              if (btnTimer) clearTimeout(btnTimer);
+              var bx = ev.clientX, by = ev.clientY;
+              btnTimer = setTimeout(function () {
+                btnTimer = null;
+                secTapAt = Date.now();
+                openAt(bx, by);
+              }, 350);
+              return;
+            }
+            if (ev.pointerType !== 'touch') return;
+            var now = Date.now();
+            if (activeCount === 0) {
+              firstAt = now; firstX = ev.clientX; firstY = ev.clientY;
+              twoDown = false; moved = false;
+            } else if (activeCount === 1 && now - firstAt <= 250) {
+              twoDown = true;
+            }
+            if (!active[ev.pointerId]) {
+              active[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+              activeCount++;
+            }
+          });
+          el.addEventListener('pointermove', function (ev) {
+            var p = active[ev.pointerId];
+            if (p && (Math.abs(ev.clientX - p.x) > 14 || Math.abs(ev.clientY - p.y) > 14)) moved = true;
+          });
+          el.addEventListener('pointerup', function (ev) {
+            if (!active[ev.pointerId]) return;
+            delete active[ev.pointerId];
+            activeCount--;
+            if (activeCount > 0) return;
+            var wasTap = twoDown && !moved && (Date.now() - firstAt <= 350);
+            twoDown = false;
+            if (wasTap) {
+              secTapAt = Date.now();
+              openAt(firstX, firstY);
+            }
+          });
+          el.addEventListener('pointercancel', function (ev) {
+            if (active[ev.pointerId]) { delete active[ev.pointerId]; activeCount--; }
+            if (activeCount === 0) twoDown = false;
+          });
+          el.addEventListener('contextmenu', function () {
+            if (btnTimer) { clearTimeout(btnTimer); btnTimer = null; }
+          });
+        }
+
         /* ---------------- document list ---------------- */
         function docItemEl(d) {
           var btn = document.createElement('button');
@@ -1839,11 +1914,13 @@
           });
           btn.addEventListener('contextmenu', function (ev) {
             ev.preventDefault();
+            if (Date.now() - secTapAt < 600) return; // the secondary tap already opened this menu
             openDocMenu(d.id, btn, ev.clientX, ev.clientY);
           });
           var docLpTimer = null;
           btn.addEventListener('pointerdown', function (ev) {
             if (ev.target.closest && ev.target.closest('.doc-act')) return;
+            if (!ev.isPrimary) return; // a second finger is a secondary tap, not a long-press
             docLpTimer = setTimeout(function () {
               docLpTimer = null;
               docLongPressAt = Date.now();
@@ -1854,6 +1931,10 @@
             btn.addEventListener(t, function () {
               if (docLpTimer) { clearTimeout(docLpTimer); docLpTimer = null; }
             });
+          });
+          watchSecondaryTap(btn, function (x, y) {
+            docLongPressAt = Date.now(); // swallow the tap's trailing click
+            openDocMenu(d.id, btn, x, y);
           });
           return btn;
         }
@@ -1930,12 +2011,14 @@
           head.addEventListener('contextmenu', function (ev) {
             if (renamingFolderId === f.id) return;
             ev.preventDefault();
+            if (Date.now() - secTapAt < 600) return; // the secondary tap already opened this menu
             openFolderMenu(f.id, head, ev.clientX, ev.clientY);
           });
           var lpTimer = null;
           head.addEventListener('pointerdown', function (ev) {
             if (renamingFolderId === f.id) return;
             if (ev.target.closest && ev.target.closest('button, input')) return;
+            if (!ev.isPrimary) return; // a second finger is a secondary tap, not a long-press
             lpTimer = setTimeout(function () {
               lpTimer = null;
               folderLongPressAt = Date.now();
@@ -1946,6 +2029,11 @@
             head.addEventListener(t, function () {
               if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
             });
+          });
+          watchSecondaryTap(head, function (x, y) {
+            if (renamingFolderId === f.id) return;
+            folderLongPressAt = Date.now(); // swallow the tap's trailing click
+            openFolderMenu(f.id, head, x, y);
           });
           wrap.appendChild(head);
           if (!collapsed) {
