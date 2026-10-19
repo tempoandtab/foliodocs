@@ -631,6 +631,23 @@
         -ms-user-select: text;
         user-select: text;
       }
+      /* The rules above alone did not stop the callout on a real iPad:
+         WebKit anchors the native edit menu to the exact label under
+         the finger or pointer, and a press that hit-tests to a row's
+         text span is still treated as a press on document text. Make
+         the rows' labels transparent to hit-testing so a press lands
+         on the row control itself (a button or the folder head), which
+         WebKit never offers up for text selection. Interactive children
+         (the ⋮ buttons, chevron toggles) keep receiving their presses,
+         and clicks still reach the rows through the control. */
+      .sidebar .doc-name, .sidebar .doc-dot, .sidebar .doc-star,
+      .sidebar .folder-name, .sidebar .folder-count, .sidebar .folder-badge,
+      .sidebar .folder-empty, .sidebar .side-empty, .sidebar .wordmark,
+      .sidebar .account-email, .sidebar .sync-state, .sidebar #docCount,
+      .sidebar .side-label-left > span:not(.side-chev),
+      .sidebar .docs-view-btn span {
+        pointer-events: none;
+      }
 
       /* ---------------- Move menu ---------------- */
       .menu {
@@ -3049,6 +3066,14 @@
         }, true);
         sidebarEl.addEventListener('gesturestart', function (ev) { ev.preventDefault(); });
         sidebarEl.addEventListener('gesturechange', function (ev) { ev.preventDefault(); });
+        /* Belt and braces: never let a selection begin in the sidebar.
+           The native edit menu is a selection menu, so a press that
+           cannot start a selection gives it nothing to present. Same
+           text-field exception as the contextmenu guard above. */
+        sidebarEl.addEventListener('selectstart', function (ev) {
+          if (ev.target.closest && ev.target.closest('input, textarea')) return;
+          ev.preventDefault();
+        }, true);
         document.addEventListener('pointerdown', function (ev) {
           if (suggestState.active && !suggestEl.contains(ev.target) && !ev.target.closest('#editorMount')) {
             suggestState.active = false;
