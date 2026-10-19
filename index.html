@@ -610,19 +610,21 @@
       @media (hover: none) {
         .doc-item .doc-act { display: inline-flex; }
       }
-      /* Suppress the native iOS long-press callout ("Writing Tools" etc.) on
-         sidebar folder and note rows so only the app's own context menu opens.
-         The editor is untouched: text selection stays available in documents. */
-      .folder-head, .doc-item,
-      .folder-head *, .doc-item * {
+      /* Keep the native iOS/iPadOS long-press callout ("Writing Tools",
+         Paste, Select…) out of the sidebar entirely: nothing in the panel
+         is document text, so selection and the touch callout are off for
+         the whole sidebar, not just the folder and note rows, and only the
+         app's own menus open there. The editor sits outside the sidebar
+         and keeps native text selection untouched. */
+      .sidebar, .sidebar * {
         -webkit-touch-callout: none;
         -webkit-user-select: none;
         -moz-user-select: none;
         -ms-user-select: none;
         user-select: none;
       }
-      /* The folder rename field is a real text input and must stay editable. */
-      .folder-head .folder-rename-input {
+      /* Real text fields inside the sidebar stay editable and selectable. */
+      .sidebar input, .sidebar textarea {
         -webkit-touch-callout: default;
         -webkit-user-select: text;
         -moz-user-select: text;
@@ -3032,6 +3034,21 @@
         document.getElementById('scrim').addEventListener('click', function () {
           document.body.classList.remove('nav-open');
         });
+        /* CSS user-select:none alone does not stop iPadOS from presenting
+           its native edit callout (Writing Tools / Paste / Select) on a
+           sidebar long-press or right-click: the callout rides on the
+           contextmenu and gesture events WebKit fires for the press.
+           Block those defaults anywhere inside the sidebar. The rows keep
+           their own long-press and right-click handlers, so the app's
+           menus still open, and plain taps/clicks are unaffected. Text
+           fields (folder rename) keep their native menu for pasting. */
+        var sidebarEl = document.getElementById('sidebar');
+        sidebarEl.addEventListener('contextmenu', function (ev) {
+          if (ev.target.closest && ev.target.closest('input, textarea')) return;
+          ev.preventDefault();
+        }, true);
+        sidebarEl.addEventListener('gesturestart', function (ev) { ev.preventDefault(); });
+        sidebarEl.addEventListener('gesturechange', function (ev) { ev.preventDefault(); });
         document.addEventListener('pointerdown', function (ev) {
           if (suggestState.active && !suggestEl.contains(ev.target) && !ev.target.closest('#editorMount')) {
             suggestState.active = false;
