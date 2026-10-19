@@ -38,6 +38,7 @@
         --tag-ink: #7c560c;
         --danger: #b3372a;
         --hover: rgba(34, 38, 31, 0.06);
+        --folder-bg: rgba(34, 38, 31, 0.05);
         --active: rgba(46, 107, 76, 0.14);
         --shadow: 0 12px 40px rgba(34, 38, 31, 0.18), 0 2px 8px rgba(34, 38, 31, 0.1);
         --paper-shadow: 0 1px 2px rgba(34, 38, 31, 0.05), 0 10px 34px rgba(34, 38, 31, 0.06);
@@ -59,6 +60,7 @@
         --tag-ink: #7d5a10;
         --danger: #b03a26;
         --hover: rgba(62, 47, 31, 0.07);
+        --folder-bg: rgba(62, 47, 31, 0.055);
         --shadow: 0 12px 40px rgba(62, 47, 31, 0.22), 0 2px 8px rgba(62, 47, 31, 0.12);
         --paper-shadow: 0 1px 2px rgba(62, 47, 31, 0.06), 0 10px 34px rgba(62, 47, 31, 0.09);
       }
@@ -84,6 +86,7 @@
         --tag-ink: #e6c87a;
         --danger: #e08a7d;
         --hover: rgba(236, 238, 230, 0.07);
+        --folder-bg: rgba(236, 238, 230, 0.055);
         --active: rgba(142, 199, 165, 0.16);
         --shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
         --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.35);
@@ -535,7 +538,14 @@
         width: 30px; height: 30px; border-radius: 7px; color: var(--accent);
       }
       .mini-btn:hover { background: var(--hover); }
-      .folder { margin-bottom: 2px; }
+      .folder {
+        margin-bottom: 8px;
+        padding: 3px 5px 5px;
+        border-radius: 12px;
+        background: var(--folder-bg);
+      }
+      .folder.tinted { background: color-mix(in srgb, var(--fb) 9%, transparent); }
+      :root[data-theme="midnight"] .folder.tinted { background: color-mix(in srgb, var(--fb) 17%, transparent); }
       .folder-head {
         display: flex; align-items: center; gap: 3px;
         padding: 4px 6px 4px 2px; border-radius: 9px; min-height: 38px; cursor: pointer;
@@ -1471,7 +1481,8 @@
           var docs = sortedDocs().filter(function (d) { return d.folderId === f.id; });
           var collapsed = !!lib.collapsedFolders[f.id];
           var wrap = document.createElement('div');
-          wrap.className = 'folder' + (collapsed ? ' collapsed' : '');
+          wrap.className = 'folder' + (collapsed ? ' collapsed' : '') + (f.color ? ' tinted' : '');
+          if (f.color) wrap.style.setProperty('--fb', f.color);
           var head = document.createElement('div');
           head.className = 'folder-head';
           var toggle = document.createElement('button');
