@@ -577,13 +577,11 @@
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 45%, transparent);
         color: color-mix(in srgb, var(--fb) 60%, #ffffff);
       }
-      .folder-act {
+      .folder-menu-btn {
         width: 30px; height: 30px; border-radius: 7px; flex: 0 0 auto;
-        display: none; align-items: center; justify-content: center; color: var(--ink-2);
+        display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2);
       }
-      .folder-head:hover .folder-act { display: inline-flex; }
-      .folder-act:hover { background: var(--hover); color: var(--ink); }
-      .folder-act.confirm { display: inline-flex; width: auto; padding: 0 9px; background: var(--danger); color: #fff; font-size: 12px; font-weight: 700; }
+      .folder-menu-btn:hover { background: var(--hover); color: var(--ink); }
       .folder-rename-input {
         flex: 1; min-width: 0; font: inherit; font-size: 13.5px; font-weight: 700;
         padding: 5px 7px; border-radius: 6px; border: 1px solid var(--accent);
@@ -599,7 +597,6 @@
       .doc-item .doc-act:hover { background: var(--hover); color: var(--ink); }
       @media (hover: none) {
         .doc-item .doc-act { display: inline-flex; }
-        .folder-act { display: inline-flex; }
       }
 
       /* ---------------- Move menu ---------------- */
@@ -621,6 +618,12 @@
       .menu-item .check { flex: 0 0 auto; color: var(--accent); visibility: hidden; }
       .menu-item.on .check { visibility: visible; }
       .menu-item .m-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .menu-item .m-icon { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2); }
+      .menu-item.danger { color: var(--danger); }
+      .menu-item.danger .m-icon { color: var(--danger); }
+      .menu-item.danger.confirm { background: var(--danger); color: #fff; font-weight: 700; }
+      .menu-item.danger.confirm .m-icon { color: #fff; }
+      .menu-sep { height: 1px; background: var(--line-soft); margin: 5px 4px; }
 
       /* ---------------- Theme popover ---------------- */
       .theme-pop {
@@ -982,6 +985,7 @@
     </div>
 
     <div class="menu" id="moveMenu" role="menu" aria-label="Move document to a folder"></div>
+    <div class="menu" id="folderMenu" role="menu" aria-label="Folder actions"></div>
     <div class="fmt-pop" id="fmtPop" hidden role="dialog" aria-label="Color choices">
       <div class="pop-label" id="fmtPopLabel">Highlight</div>
       <div class="fmt-swatches" id="fmtSwatches"></div>
@@ -1292,6 +1296,11 @@
         var tagFilter = null;
         var moveMenuEl = document.getElementById('moveMenu');
         var moveMenuDocId = null;
+        var folderMenuEl = document.getElementById('folderMenu');
+        var folderMenuId = null;
+        var folderMenuConfirmId = null;
+        var folderMenuAnchor = null;
+        var folderMenuTimer = null;
         var folderPopEl = document.getElementById('folderPop');
         var folderPopId = null;
         var folderLongPressAt = 0;
@@ -1300,6 +1309,9 @@
         var FOLDER_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
         var PALETTE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3-4 3h-2.18a2.4 2.4 0 0 0-1.87 4c.57.6.53 1.47-.12 2.05A2.42 2.42 0 0 1 12 22Z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/></svg>';
         var CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+        var MORE_V_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>';
+        var PLUS_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+        var PENCIL_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>';
 
         /* ---------------- tags ---------------- */
         function docTags(doc) {
@@ -1391,6 +1403,7 @@
         }
         function openMoveMenu(anchor, docId) {
           if (moveMenuDocId === docId && moveMenuEl.classList.contains('open')) { closeMoveMenu(); return; }
+          closeFolderMenu();
           var doc = lib.docs.find(function (d) { return d.id === docId; });
           if (!doc) return;
           moveMenuDocId = docId;
@@ -1427,6 +1440,95 @@
           var menuH = 84 + lib.folders.length * 48;
           moveMenuEl.style.left = Math.max(8, Math.min(r.left - 120, window.innerWidth - 232)) + 'px';
           moveMenuEl.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - menuH - 8)) + 'px';
+        }
+
+        /* ---------------- folder context menu ---------------- */
+        function closeFolderMenu() {
+          folderMenuEl.className = 'menu';
+          folderMenuEl.innerHTML = '';
+          folderMenuId = null;
+          folderMenuConfirmId = null;
+          folderMenuAnchor = null;
+          if (folderMenuTimer) { clearTimeout(folderMenuTimer); folderMenuTimer = null; }
+        }
+        function buildFolderMenu(f) {
+          folderMenuEl.innerHTML = '';
+          function item(icon, label, cls, fn) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'menu-item' + (cls ? ' ' + cls : '');
+            b.setAttribute('role', 'menuitem');
+            var ic = document.createElement('span');
+            ic.className = 'm-icon';
+            ic.innerHTML = icon;
+            b.appendChild(ic);
+            var s = document.createElement('span');
+            s.className = 'm-label';
+            s.textContent = label;
+            b.appendChild(s);
+            b.addEventListener('click', fn);
+            folderMenuEl.appendChild(b);
+            return b;
+          }
+          item(PLUS_SVG, 'New note in folder', '', function () {
+            closeFolderMenu();
+            createDocInFolder(f.id);
+          });
+          item(PALETTE_SVG, 'Edit folder (icon & color)', '', function () {
+            var anchor = folderMenuAnchor;
+            closeFolderMenu();
+            openFolderPop(f.id, anchor || folderMenuEl, true);
+          });
+          item(PENCIL_SVG, 'Rename', '', function () {
+            closeFolderMenu();
+            renamingFolderId = f.id;
+            confirmDeleteFolderId = null;
+            renderDocList();
+          });
+          var sep = document.createElement('div');
+          sep.className = 'menu-sep';
+          folderMenuEl.appendChild(sep);
+          var confirming = folderMenuConfirmId === f.id;
+          item(TRASH_SVG, confirming ? 'Confirm delete' : 'Delete', 'danger' + (confirming ? ' confirm' : ''), function () {
+            if (folderMenuConfirmId === f.id) {
+              closeFolderMenu();
+              deleteFolder(f.id);
+            } else {
+              folderMenuConfirmId = f.id;
+              buildFolderMenu(f);
+              if (folderMenuTimer) clearTimeout(folderMenuTimer);
+              folderMenuTimer = setTimeout(function () {
+                folderMenuTimer = null;
+                if (folderMenuId === f.id) { folderMenuConfirmId = null; buildFolderMenu(f); }
+              }, 2600);
+            }
+          });
+        }
+        function openFolderMenu(folderId, anchor, x, y) {
+          var f = lib.folders.find(function (fx) { return fx.id === folderId; });
+          if (!f) return;
+          if (anchor && folderMenuId === folderId && folderMenuEl.classList.contains('open')) { closeFolderMenu(); return; }
+          closeMoveMenu();
+          closeFolderPop();
+          closeFmtPop();
+          folderMenuId = folderId;
+          folderMenuConfirmId = null;
+          folderMenuAnchor = anchor || null;
+          buildFolderMenu(f);
+          folderMenuEl.className = 'menu open';
+          var w = 224, h = folderMenuEl.offsetHeight;
+          var left, top;
+          if (typeof x === 'number' && typeof y === 'number') {
+            left = x; top = y;
+          } else if (anchor) {
+            var r = anchor.getBoundingClientRect();
+            left = r.right - w; top = r.bottom + 6;
+            if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+          } else {
+            left = 8; top = 8;
+          }
+          folderMenuEl.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
+          folderMenuEl.style.top = Math.max(8, Math.min(top, window.innerHeight - h - 8)) + 'px';
         }
 
         /* ---------------- document list ---------------- */
@@ -1526,67 +1628,22 @@
             count.className = 'folder-count';
             count.textContent = docs.length;
             head.appendChild(count);
-            var addBtn = document.createElement('button');
-            addBtn.type = 'button';
-            addBtn.className = 'folder-act';
-            addBtn.setAttribute('aria-label', 'New document in ' + f.name);
-            addBtn.setAttribute('data-tip', 'New document in this folder');
-            addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
-            addBtn.addEventListener('click', function (ev) {
+            var menuBtn = document.createElement('button');
+            menuBtn.type = 'button';
+            menuBtn.className = 'folder-menu-btn';
+            menuBtn.setAttribute('aria-label', 'Actions for folder ' + f.name);
+            menuBtn.setAttribute('aria-haspopup', 'menu');
+            menuBtn.setAttribute('data-tip', 'Folder actions');
+            menuBtn.innerHTML = MORE_V_SVG;
+            menuBtn.addEventListener('click', function (ev) {
               ev.stopPropagation();
-              createDocInFolder(f.id);
+              openFolderMenu(f.id, head);
             });
-            head.appendChild(addBtn);
-            var editBtn = document.createElement('button');
-            editBtn.type = 'button';
-            editBtn.className = 'folder-act folder-edit-act';
-            editBtn.setAttribute('aria-label', 'Edit folder ' + f.name + ' — icon and color');
-            editBtn.setAttribute('data-tip', 'Folder icon & color');
-            editBtn.innerHTML = PALETTE_SVG;
-            editBtn.addEventListener('click', function (ev) {
-              ev.stopPropagation();
-              openFolderPop(f.id, editBtn);
-            });
-            head.appendChild(editBtn);
-            var ren = document.createElement('button');
-            ren.type = 'button';
-            ren.className = 'folder-act';
-            ren.setAttribute('aria-label', 'Rename folder ' + f.name);
-            ren.setAttribute('data-tip', 'Rename folder');
-            ren.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>';
-            ren.addEventListener('click', function (ev) {
-              ev.stopPropagation();
-              renamingFolderId = f.id;
-              confirmDeleteFolderId = null;
-              renderDocList();
-            });
-            head.appendChild(ren);
-            var del = document.createElement('button');
-            del.type = 'button';
-            del.className = 'folder-act' + (confirmDeleteFolderId === f.id ? ' confirm' : '');
-            del.setAttribute('aria-label', 'Delete folder ' + f.name);
-            del.setAttribute('data-tip', confirmDeleteFolderId === f.id ? 'Tap again to delete — documents inside move out, they are not deleted' : 'Delete folder (documents inside move out)');
-            if (confirmDeleteFolderId === f.id) {
-              del.textContent = 'Delete?';
-            } else {
-              del.innerHTML = TRASH_SVG;
-            }
-            del.addEventListener('click', function (ev) {
-              ev.stopPropagation();
-              if (confirmDeleteFolderId === f.id) {
-                deleteFolder(f.id);
-              } else {
-                confirmDeleteFolderId = f.id;
-                renderDocList();
-                if (confirmTimer) clearTimeout(confirmTimer);
-                confirmTimer = setTimeout(function () { confirmDeleteFolderId = null; renderDocList(); }, 2600);
-              }
-            });
-            head.appendChild(del);
+            head.appendChild(menuBtn);
           }
           head.addEventListener('click', function () {
             if (renamingFolderId === f.id) return;
-            if (Date.now() - folderLongPressAt < 400) return; // the long-press already opened the editor
+            if (Date.now() - folderLongPressAt < 400) return; // the long-press already opened the menu
             lib.collapsedFolders[f.id] = !lib.collapsedFolders[f.id];
             persist(false);
             renderDocList();
@@ -1594,7 +1651,7 @@
           head.addEventListener('contextmenu', function (ev) {
             if (renamingFolderId === f.id) return;
             ev.preventDefault();
-            if (folderPopId !== f.id) openFolderPop(f.id, head, true);
+            openFolderMenu(f.id, head, ev.clientX, ev.clientY);
           });
           var lpTimer = null;
           head.addEventListener('pointerdown', function (ev) {
@@ -1603,7 +1660,7 @@
             lpTimer = setTimeout(function () {
               lpTimer = null;
               folderLongPressAt = Date.now();
-              openFolderPop(f.id, head, true);
+              openFolderMenu(f.id, head, ev.clientX, ev.clientY);
             }, 550);
           });
           ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (t) {
@@ -1618,7 +1675,7 @@
             if (!docs.length) {
               var empty = document.createElement('div');
               empty.className = 'folder-empty';
-              empty.textContent = 'Empty — use the + button on this folder to start a document here.';
+              empty.textContent = 'Empty — use this folder\u2019s \u22EE menu to start a document here.';
               box.appendChild(empty);
             }
             docs.forEach(function (d) { box.appendChild(docItemEl(d)); });
@@ -1781,6 +1838,7 @@
           if (!f) return;
           if (folderPopId === folderId && !folderPopEl.hidden && !force) { closeFolderPop(); return; }
           closeMoveMenu();
+          closeFolderMenu();
           closeFmtPop();
           folderPopId = folderId;
           buildFolderPop(f);
@@ -2652,24 +2710,29 @@
           if (moveMenuDocId && !moveMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('.doc-act'))) {
             closeMoveMenu();
           }
+          if (folderMenuId && !folderMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('.folder-menu-btn'))) {
+            closeFolderMenu();
+          }
           if (!themePop.hidden && !themePop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#themeBtn'))) {
             closeThemePop();
           }
           if (!fmtPop.hidden && !fmtPop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#hlBtn, #colorBtn'))) {
             closeFmtPop();
           }
-          if (!folderPopEl.hidden && !folderPopEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('.folder-edit-act'))) {
+          if (!folderPopEl.hidden && !folderPopEl.contains(ev.target)) {
             closeFolderPop();
           }
           hideTip();
         });
         document.querySelector('.sidebar-scroll').addEventListener('scroll', function () {
           if (moveMenuDocId) closeMoveMenu();
+          if (folderMenuId) closeFolderMenu();
           if (!folderPopEl.hidden) closeFolderPop();
         }, { passive: true });
         document.addEventListener('keydown', function (ev) {
           if (ev.key === 'Escape') {
             if (moveMenuDocId) closeMoveMenu();
+            if (folderMenuId) closeFolderMenu();
             if (!themePop.hidden) closeThemePop();
             if (!fmtPop.hidden) closeFmtPop();
             if (!folderPopEl.hidden) closeFolderPop();
