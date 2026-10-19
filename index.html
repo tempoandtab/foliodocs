@@ -195,6 +195,25 @@
         align-items: center;
         justify-content: space-between;
       }
+      .side-label-left { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
+      .side-label.clickable { cursor: pointer; }
+      .side-chev {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 20px; height: 22px; border-radius: 5px; color: var(--ink-3); flex: 0 0 auto;
+      }
+      .side-chev svg { transition: transform 0.15s ease; }
+      .side-section.is-collapsed .side-chev svg { transform: rotate(-90deg); }
+      .side-section.is-collapsed > :not(.side-label) { display: none; }
+      .docs-view-btn {
+        display: inline-flex; align-items: center; gap: 4px;
+        font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+        padding: 3px 5px; border-radius: 6px;
+      }
+      .docs-view-btn:hover { background: var(--hover); color: var(--sidebar-ink); }
+      .side-hr { border: 0; border-top: 1px solid var(--line); margin: 6px 8px 4px; }
+      .doc-star { flex: 0 0 auto; display: inline-flex; color: #b07d10; }
+      .doc-star svg { width: 13px; height: 13px; }
+      :root[data-theme="midnight"] .doc-star { color: #e3b95c; }
       .new-doc-btn {
         display: inline-flex; align-items: center; gap: 4px;
         font-size: 12px; font-weight: 600; letter-spacing: 0;
@@ -679,6 +698,13 @@
       .btn-primary:hover { filter: brightness(1.07); }
       .btn-primary:disabled { opacity: 0.55; cursor: default; filter: none; }
       .btn-primary.wide { width: 100%; }
+      .btn-danger {
+        display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+        background: var(--danger); color: #fff;
+        font-size: 14.5px; font-weight: 600;
+        padding: 11px 18px; border-radius: 10px; min-height: 46px;
+      }
+      .btn-danger:hover { filter: brightness(1.07); }
       .btn-ghost {
         display: inline-flex; align-items: center; justify-content: center;
         font-size: 13.5px; font-weight: 600; color: var(--accent);
@@ -856,6 +882,7 @@
         .sidebar { transition: none; }
         .folio-prose h1, .folio-prose h2, .folio-prose h3, .folio-prose h4 { transition: none; }
         .folder-toggle svg { transition: none; }
+        .side-chev svg { transition: none; }
         .tooltip { transition: none; }
       }
     </style>
@@ -867,9 +894,12 @@
           <div class="wordmark">FolioDocs<em>.</em></div>
         </div>
         <div class="sidebar-scroll">
-          <div class="side-section">
+          <div class="side-section" id="docsSection">
             <div class="side-label">
-              <span>Documents</span>
+              <span class="side-label-left">
+                <span class="side-chev" data-chev="documents" role="button" aria-label="Collapse or expand the Documents section" data-tip="Collapse / expand section"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+                <button class="docs-view-btn" id="docsViewBtn" type="button" aria-haspopup="menu" aria-expanded="false" data-tip="Switch between Documents and Favorites"><span id="docsViewLabel">Documents</span><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+              </span>
               <span class="side-label-actions">
                 <button class="mini-btn" id="newFolderBtn" type="button" aria-label="New folder" data-tip="New folder">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/></svg>
@@ -887,12 +917,24 @@
             <div class="side-label"><span>Tags</span></div>
             <div class="backlink-row" id="tagList"></div>
           </div>
-          <div class="side-section">
-            <div class="side-label"><span>Outline</span></div>
+          <div class="side-section" id="outlineSection">
+            <hr class="side-hr" />
+            <div class="side-label clickable">
+              <span class="side-label-left">
+                <span class="side-chev" data-chev="outline" role="button" aria-label="Collapse or expand the Outline section" data-tip="Collapse / expand section"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+                <span>Outline</span>
+              </span>
+            </div>
             <div id="outlineList"></div>
           </div>
           <div class="side-section" id="backlinkSection" hidden>
-            <div class="side-label"><span>Linked from</span></div>
+            <hr class="side-hr" />
+            <div class="side-label clickable">
+              <span class="side-label-left">
+                <span class="side-chev" data-chev="backlinks" role="button" aria-label="Collapse or expand the Linked from section" data-tip="Collapse / expand section"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+                <span>Linked from</span>
+              </span>
+            </div>
             <div class="backlink-row" id="backlinkList"></div>
           </div>
         </div>
@@ -986,6 +1028,8 @@
 
     <div class="menu" id="moveMenu" role="menu" aria-label="Move document to a folder"></div>
     <div class="menu" id="folderMenu" role="menu" aria-label="Folder actions"></div>
+    <div class="menu" id="docMenu" role="menu" aria-label="Document actions"></div>
+    <div class="menu" id="viewMenu" role="menu" aria-label="Switch document list view"></div>
     <div class="fmt-pop" id="fmtPop" hidden role="dialog" aria-label="Color choices">
       <div class="pop-label" id="fmtPopLabel">Highlight</div>
       <div class="fmt-swatches" id="fmtSwatches"></div>
@@ -1030,6 +1074,22 @@
           <div id="shareList"></div>
           <div class="pop-label" style="margin-top:14px">Comments</div>
           <div id="ownerComments"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="deleteModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" style="max-width:440px">
+        <div class="panel-head">
+          <h2 id="deleteTitle">Delete document?</h2>
+          <button class="icon-btn" id="deleteClose" type="button" aria-label="Cancel delete" data-tip="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note">&ldquo;<span id="deleteDocName"></span>&rdquo; will be permanently deleted. This can&rsquo;t be undone.</p>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+          <button class="btn-ghost" id="deleteCancel" type="button">Cancel</button>
+          <button class="btn-danger" id="deleteConfirm" type="button">Delete</button>
         </div>
       </div>
     </div>
@@ -1252,9 +1312,11 @@
           if (typeof f.icon !== 'string' || !f.icon) f.icon = null;
           if (typeof f.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(f.color)) f.color = null;
         });
+        if (!lib.collapsedSections || typeof lib.collapsedSections !== 'object') lib.collapsedSections = {};
         lib.docs.forEach(function (d) {
           if (d.folderId === undefined) d.folderId = null;
           if (d.folderId && !lib.folders.some(function (f) { return f.id === d.folderId; })) d.folderId = null;
+          d.favorite = !!d.favorite;
         });
 
         var saveTimer = null;
@@ -1304,12 +1366,22 @@
         var folderPopEl = document.getElementById('folderPop');
         var folderPopId = null;
         var folderLongPressAt = 0;
+        var docMenuEl = document.getElementById('docMenu');
+        var docMenuDocId = null;
+        var docMenuAnchor = null;
+        var docLongPressAt = 0;
+        var viewMenuEl = document.getElementById('viewMenu');
+        var viewMenuOpen = false;
+        var docViewMode = 'documents';
+        var pendingDeleteDocId = null;
 
         var TRASH_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6"/></svg>';
         var FOLDER_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
         var PALETTE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3-4 3h-2.18a2.4 2.4 0 0 0-1.87 4c.57.6.53 1.47-.12 2.05A2.42 2.42 0 0 1 12 22Z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/></svg>';
         var CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
         var MORE_V_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>';
+        var STAR_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
+        var STAR_O_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
         var PLUS_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
         var PENCIL_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>';
 
@@ -1348,6 +1420,7 @@
         }
         function setTagFilter(key) {
           tagFilter = key;
+          if (key) docViewMode = 'documents';
           renderTagFilterBar();
           renderTagsSection();
           renderDocList();
@@ -1404,6 +1477,8 @@
         function openMoveMenu(anchor, docId) {
           if (moveMenuDocId === docId && moveMenuEl.classList.contains('open')) { closeMoveMenu(); return; }
           closeFolderMenu();
+          closeDocMenu();
+          closeViewMenu();
           var doc = lib.docs.find(function (d) { return d.id === docId; });
           if (!doc) return;
           moveMenuDocId = docId;
@@ -1511,6 +1586,8 @@
           closeMoveMenu();
           closeFolderPop();
           closeFmtPop();
+          closeDocMenu();
+          closeViewMenu();
           folderMenuId = folderId;
           folderMenuConfirmId = null;
           folderMenuAnchor = anchor || null;
@@ -1531,6 +1608,170 @@
           folderMenuEl.style.top = Math.max(8, Math.min(top, window.innerHeight - h - 8)) + 'px';
         }
 
+        /* ---------------- document context menu ---------------- */
+        function closeDocMenu() {
+          docMenuEl.className = 'menu';
+          docMenuEl.innerHTML = '';
+          docMenuDocId = null;
+          docMenuAnchor = null;
+        }
+        function buildDocMenu(d) {
+          docMenuEl.innerHTML = '';
+          function item(icon, label, cls, fn) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'menu-item' + (cls ? ' ' + cls : '');
+            b.setAttribute('role', 'menuitem');
+            var ic = document.createElement('span');
+            ic.className = 'm-icon';
+            ic.innerHTML = icon;
+            b.appendChild(ic);
+            var s = document.createElement('span');
+            s.className = 'm-label';
+            s.textContent = label;
+            b.appendChild(s);
+            b.addEventListener('click', fn);
+            docMenuEl.appendChild(b);
+            return b;
+          }
+          item(d.favorite ? STAR_SVG : STAR_O_SVG, d.favorite ? 'Unfavorite' : 'Favorite', '', function () {
+            closeDocMenu();
+            toggleFavorite(d.id);
+          });
+          item(FOLDER_SVG, 'Move to folder', '', function () {
+            var anchor = docMenuAnchor;
+            closeDocMenu();
+            if (anchor) openMoveMenu(anchor, d.id);
+          });
+          if (lib.docs.length > 1) {
+            var sep = document.createElement('div');
+            sep.className = 'menu-sep';
+            docMenuEl.appendChild(sep);
+            item(TRASH_SVG, 'Delete', 'danger', function () {
+              closeDocMenu();
+              openDeleteModal(d.id);
+            });
+          }
+        }
+        function openDocMenu(docId, anchor, x, y) {
+          var d = lib.docs.find(function (dx) { return dx.id === docId; });
+          if (!d) return;
+          if (anchor && typeof x !== 'number' && docMenuDocId === docId && docMenuEl.classList.contains('open')) { closeDocMenu(); return; }
+          closeMoveMenu();
+          closeFolderMenu();
+          closeFolderPop();
+          closeFmtPop();
+          closeViewMenu();
+          docMenuDocId = docId;
+          docMenuAnchor = anchor || null;
+          buildDocMenu(d);
+          docMenuEl.className = 'menu open';
+          var w = 224, h = docMenuEl.offsetHeight;
+          var left, top;
+          if (typeof x === 'number' && typeof y === 'number') { left = x; top = y; }
+          else if (anchor) {
+            var r = anchor.getBoundingClientRect();
+            left = r.right - w; top = r.bottom + 6;
+            if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+          } else { left = 8; top = 8; }
+          docMenuEl.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
+          docMenuEl.style.top = Math.max(8, Math.min(top, window.innerHeight - h - 8)) + 'px';
+        }
+        function toggleFavorite(id) {
+          var d = lib.docs.find(function (dx) { return dx.id === id; });
+          if (!d) return;
+          d.favorite = !d.favorite;
+          persist(true);
+          renderDocList();
+        }
+
+        /* ---------------- delete confirmation modal ---------------- */
+        function openDeleteModal(id) {
+          var d = lib.docs.find(function (dx) { return dx.id === id; });
+          if (!d) return;
+          pendingDeleteDocId = id;
+          document.getElementById('deleteDocName').textContent = d.title || 'Untitled';
+          document.getElementById('deleteModal').hidden = false;
+        }
+        function closeDeleteModal() {
+          document.getElementById('deleteModal').hidden = true;
+          pendingDeleteDocId = null;
+        }
+
+        /* ---------------- Documents / Favorites switcher ---------------- */
+        function closeViewMenu() {
+          viewMenuEl.className = 'menu';
+          viewMenuEl.innerHTML = '';
+          viewMenuOpen = false;
+          var btn = document.getElementById('docsViewBtn');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+        function renderDocsViewLabel() {
+          var label = document.getElementById('docsViewLabel');
+          if (label) label.textContent = docViewMode === 'favorites' ? 'Favorites' : 'Documents';
+        }
+        function setDocViewMode(mode) {
+          docViewMode = mode === 'favorites' ? 'favorites' : 'documents';
+          renderDocsViewLabel();
+          renderDocList();
+        }
+        function openViewMenu(anchor) {
+          if (viewMenuOpen) { closeViewMenu(); return; }
+          closeMoveMenu();
+          closeFolderMenu();
+          closeDocMenu();
+          closeFolderPop();
+          closeFmtPop();
+          viewMenuEl.innerHTML = '';
+          function item(label, icon, mode) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'menu-item' + (docViewMode === mode ? ' on' : '');
+            b.setAttribute('role', 'menuitem');
+            var check = document.createElement('span');
+            check.className = 'check';
+            check.innerHTML = CHECK_SVG;
+            b.appendChild(check);
+            if (icon) {
+              var ic = document.createElement('span');
+              ic.className = 'm-icon';
+              ic.innerHTML = icon;
+              b.appendChild(ic);
+            }
+            var s = document.createElement('span');
+            s.className = 'm-label';
+            s.textContent = label;
+            b.appendChild(s);
+            b.addEventListener('click', function () { closeViewMenu(); setDocViewMode(mode); });
+            viewMenuEl.appendChild(b);
+          }
+          item('Documents', null, 'documents');
+          item('Favorites', STAR_SVG, 'favorites');
+          viewMenuEl.className = 'menu open';
+          viewMenuOpen = true;
+          document.getElementById('docsViewBtn').setAttribute('aria-expanded', 'true');
+          var r = anchor.getBoundingClientRect();
+          var w = 224, h = viewMenuEl.offsetHeight;
+          viewMenuEl.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+          var top = r.bottom + 6;
+          if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+          viewMenuEl.style.top = top + 'px';
+        }
+
+        /* ---------------- collapsible sidebar sections ---------------- */
+        function applySectionCollapse() {
+          var map = { docsSection: 'documents', outlineSection: 'outline', backlinkSection: 'backlinks' };
+          Object.keys(map).forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.classList.toggle('is-collapsed', !!lib.collapsedSections[map[id]]);
+          });
+        }
+        function toggleSection(key) {
+          lib.collapsedSections[key] = !lib.collapsedSections[key];
+          persist(false);
+          applySectionCollapse();
+        }
+
         /* ---------------- document list ---------------- */
         function docItemEl(d) {
           var btn = document.createElement('button');
@@ -1538,8 +1779,28 @@
           btn.className = 'doc-item' + (d.id === lib.currentId ? ' current' : '');
           btn.setAttribute('data-tip', d.title || 'Untitled');
           var dot = document.createElement('span'); dot.className = 'doc-dot';
+          btn.appendChild(dot);
+          if (d.favorite) {
+            var star = document.createElement('span');
+            star.className = 'doc-star';
+            star.innerHTML = STAR_SVG;
+            star.setAttribute('aria-label', 'Favorited');
+            btn.appendChild(star);
+          }
           var name = document.createElement('span'); name.className = 'doc-name'; name.textContent = d.title || 'Untitled';
-          btn.appendChild(dot); btn.appendChild(name);
+          btn.appendChild(name);
+          var menuBtn = document.createElement('span');
+          menuBtn.className = 'doc-act doc-menu-btn';
+          menuBtn.setAttribute('role', 'button');
+          menuBtn.setAttribute('aria-label', 'Actions for ' + (d.title || 'Untitled'));
+          menuBtn.setAttribute('aria-haspopup', 'menu');
+          menuBtn.setAttribute('data-tip', 'Note actions — favorite, move, delete');
+          menuBtn.innerHTML = MORE_V_SVG;
+          menuBtn.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            openDocMenu(d.id, menuBtn);
+          });
+          btn.appendChild(menuBtn);
           var move = document.createElement('span');
           move.className = 'doc-act';
           move.setAttribute('role', 'button');
@@ -1575,7 +1836,28 @@
             });
             btn.appendChild(del);
           }
-          btn.addEventListener('click', function () { openDoc(d.id, true); });
+          btn.addEventListener('click', function () {
+            if (Date.now() - docLongPressAt < 400) return; // the long-press already opened the menu
+            openDoc(d.id, true);
+          });
+          btn.addEventListener('contextmenu', function (ev) {
+            ev.preventDefault();
+            openDocMenu(d.id, btn, ev.clientX, ev.clientY);
+          });
+          var docLpTimer = null;
+          btn.addEventListener('pointerdown', function (ev) {
+            if (ev.target.closest && ev.target.closest('.doc-act, .doc-del')) return;
+            docLpTimer = setTimeout(function () {
+              docLpTimer = null;
+              docLongPressAt = Date.now();
+              openDocMenu(d.id, btn, ev.clientX, ev.clientY);
+            }, 550);
+          });
+          ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (t) {
+            btn.addEventListener(t, function () {
+              if (docLpTimer) { clearTimeout(docLpTimer); docLpTimer = null; }
+            });
+          });
           return btn;
         }
 
@@ -1854,7 +2136,17 @@
 
         function renderDocList() {
           docListEl.innerHTML = '';
-          if (tagFilter) {
+          renderDocsViewLabel();
+          if (!tagFilter && docViewMode === 'favorites') {
+            var favs = sortedDocs().filter(function (d) { return d.favorite; });
+            if (!favs.length) {
+              var noFav = document.createElement('div');
+              noFav.className = 'side-empty';
+              noFav.textContent = 'No favorites yet — open a note\u2019s \u22EE menu and choose Favorite to pin it here.';
+              docListEl.appendChild(noFav);
+            }
+            favs.forEach(function (d) { docListEl.appendChild(docItemEl(d)); });
+          } else if (tagFilter) {
             var matches = sortedDocs().filter(function (d) {
               return docTags(d).some(function (t) { return t.key === tagFilter; });
             });
@@ -2162,6 +2454,7 @@
             title: title || 'Untitled',
             content: { type: 'doc', content: [{ type: 'paragraph' }] },
             folderId: null,
+            favorite: false,
             updated: Date.now(),
           };
           lib.docs.push(doc);
@@ -2637,6 +2930,48 @@
           }
         });
 
+        /* ---------------- surround selection on typing ---------------- */
+        // Typing an opener with text selected wraps the selection in the
+        // matching pair instead of replacing it, and keeps the inner text
+        // selected. keydown covers hardware keyboards; beforeinput covers
+        // the iPad software keyboard, which often reports keys as
+        // 'Unidentified' on keydown. The lastSurround guard keeps one
+        // keystroke from wrapping twice when both events fire.
+        var SURROUND_PAIRS = { '"': '"', "'": "'", '(': ')', '[': ']', '{': '}', '<': '>' };
+        var lastSurround = null;
+        function trySurround(openCh) {
+          var closeCh = SURROUND_PAIRS[openCh];
+          if (!closeCh || !editorHandle) return false;
+          if (suggestState.active || tagSuggestState.active) return false;
+          var ed = editorHandle.editor;
+          if (!ed || ed.isEditable === false) return false;
+          var sel = ed.state.selection;
+          if (!sel || sel.empty || sel.node) return false;
+          var now = Date.now();
+          if (lastSurround && lastSurround.ch === openCh && now - lastSurround.at < 50 &&
+              sel.from === lastSurround.from && sel.to === lastSurround.to) {
+            return true; // this keystroke was already handled via the other event path
+          }
+          var from = sel.from, to = sel.to;
+          var tr = ed.state.tr;
+          tr.insertText(closeCh, to);
+          tr.insertText(openCh, from);
+          ed.view.dispatch(tr);
+          ed.chain().setTextSelection({ from: from + 1, to: to + 1 }).run();
+          lastSurround = { ch: openCh, from: from + 1, to: to + 1, at: now };
+          return true;
+        }
+        document.getElementById('editorMount').addEventListener('keydown', function (ev) {
+          if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.isComposing) return;
+          if (ev.key && ev.key.length === 1 && SURROUND_PAIRS[ev.key] && trySurround(ev.key)) {
+            ev.preventDefault();
+          }
+        });
+        document.getElementById('editorMount').addEventListener('beforeinput', function (ev) {
+          if (ev.inputType !== 'insertText' || !ev.data || ev.data.length !== 1) return;
+          if (SURROUND_PAIRS[ev.data] && trySurround(ev.data)) ev.preventDefault();
+        });
+
         /* ---------------- title editing ---------------- */
         var titleInput = document.getElementById('titleInput');
         titleInput.addEventListener('input', function () {
@@ -2684,6 +3019,29 @@
           titleInput.focus();
           titleInput.select();
         });
+        document.getElementById('docsViewBtn').addEventListener('click', function () {
+          openViewMenu(this);
+        });
+        document.querySelector('#docsSection .side-chev').addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          toggleSection('documents');
+        });
+        document.querySelector('#outlineSection .side-label').addEventListener('click', function () {
+          toggleSection('outline');
+        });
+        document.querySelector('#backlinkSection .side-label').addEventListener('click', function () {
+          toggleSection('backlinks');
+        });
+        document.getElementById('deleteCancel').addEventListener('click', closeDeleteModal);
+        document.getElementById('deleteClose').addEventListener('click', closeDeleteModal);
+        document.getElementById('deleteConfirm').addEventListener('click', function () {
+          var id = pendingDeleteDocId;
+          closeDeleteModal();
+          if (id) deleteDoc(id);
+        });
+        document.getElementById('deleteModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeDeleteModal();
+        });
         document.getElementById('newFolderBtn').addEventListener('click', function () {
           if (tagFilter) setTagFilter(null);
           var f = { id: uid(), name: 'New folder', icon: null, color: null, created: Date.now() };
@@ -2713,6 +3071,12 @@
           if (folderMenuId && !folderMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('.folder-menu-btn'))) {
             closeFolderMenu();
           }
+          if (docMenuDocId && !docMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('.doc-menu-btn'))) {
+            closeDocMenu();
+          }
+          if (viewMenuOpen && !viewMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('#docsViewBtn'))) {
+            closeViewMenu();
+          }
           if (!themePop.hidden && !themePop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#themeBtn'))) {
             closeThemePop();
           }
@@ -2727,12 +3091,17 @@
         document.querySelector('.sidebar-scroll').addEventListener('scroll', function () {
           if (moveMenuDocId) closeMoveMenu();
           if (folderMenuId) closeFolderMenu();
+          if (docMenuDocId) closeDocMenu();
+          if (viewMenuOpen) closeViewMenu();
           if (!folderPopEl.hidden) closeFolderPop();
         }, { passive: true });
         document.addEventListener('keydown', function (ev) {
           if (ev.key === 'Escape') {
             if (moveMenuDocId) closeMoveMenu();
             if (folderMenuId) closeFolderMenu();
+            if (docMenuDocId) closeDocMenu();
+            if (viewMenuOpen) closeViewMenu();
+            if (!document.getElementById('deleteModal').hidden) closeDeleteModal();
             if (!themePop.hidden) closeThemePop();
             if (!fmtPop.hidden) closeFmtPop();
             if (!folderPopEl.hidden) closeFolderPop();
@@ -2910,8 +3279,14 @@
               title: d.title || 'Untitled',
               content: d.content,
               tags: docTags(d).map(function (t) { return t.name; }),
+              favorite: !!d.favorite,
               updated_at: new Date(d.updated || Date.now()).toISOString(),
             };
+          });
+          var docRowsBasic = docRows.map(function (r) {
+            var c = {};
+            Object.keys(r).forEach(function (k) { if (k !== 'favorite') c[k] = r[k]; });
+            return c;
           });
           // Deletes land before upserts: a row removed locally stays
           // removed even when a copy of it is uploaded in the same push.
@@ -2929,7 +3304,15 @@
                 return r;
               }));
             }
-            if (docRows.length) jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }));
+            if (docRows.length) {
+              // Favorite rides along when the documents table has that
+              // column; if it doesn't yet, retry without it so document
+              // sync itself never breaks (favorites stay local-only).
+              jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }).then(function (r) {
+                if (r && r.error) return sb.from('documents').upsert(docRowsBasic, { onConflict: 'id' });
+                return r;
+              }));
+            }
             return Promise.all(jobs);
           }).then(function (results) {
             if (!Array.isArray(results)) return false;
@@ -3098,17 +3481,24 @@
                 title: rd.title || 'Untitled',
                 content: rd.content || { type: 'doc', content: [{ type: 'paragraph' }] },
                 folderId: fl,
+                favorite: 'favorite' in rd ? !!rd.favorite : false,
                 updated: rUpdated,
               });
               seenDocs[rd.id] = true;
             } else {
               seenDocs[lid] = true;
               var ld = lib.docs.find(function (d) { return d.id === lid; });
-              if (ld && rUpdated > (ld.updated || 0)) {
-                ld.title = rd.title || 'Untitled';
-                ld.content = rd.content;
-                ld.folderId = fl;
-                ld.updated = rUpdated;
+              if (ld) {
+                // Like folder icon/color, favorite follows the remote row
+                // whenever the column exists; without it, the local flag
+                // is left untouched.
+                if ('favorite' in rd) ld.favorite = !!rd.favorite;
+                if (rUpdated > (ld.updated || 0)) {
+                  ld.title = rd.title || 'Untitled';
+                  ld.content = rd.content;
+                  ld.folderId = fl;
+                  ld.updated = rUpdated;
+                }
               }
             }
           });
@@ -3204,9 +3594,13 @@
             if (r && r.error) return sb.from('folders').select('id, name');
             return r;
           });
+          var docsReq = sb.from('documents').select('id, folder_id, title, content, updated_at, favorite').then(function (r) {
+            if (r && r.error) return sb.from('documents').select('id, folder_id, title, content, updated_at');
+            return r;
+          });
           return Promise.all([
             foldersReq,
-            sb.from('documents').select('id, folder_id, title, content, updated_at'),
+            docsReq,
           ]).then(function (res) {
             if (res[0].error || res[1].error) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
             mergeRemote(res[0].data || [], res[1].data || []);
@@ -3763,6 +4157,7 @@
 
         /* ---------------- init ---------------- */
         renderTagFilterBar();
+        applySectionCollapse();
         renderDocList();
         renderTagsSection();
         renderOutline(first.content);
