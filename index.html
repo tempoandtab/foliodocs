@@ -321,6 +321,8 @@
       .tb-btn.on { background: var(--active); color: var(--accent); }
       .tb-btn:disabled { opacity: 0.35; cursor: default; }
       .tb-btn:disabled:hover { background: none; color: var(--ink-2); }
+      .tb-btn.tb-danger { color: var(--danger); }
+      .tb-btn.tb-danger:hover { background: var(--hover); color: var(--danger); }
       .tb-sep { width: 1px; height: 26px; background: var(--line); margin: 0 7px; flex: 0 0 auto; }
       .tb-h { font-family: "Newsreader", Georgia, serif; font-weight: 700; }
       .tb-h small { font-size: 10px; vertical-align: sub; }
@@ -908,23 +910,6 @@
       .accent-dot span { width: 24px; height: 24px; border-radius: 50%; display: block; }
       .accent-dot.on { border-color: var(--accent); }
 
-      /* ---------------- Keyboard relay ----------------
-         Invisible text field the Show keyboard button routes
-         focus through (see the kbdBtn handler). iPadOS summons
-         its keyboard for a text field that gains focus inside a
-         tap even when it will not re-summon it for a
-         contenteditable that never lost focus. It must stay
-         rendered (display:none / visibility:hidden fields cannot
-         take focus on iOS) but imperceptible: opacity near zero,
-         no pointer events, parked at the bottom edge. The 16px
-         font keeps iOS from auto-zooming on the momentary focus. */
-      #kbdRelay {
-        position: fixed; left: 50%; bottom: 4px; z-index: 0;
-        width: 16px; height: 16px; margin: 0; padding: 0; border: 0;
-        opacity: 0.01; pointer-events: none; font-size: 16px;
-        background: transparent; color: transparent; caret-color: transparent;
-      }
-
       /* ---------------- Tooltip ---------------- */
       .tooltip {
         position: fixed; z-index: 300; pointer-events: none;
@@ -1288,9 +1273,6 @@
           <button class="tb-btn" data-cmd="redo" data-more="b" type="button" aria-label="Redo" data-tip="Redo (⌘⇧Z)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>
           </button>
-          <button class="tb-btn" id="kbdBtn" type="button" aria-label="Show keyboard" data-tip="Show the on-screen keyboard">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>
-          </button>
           <button class="tb-btn tb-more-btn" id="tbMoreBtn" type="button" aria-label="More formatting options" aria-haspopup="menu" aria-expanded="false" data-tip="More formatting options">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
           </button>
@@ -1310,9 +1292,9 @@
             <button class="tb-btn tb-txt" type="button" data-thdr="row" aria-label="Header row" aria-pressed="true" data-tip="Style the first row as a header">Header row</button>
             <button class="tb-btn tb-txt" type="button" data-thdr="col" aria-label="Header column" aria-pressed="false" data-tip="Style the first column as a header">Header col</button>
             <button class="tb-btn tb-txt" type="button" data-tact="reset-widths" aria-label="Reset column widths" data-tip="Reset column widths to even spacing across the page">Reset widths</button>
-            <button class="tb-btn tb-txt" type="button" data-tact="del-row" aria-label="Delete current row" data-tip="Delete current row">✕ Row</button>
-            <button class="tb-btn tb-txt" type="button" data-tact="del-col" aria-label="Delete current column" data-tip="Delete current column">✕ Col</button>
-            <button class="tb-btn tb-txt" type="button" data-tact="del-table" aria-label="Delete whole table" data-tip="Delete the whole table">✕ Table</button>
+            <button class="tb-btn tb-txt tb-danger" type="button" data-tact="del-row" aria-label="✕ Row" data-tip="✕ Row">✕ Row</button>
+            <button class="tb-btn tb-txt tb-danger" type="button" data-tact="del-col" aria-label="✕ Col" data-tip="✕ Col">✕ Col</button>
+            <button class="tb-btn tb-txt tb-danger" type="button" data-tact="del-table" aria-label="✕ Table" data-tip="✕ Table">✕ Table</button>
             <button class="tb-btn tbl-more-btn" id="tblMoreBtn" type="button" aria-label="More table options" aria-haspopup="menu" aria-expanded="false" data-tip="More table options">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
             </button>
@@ -1402,7 +1384,6 @@
       <div class="tbl-grid-label" id="tblGridLabel">Choose a size</div>
     </div>
     <div class="suggest" id="suggest" role="listbox" aria-label="Link to a document"></div>
-    <input id="kbdRelay" type="text" tabindex="-1" aria-hidden="true" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
 
     <div class="overlay" id="shareModal" hidden>
       <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
@@ -3283,12 +3264,8 @@
           else if (cmd === 'redo') chain.redo().run();
           refreshToolbar();
         });
-        // Keep editor selection when tapping toolbar buttons. The
-        // keyboard button is the one exception: its press must stay
-        // a genuine focus gesture for iPadOS to answer it with the
-        // on-screen keyboard (see the kbdBtn handler below).
+        // Keep editor selection when tapping toolbar buttons.
         document.getElementById('toolbar').addEventListener('mousedown', function (ev) {
-          if (ev.target.closest('#kbdBtn')) return;
           if (ev.target.closest('.tb-btn')) ev.preventDefault();
         });
 
@@ -4204,86 +4181,6 @@
           refreshTableBar();
           if (tblMenuOpen) closeTblMenu();
           openTblMenu({ x: ev.clientX, y: ev.clientY }, true);
-        });
-
-        /* ---------------- show-keyboard button ---------------------
-           iPadOS decides whether to raise its on-screen keyboard
-           from who holds focus when the tap finishes: it presents
-           the keyboard for a native text field that gained focus
-           inside the tap, but a contenteditable focused from script
-           does not reliably get one, and an editor that never lost
-           focus gets nothing at all (its focus() is a no-op — the
-           failure behind the first version of this button, which
-           only called the editor's focus). The relay version failed
-           differently: it focused the relay field (#kbdRelay) and
-           handed focus straight back to the editor in the same
-           synchronous block, so by the time iPadOS looked, the
-           relay no longer held focus and the presentation was
-           cancelled; and when hiding the keyboard had resigned the
-           editor entirely, the relay was skipped and only the
-           contenteditable was focused, which iPadOS ignores.
-           So: on tap, ALWAYS focus the relay synchronously and
-           leave focus there — a native field holding focus at the
-           end of the tap is the one sequence iPadOS always answers
-           with the keyboard. A beat later (400ms, once the keyboard
-           is on its way up), hand focus on to the editor with the
-           caret where the user left it; the keyboard follows the
-           new first responder instead of dismissing. Characters
-           typed in that beat land in the relay, whose input event
-           hands off immediately and forwards the text into the
-           document, so nothing typed is lost. The button's
-           mousedown is deliberately NOT preventDefaulted (see the
-           toolbar mousedown handler), so the press stays a genuine
-           focus gesture. */
-        var kbdHandoffTimer = 0;
-        var kbdRelayInputFn = null;
-        document.getElementById('kbdBtn').addEventListener('click', function () {
-          if (!editorHandle) return;
-          var ed = editorHandle.editor;
-          var dom = ed.view && ed.view.dom;
-          if (!dom) return;
-          var relay = document.getElementById('kbdRelay');
-          if (!relay) { try { ed.chain().focus().run(); } catch (e) {} return; }
-          // A second tap while a hand-off is still pending
-          // restarts the sequence rather than stacking timers.
-          if (kbdHandoffTimer) { window.clearTimeout(kbdHandoffTimer); kbdHandoffTimer = 0; }
-          if (kbdRelayInputFn) { relay.removeEventListener('input', kbdRelayInputFn); kbdRelayInputFn = null; }
-          try { relay.focus({ preventScroll: true }); } catch (e) { try { relay.focus(); } catch (e2) {} }
-          if (document.activeElement !== relay) {
-            // The relay could not take focus at all: fall back to
-            // focusing the editor directly, as before.
-            try { ed.chain().focus().run(); } catch (e) {}
-            if (document.activeElement !== dom) {
-              try { dom.focus({ preventScroll: true }); } catch (e) { try { dom.focus(); } catch (e2) {} }
-            }
-            return;
-          }
-          var handoff = function () {
-            if (kbdHandoffTimer) { window.clearTimeout(kbdHandoffTimer); kbdHandoffTimer = 0; }
-            if (kbdRelayInputFn) { relay.removeEventListener('input', kbdRelayInputFn); kbdRelayInputFn = null; }
-            // Focus already moved on (the user tapped into the
-            // editor, or somewhere else): there is nothing to hand
-            // off, and the keyboard state is the user's own doing.
-            if (document.activeElement !== relay) return;
-            var typed = relay.value || '';
-            relay.value = '';
-            var done = false;
-            if (typed) {
-              try { done = !!ed.chain().focus().insertContent(typed).run(); } catch (e) {}
-            }
-            if (!done) { try { ed.chain().focus().run(); } catch (e) {} }
-            if (document.activeElement !== dom) {
-              try { dom.focus({ preventScroll: true }); } catch (e) { try { dom.focus(); } catch (e2) {} }
-            }
-            // Never leave the caret parked in the invisible
-            // relay, where typing would vanish.
-            if (document.activeElement === relay) {
-              try { relay.blur(); } catch (e) {}
-            }
-          };
-          kbdRelayInputFn = function () { handoff(); };
-          relay.addEventListener('input', kbdRelayInputFn);
-          kbdHandoffTimer = window.setTimeout(handoff, 400);
         });
 
         /* ---------------- title editing ---------------- */
