@@ -1136,7 +1136,14 @@
          the toolbar, populated from the data-more tiers), so the bar
          stays on one or two rows instead of sprawling. Tier "a"
          folds away first, tier "b" at phone widths. */
-      .tb-more-btn { display: none; }
+      /* The ⋯ button is pinned to the far right end of the toolbar
+         (margin-left: auto), the same treatment as the context
+         bar's ⋯ buttons, instead of sitting immediately after the
+         last visible button — so its position no longer shifts
+         with how many buttons the current width folds away. While
+         the bar wraps, the auto margin absorbs the free space on
+         the button's own row and keeps it at the right edge. */
+      .tb-more-btn { display: none; margin-left: auto; }
       @media (max-width: 860px) {
         .toolbar { padding: 6px 10px; }
         .toolbar .tb-btn { min-width: 40px; height: 42px; padding: 0 8px; }
