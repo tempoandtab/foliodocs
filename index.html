@@ -504,14 +504,15 @@
 
       /* ---------------- Context bar & insert picker ---------------- */
       /* The second toolbar row is permanent: it never appears or
-         disappears, so the editor below it never jumps. In a table
-         it carries the table tools; everywhere else it carries a
-         set of everyday formatting tools (the #ctxTableTools /
-         #ctxTextTools groups swap with the caret's context). It is
+         disappears, so the editor below it never jumps. It carries
+         three contexts that swap with the caret/selection state:
+         table tools in a table (#ctxTableTools), selection tools
+         over a text selection (#ctxSelTools), and insert tools for
+         a plain caret (#ctxInsertTools). It is
          always exactly one row: flex-wrap is off, and whatever
          does not fit is folded into the row's ⋯ menu by the
          overflow manager in the tables UI script (folded items
-         carry .ctx-folded). The two groups' children are the bar's
+         carry .ctx-folded). The groups' children are the bar's
          real flex items (display: contents on the group), and a
          group that is off is removed outright. */
       .table-bar { gap: 3px; flex-wrap: nowrap; overflow: hidden; }
@@ -522,9 +523,27 @@
       .ctx-group { display: contents; }
       .ctx-group.off { display: none; }
       .table-bar .ctx-folded { display: none !important; }
+      /* Dedupe: a selection-row command that is already visible in
+         the main toolbar at the current width drops out of the row
+         (the script toggles .ctx-dup from the main button's actual
+         rendered visibility, so a command folded into the main
+         toolbar's ⋯ menu does not dedupe). */
+      .table-bar .ctx-dup { display: none !important; }
+      /* The live counts at the end of the selection / insert rows:
+         quiet text, never folded into the ⋯ menu (.ctx-nofold). */
+      .ctx-count {
+        flex: none; align-self: center; white-space: nowrap;
+        font-size: 13px; font-weight: 500; color: var(--ink-3); padding: 0 8px;
+      }
       /* Each group's ⋯ button shows only while the overflow
          manager has something folded into its menu. */
-      .tbl-more-btn, .ctx-more-btn { display: none; }
+      .tbl-more-btn, .sel-more-btn, .ins-more-btn { display: none; }
+      /* The ⋯ buttons match the bar's 40px text buttons, so the
+         row is exactly the same height in every context, folded
+         or not — a context switch never moves the editor. */
+      .table-bar .tbl-more-btn, .table-bar .sel-more-btn, .table-bar .ins-more-btn {
+        height: 40px; min-height: 40px; min-width: 40px;
+      }
       /* Cell fill / border color / border size are dropdowns at
          every width (their swatch rows and size buttons live in
          popovers inside the bar, not inline), like the main
@@ -1299,36 +1318,25 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
             </button>
           </span>
-          <span class="ctx-group" id="ctxTextTools">
-            <button class="tb-btn tb-h" type="button" data-ctx="h2" aria-label="Heading 2" data-tip="Heading 2">H<small>2</small></button>
-            <button class="tb-btn tb-h" type="button" data-ctx="h3" aria-label="Heading 3" data-tip="Heading 3">H<small>3</small></button>
-            <button class="tb-btn" type="button" data-ctx="strike" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s></button>
-            <button class="tb-btn" type="button" data-ctx="code" aria-label="Inline code" data-tip="Inline code">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>
+          <span class="ctx-group off" id="ctxSelTools">
+            <button class="tb-btn tb-txt" type="button" id="selHlBtn" data-sel="highlight" aria-label="Highlight" aria-haspopup="true" data-tip="Highlight — pick a color">Highlight ▾</button>
+            <button class="tb-btn tb-txt" type="button" id="selTcBtn" data-sel="textcolor" aria-label="Text color" aria-haspopup="true" data-tip="Text color — pick a color">Text color ▾</button>
+            <button class="tb-btn tb-txt" type="button" data-sel="wikilink" aria-label="Make wikilink" data-tip="Turn the selection into a [[wikilink]]">Make wikilink</button>
+            <button class="tb-btn tb-txt" type="button" data-sel="copy" aria-label="Copy selection" data-tip="Copy the selected text">Copy</button>
+            <button class="tb-btn tb-txt" type="button" data-sel="clearfmt" aria-label="Clear formatting" data-tip="Strip the selection's formatting back to plain body text">Clear formatting</button>
+            <span class="ctx-count ctx-nofold" id="selCount"></span>
+            <button class="tb-btn sel-more-btn" id="selMoreBtn" type="button" aria-label="More selection options" aria-haspopup="menu" aria-expanded="false" data-tip="More selection options">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
             </button>
-            <button class="tb-btn" type="button" data-ctx="highlight" aria-label="Highlight color" aria-haspopup="true" data-tip="Highlight — pick a color">
-              <span class="hl-demo">A</span>
-            </button>
-            <button class="tb-btn" type="button" data-ctx="textcolor" aria-label="Text color" aria-haspopup="true" data-tip="Text color">
-              <span class="tc-demo"><span>A</span><span class="tc-bar"></span></span>
-            </button>
-            <button class="tb-btn" type="button" data-ctx="quote" aria-label="Blockquote" data-tip="Blockquote">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 8H6a4 4 0 0 0-4 4v6h7v-7H6.5A2.5 2.5 0 0 1 9 8.6V8h1zm12 0h-4a4 4 0 0 0-4 4v6h7v-7h-2.5A2.5 2.5 0 0 1 21 8.6V8h1z"/></svg>
-            </button>
-            <button class="tb-btn" type="button" data-ctx="bullet" aria-label="Bullet list" data-tip="Bullet list">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg>
-            </button>
-            <button class="tb-btn" type="button" data-ctx="ordered" aria-label="Numbered list" data-tip="Numbered list">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6h1v4M4 10h2M5 10v3M4.5 16.5a1.8 1.8 0 1 1 2.6 2L4 21h3.5" stroke-width="1.5"/></svg>
-            </button>
-            <button class="tb-btn" type="button" data-ctx="wikilink" aria-label="Insert wiki-link" data-tip="Insert a [[wiki-link]] to another document" style="font-family:ui-monospace,Menlo,monospace;font-size:14px">[[ ]]</button>
-            <button class="tb-btn" type="button" data-ctx="undo" aria-label="Undo" data-tip="Undo (⌘Z)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
-            </button>
-            <button class="tb-btn" type="button" data-ctx="redo" aria-label="Redo" data-tip="Redo (⌘⇧Z)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>
-            </button>
-            <button class="tb-btn ctx-more-btn" id="ctxMoreBtn" type="button" aria-label="More text options" aria-haspopup="menu" aria-expanded="false" data-tip="More text options">
+          </span>
+          <span class="ctx-group" id="ctxInsertTools">
+            <button class="tb-btn tb-txt" type="button" id="insTableBtn" data-ins="table" aria-label="Insert table" aria-haspopup="true" data-tip="Insert table">Insert table</button>
+            <button class="tb-btn tb-txt" type="button" data-ins="codeblock" aria-label="Code block" data-tip="Insert a code block">Code block</button>
+            <button class="tb-btn tb-txt" type="button" data-ins="divider" aria-label="Divider" data-tip="Insert a horizontal rule">Divider</button>
+            <button class="tb-btn tb-txt" type="button" data-ins="datestamp" aria-label="Date stamp" data-tip="Insert today's date">Date stamp</button>
+            <button class="tb-btn tb-txt" type="button" data-ins="wikilink" aria-label="Wikilink" data-tip="Insert a [[wiki-link]] to another document">Wikilink</button>
+            <span class="ctx-count ctx-nofold" id="ctxDocCount"></span>
+            <button class="tb-btn ins-more-btn" id="insMoreBtn" type="button" aria-label="More insert options" aria-haspopup="menu" aria-expanded="false" data-tip="More insert options">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
             </button>
           </span>
@@ -1368,7 +1376,7 @@
     <div class="menu" id="viewMenu" role="menu" aria-label="Switch document list view"></div>
     <div class="menu" id="tbMenu" role="menu" aria-label="More formatting options"></div>
     <div class="menu" id="tblMenu" role="menu" aria-label="More table options"></div>
-    <div class="menu" id="ctxMenu" role="menu" aria-label="More text options"></div>
+    <div class="menu" id="ctxMenu" role="menu" aria-label="More options"></div>
     <div class="fmt-pop" id="fmtPop" hidden role="dialog" aria-label="Color choices">
       <div class="pop-label" id="fmtPopLabel">Highlight</div>
       <div class="fmt-swatches" id="fmtSwatches"></div>
@@ -2868,6 +2876,9 @@
           })(json);
           var words = text.trim() ? text.trim().split(/\s+/).length : 0;
           document.getElementById('wordCount').textContent = words + (words === 1 ? ' word' : ' words');
+          // The insert row of the second toolbar carries the same count.
+          var ctxDocCount = document.getElementById('ctxDocCount');
+          if (ctxDocCount) ctxDocCount.textContent = words + (words === 1 ? ' word' : ' words');
         }
 
         function refreshAfterLibraryChange() {
@@ -3202,9 +3213,6 @@
           var ed = editorHandle.editor;
           function set(cmd, on) {
             if (toolbarBtns[cmd]) toolbarBtns[cmd].classList.toggle('on', !!on);
-            // The context bar's text tools mirror the same states.
-            var ctxBtn = document.querySelector('#ctxTextTools [data-ctx="' + cmd + '"]');
-            if (ctxBtn) ctxBtn.classList.toggle('on', !!on);
           }
           set('h1', ed.isActive('heading', { level: 1 }));
           set('h2', ed.isActive('heading', { level: 2 }));
@@ -3233,11 +3241,7 @@
           set('table', ed.isActive('table'));
           if (toolbarBtns.undo) toolbarBtns.undo.disabled = !ed.can().undo();
           if (toolbarBtns.redo) toolbarBtns.redo.disabled = !ed.can().redo();
-          var ctxUndo = document.querySelector('#ctxTextTools [data-ctx="undo"]');
-          if (ctxUndo) ctxUndo.disabled = !ed.can().undo();
-          var ctxRedo = document.querySelector('#ctxTextTools [data-ctx="redo"]');
-          if (ctxRedo) ctxRedo.disabled = !ed.can().redo();
-          refreshTableBar();
+          refreshContextBar();
         }
 
         document.getElementById('toolbar').addEventListener('click', function (ev) {
@@ -3526,7 +3530,13 @@
         var BORDER_COLORS = ['#e03131', '#e8590c', '#f08c00', '#2f9e44', '#1971c2', '#6741d9', '#868e96'];
         var tableBar = document.getElementById('tableBar');
         var ctxTableTools = document.getElementById('ctxTableTools');
-        var ctxTextTools = document.getElementById('ctxTextTools');
+        var ctxSelTools = document.getElementById('ctxSelTools');
+        var ctxInsertTools = document.getElementById('ctxInsertTools');
+        var selHlBtn = document.getElementById('selHlBtn');
+        var selTcBtn = document.getElementById('selTcBtn');
+        var selMoreBtn = document.getElementById('selMoreBtn');
+        var insMoreBtn = document.getElementById('insMoreBtn');
+        var selCountEl = document.getElementById('selCount');
         var tblFillBtn = document.getElementById('tblFillBtn');
         var tblFillPop = document.getElementById('tblFillPop');
         var tblBorderColorBtn = document.getElementById('tblBorderColorBtn');
@@ -3689,19 +3699,43 @@
             borderWidth: table.attrs.borderWidth == null ? 1 : table.attrs.borderWidth,
           };
         }
-        function refreshTableBar() {
+        /* The second row swaps between three contexts: table tools
+           when the caret/selection is in a table, selection tools
+           over a non-empty text selection (outside a table), and
+           insert tools for a plain caret. The bar itself never
+           hides — hiding it was what made the editor jump whenever
+           the caret entered or left a table — and it stays one row:
+           the overflow manager folds what does not fit into the
+           active group's ⋯ menu. */
+        var lastCtxMode = null;
+        function refreshContextBar() {
           if (typeof tableBar === 'undefined' || !tableBar) return;
           var ctx = tableContext();
-          /* The bar itself never hides — hiding it was what made
-             the editor jump whenever the caret entered or left a
-             table. The two tool groups swap instead: table tools
-             in a table, everyday text tools everywhere else. */
-          ctxTableTools.classList.toggle('off', !ctx);
-          ctxTextTools.classList.toggle('off', !!ctx);
-          if (!ctx) {
+          var mode = 'insert';
+          var selText = '';
+          if (ctx) mode = 'table';
+          else if (editorHandle && editorHandle.editor && editorHandle.editor.state) {
+            var sel = editorHandle.editor.state.selection;
+            if (sel && !sel.empty) {
+              selText = editorHandle.editor.state.doc.textBetween(sel.from, sel.to, '\n');
+              if (selText.trim()) mode = 'selection';
+            }
+          }
+          ctxTableTools.classList.toggle('off', mode !== 'table');
+          ctxSelTools.classList.toggle('off', mode !== 'selection');
+          ctxInsertTools.classList.toggle('off', mode !== 'insert');
+          if (mode !== lastCtxMode) { closeCtxMenu(); lastCtxMode = mode; }
+          if (mode !== 'table') {
             closeTblMenu();
             closeTblStylePops();
             scheduleCtxFit();
+            if (mode === 'selection') {
+              applyCtxDedupe();
+              var ed = editorHandle.editor;
+              selHlBtn.classList.toggle('on', ed.isActive('highlight'));
+              selTcBtn.classList.toggle('on', ed.isActive('textStyle'));
+              updateSelCount(selText);
+            }
             return;
           }
           var mergeBtn = tableBar.querySelector('[data-tact="merge"]');
@@ -3856,30 +3890,138 @@
           pop.addEventListener('click', function () { closeTblStylePops(); });
         });
 
-        /* ---------------- context bar text tools -------------------
-           When the caret is not in a table, the second row carries
-           everyday formatting tools. They proxy the main toolbar's
-           own buttons (so there is exactly one implementation of
-           each command), except the two color pickers, which open
-           the format popover anchored to the visible button. */
-        var ctxBtns = {};
-        ctxTextTools.querySelectorAll('[data-ctx]').forEach(function (b) {
-          ctxBtns[b.getAttribute('data-ctx')] = b;
-        });
-        function runCtxTextCmd(btn, anchor) {
+        /* ---------------- context bar dedupe ----------------------
+           A command that is already visible in the main toolbar at
+           the current width must not repeat in the second row. A
+           main-toolbar button counts as visible only when it is
+           actually rendered: the width tiers (data-more) hide
+           folded buttons with display:none, so a command folded
+           into the main toolbar's ⋯ menu is NOT visible and may
+           appear in the second row. */
+        function mainCmdVisible(cmd) {
+          var b = toolbarBtns[cmd];
+          if (!b) return false;
+          return b.getClientRects().length > 0;
+        }
+        function applyCtxDedupe() {
+          selHlBtn.classList.toggle('ctx-dup', mainCmdVisible('highlight'));
+          selTcBtn.classList.toggle('ctx-dup', mainCmdVisible('textcolor'));
+        }
+
+        /* ---------------- context bar selection tools -------------
+           Shown while a text selection (outside a table) is active.
+           Highlight and Text color are dropdowns opening the same
+           format popover as the main toolbar's pickers; Make
+           wikilink replaces the selection with a wiki-link node;
+           Copy writes the selection's plain text to the clipboard;
+           Clear formatting strips marks and block formatting back
+           to plain body text. The count at the end of the row is
+           live — refreshContextBar recomputes it on every
+           selection change. */
+        function updateSelCount(text) {
+          if (!selCountEl) return;
+          var t = (text || '').trim();
+          var w = t ? t.split(/\s+/).length : 0;
+          var c = (text || '').length;
+          selCountEl.textContent = w + (w === 1 ? ' word' : ' words') + ' · ' + c + (c === 1 ? ' character' : ' characters');
+        }
+        function selectionPlainText() {
+          if (!editorHandle) return '';
+          var ed = editorHandle.editor;
+          var sel = ed.state.selection;
+          if (!sel || sel.empty) return '';
+          return ed.state.doc.textBetween(sel.from, sel.to, '\n');
+        }
+        function fallbackCopyText(text, done) {
+          try {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          } catch (e) {}
+          if (done) done();
+        }
+        function runSelCmd(btn, anchor) {
           if (!editorHandle || !btn) return;
-          var cmd = btn.getAttribute('data-ctx');
+          var cmd = btn.getAttribute('data-sel');
+          var ed = editorHandle.editor;
           if (cmd === 'highlight') { openFmtPop('highlight', anchor || btn); return; }
           if (cmd === 'textcolor') { openFmtPop('textcolor', anchor || btn); return; }
-          var real = toolbarBtns[cmd];
-          if (real && !real.disabled) real.click();
+          if (cmd === 'wikilink') {
+            var sel = ed.state.selection;
+            if (sel.empty) return;
+            var title = ed.state.doc.textBetween(sel.from, sel.to, ' ').replace(/\s+/g, ' ').trim();
+            if (!title) return;
+            ed.chain().focus().deleteRange({ from: sel.from, to: sel.to })
+              .insertContent([
+                { type: 'wikiLink', attrs: { title: title, exists: !!findDocByTitle(title) } },
+                { type: 'text', text: ' ' },
+              ]).run();
+            refreshToolbar();
+            return;
+          }
+          if (cmd === 'copy') {
+            var text = selectionPlainText();
+            if (!text) return;
+            var flash = function () {
+              var old = btn.textContent;
+              btn.textContent = 'Copied';
+              setTimeout(function () { btn.textContent = old; }, 1400);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(flash, function () { fallbackCopyText(text, flash); });
+            } else fallbackCopyText(text, flash);
+            return;
+          }
+          if (cmd === 'clearfmt') {
+            ed.chain().focus().unsetAllMarks().clearNodes().run();
+            refreshToolbar();
+            return;
+          }
         }
-        ctxTextTools.addEventListener('mousedown', function (ev) {
+        ctxSelTools.addEventListener('mousedown', function (ev) {
           if (ev.target.closest && ev.target.closest('button')) ev.preventDefault();
         });
-        ctxTextTools.addEventListener('click', function (ev) {
-          var btn = ev.target.closest ? ev.target.closest('[data-ctx]') : null;
-          if (btn) runCtxTextCmd(btn, btn);
+        ctxSelTools.addEventListener('click', function (ev) {
+          var btn = ev.target.closest ? ev.target.closest('[data-sel]') : null;
+          if (btn) runSelCmd(btn, btn);
+        });
+
+        /* ---------------- context bar insert tools ----------------
+           The default row (plain caret, not in a table): commands
+           that put something into the document — the table picker
+           (the same popover as the main toolbar's table button), a
+           code block, a divider, today's date as text, and a
+           [[wikilink]] trigger that leaves the caret inside the
+           brackets with the link autocomplete open — plus the
+           document word count at the end of the row, kept current
+           by wordCount(). */
+        function runInsCmd(btn, anchor) {
+          if (!editorHandle || !btn) return;
+          var cmd = btn.getAttribute('data-ins');
+          var ed = editorHandle.editor;
+          if (cmd === 'table') { openTblPop(anchor || btn); return; }
+          if (cmd === 'codeblock') ed.chain().focus().toggleCodeBlock().run();
+          else if (cmd === 'divider') ed.chain().focus().setHorizontalRule().run();
+          else if (cmd === 'datestamp') {
+            var s = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            ed.chain().focus().insertContent({ type: 'text', text: s }).run();
+          }
+          else if (cmd === 'wikilink') editorHandle.insertWikiLinkTrigger();
+          else return;
+          refreshToolbar();
+        }
+        ctxInsertTools.addEventListener('mousedown', function (ev) {
+          if (ev.target.closest && ev.target.closest('button')) ev.preventDefault();
+        });
+        ctxInsertTools.addEventListener('click', function (ev) {
+          var btn = ev.target.closest ? ev.target.closest('[data-ins]') : null;
+          if (btn) runInsCmd(btn, btn);
         });
 
         /* ---------------- context bar overflow manager -------------
@@ -3898,7 +4040,8 @@
         }
         function fitContextBar() {
           fitCtxGroup(ctxTableTools, document.getElementById('tblMoreBtn'));
-          fitCtxGroup(ctxTextTools, document.getElementById('ctxMoreBtn'));
+          fitCtxGroup(ctxSelTools, selMoreBtn);
+          fitCtxGroup(ctxInsertTools, insMoreBtn);
         }
         function fitCtxGroup(groupEl, moreBtn) {
           if (!groupEl || !moreBtn || groupEl.classList.contains('off')) return;
@@ -3910,7 +4053,12 @@
           while (tableBar.scrollWidth > tableBar.clientWidth + 1 && guard++ < 40) {
             var candidate = null;
             for (var i = items.length - 1; i >= 0; i--) {
-              if (!items[i].classList.contains('ctx-folded')) { candidate = items[i]; break; }
+              var it = items[i];
+              /* Deduped-out and no-fold items (the live counts) are
+                 already out of the row's flow or stay put — never
+                 fold them into the ⋯ menu. */
+              if (it.classList.contains('ctx-folded') || it.classList.contains('ctx-dup') || it.classList.contains('ctx-nofold')) continue;
+              candidate = it; break;
             }
             if (!candidate || items.length - folded.length <= 1) break;
             candidate.classList.add('ctx-folded');
@@ -3919,7 +4067,10 @@
           }
           groupEl._folded = folded;
         }
-        window.addEventListener('resize', scheduleCtxFit);
+        /* A width change can also change which context applies and
+           which main-toolbar commands are visible (the dedupe), so
+           refresh the whole context, not just the fit. */
+        window.addEventListener('resize', function () { refreshContextBar(); });
         if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleCtxFit);
 
         /* ---------------- table options menu ------------------
@@ -4089,31 +4240,40 @@
           openTblMenu();
         });
 
-        /* ---------------- context bar text overflow menu -----------
-           The text group's ⋯ menu: proxy items for whichever text
-           tools the overflow manager folded out of the row. */
+        /* ---------------- context bar overflow menus ---------------
+           One menu element serves the selection and insert groups:
+           it lists whichever of the group's buttons the overflow
+           manager folded out of the row, as proxy items that run
+           the real (folded) button's command — popovers re-anchor
+           to the group's ⋯ button, like the main toolbar's More
+           menu. Deduped-out buttons never appear here: they are
+           already visible in the main toolbar. */
         var ctxMenuEl = document.getElementById('ctxMenu');
-        var ctxMoreBtn = document.getElementById('ctxMoreBtn');
         var ctxMenuOpen = false;
+        var ctxMenuMoreBtn = null;
         function closeCtxMenu() {
           if (!ctxMenuEl) return;
           ctxMenuEl.className = 'menu';
           ctxMenuEl.innerHTML = '';
           ctxMenuOpen = false;
-          if (ctxMoreBtn) ctxMoreBtn.setAttribute('aria-expanded', 'false');
+          if (ctxMenuMoreBtn) ctxMenuMoreBtn.setAttribute('aria-expanded', 'false');
+          ctxMenuMoreBtn = null;
         }
-        function openCtxMenu() {
-          if (ctxMenuOpen) { closeCtxMenu(); return; }
+        function openCtxGroupMenu(groupEl, moreBtn) {
+          if (ctxMenuOpen && ctxMenuMoreBtn === moreBtn) { closeCtxMenu(); return; }
           if (!editorHandle) return;
           closeTblMenu();
           closeTblStylePops();
           closeFmtPop();
           closeTblPop();
-          var folded = ctxTextTools._folded || [];
-          if (!folded.length) return;
-          ctxMenuEl.innerHTML = '';
+          var folded = (groupEl._folded || []).filter(function (el) {
+            return !el.classList.contains('ctx-dup');
+          });
+          if (!folded.length) { closeCtxMenu(); return; }
+          closeCtxMenu();
+          ctxMenuMoreBtn = moreBtn;
           folded.slice().sort(function (a, b) {
-            return Array.prototype.indexOf.call(ctxTextTools.children, a) - Array.prototype.indexOf.call(ctxTextTools.children, b);
+            return Array.prototype.indexOf.call(groupEl.children, a) - Array.prototype.indexOf.call(groupEl.children, b);
           }).forEach(function (el) {
             var b = document.createElement('button');
             b.type = 'button';
@@ -4130,23 +4290,28 @@
             b.appendChild(s);
             b.addEventListener('click', function () {
               closeCtxMenu();
-              runCtxTextCmd(el, ctxMoreBtn);
+              if (groupEl === ctxSelTools) runSelCmd(el, moreBtn);
+              else runInsCmd(el, moreBtn);
             });
             ctxMenuEl.appendChild(b);
           });
           ctxMenuEl.className = 'menu open';
           ctxMenuOpen = true;
-          ctxMoreBtn.setAttribute('aria-expanded', 'true');
-          var r = ctxMoreBtn.getBoundingClientRect();
+          moreBtn.setAttribute('aria-expanded', 'true');
+          var r = moreBtn.getBoundingClientRect();
           var w = 224, h = ctxMenuEl.offsetHeight;
           ctxMenuEl.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
           var top = r.bottom + 6;
           if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
           ctxMenuEl.style.top = top + 'px';
         }
-        ctxMoreBtn.addEventListener('click', function (ev) {
+        selMoreBtn.addEventListener('click', function (ev) {
           ev.stopPropagation();
-          openCtxMenu();
+          openCtxGroupMenu(ctxSelTools, selMoreBtn);
+        });
+        insMoreBtn.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          openCtxGroupMenu(ctxInsertTools, insMoreBtn);
         });
 
         /* ---------------- right-click table menu -------------------
@@ -4178,7 +4343,7 @@
               ed.chain().focus().setTextSelection(pos.pos).run();
             }
           } catch (e) {}
-          refreshTableBar();
+          refreshContextBar();
           if (tblMenuOpen) closeTblMenu();
           openTblMenu({ x: ev.clientX, y: ev.clientY }, true);
         });
@@ -4330,7 +4495,7 @@
           if (tblMenuOpen && !tblMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('#tblMoreBtn'))) {
             closeTblMenu();
           }
-          if (ctxMenuOpen && !ctxMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('#ctxMoreBtn'))) {
+          if (ctxMenuOpen && !ctxMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('#selMoreBtn, #insMoreBtn'))) {
             closeCtxMenu();
           }
           if (tblStylePop && !tblStylePop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#tblFillBtn, #tblBorderColorBtn, #tblBorderSizeBtn, #tblMoreBtn'))) {
@@ -4339,10 +4504,10 @@
           if (!themePop.hidden && !themePop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#themeBtn'))) {
             closeThemePop();
           }
-          if (!fmtPop.hidden && !fmtPop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#hlBtn, #colorBtn'))) {
+          if (!fmtPop.hidden && !fmtPop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#hlBtn, #colorBtn, #selHlBtn, #selTcBtn'))) {
             closeFmtPop();
           }
-          if (!tblPop.hidden && !tblPop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#tableBtn'))) {
+          if (!tblPop.hidden && !tblPop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#tableBtn, #insTableBtn'))) {
             closeTblPop();
           }
           if (!folderPopEl.hidden && !folderPopEl.contains(ev.target)) {
