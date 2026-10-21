@@ -489,6 +489,19 @@
          position mid-drag. */
       .folio-prose.folio-cell-dragging { -webkit-touch-callout: none; }
       .folio-prose.folio-cell-dragging table.folio-table { -webkit-user-select: none; user-select: none; }
+      /* Painted text selection: while the selection context is
+         active, a press outside the editor collapses the DOM
+         selection (that is what dismisses iOS's native edit menu),
+         so the app paints the remembered selection itself through
+         the CSS Custom Highlight API — the same idea as the
+         painted table-cell selection above. Only the visible
+         highlight persists; the native menu stays dismissed, and
+         the paint is removed the moment the real DOM selection
+         is visible in the editor again. */
+      ::highlight(folio-sel) {
+        background: rgba(110, 145, 205, 0.38);
+        background: color-mix(in srgb, var(--accent) 32%, transparent);
+      }
       .folio-prose td[data-bg="yellow"], .folio-prose th[data-bg="yellow"] { background: #fff3bf; }
       .folio-prose td[data-bg="green"], .folio-prose th[data-bg="green"] { background: #d3f9d8; }
       .folio-prose td[data-bg="pink"], .folio-prose th[data-bg="pink"] { background: #ffe0e9; }
@@ -532,17 +545,29 @@
       /* The live counts at the end of the selection / insert rows:
          quiet text, never folded into the ⋯ menu (.ctx-nofold). */
       .ctx-count {
-        flex: none; align-self: center; white-space: nowrap;
+        flex: 0 0 auto; align-self: center; white-space: nowrap;
         font-size: 13px; font-weight: 500; color: var(--ink-3); padding: 0 8px;
+      }
+      /* At phone widths the count also switches to its short text
+         form (the script swaps it, e.g. "222 w · 1,132 c") and
+         tighter padding, so it never crowds the row's buttons. */
+      @media (max-width: 640px) {
+        .ctx-count { padding: 0 4px; font-size: 12.5px; }
       }
       /* Each group's ⋯ button shows only while the overflow
          manager has something folded into its menu. */
       .tbl-more-btn, .sel-more-btn, .ins-more-btn { display: none; }
       /* The ⋯ buttons match the bar's 40px text buttons, so the
          row is exactly the same height in every context, folded
-         or not — a context switch never moves the editor. */
+         or not — a context switch never moves the editor. They
+         are also pinned to the far right end of the bar in every
+         context (margin-left: auto) instead of drifting with
+         however many buttons happen to be visible; while the
+         row overflows, the auto margin collapses to zero, so
+         the overflow manager's width measurement is unaffected. */
       .table-bar .tbl-more-btn, .table-bar .sel-more-btn, .table-bar .ins-more-btn {
         height: 40px; min-height: 40px; min-width: 40px;
+        margin-left: auto;
       }
       /* Cell fill / border color / border size are dropdowns at
          every width (their swatch rows and size buttons live in
@@ -3736,6 +3761,7 @@
               selTcBtn.classList.toggle('on', ed.isActive('textStyle'));
               updateSelCount(selText);
             }
+            updateSelPaint();
             return;
           }
           var mergeBtn = tableBar.querySelector('[data-tact="merge"]');
@@ -3757,6 +3783,7 @@
             b.classList.toggle('on', Number(b.getAttribute('data-tbw')) === ctx.borderWidth);
           });
           scheduleCtxFit();
+          updateSelPaint();
         }
         var TACT_COMMANDS = {
           'row-above': 'folioAddRowBefore', 'row-below': 'folioAddRowAfter',
@@ -3923,8 +3950,66 @@
           var t = (text || '').trim();
           var w = t ? t.split(/\s+/).length : 0;
           var c = (text || '').length;
-          selCountEl.textContent = w + (w === 1 ? ' word' : ' words') + ' · ' + c + (c === 1 ? ' character' : ' characters');
+          var wf = w.toLocaleString('en-US'), cf = c.toLocaleString('en-US');
+          /* Phone widths get the short form ("222 w · 1,132 c") so
+             the count takes only the room its text needs and the
+             row's buttons keep theirs; wider rows spell it out. */
+          if (window.innerWidth <= 640) {
+            selCountEl.textContent = wf + ' w · ' + cf + ' c';
+          } else {
+            selCountEl.textContent = wf + (w === 1 ? ' word' : ' words') + ' · ' + cf + (c === 1 ? ' character' : ' characters');
+          }
         }
+        /* ---------------- painted selection highlight -------------
+           A press anywhere outside the editor collapses the DOM
+           selection to dismiss iOS's native edit menu (see the
+           document pointerdown handler below). ProseMirror keeps
+           the selection in its own state, so the selection-row
+           commands still apply to it — but with the DOM selection
+           gone, nothing on screen shows what is selected while
+           the user picks a highlight color or opens the ⋯ menu.
+           While the selection context is active, paint that
+           remembered range through the CSS Custom Highlight API
+           (the way table cell selections are painted with a
+           class) whenever the native selection is not itself
+           visible in the editor; the paint is dropped the moment
+           the real selection is back, so the two never stack. */
+        function selPaintAvailable() {
+          return !!(window.CSS && CSS.highlights && typeof Highlight !== 'undefined');
+        }
+        function nativeSelVisibleInEditor() {
+          var s = window.getSelection ? window.getSelection() : null;
+          if (!s || !s.rangeCount || s.isCollapsed) return false;
+          var mount = document.getElementById('editorMount');
+          return !!(mount && s.anchorNode && s.focusNode && mount.contains(s.anchorNode) && mount.contains(s.focusNode));
+        }
+        function updateSelPaint() {
+          if (!selPaintAvailable()) return;
+          var show = false, from = 0, to = 0;
+          if (lastCtxMode === 'selection' && editorHandle && editorHandle.editor && editorHandle.editor.state) {
+            var sel = editorHandle.editor.state.selection;
+            if (sel && !sel.empty) { from = sel.from; to = sel.to; show = true; }
+          }
+          if (!show || nativeSelVisibleInEditor()) {
+            try { CSS.highlights.delete('folio-sel'); } catch (e) {}
+            return;
+          }
+          try {
+            var view = editorHandle.editor.view;
+            var a = view.domAtPos(from);
+            var b = view.domAtPos(to);
+            var range = document.createRange();
+            range.setStart(a.node, a.offset);
+            range.setEnd(b.node, b.offset);
+            CSS.highlights.set('folio-sel', new Highlight(range));
+          } catch (e) {
+            try { CSS.highlights.delete('folio-sel'); } catch (e2) {}
+          }
+        }
+        /* The native selection coming and going on its own (a
+           command's focus restoring it, a tap back into the
+           editor) repaints or clears the app paint to match. */
+        document.addEventListener('selectionchange', function () { updateSelPaint(); });
         function selectionPlainText() {
           if (!editorHandle) return '';
           var ed = editorHandle.editor;
@@ -4468,6 +4553,10 @@
           if (!(ev.target.closest && ev.target.closest('#editorMount'))) {
             var domSel = window.getSelection ? window.getSelection() : null;
             if (domSel && domSel.rangeCount) { try { domSel.removeAllRanges(); } catch (e) {} }
+            /* The collapse above dismisses Apple's menu only; the
+               remembered selection stays visible as app paint
+               while the selection context is up. */
+            updateSelPaint();
           }
           if (suggestState.active && !suggestEl.contains(ev.target) && !ev.target.closest('#editorMount')) {
             suggestState.active = false;
