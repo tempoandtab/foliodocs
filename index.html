@@ -3772,10 +3772,13 @@
               empty.textContent = 'Empty — use this folder\u2019s \u22EE menu to start a document here.';
               box.appendChild(empty);
             }
-            docs.forEach(function (d) { box.appendChild(docItemEl(d)); });
-            // Subfolders render inside the parent's box, after its
-            // documents — the tree recurses to any depth.
+            // Subfolders render inside the parent's box, ABOVE its
+            // documents — folders first, then docs, the same
+            // grouping the root level uses. Each group keeps its
+            // own order: subfolders in their sibling order, docs in
+            // theirs. The tree recurses to any depth.
             subs.forEach(function (cf) { box.appendChild(folderEl(cf)); });
+            docs.forEach(function (d) { box.appendChild(docItemEl(d)); });
             wrap.appendChild(box);
           }
           return wrap;
