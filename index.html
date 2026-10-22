@@ -298,9 +298,12 @@
       #libraryToggle { display: none; }
       /* The context tools button is a small-screens control: it
          appears in the topbar only under the 860px tier (see the
-         Responsive section), next to the both-toolbars toggle,
-         and only while the main toolbar is shown (see the
-         data-toolbars rule below). */
+         Responsive section), next to the both-toolbars toggle.
+         It has two modes keyed to toolbar visibility: while the
+         toolbars are shown it is the secondary toolbar's
+         show/hide toggle; while they are hidden it stays on
+         screen as a context tools menu button, so the important
+         commands remain reachable in the hidden state. */
       #ctxToolsBtn { display: none; }
       .title-input {
         flex: 1; min-width: 0;
@@ -325,18 +328,20 @@
          height back to the editor, and removing the attribute
          restores the rows exactly as they were. */
       :root[data-toolbars="hidden"] .toolbar { display: none; }
-      /* The context tools button follows the main toolbar: while
-         the toolbars are hidden it hides too, and the
-         both-toolbars toggle — always on screen — is the way
-         back for both. */
-      :root[data-toolbars="hidden"] #ctxToolsBtn { display: none; }
+      /* The context tools button deliberately does NOT follow
+         the toolbars into hiding: in the hidden state it switches
+         to its menu mode (see the context tools button script),
+         which is the formatting access that state exists around.
+         The both-toolbars toggle — always on screen — remains
+         the way back for the rows themselves. */
       /* The secondary (contextual) bar has its own show/hide
-         switch, offered on small screens only as an item in the
-         context tools button's menu: the button (#ctxToolsBtn)
-         renders solely under the 860px compaction tier, and the
-         bar's collapse rule lives in that same media query, so
-         the stored data-ctxbar preference can never hide the bar
-         at a width where there is no button to bring it back. */
+         switch: on small screens the context tools button is
+         that switch while the toolbars are shown (its toggle
+         mode). The button (#ctxToolsBtn) renders solely under
+         the 860px compaction tier, and the bar's collapse rule
+         lives in that same media query, so the stored
+         data-ctxbar preference can never hide the bar at a
+         width where there is no button to bring it back. */
       .tb-btn {
         min-width: 44px; height: 44px; padding: 0 10px; border-radius: 10px;
         display: inline-flex; align-items: center; justify-content: center; gap: 5px;
@@ -1395,11 +1400,13 @@
         .toolbar .tb-sep-a { display: none; }
         .tb-more-btn { display: inline-flex; }
         /* Small screens get the context tools button in the
-           topbar, and this is the only width range where the
-           secondary bar's stored preference collapses the bar —
-           on wide screens the bar always shows (there is no
-           button there to restore it, and the room is not
-           scarce). */
+           topbar — in both toolbar states: it is the secondary
+           bar's toggle while the toolbars are shown and the
+           context tools menu button while they are hidden. This
+           is also the only width range where the secondary bar's
+           stored preference collapses the bar — on wide screens
+           the bar always shows (there is no button there to
+           restore it, and the room is not scarce). */
         #ctxToolsBtn { display: inline-flex; }
         :root[data-ctxbar="hidden"] #tableBar { display: none; }
       }
@@ -1468,9 +1475,10 @@
         }
       } catch (e) {}
       /* Same treatment for the secondary bar's own preference
-         (the show/hide item in the small-screens context tools
-         menu): the attribute is set here, but the stylesheet
-         only collapses the bar on it at small widths. */
+         (the small-screens context button's toggle mode, while
+         the toolbars are shown): the attribute is set here, but
+         the stylesheet only collapses the bar on it at small
+         widths. */
       try {
         if (window.localStorage && localStorage.getItem('folio-ctxbar') === 'hidden') {
           document.documentElement.setAttribute('data-ctxbar', 'hidden');
@@ -1564,8 +1572,8 @@
           <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings" aria-haspopup="menu" aria-expanded="false" data-tip="Settings — button label style">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h9M19 8h1M4 16h3M13 16h7"/><circle cx="16" cy="8" r="2.3"/><circle cx="10" cy="16" r="2.3"/></svg>
           </button>
-          <button class="icon-btn" id="ctxToolsBtn" type="button" aria-label="Insert tools" aria-haspopup="menu" aria-expanded="false" data-tip="Insert tools">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <button class="icon-btn" id="ctxToolsBtn" type="button" aria-label="Hide secondary toolbar" aria-pressed="true" data-tip="Hide secondary toolbar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/></svg>
           </button>
           <button class="icon-btn" id="toolbarsBtn" type="button" aria-label="Hide toolbars" aria-pressed="false" data-tip="Hide toolbars">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="m9.2 16.8 2.8-2.8 2.8 2.8"/></svg>
@@ -2653,9 +2661,13 @@
             closeTblPop();
             document.documentElement.setAttribute('data-toolbars', 'hidden');
           } else {
+            closeCtxToolsMenu();
             document.documentElement.removeAttribute('data-toolbars');
           }
           applyToolbarsBtn();
+          // The context tools button flips between its toggle
+          // mode and its menu mode with toolbar visibility.
+          applyCtxToolsBtn();
           // The context bar's fold is measured from the rows'
           // widths; refold once they are back at full size.
           if (!toolbarsHidden) refreshContextBar();
@@ -2666,28 +2678,35 @@
         applyToolbarsBtn();
 
         /* ---------------- context tools button (small screens) ----
-           One topbar button stands in for the secondary
-           (contextual) bar at small widths, in the slot the bar's
-           own show/hide toggle used to occupy. Its face follows
-           the editor's current context — the table grid in a
-           table, a text cursor over a selection, a plus at a
-           plain caret — and pressing it opens a menu (see the
-           context tools menu further down) holding the tools the
-           bar's row would show for that context, plus the bar's
-           show/hide switch as an item, so nothing the old toggle
-           did is lost. The button renders only under the 860px
-           tier and only while the main toolbar is shown (the
-           stylesheet hides it under data-toolbars="hidden"); the
-           both-toolbars toggle above is untouched and remains
-           the way back for both rows.
-           The bar preference itself is unchanged: folio-ctxbar in
-           localStorage, applied before first paint by the <head>
-           script as data-ctxbar on <html>, and the stylesheet
-           scopes the bar's collapse to the same small-width tier
-           as this button, so the stored preference can never hide
-           the bar at a width where there is no way to restore
-           it. It stays independent of the both-toolbars toggle:
-           that one still hides both rows at any width. */
+           One topbar button in the slot next to the both-toolbars
+           toggle, with two modes keyed to toolbar visibility:
+           - Toolbars SHOWN: the button is simply the secondary
+             (contextual) bar's show/hide toggle — the two-rows
+             icon, "Hide/Show secondary toolbar" as its name and
+             tooltip, driving the folio-ctxbar preference below.
+             No menu opens: the context tools are already on
+             screen in the two bars.
+           - Toolbars HIDDEN: the button stays in the topbar and
+             becomes the context tools button. Its face follows
+             the editor's current context — the table grid in a
+             table, a text cursor over a selection, a plus at a
+             plain caret — and pressing it opens a menu (see the
+             context tools menu further down) of the most
+             important actions from either toolbar for that
+             context. In this mode it only runs actions; it never
+             shows or hides toolbars — the both-toolbars toggle
+             above remains the way back for the rows.
+           The button renders only under the 860px tier, in both
+           modes; setToolbarsHidden flips it live as the rows
+           hide and show. The bar preference itself is unchanged:
+           folio-ctxbar in localStorage, applied before first
+           paint by the <head> script as data-ctxbar on <html>,
+           and the stylesheet scopes the bar's collapse to the
+           same small-width tier as this button, so the stored
+           preference can never hide the bar at a width where
+           there is no button to bring it back. It stays
+           independent of the both-toolbars toggle: that one
+           still hides both rows at any width. */
         var CTXBAR_KEY = 'folio-ctxbar';
         var ctxBarHidden = false;
         try { ctxBarHidden = localStorage.getItem(CTXBAR_KEY) === 'hidden'; } catch (e) {}
@@ -2707,16 +2726,33 @@
             svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
           },
         };
+        var CTX_TOGGLE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/></svg>';
         function applyCtxToolsBtn() {
           if (!ctxToolsBtn) return;
-          var face = CTX_TOOLS_FACE[ctxToolsMode] || CTX_TOOLS_FACE.insert;
-          ctxToolsBtn.innerHTML = face.svg;
-          ctxToolsBtn.setAttribute('aria-label', face.name);
-          ctxToolsBtn.setAttribute('data-tip', face.name);
+          if (toolbarsHidden) {
+            /* Menu mode: the face follows the live context. */
+            var face = CTX_TOOLS_FACE[ctxToolsMode] || CTX_TOOLS_FACE.insert;
+            ctxToolsBtn.innerHTML = face.svg;
+            ctxToolsBtn.setAttribute('aria-label', face.name);
+            ctxToolsBtn.setAttribute('data-tip', face.name);
+            ctxToolsBtn.setAttribute('aria-haspopup', 'menu');
+            ctxToolsBtn.removeAttribute('aria-pressed');
+          } else {
+            /* Toggle mode: the secondary bar's show/hide switch. */
+            var name = ctxBarHidden ? 'Show secondary toolbar' : 'Hide secondary toolbar';
+            ctxToolsBtn.innerHTML = CTX_TOGGLE_SVG;
+            ctxToolsBtn.setAttribute('aria-label', name);
+            ctxToolsBtn.setAttribute('data-tip', name);
+            ctxToolsBtn.setAttribute('aria-pressed', ctxBarHidden ? 'false' : 'true');
+            ctxToolsBtn.removeAttribute('aria-haspopup');
+            ctxToolsBtn.setAttribute('aria-expanded', 'false');
+          }
         }
         /* refreshContextBar reports the live context here on
            every selection change, so the button's face never lags
-           the row it stands in for. */
+           the row it stands in for (in toggle mode the face does
+           not depend on the context, and applyCtxToolsBtn just
+           repaints the same toggle). */
         function setCtxToolsMode(mode) {
           if (mode === ctxToolsMode) return;
           ctxToolsMode = mode;
@@ -2738,6 +2774,9 @@
           // The bar's fold is measured from its width; refold
           // once it is back at full size.
           if (!ctxBarHidden) refreshContextBar();
+          // The toggle-mode button's face names the action it
+          // will take, so it flips with the preference.
+          applyCtxToolsBtn();
         }
         applyCtxToolsBtn();
 
@@ -5100,20 +5139,26 @@
         });
 
         /* ---------------- context tools menu ----------------------
-           The small-screens topbar button (see the context tools
-           button above) opens this menu: the tools the secondary
-           bar's row would show for the current context, in the
-           app's standard icon + text menu style, plus the bar's
-           show/hide switch as the last item — the job the button
-           in this slot used to do on its own. Items are proxies
-           for the row's real buttons, built the same way as the
-           overflow menus above, so a pick runs exactly the row
-           button's command and carries its current state; the
-           table context reuses the full table menu's builders,
-           swatch rows and popover items included. */
+           The small-screens topbar button opens this menu only in
+           its menu mode — while the toolbars are hidden (with
+           them shown the button is the secondary bar's toggle
+           instead). The menu carries the most important actions
+           from either toolbar for the current context, in the
+           app's standard icon + text menu style: the table tool
+           set in a table; at a selection, the main toolbar's core
+           selection formatting (Bold, Italic, plus the selection
+           row's own Strikethrough and Inline code) ahead of the
+           selection row's actions; and the insert tools at a
+           plain caret. Items are proxies for the bars' real
+           buttons, built the same way as the overflow menus
+           above, so a pick runs exactly the real button's
+           command and carries its current state; the table
+           context reuses the full table menu's builders, swatch
+           rows and popover items included. The menu never touches
+           toolbar visibility — the both-toolbars toggle is the
+           only way back to the rows. */
         var ctxToolsMenuEl = document.getElementById('ctxToolsMenu');
         var ctxToolsMenuOpen = false;
-        var CTXBAR_TOGGLE_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/></svg>';
         function closeCtxToolsMenu() {
           if (!ctxToolsMenuEl) return;
           ctxToolsMenuEl.className = 'menu';
@@ -5122,6 +5167,34 @@
           ctxToolsMenuEl.style.maxHeight = '';
           ctxToolsMenuOpen = false;
           if (ctxToolsBtn) ctxToolsBtn.setAttribute('aria-expanded', 'false');
+        }
+        /* A menu item proxying a MAIN toolbar button (the
+           selection context's Bold / Italic, which live only
+           there): same construction as the toolbar overflow
+           menu's items, and a pick clicks the real button, so
+           the command and its state stay the toolbar's own. */
+        function ctxToolsMainItem(cmd) {
+          var real = toolbarBtns[cmd];
+          if (!real) return null;
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-item' + (real.classList.contains('on') ? ' on' : '');
+          b.setAttribute('role', 'menuitem');
+          if (real.disabled) b.disabled = true;
+          var lead = document.createElement('span');
+          lead.className = 'check';
+          lead.innerHTML = CHECK_SVG;
+          b.appendChild(lead);
+          b.appendChild(menuIconFromBtn(real));
+          var s = document.createElement('span');
+          s.className = 'm-label';
+          s.textContent = real.getAttribute('aria-label') || cmd;
+          b.appendChild(s);
+          b.addEventListener('click', function () {
+            closeCtxToolsMenu();
+            real.click();
+          });
+          return b;
         }
         function ctxToolsProxyItem(el, groupEl) {
           var b = document.createElement('button');
@@ -5176,40 +5249,40 @@
             addItem('[data-tact="del-row"]', true);
             addItem('[data-tact="del-col"]', true);
             addItem('[data-tact="del-table"]', true);
+          } else if (ctxToolsMode === 'selection') {
+            /* The most important selection actions from either
+               toolbar: the main toolbar's Bold and Italic (which
+               exist nowhere else) lead, then the selection row's
+               own buttons — Strikethrough and Inline code ahead
+               of Highlight and Text color, then the row's
+               remaining actions with Block quote last. Highlight
+               and Text color follow the row's existing dedupe
+               rule: they sit out only while the same command is
+               actually visible in the main toolbar — and this
+               menu opens only while the toolbars are hidden, so
+               in practice both are always here. */
+            var boldItem = ctxToolsMainItem('bold');
+            if (boldItem) ctxToolsMenuEl.appendChild(boldItem);
+            var italicItem = ctxToolsMainItem('italic');
+            if (italicItem) ctxToolsMenuEl.appendChild(italicItem);
+            function selItem(el) {
+              if (el) ctxToolsMenuEl.appendChild(ctxToolsProxyItem(el, ctxSelTools));
+            }
+            selItem(selStrikeBtn);
+            selItem(selCodeBtn);
+            if (!mainCmdVisible('highlight')) selItem(selHlBtn);
+            if (!mainCmdVisible('textcolor')) selItem(selTcBtn);
+            selItem(ctxSelTools.querySelector('[data-sel="wikilink"]'));
+            selItem(ctxSelTools.querySelector('[data-sel="copy"]'));
+            selItem(ctxSelTools.querySelector('[data-sel="clearfmt"]'));
+            selItem(selQuoteBtn);
           } else {
-            var groupEl = ctxToolsMode === 'selection' ? ctxSelTools : ctxInsertTools;
-            Array.prototype.slice.call(groupEl.children).forEach(function (el) {
+            Array.prototype.slice.call(ctxInsertTools.children).forEach(function (el) {
               if (el.tagName !== 'BUTTON') return;
-              if (el === selMoreBtn || el === insMoreBtn) return;
-              /* Deduped-out buttons stay out, exactly as in the
-                 row's own ⋯ menu: they are already visible in
-                 the main toolbar. */
-              if (el.classList.contains('ctx-dup')) return;
-              ctxToolsMenuEl.appendChild(ctxToolsProxyItem(el, groupEl));
+              if (el === insMoreBtn) return;
+              ctxToolsMenuEl.appendChild(ctxToolsProxyItem(el, ctxInsertTools));
             });
           }
-          ctxToolsMenuEl.appendChild(tblMenuSep());
-          var toggle = document.createElement('button');
-          toggle.type = 'button';
-          toggle.className = 'menu-item';
-          toggle.setAttribute('role', 'menuitem');
-          var tLead = document.createElement('span');
-          tLead.className = 'check';
-          toggle.appendChild(tLead);
-          var tIcon = document.createElement('span');
-          tIcon.className = 'm-icon';
-          tIcon.setAttribute('aria-hidden', 'true');
-          tIcon.innerHTML = CTXBAR_TOGGLE_ICON;
-          toggle.appendChild(tIcon);
-          var tLabel = document.createElement('span');
-          tLabel.className = 'm-label';
-          tLabel.textContent = ctxBarHidden ? 'Show secondary toolbar' : 'Hide secondary toolbar';
-          toggle.appendChild(tLabel);
-          toggle.addEventListener('click', function () {
-            closeCtxToolsMenu();
-            setCtxBarHidden(!ctxBarHidden);
-          });
-          ctxToolsMenuEl.appendChild(toggle);
         }
         function openCtxToolsMenu() {
           if (ctxToolsMenuOpen) { closeCtxToolsMenu(); return; }
@@ -5260,7 +5333,12 @@
         }
         if (ctxToolsBtn) ctxToolsBtn.addEventListener('click', function (ev) {
           ev.stopPropagation();
-          openCtxToolsMenu();
+          /* Menu mode (toolbars hidden) opens the context menu;
+             toggle mode (toolbars shown) just flips the
+             secondary bar, exactly as its old dedicated toggle
+             did — no menu, the tools are already on screen. */
+          if (toolbarsHidden) openCtxToolsMenu();
+          else setCtxBarHidden(!ctxBarHidden);
         });
 
         /* ---------------- right-click table menu -------------------
