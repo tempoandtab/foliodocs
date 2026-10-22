@@ -296,10 +296,12 @@
       }
       .icon-btn:hover { background: var(--hover); color: var(--ink); }
       #libraryToggle { display: none; }
-      /* The secondary-bar toggle is a small-screens control: it
+      /* The context tools button is a small-screens control: it
          appears in the topbar only under the 860px tier (see the
-         Responsive section), next to the both-toolbars toggle. */
-      #ctxBarBtn { display: none; }
+         Responsive section), next to the both-toolbars toggle,
+         and only while the main toolbar is shown (see the
+         data-toolbars rule below). */
+      #ctxToolsBtn { display: none; }
       .title-input {
         flex: 1; min-width: 0;
         font-family: "Newsreader", Georgia, serif;
@@ -323,8 +325,14 @@
          height back to the editor, and removing the attribute
          restores the rows exactly as they were. */
       :root[data-toolbars="hidden"] .toolbar { display: none; }
-      /* The secondary (contextual) bar has its own toggle,
-         offered on small screens only: its button (#ctxBarBtn)
+      /* The context tools button follows the main toolbar: while
+         the toolbars are hidden it hides too, and the
+         both-toolbars toggle — always on screen — is the way
+         back for both. */
+      :root[data-toolbars="hidden"] #ctxToolsBtn { display: none; }
+      /* The secondary (contextual) bar has its own show/hide
+         switch, offered on small screens only as an item in the
+         context tools button's menu: the button (#ctxToolsBtn)
          renders solely under the 860px compaction tier, and the
          bar's collapse rule lives in that same media query, so
          the stored data-ctxbar preference can never hide the bar
@@ -1126,6 +1134,11 @@
         box-shadow: var(--shadow); padding: 5px; display: none;
       }
       .menu.open { display: block; }
+      /* The context tools menu can outgrow a phone's visible
+         region (the table context carries the full table tool
+         set), so it scrolls internally; the open handler caps
+         its height to the visible region it is placed in. */
+      #ctxToolsMenu { overflow-y: auto; }
       .menu-head {
         font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
         color: var(--ink-3); padding: 7px 10px 4px;
@@ -1381,12 +1394,13 @@
         /* Separators that only divided folded-away groups go too. */
         .toolbar .tb-sep-a { display: none; }
         .tb-more-btn { display: inline-flex; }
-        /* Small screens get the secondary bar's own toggle in the
-           topbar, and this is the only width range where its
-           stored preference collapses the bar — on wide screens
-           the bar always shows (there is no button there to
-           restore it, and the room is not scarce). */
-        #ctxBarBtn { display: inline-flex; }
+        /* Small screens get the context tools button in the
+           topbar, and this is the only width range where the
+           secondary bar's stored preference collapses the bar —
+           on wide screens the bar always shows (there is no
+           button there to restore it, and the room is not
+           scarce). */
+        #ctxToolsBtn { display: inline-flex; }
         :root[data-ctxbar="hidden"] #tableBar { display: none; }
       }
       @media (max-width: 620px) {
@@ -1454,9 +1468,9 @@
         }
       } catch (e) {}
       /* Same treatment for the secondary bar's own preference
-         (its small-screens toggle in the topbar): the attribute
-         is set here, but the stylesheet only collapses the bar
-         on it at small widths. */
+         (the show/hide item in the small-screens context tools
+         menu): the attribute is set here, but the stylesheet
+         only collapses the bar on it at small widths. */
       try {
         if (window.localStorage && localStorage.getItem('folio-ctxbar') === 'hidden') {
           document.documentElement.setAttribute('data-ctxbar', 'hidden');
@@ -1550,8 +1564,8 @@
           <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings" aria-haspopup="menu" aria-expanded="false" data-tip="Settings — button label style">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h9M19 8h1M4 16h3M13 16h7"/><circle cx="16" cy="8" r="2.3"/><circle cx="10" cy="16" r="2.3"/></svg>
           </button>
-          <button class="icon-btn" id="ctxBarBtn" type="button" aria-label="Hide secondary toolbar" aria-pressed="false" data-tip="Hide secondary toolbar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/><path d="m9.8 18.3 2.2-2.2 2.2 2.2"/></svg>
+          <button class="icon-btn" id="ctxToolsBtn" type="button" aria-label="Insert tools" aria-haspopup="menu" aria-expanded="false" data-tip="Insert tools">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           </button>
           <button class="icon-btn" id="toolbarsBtn" type="button" aria-label="Hide toolbars" aria-pressed="false" data-tip="Hide toolbars">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="m9.2 16.8 2.8-2.8 2.8 2.8"/></svg>
@@ -1700,6 +1714,7 @@
     <div class="menu" id="tbMenu" role="menu" aria-label="More formatting options"></div>
     <div class="menu" id="tblMenu" role="menu" aria-label="More table options"></div>
     <div class="menu" id="ctxMenu" role="menu" aria-label="More options"></div>
+    <div class="menu" id="ctxToolsMenu" role="menu" aria-label="Context tools"></div>
     <div class="menu" id="settingsMenu" role="menu" aria-label="Settings"></div>
     <div class="fmt-pop" id="fmtPop" hidden role="dialog" aria-label="Color choices">
       <div class="pop-label" id="fmtPopLabel">Highlight</div>
@@ -2633,6 +2648,7 @@
             closeTbMenu();
             closeTblMenu();
             closeCtxMenu();
+            closeCtxToolsMenu();
             closeFmtPop();
             closeTblPop();
             document.documentElement.setAttribute('data-toolbars', 'hidden');
@@ -2649,34 +2665,62 @@
         });
         applyToolbarsBtn();
 
-        /* ---------------- secondary-bar toggle (small screens) ----
-           A second topbar toggle, rendered only at small widths,
-           collapses just the secondary (contextual) bar, so the
-           formatting bar can stay up while the editor reclaims
-           the second row — the usual phone case, where the
-           contextual tools matter less often than the room they
-           take with the keyboard open. It is independent of the
-           both-toolbars toggle above: that one still hides both
-           rows at any width, and this one's preference applies
-           only where its button exists (the stylesheet scopes
-           the collapse to the same small-width tier). Same
-           per-device treatment: folio-ctxbar in localStorage,
-           applied before first paint by the <head> script as
-           data-ctxbar on <html>; the icon's two ruled rows mark
-           it as the lower bar's toggle, and the chevron flips
-           with the state. */
+        /* ---------------- context tools button (small screens) ----
+           One topbar button stands in for the secondary
+           (contextual) bar at small widths, in the slot the bar's
+           own show/hide toggle used to occupy. Its face follows
+           the editor's current context — the table grid in a
+           table, a text cursor over a selection, a plus at a
+           plain caret — and pressing it opens a menu (see the
+           context tools menu further down) holding the tools the
+           bar's row would show for that context, plus the bar's
+           show/hide switch as an item, so nothing the old toggle
+           did is lost. The button renders only under the 860px
+           tier and only while the main toolbar is shown (the
+           stylesheet hides it under data-toolbars="hidden"); the
+           both-toolbars toggle above is untouched and remains
+           the way back for both rows.
+           The bar preference itself is unchanged: folio-ctxbar in
+           localStorage, applied before first paint by the <head>
+           script as data-ctxbar on <html>, and the stylesheet
+           scopes the bar's collapse to the same small-width tier
+           as this button, so the stored preference can never hide
+           the bar at a width where there is no way to restore
+           it. It stays independent of the both-toolbars toggle:
+           that one still hides both rows at any width. */
         var CTXBAR_KEY = 'folio-ctxbar';
         var ctxBarHidden = false;
         try { ctxBarHidden = localStorage.getItem(CTXBAR_KEY) === 'hidden'; } catch (e) {}
-        var ctxBarBtn = document.getElementById('ctxBarBtn');
-        var CTX_HIDE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/><path d="m9.8 18.3 2.2-2.2 2.2 2.2"/></svg>';
-        var CTX_SHOW_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/><path d="m9.8 16.1 2.2 2.2 2.2-2.2"/></svg>';
-        function applyCtxBarBtn() {
-          if (!ctxBarBtn) return;
-          ctxBarBtn.innerHTML = ctxBarHidden ? CTX_SHOW_SVG : CTX_HIDE_SVG;
-          ctxBarBtn.setAttribute('aria-label', ctxBarHidden ? 'Show secondary toolbar' : 'Hide secondary toolbar');
-          ctxBarBtn.setAttribute('data-tip', ctxBarHidden ? 'Show secondary toolbar' : 'Hide secondary toolbar');
-          ctxBarBtn.setAttribute('aria-pressed', ctxBarHidden ? 'true' : 'false');
+        var ctxToolsBtn = document.getElementById('ctxToolsBtn');
+        var ctxToolsMode = 'insert';
+        var CTX_TOOLS_FACE = {
+          table: {
+            name: 'Table tools',
+            svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg>',
+          },
+          selection: {
+            name: 'Selection tools',
+            svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4h8M8 20h8M12 4v16"/></svg>',
+          },
+          insert: {
+            name: 'Insert tools',
+            svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+          },
+        };
+        function applyCtxToolsBtn() {
+          if (!ctxToolsBtn) return;
+          var face = CTX_TOOLS_FACE[ctxToolsMode] || CTX_TOOLS_FACE.insert;
+          ctxToolsBtn.innerHTML = face.svg;
+          ctxToolsBtn.setAttribute('aria-label', face.name);
+          ctxToolsBtn.setAttribute('data-tip', face.name);
+        }
+        /* refreshContextBar reports the live context here on
+           every selection change, so the button's face never lags
+           the row it stands in for. */
+        function setCtxToolsMode(mode) {
+          if (mode === ctxToolsMode) return;
+          ctxToolsMode = mode;
+          applyCtxToolsBtn();
         }
         function setCtxBarHidden(hidden) {
           ctxBarHidden = !!hidden;
@@ -2691,15 +2735,11 @@
           } else {
             document.documentElement.removeAttribute('data-ctxbar');
           }
-          applyCtxBarBtn();
           // The bar's fold is measured from its width; refold
           // once it is back at full size.
           if (!ctxBarHidden) refreshContextBar();
         }
-        if (ctxBarBtn) ctxBarBtn.addEventListener('click', function () {
-          setCtxBarHidden(!ctxBarHidden);
-        });
-        applyCtxBarBtn();
+        applyCtxToolsBtn();
 
         /* ---------------- collapsible sidebar sections ---------------- */
         function applySectionCollapse() {
@@ -4342,7 +4382,8 @@
           ctxTableTools.classList.toggle('off', mode !== 'table');
           ctxSelTools.classList.toggle('off', mode !== 'selection');
           ctxInsertTools.classList.toggle('off', mode !== 'insert');
-          if (mode !== lastCtxMode) { closeCtxMenu(); lastCtxMode = mode; }
+          if (mode !== lastCtxMode) { closeCtxMenu(); closeCtxToolsMenu(); lastCtxMode = mode; }
+          setCtxToolsMode(mode);
           if (mode !== 'table') {
             closeTblMenu();
             closeTblStylePops();
@@ -4840,6 +4881,7 @@
           b.appendChild(s);
           b.addEventListener('click', function () {
             closeTblMenu();
+            closeCtxToolsMenu();
             realBtn.click();
           });
           return b;
@@ -4858,6 +4900,7 @@
             c.removeAttribute('id');
             c.addEventListener('click', function () {
               closeTblMenu();
+              closeCtxToolsMenu();
               real.click();
             });
             row.appendChild(c);
@@ -4891,6 +4934,7 @@
                before. */
             var rect = anchorEl ? anchorEl.getBoundingClientRect() : null;
             closeTblMenu();
+            closeCtxToolsMenu();
             openTblStylePop(kind, anchorEl ? null : tblMoreBtn, rect);
           });
           return b;
@@ -5053,6 +5097,170 @@
         insMoreBtn.addEventListener('click', function (ev) {
           ev.stopPropagation();
           openCtxGroupMenu(ctxInsertTools, insMoreBtn);
+        });
+
+        /* ---------------- context tools menu ----------------------
+           The small-screens topbar button (see the context tools
+           button above) opens this menu: the tools the secondary
+           bar's row would show for the current context, in the
+           app's standard icon + text menu style, plus the bar's
+           show/hide switch as the last item — the job the button
+           in this slot used to do on its own. Items are proxies
+           for the row's real buttons, built the same way as the
+           overflow menus above, so a pick runs exactly the row
+           button's command and carries its current state; the
+           table context reuses the full table menu's builders,
+           swatch rows and popover items included. */
+        var ctxToolsMenuEl = document.getElementById('ctxToolsMenu');
+        var ctxToolsMenuOpen = false;
+        var CTXBAR_TOGGLE_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/></svg>';
+        function closeCtxToolsMenu() {
+          if (!ctxToolsMenuEl) return;
+          ctxToolsMenuEl.className = 'menu';
+          ctxToolsMenuEl.innerHTML = '';
+          ctxToolsMenuEl.style.width = '';
+          ctxToolsMenuEl.style.maxHeight = '';
+          ctxToolsMenuOpen = false;
+          if (ctxToolsBtn) ctxToolsBtn.setAttribute('aria-expanded', 'false');
+        }
+        function ctxToolsProxyItem(el, groupEl) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-item' + (el.classList.contains('on') ? ' on' : '');
+          b.setAttribute('role', 'menuitem');
+          if (el.disabled) b.disabled = true;
+          var lead = document.createElement('span');
+          lead.className = 'check';
+          lead.innerHTML = CHECK_SVG;
+          b.appendChild(lead);
+          b.appendChild(menuIconFromBtn(el));
+          var s = document.createElement('span');
+          s.className = 'm-label';
+          s.textContent = el.getAttribute('aria-label') || el.textContent.trim();
+          b.appendChild(s);
+          b.addEventListener('click', function () {
+            closeCtxToolsMenu();
+            if (groupEl === ctxSelTools) runSelCmd(el, ctxToolsBtn);
+            else runInsCmd(el, ctxToolsBtn);
+          });
+          return b;
+        }
+        function buildCtxToolsMenu() {
+          ctxToolsMenuEl.innerHTML = '';
+          if (ctxToolsMode === 'table') {
+            function barBtn(sel) { return tableBar.querySelector(sel); }
+            function addItem(sel, danger) {
+              var real = barBtn(sel);
+              if (real) ctxToolsMenuEl.appendChild(tblMenuProxyItem(real, danger));
+            }
+            addItem('[data-tact="row-above"]');
+            addItem('[data-tact="row-below"]');
+            addItem('[data-tact="col-left"]');
+            addItem('[data-tact="col-right"]');
+            addItem('[data-tact="merge"]');
+            addItem('[data-tact="split"]');
+            addItem('[data-thdr="row"]');
+            addItem('[data-thdr="col"]');
+            addItem('[data-tact="reset-widths"]');
+            ctxToolsMenuEl.appendChild(tblMenuSep());
+            ctxToolsMenuEl.appendChild(tblMenuHead('Cell fill'));
+            ctxToolsMenuEl.appendChild(tblMenuSwatchRow(Array.prototype.slice.call(tblBgSwatches.querySelectorAll('[data-tbg]'))));
+            ctxToolsMenuEl.appendChild(tblMenuHead('Border width'));
+            tblBorderSizeMenu.querySelectorAll('[data-tbw]').forEach(function (real) {
+              ctxToolsMenuEl.appendChild(tblMenuProxyItem(real, false));
+            });
+            ctxToolsMenuEl.appendChild(tblMenuHead('Border color'));
+            ctxToolsMenuEl.appendChild(tblMenuSwatchRow(Array.prototype.slice.call(tblBorderColors.querySelectorAll('[data-tbc]'))));
+            ctxToolsMenuEl.appendChild(tblMenuPopItem('align', 'Cell alignment', ctxToolsMenuEl));
+            ctxToolsMenuEl.appendChild(tblMenuSep());
+            addItem('[data-tact="del-row"]', true);
+            addItem('[data-tact="del-col"]', true);
+            addItem('[data-tact="del-table"]', true);
+          } else {
+            var groupEl = ctxToolsMode === 'selection' ? ctxSelTools : ctxInsertTools;
+            Array.prototype.slice.call(groupEl.children).forEach(function (el) {
+              if (el.tagName !== 'BUTTON') return;
+              if (el === selMoreBtn || el === insMoreBtn) return;
+              /* Deduped-out buttons stay out, exactly as in the
+                 row's own ⋯ menu: they are already visible in
+                 the main toolbar. */
+              if (el.classList.contains('ctx-dup')) return;
+              ctxToolsMenuEl.appendChild(ctxToolsProxyItem(el, groupEl));
+            });
+          }
+          ctxToolsMenuEl.appendChild(tblMenuSep());
+          var toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'menu-item';
+          toggle.setAttribute('role', 'menuitem');
+          var tLead = document.createElement('span');
+          tLead.className = 'check';
+          toggle.appendChild(tLead);
+          var tIcon = document.createElement('span');
+          tIcon.className = 'm-icon';
+          tIcon.setAttribute('aria-hidden', 'true');
+          tIcon.innerHTML = CTXBAR_TOGGLE_ICON;
+          toggle.appendChild(tIcon);
+          var tLabel = document.createElement('span');
+          tLabel.className = 'm-label';
+          tLabel.textContent = ctxBarHidden ? 'Show secondary toolbar' : 'Hide secondary toolbar';
+          toggle.appendChild(tLabel);
+          toggle.addEventListener('click', function () {
+            closeCtxToolsMenu();
+            setCtxBarHidden(!ctxBarHidden);
+          });
+          ctxToolsMenuEl.appendChild(toggle);
+        }
+        function openCtxToolsMenu() {
+          if (ctxToolsMenuOpen) { closeCtxToolsMenu(); return; }
+          if (!editorHandle || !ctxToolsBtn) return;
+          closeMoveMenu();
+          closeFolderMenu();
+          closeDocMenu();
+          closeViewMenu();
+          closeTbMenu();
+          closeTblMenu();
+          closeCtxMenu();
+          closeSettingsMenu();
+          closeFolderPop();
+          closeFmtPop();
+          closeTblPop();
+          closeTblStylePops();
+          buildCtxToolsMenu();
+          /* Wider than the standard menu, like the table menu:
+             the longest labels ("Add column to the right") would
+             otherwise ellipsize at 224px. */
+          ctxToolsMenuEl.style.width = '264px';
+          ctxToolsMenuEl.className = 'menu open';
+          ctxToolsMenuOpen = true;
+          ctxToolsBtn.setAttribute('aria-expanded', 'true');
+          var r = ctxToolsBtn.getBoundingClientRect();
+          /* Same visual-viewport compensation as the settings
+             menu: while the iOS keyboard is up, Safari pans the
+             visual viewport without shrinking the layout viewport
+             this fixed menu resolves against, so shift the
+             button's rect by the visual viewport's offset and
+             clamp inside the visible region. With no keyboard the
+             offset is 0 and this is the plain anchored placement.
+             The menu's height is capped to that same region (it
+             scrolls internally past the cap) before it is
+             measured, so the flip below works from the height
+             the menu will actually take. */
+          var vv = window.visualViewport;
+          var offL = vv ? vv.offsetLeft : 0;
+          var offT = vv ? vv.offsetTop : 0;
+          var visW = vv ? vv.width : window.innerWidth;
+          var visH = vv ? vv.height : window.innerHeight;
+          ctxToolsMenuEl.style.maxHeight = Math.max(160, visH - 16) + 'px';
+          var w = 264, h = ctxToolsMenuEl.offsetHeight;
+          ctxToolsMenuEl.style.left = Math.max(offL + 8, Math.min(offL + r.right - w, offL + visW - w - 8)) + 'px';
+          var top = offT + r.bottom + 6;
+          if (top + h > offT + visH - 8) top = Math.max(offT + 8, offT + r.top - h - 6);
+          ctxToolsMenuEl.style.top = top + 'px';
+        }
+        if (ctxToolsBtn) ctxToolsBtn.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          openCtxToolsMenu();
         });
 
         /* ---------------- right-click table menu -------------------
@@ -5246,6 +5454,9 @@
           if (settingsMenuOpen && !settingsMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('#settingsBtn'))) {
             closeSettingsMenu();
           }
+          if (ctxToolsMenuOpen && !ctxToolsMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('#ctxToolsBtn'))) {
+            closeCtxToolsMenu();
+          }
           if (tblStylePop && !tblStylePop.contains(ev.target) && !(ev.target.closest && ev.target.closest('#tblFillBtn, #tblBorderColorBtn, #tblBorderSizeBtn, #tblAlignBtn, #tblMoreBtn'))) {
             closeTblStylePops();
           }
@@ -5279,6 +5490,7 @@
             if (tbMenuOpen) closeTbMenu();
             if (tblMenuOpen) closeTblMenu();
             if (ctxMenuOpen) closeCtxMenu();
+            if (ctxToolsMenuOpen) closeCtxToolsMenu();
             closeTblStylePops();
             if (!document.getElementById('deleteModal').hidden) closeDeleteModal();
             if (!themePop.hidden) closeThemePop();
