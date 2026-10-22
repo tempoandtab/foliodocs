@@ -1630,6 +1630,9 @@
           <span class="ctx-group off" id="ctxSelTools">
             <button class="tb-btn tb-txt" type="button" id="selHlBtn" data-sel="highlight" aria-label="Highlight" aria-haspopup="true" data-tip="Highlight — pick a color"><span class="hl-demo">A</span><span class="tb-label">Highlight</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
             <button class="tb-btn tb-txt" type="button" id="selTcBtn" data-sel="textcolor" aria-label="Text color" aria-haspopup="true" data-tip="Text color — pick a color"><span class="tc-demo"><span>A</span><span class="tc-bar"></span></span><span class="tb-label">Text color</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <button class="tb-btn tb-txt" type="button" id="selStrikeBtn" data-sel="strike" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s><span class="tb-label">Strikethrough</span></button>
+            <button class="tb-btn tb-txt" type="button" id="selCodeBtn" data-sel="code" aria-label="Inline code" data-tip="Inline code (⌘`)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span class="tb-label">Inline code</span></button>
+            <button class="tb-btn tb-txt" type="button" id="selQuoteBtn" data-sel="quote" aria-label="Block quote" data-tip="Blockquote — or start a line with &gt;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 8H6a4 4 0 0 0-4 4v6h7v-7H6.5A2.5 2.5 0 0 1 9 8.6V8h1zm12 0h-4a4 4 0 0 0-4 4v6h7v-7h-2.5A2.5 2.5 0 0 1 21 8.6V8h1z"/></svg><span class="tb-label">Block quote</span></button>
             <button class="tb-btn tb-txt" type="button" data-sel="wikilink" aria-label="Make wikilink" data-tip="Turn the selection into a [[wikilink]]"><span class="tb-wiki">[[ ]]</span><span class="tb-label">Make wikilink</span></button>
             <button class="tb-btn tb-txt" type="button" data-sel="copy" aria-label="Copy selection" data-tip="Copy the selected text"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="tb-label">Copy</span></button>
             <button class="tb-btn tb-txt" type="button" data-sel="clearfmt" aria-label="Clear formatting" data-tip="Strip the selection's formatting back to plain body text"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span class="tb-label">Clear formatting</span></button>
@@ -4116,6 +4119,9 @@
         var ctxInsertTools = document.getElementById('ctxInsertTools');
         var selHlBtn = document.getElementById('selHlBtn');
         var selTcBtn = document.getElementById('selTcBtn');
+        var selStrikeBtn = document.getElementById('selStrikeBtn');
+        var selCodeBtn = document.getElementById('selCodeBtn');
+        var selQuoteBtn = document.getElementById('selQuoteBtn');
         var selMoreBtn = document.getElementById('selMoreBtn');
         var insMoreBtn = document.getElementById('insMoreBtn');
         var selCountEl = document.getElementById('selCount');
@@ -4332,6 +4338,9 @@
               var ed = editorHandle.editor;
               selHlBtn.classList.toggle('on', ed.isActive('highlight'));
               selTcBtn.classList.toggle('on', ed.isActive('textStyle'));
+              selStrikeBtn.classList.toggle('on', ed.isActive('strike'));
+              selCodeBtn.classList.toggle('on', ed.isActive('code'));
+              selQuoteBtn.classList.toggle('on', ed.isActive('blockquote'));
               updateSelCount(selText);
             }
             updateSelPaint();
@@ -4542,7 +4551,13 @@
         /* ---------------- context bar selection tools -------------
            Shown while a text selection (outside a table) is active.
            Highlight and Text color are dropdowns opening the same
-           format popover as the main toolbar's pickers; Make
+           format popover as the main toolbar's pickers, and they
+           dedupe against the main toolbar (see applyCtxDedupe).
+           Strikethrough, Inline code, and Block quote are the
+           deliberate exception to that dedupe: they stay in this
+           row at every width, alongside their main-toolbar copies,
+           so the row works as a complete selection toolkit; their
+           .on state mirrors the main buttons'. Make
            wikilink replaces the selection with a wiki-link node;
            Copy writes the selection's plain text to the clipboard;
            Clear formatting strips marks and block formatting back
@@ -4641,6 +4656,9 @@
           var ed = editorHandle.editor;
           if (cmd === 'highlight') { openFmtPop('highlight', anchor || btn); return; }
           if (cmd === 'textcolor') { openFmtPop('textcolor', anchor || btn); return; }
+          if (cmd === 'strike') { ed.chain().focus().toggleStrike().run(); refreshToolbar(); return; }
+          if (cmd === 'code') { ed.chain().focus().toggleCode().run(); refreshToolbar(); return; }
+          if (cmd === 'quote') { ed.chain().focus().toggleBlockquote().run(); refreshToolbar(); return; }
           if (cmd === 'wikilink') {
             var sel = ed.state.selection;
             if (sel.empty) return;
