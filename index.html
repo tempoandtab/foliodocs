@@ -2573,9 +2573,23 @@
           settingsBtn.setAttribute('aria-expanded', 'true');
           var r = settingsBtn.getBoundingClientRect();
           var w = 256, h = settingsMenuEl.offsetHeight;
-          settingsMenuEl.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + 'px';
-          var top = r.bottom + 6;
-          if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+          /* getBoundingClientRect is relative to the *visual* viewport,
+             but this menu is position:fixed, which resolves against the
+             layout viewport. While the iOS keyboard is up, Safari pans
+             the visual viewport (visualViewport.offsetTop > 0) without
+             shrinking the layout viewport, so the button's rect must be
+             shifted by the visual viewport's offset and clamped inside
+             the visible region — otherwise the menu lands offsetTop
+             pixels too high, above the page and out of view. With no
+             keyboard the offset is 0 and this is the old behavior. */
+          var vv = window.visualViewport;
+          var offL = vv ? vv.offsetLeft : 0;
+          var offT = vv ? vv.offsetTop : 0;
+          var visW = vv ? vv.width : window.innerWidth;
+          var visH = vv ? vv.height : window.innerHeight;
+          settingsMenuEl.style.left = Math.max(offL + 8, Math.min(offL + r.right - w, offL + visW - w - 8)) + 'px';
+          var top = offT + r.bottom + 6;
+          if (top + h > offT + visH - 8) top = Math.max(offT + 8, offT + r.top - h - 6);
           settingsMenuEl.style.top = top + 'px';
         }
         if (settingsBtn) settingsBtn.addEventListener('click', function (ev) {
