@@ -1573,10 +1573,10 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h9M19 8h1M4 16h3M13 16h7"/><circle cx="16" cy="8" r="2.3"/><circle cx="10" cy="16" r="2.3"/></svg>
           </button>
           <button class="icon-btn" id="ctxToolsBtn" type="button" aria-label="Hide secondary toolbar" aria-pressed="true" data-tip="Hide secondary toolbar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg>
           </button>
           <button class="icon-btn" id="toolbarsBtn" type="button" aria-label="Hide toolbars" aria-pressed="false" data-tip="Hide toolbars">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="m9.2 16.8 2.8-2.8 2.8 2.8"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/><path d="m8.8 17.2 3.2-3.2 3.2 3.2"/></svg>
           </button>
         </div>
 
@@ -2640,8 +2640,17 @@
         var toolbarsHidden = false;
         try { toolbarsHidden = localStorage.getItem(TOOLBARS_KEY) === 'hidden'; } catch (e) {}
         var toolbarsBtn = document.getElementById('toolbarsBtn');
-        var TB_HIDE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="m9.2 16.8 2.8-2.8 2.8 2.8"/></svg>';
-        var TB_SHOW_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="m9.2 14 2.8 2.8 2.8-2.8"/></svg>';
+        /* The two toolbar togglers share one "panel stack"
+           family: a rounded outline split by a single horizontal
+           line into two strips — the two toolbar rows — with no
+           vertical divisions, so neither glyph can be mistaken
+           for the table grid. This button is the whole stack:
+           both strips hollow, and the chevron in the lower strip
+           points the way the stack folds (up to hide the rows,
+           down to bring them back). The secondary toggle below
+           instead fills its lower strip, the bar it stands for. */
+        var TB_HIDE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/><path d="m8.8 17.2 3.2-3.2 3.2 3.2"/></svg>';
+        var TB_SHOW_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/><path d="m8.8 14.8 3.2 3.2 3.2-3.2"/></svg>';
         function applyToolbarsBtn() {
           if (!toolbarsBtn) return;
           toolbarsBtn.innerHTML = toolbarsHidden ? TB_SHOW_SVG : TB_HIDE_SVG;
@@ -2681,8 +2690,9 @@
            One topbar button in the slot next to the both-toolbars
            toggle, with two modes keyed to toolbar visibility:
            - Toolbars SHOWN: the button is simply the secondary
-             (contextual) bar's show/hide toggle — the two-rows
-             icon, "Hide/Show secondary toolbar" as its name and
+             (contextual) bar's show/hide toggle — the panel-stack
+             icon with its lower strip filled or hollow by state,
+             "Hide/Show secondary toolbar" as its name and
              tooltip, driving the folio-ctxbar preference below.
              No menu opens: the context tools are already on
              screen in the two bars.
@@ -2726,7 +2736,15 @@
             svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
           },
         };
-        var CTX_TOGGLE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M3 14.5h18"/></svg>';
+        /* Toggle-mode faces, same panel-stack family as the
+           both-toolbars toggle above (one horizontal divider, no
+           verticals — never a grid): the lower strip is the
+           secondary bar itself. Filled solid, the bar is on
+           screen; hollow over a dashed divider with a small
+           chevron down, the bar is folded away and pressing
+           brings it back. */
+        var CTX_TOGGLE_ON_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg>';
+        var CTX_TOGGLE_OFF_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18" stroke-dasharray="3 2.6"/><path d="m9.8 15 2.2 2.2 2.2-2.2"/></svg>';
         function applyCtxToolsBtn() {
           if (!ctxToolsBtn) return;
           if (toolbarsHidden) {
@@ -2738,9 +2756,12 @@
             ctxToolsBtn.setAttribute('aria-haspopup', 'menu');
             ctxToolsBtn.removeAttribute('aria-pressed');
           } else {
-            /* Toggle mode: the secondary bar's show/hide switch. */
+            /* Toggle mode: the secondary bar's show/hide switch.
+               The face follows the state: filled lower strip
+               while the bar is shown, hollow strip (dashed
+               divider, chevron down) while it is hidden. */
             var name = ctxBarHidden ? 'Show secondary toolbar' : 'Hide secondary toolbar';
-            ctxToolsBtn.innerHTML = CTX_TOGGLE_SVG;
+            ctxToolsBtn.innerHTML = ctxBarHidden ? CTX_TOGGLE_OFF_SVG : CTX_TOGGLE_ON_SVG;
             ctxToolsBtn.setAttribute('aria-label', name);
             ctxToolsBtn.setAttribute('data-tip', name);
             ctxToolsBtn.setAttribute('aria-pressed', ctxBarHidden ? 'false' : 'true');
