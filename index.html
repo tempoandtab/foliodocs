@@ -314,6 +314,22 @@
       }
       .title-input:focus { background: var(--hover); }
       .save-state { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; padding: 0 6px; min-width: 62px; text-align: right; }
+      /* Transient import notices: progress, failures, and the
+         scanned-PDF explanation. The save-state slot is too
+         small for a sentence, so import speaks through this
+         pill at the top of the screen instead. */
+      .folio-toast {
+        position: fixed; z-index: 220;
+        top: calc(env(safe-area-inset-top, 0px) + 14px);
+        left: 50%; transform: translateX(-50%);
+        max-width: min(92vw, 540px);
+        background: var(--surface); color: var(--ink);
+        border: 1px solid var(--line); border-radius: 12px;
+        box-shadow: var(--shadow);
+        padding: 12px 18px;
+        font-size: 14.5px; font-weight: 500; line-height: 1.45; text-align: center;
+      }
+      .folio-toast[hidden] { display: none; }
 
       .toolbar {
         display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
@@ -1547,10 +1563,10 @@
                 <button class="docs-view-btn" id="docsViewBtn" type="button" aria-haspopup="menu" aria-expanded="false" data-tip="Switch between Documents and Favorites"><span id="docsViewLabel">Documents</span><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
               </span>
               <span class="side-label-actions">
-                <button class="mini-btn" id="importBtn" type="button" aria-label="Import a Markdown file" data-tip="Import a Markdown (.md) file as a new document">
+                <button class="mini-btn" id="importBtn" type="button" aria-label="Import a file as a new document" data-tip="Import a Markdown, Word (.docx), or PDF file as a new document">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="m7 9.5 5 5 5-5"/><path d="M4 20h16"/></svg>
                 </button>
-                <input type="file" id="importFile" accept=".md,.markdown,.mdown,text/markdown" hidden />
+                <input type="file" id="importFile" accept=".md,.markdown,.mdown,.docx,.pdf,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
                 <button class="mini-btn" id="newFolderBtn" type="button" aria-label="New folder" data-tip="New folder">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/></svg>
                 </button>
@@ -1891,6 +1907,8 @@
         <button class="auth-skip" id="authSkip" type="button">Not now — keep writing on this device</button>
       </div>
     </div>
+
+    <div class="folio-toast" id="folioToast" role="status" hidden></div>
 
     <div id="printRoot" aria-hidden="true">
       <h1 id="printTitle"></h1>
@@ -3720,11 +3738,14 @@
         }
 
         /* ---------------- import & export ----------------
-           Markdown import is library-level: the Import button
-           beside New in the sidebar opens a .md file picker and
-           creates an ordinary new document from the file (title
-           from its first H1, else the filename; placed in the
+           Import is library-level: the Import button beside New
+           in the sidebar opens a file picker (.md, .docx, or
+           .pdf) and creates an ordinary new document from the
+           file (title from its first heading, else the file's
+           own title metadata, else the filename; placed in the
            folder of the document currently open, else root).
+           The Word and PDF converters live below, beside the
+           Markdown converter whose destination they share.
            Export lives in each document's ⋮ menu: "Export as
            Markdown" downloads <Title>.md, and "Export as PDF"
            renders just the document into #printRoot and runs the
@@ -4304,6 +4325,478 @@
           })(json);
         }
 
+        /* ----- Word (.docx) & PDF import -----
+           Same destination as Markdown import — an ordinary new
+           document in the current folder — from the two files an
+           iPad actually produces for a Google Doc (Download saves
+           a PDF; Share → Send a copy can send .docx), so there is
+           no separate Google Docs importer and no account to
+           connect. The libraries load lazily from CDN on first
+           use, so ordinary page loads never pay for them:
+           Mammoth turns the .docx (a zip of XML) into HTML,
+           which is walked into the same document JSON the
+           Markdown importer builds; pdf.js extracts a PDF's text
+           layer and paragraphs are rebuilt from the text runs
+           with line/gap heuristics — clean paragraphs are the
+           goal, not layout fidelity. A PDF with no text layer
+           (a scan) imports nothing and says so plainly. */
+        var FOLIO_MAMMOTH_URL = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js';
+        var FOLIO_PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        var FOLIO_PDFJS_WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        var folioLibLoads = {};
+        function folioLoadLib(url, globalName) {
+          if (window[globalName]) return Promise.resolve(window[globalName]);
+          if (folioLibLoads[url]) return folioLibLoads[url];
+          folioLibLoads[url] = new Promise(function (resolve, reject) {
+            var s = document.createElement('script');
+            s.src = url;
+            s.async = true;
+            s.onload = function () {
+              if (window[globalName]) resolve(window[globalName]);
+              else reject(new Error('library did not initialise'));
+            };
+            s.onerror = function () { reject(new Error('library failed to load')); };
+            document.head.appendChild(s);
+          });
+          return folioLibLoads[url];
+        }
+
+        /* The toast pill (see .folio-toast): with a millisecond
+           argument it dismisses itself; without one it stays
+           until folioHideToast — the "Importing…" state. */
+        var folioToastTimer = null;
+        function folioToast(msg, ms) {
+          var el = document.getElementById('folioToast');
+          if (!el) return;
+          el.textContent = msg;
+          el.hidden = false;
+          if (folioToastTimer) { clearTimeout(folioToastTimer); folioToastTimer = null; }
+          if (ms) folioToastTimer = setTimeout(function () { el.hidden = true; }, ms);
+        }
+        function folioHideToast() {
+          var el = document.getElementById('folioToast');
+          if (folioToastTimer) { clearTimeout(folioToastTimer); folioToastTimer = null; }
+          if (el) el.hidden = true;
+        }
+
+        /* The destination every importer shares (the Markdown
+           wiring below calls this too). */
+        function folioFinishImport(parsed, fallbackTitle) {
+          if (tagFilter) setTagFilter(null);
+          var cur = currentDoc();
+          var doc = createDoc(parsed.title || fallbackTitle);
+          doc.content = parsed.content;
+          doc.folderId = cur ? cur.folderId : null;
+          mdFixWikiLinks(doc.content);
+          persist(false);
+          openDoc(doc.id, false);
+          refreshAfterLibraryChange();
+        }
+        function folioReadArrayBuffer(file) {
+          if (file.arrayBuffer) return file.arrayBuffer();
+          return new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function () { resolve(reader.result); };
+            reader.onerror = function () { reject(reader.error || new Error('read failed')); };
+            reader.readAsArrayBuffer(file);
+          });
+        }
+        function folioImportBinary(file, fallbackTitle, converter) {
+          folioToast('Importing ' + file.name + '…');
+          folioReadArrayBuffer(file).then(function (buf) {
+            return converter(buf);
+          }).then(function (parsed) {
+            if (parsed && parsed.scanned) {
+              folioToast('That PDF appears to be a scan — it has no selectable text, so there is nothing to import.', 9000);
+              return;
+            }
+            folioHideToast();
+            folioFinishImport(parsed, fallbackTitle);
+          }).catch(function () {
+            folioToast('Could not import ' + file.name + '. The file may be damaged, or the importer could not be loaded — check your connection and try again.', 9000);
+          });
+        }
+
+        /* ----- .docx: title metadata -----
+           The core-properties title (dc:title in
+           docProps/core.xml) is the middle rung of the title
+           ladder, after the first Heading 1. Mammoth does not
+           surface it, so the zip is read just far enough to
+           pull that one entry: central directory for the
+           entry's offset, then DecompressionStream for the
+           deflate. Every failure is silent — the filename
+           rung of the ladder still applies. */
+        function docxCoreTitle(arrayBuffer) {
+          function attempt() {
+            if (typeof DecompressionStream === 'undefined') return Promise.resolve(null);
+            var dv = new DataView(arrayBuffer);
+            var bytes = new Uint8Array(arrayBuffer);
+            var eocd = -1;
+            var floor = Math.max(0, arrayBuffer.byteLength - 22 - 65536);
+            for (var i = arrayBuffer.byteLength - 22; i >= floor; i--) {
+              if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+            }
+            if (eocd < 0) return Promise.resolve(null);
+            var count = dv.getUint16(eocd + 10, true);
+            var off = dv.getUint32(eocd + 16, true);
+            var core = null;
+            for (var n = 0; n < count; n++) {
+              if (off + 46 > arrayBuffer.byteLength || dv.getUint32(off, true) !== 0x02014b50) break;
+              var nameLen = dv.getUint16(off + 28, true);
+              var extraLen = dv.getUint16(off + 30, true);
+              var commentLen = dv.getUint16(off + 32, true);
+              var name = new TextDecoder().decode(bytes.subarray(off + 46, off + 46 + nameLen));
+              if (name === 'docProps/core.xml') {
+                core = {
+                  method: dv.getUint16(off + 10, true),
+                  csize: dv.getUint32(off + 20, true),
+                  localOff: dv.getUint32(off + 42, true),
+                };
+                break;
+              }
+              off += 46 + nameLen + extraLen + commentLen;
+            }
+            if (!core) return Promise.resolve(null);
+            var lh = core.localOff;
+            if (lh + 30 > arrayBuffer.byteLength || dv.getUint32(lh, true) !== 0x04034b50) return Promise.resolve(null);
+            var start = lh + 30 + dv.getUint16(lh + 26, true) + dv.getUint16(lh + 28, true);
+            var data = bytes.subarray(start, start + core.csize);
+            if (core.method === 0) return Promise.resolve(new TextDecoder().decode(data));
+            if (core.method !== 8) return Promise.resolve(null);
+            var stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+            return new Response(stream).text();
+          }
+          return Promise.resolve().then(attempt).then(function (xml) {
+            if (!xml) return null;
+            var m = /<dc:title>([^<]*)<\/dc:title>/.exec(xml);
+            if (!m) return null;
+            var t = m[1]
+              .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+              .replace(/&amp;/g, '&')
+              .trim();
+            return t || null;
+          }).catch(function () { return null; });
+        }
+
+        /* ----- .docx: HTML -> document JSON -----
+           Mammoth's HTML vocabulary is small (h1–h6, p, ul/ol/li,
+           table, blockquote, pre, a, strong, em, u, s, br, img),
+           and it maps onto the same JSON the Markdown importer
+           builds. Text is carried verbatim — no Markdown inline
+           parsing — with whitespace collapsed the way HTML
+           collapses it. Word's underline has no mark in this
+           app, so underlined text imports as plain text; images
+           have no node either, so they keep their alt text. */
+        var HTML_BLOCK_TAGS = {
+          P: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1, UL: 1, OL: 1,
+          TABLE: 1, BLOCKQUOTE: 1, PRE: 1, HR: 1, DIV: 1, SECTION: 1,
+          ARTICLE: 1, FIGURE: 1, FIGCAPTION: 1, LI: 1,
+        };
+        function folioInlineText(nodes) {
+          return (nodes || []).map(function (n) {
+            if (n.type === 'text') return n.text;
+            if (n.type === 'wikiLink') return (n.attrs && n.attrs.title) || '';
+            if (n.type === 'tag') return '#' + ((n.attrs && n.attrs.name) || '');
+            return '';
+          }).join('');
+        }
+        function htmlTrimInline(nodes) {
+          while (nodes.length && nodes[0].type === 'text') {
+            nodes[0].text = nodes[0].text.replace(/^\s+/, '');
+            if (nodes[0].text) break;
+            nodes.shift();
+          }
+          while (nodes.length && nodes[nodes.length - 1].type === 'text') {
+            var last = nodes[nodes.length - 1];
+            last.text = last.text.replace(/\s+$/, '');
+            if (last.text) break;
+            nodes.pop();
+          }
+          return nodes;
+        }
+        function htmlInlineInto(node, marks, out) {
+          node.childNodes.forEach(function (child) {
+            if (child.nodeType === 3) {
+              mdPushText(out, child.nodeValue.replace(/\s+/g, ' '), marks);
+              return;
+            }
+            if (child.nodeType !== 1) return;
+            var tag = child.tagName;
+            if (tag === 'BR') { out.push({ type: 'hardBreak' }); return; }
+            if (tag === 'IMG') {
+              var alt = child.getAttribute('alt');
+              if (alt) mdPushText(out, alt.replace(/\s+/g, ' '), marks);
+              return;
+            }
+            var next = marks;
+            if (tag === 'STRONG' || tag === 'B') next = mdWithMark(next, { type: 'bold' });
+            else if (tag === 'EM' || tag === 'I') next = mdWithMark(next, { type: 'italic' });
+            else if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') next = mdWithMark(next, { type: 'strike' });
+            else if (tag === 'CODE' || tag === 'KBD' || tag === 'SAMP') next = mdWithMark(next, { type: 'code' });
+            else if (tag === 'A') {
+              var href = child.getAttribute('href');
+              if (href) next = mdWithMark(next, { type: 'link', attrs: { href: href } });
+            }
+            htmlInlineInto(child, next, out);
+          });
+          return out;
+        }
+        function htmlInlineOf(el) {
+          return htmlTrimInline(htmlInlineInto(el, [], []));
+        }
+        function htmlBlocksFromChildren(el) {
+          var blocks = [];
+          var run = [];
+          function flush() {
+            if (!run.length) return;
+            var nodes = htmlTrimInline(run);
+            run = [];
+            if (nodes.length) blocks.push({ type: 'paragraph', content: nodes });
+          }
+          Array.prototype.forEach.call(el.childNodes, function (child) {
+            if (child.nodeType === 1 && HTML_BLOCK_TAGS[child.tagName]) {
+              flush();
+              htmlBlocksFromElement(child).forEach(function (b) { blocks.push(b); });
+            } else if (child.nodeType === 3) {
+              mdPushText(run, child.nodeValue.replace(/\s+/g, ' '), []);
+            } else if (child.nodeType === 1) {
+              htmlInlineInto(child, [], run);
+            }
+          });
+          flush();
+          return blocks;
+        }
+        function htmlListItem(li) {
+          var blocks = [];
+          var run = [];
+          function flush() {
+            if (!run.length) return;
+            var nodes = htmlTrimInline(run);
+            run = [];
+            if (nodes.length) blocks.push({ type: 'paragraph', content: nodes });
+          }
+          Array.prototype.forEach.call(li.childNodes, function (child) {
+            if (child.nodeType === 1 && (child.tagName === 'UL' || child.tagName === 'OL')) {
+              flush();
+              blocks.push(htmlListOf(child));
+            } else if (child.nodeType === 1 && HTML_BLOCK_TAGS[child.tagName]) {
+              flush();
+              htmlBlocksFromElement(child).forEach(function (b) { blocks.push(b); });
+            } else if (child.nodeType === 3) {
+              mdPushText(run, child.nodeValue.replace(/\s+/g, ' '), []);
+            } else if (child.nodeType === 1) {
+              htmlInlineInto(child, [], run);
+            }
+          });
+          flush();
+          if (!blocks.length) blocks = [{ type: 'paragraph', content: [] }];
+          return { type: 'listItem', content: blocks };
+        }
+        function htmlListOf(listEl) {
+          var ordered = listEl.tagName === 'OL';
+          var items = [];
+          Array.prototype.forEach.call(listEl.children, function (li) {
+            if (li.tagName === 'LI') items.push(htmlListItem(li));
+          });
+          var node = { type: ordered ? 'orderedList' : 'bulletList', content: items };
+          if (ordered) {
+            var start = parseInt(listEl.getAttribute('start'), 10);
+            node.attrs = { start: isNaN(start) ? 1 : start, type: null };
+          }
+          return node;
+        }
+        function htmlTableOf(tableEl) {
+          var rows = [];
+          var maxCols = 0;
+          Array.prototype.forEach.call(tableEl.rows, function (tr) {
+            var cells = [];
+            Array.prototype.forEach.call(tr.cells, function (cell, ci) {
+              var content = htmlBlocksFromChildren(cell);
+              if (!content.length) content = [{ type: 'paragraph', content: [] }];
+              cells.push({ cell: cell, content: content });
+              maxCols = Math.max(maxCols, ci + 1);
+            });
+            rows.push(cells);
+          });
+          if (!rows.length || !maxCols) return null;
+          var tRows = rows.map(function (cells, ri) {
+            var outCells = [];
+            for (var ci = 0; ci < maxCols; ci++) {
+              var src = cells[ci];
+              outCells.push({
+                type: ri === 0 || (src && src.cell.tagName === 'TH') ? 'tableHeader' : 'tableCell',
+                attrs: {
+                  colspan: src ? (src.cell.colSpan || 1) : 1,
+                  rowspan: src ? (src.cell.rowSpan || 1) : 1,
+                  colwidth: null, background: null, align: null, valign: null,
+                },
+                content: src ? src.content : [{ type: 'paragraph', content: [] }],
+              });
+            }
+            return { type: 'tableRow', attrs: { height: null }, content: outCells };
+          });
+          return { type: 'table', attrs: { borderColor: null, borderWidth: 1, colBorders: null, rowBorders: null }, content: tRows };
+        }
+        function htmlBlocksFromElement(el) {
+          var tag = el.tagName;
+          if (/^H[1-6]$/.test(tag)) {
+            return [{ type: 'heading', attrs: { level: Math.min(4, parseInt(tag.charAt(1), 10)) }, content: htmlInlineOf(el) }];
+          }
+          switch (tag) {
+            case 'P': {
+              var content = htmlInlineOf(el);
+              return content.length ? [{ type: 'paragraph', content: content }] : [];
+            }
+            case 'UL':
+            case 'OL':
+              return [htmlListOf(el)];
+            case 'TABLE': {
+              var t = htmlTableOf(el);
+              return t ? [t] : [];
+            }
+            case 'BLOCKQUOTE': {
+              var inner = htmlBlocksFromChildren(el);
+              return [{ type: 'blockquote', content: inner.length ? inner : [{ type: 'paragraph', content: [] }] }];
+            }
+            case 'PRE': {
+              var text = (el.textContent || '').replace(/\n$/, '');
+              return [{ type: 'codeBlock', attrs: { language: null }, content: text ? [{ type: 'text', text: text }] : [] }];
+            }
+            case 'HR':
+              return [{ type: 'horizontalRule' }];
+            default:
+              return htmlBlocksFromChildren(el);
+          }
+        }
+        function htmlToDocument(html) {
+          var parsed = new DOMParser().parseFromString(String(html || ''), 'text/html');
+          var blocks = htmlBlocksFromChildren(parsed.body);
+          if (!blocks.length) blocks = [{ type: 'paragraph' }];
+          var title = null;
+          for (var k = 0; k < blocks.length; k++) {
+            var b = blocks[k];
+            if (b.type === 'heading' && b.attrs && b.attrs.level === 1) {
+              title = folioInlineText(b.content).trim();
+              if (title) break;
+            }
+          }
+          return { title: title || null, content: { type: 'doc', content: blocks } };
+        }
+
+        /* ----- .docx ----- */
+        var DOCX_STYLE_MAP = [
+          "p[style-name='Title'] => h1:fresh",
+          "p[style-name='Quote'] => blockquote > p:fresh",
+          "p[style-name='Intense Quote'] => blockquote > p:fresh",
+        ];
+        function docxToDoc(arrayBuffer) {
+          return folioLoadLib(FOLIO_MAMMOTH_URL, 'mammoth').then(function (mammoth) {
+            var coreTitle = docxCoreTitle(arrayBuffer);
+            return mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, { styleMap: DOCX_STYLE_MAP }).then(function (result) {
+              var parsedDoc = htmlToDocument(result.value);
+              return coreTitle.then(function (t) {
+                if (!parsedDoc.title && t) parsedDoc.title = t;
+                return parsedDoc;
+              });
+            });
+          });
+        }
+
+        /* ----- .pdf -----
+           pdf.js hands back positioned text runs per page. Runs
+           on the same baseline (within 2pt, or until a run
+           closes its line) join into a line, with a space where
+           the horizontal gap earns one; a vertical gap past
+           ~1.55× the font size starts a new paragraph, as does
+           a page turn. A line-ending hyphen before a lowercase
+           continuation is a wrapped word, not punctuation. */
+        function pdfItemsToLines(items) {
+          var raw = [];
+          (items || []).forEach(function (it) {
+            if (!it || typeof it.str !== 'string' || !it.str.trim()) return;
+            var x = it.transform ? it.transform[4] : 0;
+            var y = it.transform ? it.transform[5] : 0;
+            var size = it.height || (it.transform ? Math.abs(it.transform[3]) : 0) || 0;
+            var line = raw[raw.length - 1];
+            if (!line || line.closed || Math.abs(line.y - y) > 2) {
+              line = { y: y, size: size, closed: false, parts: [] };
+              raw.push(line);
+            }
+            if (size > line.size) line.size = size;
+            line.parts.push({ x: x, w: it.width || 0, str: it.str });
+            if (it.hasEOL) line.closed = true;
+          });
+          return raw.map(function (line) {
+            var parts = line.parts.slice().sort(function (a, b) { return a.x - b.x; });
+            var text = '';
+            var endX = null;
+            parts.forEach(function (p) {
+              if (endX !== null && p.x - endX > (line.size || 11) * 0.22 && !/\s$/.test(text) && !/^\s/.test(p.str)) text += ' ';
+              text += p.str;
+              var e = p.x + p.w;
+              if (endX === null || e > endX) endX = e;
+            });
+            return { text: text.replace(/\s+/g, ' ').trim(), y: line.y, size: line.size };
+          }).filter(function (l) { return l.text; });
+        }
+        function pdfItemsToDoc(pagesItems, metaTitle) {
+          var paragraphs = [];
+          var totalChars = 0;
+          (pagesItems || []).forEach(function (items) {
+            var lines = pdfItemsToLines(items);
+            var cur = null;
+            function flush() {
+              if (cur && cur.trim()) paragraphs.push(cur.trim());
+              cur = null;
+            }
+            lines.forEach(function (ln, idx) {
+              totalChars += ln.text.length;
+              if (idx > 0) {
+                var prev = lines[idx - 1];
+                var size = Math.max(prev.size, ln.size) || 11;
+                if (prev.y - ln.y > size * 1.55) flush();
+              }
+              if (cur === null) cur = ln.text;
+              else if (/-$/.test(cur) && /^[a-z]/.test(ln.text)) cur = cur.slice(0, -1) + ln.text;
+              else cur += ' ' + ln.text;
+            });
+            flush();
+          });
+          if (!paragraphs.length || totalChars === 0) return { scanned: true };
+          var title = typeof metaTitle === 'string' ? metaTitle.trim() : '';
+          return {
+            title: title || null,
+            content: {
+              type: 'doc',
+              content: paragraphs.map(function (p) {
+                return { type: 'paragraph', content: [{ type: 'text', text: p }] };
+              }),
+            },
+          };
+        }
+        function pdfToDoc(arrayBuffer) {
+          return folioLoadLib(FOLIO_PDFJS_URL, 'pdfjsLib').then(function (pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = FOLIO_PDFJS_WORKER_URL;
+            return pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise.then(function (pdf) {
+              var metaP = pdf.getMetadata().then(function (m) {
+                return (m && m.info && m.info.Title) || null;
+              }).catch(function () { return null; });
+              var pagePs = [];
+              for (var pn = 1; pn <= pdf.numPages; pn++) {
+                (function (pageNum) {
+                  pagePs.push(pdf.getPage(pageNum).then(function (page) {
+                    return page.getTextContent();
+                  }).then(function (tc) { return tc.items; }));
+                })(pn);
+              }
+              return Promise.all([Promise.all(pagePs), metaP]).then(function (res) {
+                return pdfItemsToDoc(res[0], res[1]);
+              });
+            });
+          });
+        }
+
         /* ----- export as PDF (print flow) ----- */
         function exportDocPDF(id) {
           var d = lib.docs.find(function (x) { return x.id === id; });
@@ -4347,19 +4840,20 @@
             importFileInput.addEventListener('change', function () {
               var file = importFileInput.files && importFileInput.files[0];
               if (!file) return;
-              var fallbackTitle = file.name.replace(/\.(md|markdown|mdown|txt)$/i, '').trim() || 'Untitled';
+              var fallbackTitle = file.name.replace(/\.(md|markdown|mdown|txt|docx|pdf)$/i, '').trim() || 'Untitled';
+              var lowerName = file.name.toLowerCase();
+              if (/\.docx$/.test(lowerName) || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                folioImportBinary(file, fallbackTitle, docxToDoc);
+                return;
+              }
+              if (/\.pdf$/.test(lowerName) || file.type === 'application/pdf') {
+                folioImportBinary(file, fallbackTitle, pdfToDoc);
+                return;
+              }
               var done = function (text) {
                 try {
                   var parsed = markdownToDoc(text);
-                  if (tagFilter) setTagFilter(null);
-                  var cur = currentDoc();
-                  var doc = createDoc(parsed.title || fallbackTitle);
-                  doc.content = parsed.content;
-                  doc.folderId = cur ? cur.folderId : null;
-                  mdFixWikiLinks(doc.content);
-                  persist(false);
-                  openDoc(doc.id, false);
-                  refreshAfterLibraryChange();
+                  folioFinishImport(parsed, fallbackTitle);
                 } catch (err) {
                   var el = document.getElementById('saveState');
                   if (el) {
