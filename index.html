@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261023-3" />
+    <meta name="folio-build" content="20261023-4" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1436,6 +1436,12 @@
         color: var(--ink-2); font-weight: 600;
       }
       .sync-state { white-space: nowrap; }
+      #syncNowBtn.syncing svg { animation: folio-spin 0.9s linear infinite; }
+      #syncNowBtn:disabled { opacity: 0.55; }
+      @keyframes folio-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        #syncNowBtn.syncing svg { animation: none; }
+      }
       .share-badge {
         background: var(--accent); color: var(--accent-ink);
         font-size: 11px; font-weight: 700; line-height: 1;
@@ -1829,6 +1835,9 @@
         <div class="account-bar" id="accountBar" hidden>
           <span class="account-email" id="accountEmail"></span>
           <span class="sync-state" id="syncState"></span>
+          <button class="mini-btn" id="syncNowBtn" type="button" aria-label="Sync now" data-tip="Sync now">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
           <button class="mini-btn" id="signOutBtn" type="button" aria-label="Sign out" data-tip="Sign out">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
           </button>
@@ -2686,7 +2695,14 @@
             b.addEventListener('click', function () {
               closeMoveMenu();
               if (multi) { moveDocsToFolder(ids, folderId); return; }
-              doc.folderId = folderId;
+              /* A move is a real change and stamps the document:
+                 without the stamp the push carries the new folder
+                 with the document's old updated_at, and a
+                 receiving device whose copy ties or beats that
+                 timestamp declines the placement (the merge's
+                 tie-heal covers rows already stranded that way;
+                 the stamp keeps new moves out of the tie). */
+              if ((doc.folderId || null) !== folderId) { doc.folderId = folderId; doc.updated = Date.now(); }
               if (folderId) expandFolderChain(folderId);
               persist(true);
               renderDocList();
@@ -3082,6 +3098,7 @@
         var KEYBOARD_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>';
         var UPDATE_CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
         var RELOAD_APP_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36"/><path d="M3 3v6h6"/></svg>';
+        var SYNC_NOW_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
         function applyLabelMode() {
           document.documentElement.setAttribute('data-labels', labelMode);
         }
@@ -3098,9 +3115,9 @@
           settingsMenuOpen = false;
           if (settingsBtn) settingsBtn.setAttribute('aria-expanded', 'false');
         }
-        /* App version + update actions, shared by the Settings
-           menu and the small-screen top (⋮) menu so the two
-           surfaces can never drift: the version line is the
+        /* Sync + app version + update actions, shared by the
+           Settings menu and the small-screen top (⋮) menu so the
+           two surfaces can never drift: the version line is the
            running build's stamp (FOLIO_BUILD, defined with the
            update check); "Check for updates" runs that check on
            demand, and "Reload app" is the same cache-busting
@@ -3116,6 +3133,7 @@
           verHead.className = 'menu-head';
           verHead.textContent = 'FolioDocs · build ' + FOLIO_BUILD;
           menuEl.appendChild(verHead);
+          makeItem(SYNC_NOW_SVG, 'Sync now', function () { syncNow(); });
           makeItem(UPDATE_CHECK_SVG, 'Check for updates', function () { checkForUpdates(true); });
           makeItem(RELOAD_APP_SVG, 'Reload app', function () { reloadAppFresh(); });
         }
@@ -3772,7 +3790,10 @@
           var changed = false;
           (ids || []).forEach(function (id) {
             var d = lib.docs.find(function (x) { return x.id === id; });
-            if (d && (d.folderId || null) !== folderId) { d.folderId = folderId; changed = true; }
+            // Stamped like any other change — see the single-doc
+            // move: an unstamped membership change pushes with a
+            // stale updated_at other devices can decline.
+            if (d && (d.folderId || null) !== folderId) { d.folderId = folderId; d.updated = Date.now(); changed = true; }
           });
           if (changed) {
             if (folderId) expandFolderChain(folderId);
@@ -3825,6 +3846,7 @@
           if (!d) return;
           if ((d.folderId || null) === (folderId || null)) return;
           d.folderId = folderId || null;
+          d.updated = Date.now();
           if (folderId) expandFolderChain(folderId);
           persist(true);
           renderDocList();
@@ -4216,7 +4238,7 @@
           // Nothing is destroyed: the folder's documents and its
           // subfolders move up to the deleted folder's parent
           // (the root, when it was top-level).
-          lib.docs.forEach(function (d) { if (d.folderId === id) d.folderId = parentId; });
+          lib.docs.forEach(function (d) { if (d.folderId === id) { d.folderId = parentId; d.updated = Date.now(); } });
           lib.folders.forEach(function (x) { if (x.parentId === id) x.parentId = parentId; });
           lib.folders = lib.folders.filter(function (x) { return x.id !== id; });
           delete lib.expandedFolders[id];
@@ -8096,6 +8118,30 @@
           var el = document.getElementById('syncState');
           if (el) el.textContent = text || '';
         }
+        /* The status line's honest end states. lastSyncAt is
+           the last moment a push or a pull fully succeeded on
+           this device, and the "Synced" label carries it — the
+           line timestamps its freshness instead of just
+           asserting it. A partial failure never reaches this
+           label: the sync cycle below reports "Couldn't sync"
+           instead, with Sync now as the retry. */
+        var lastSyncAt = 0;
+        function syncedLabel() {
+          if (!lastSyncAt) return 'Synced';
+          var t = '';
+          try { t = new Date(lastSyncAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) {}
+          return t ? 'Synced · ' + t : 'Synced';
+        }
+        function noteSyncSuccess() {
+          lastSyncAt = Date.now();
+          setSyncState(syncedLabel());
+        }
+        function setSyncSpinning(on) {
+          var b = document.getElementById('syncNowBtn');
+          if (!b) return;
+          b.classList.toggle('syncing', !!on);
+          b.disabled = !!on;
+        }
         function scheduleSync() {
           if (!sb || !sbUser) return;
           if (syncTimer) clearTimeout(syncTimer);
@@ -8206,7 +8252,11 @@
               tombstones.folders = tombstones.folders.filter(function (rid) { return !doneDeletes['folders:' + rid]; });
               saveTombstones();
             }
-            var failed = results.some(function (x) { return x.up && x.error; });
+            // Any failed leg — a queued delete included — makes
+            // the push partial: the failed tombstones stay queued
+            // for the next push, and the status must not claim
+            // Synced over a push that only partly landed.
+            var failed = results.some(function (x) { return !!x.error; });
             if (failed) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
             var metaPatch = {
               lastSync: Date.now(),
@@ -8220,7 +8270,7 @@
             // this flag before trusting a null parent.
             if (nestedOk) metaPatch.nestedFolders = true;
             saveSyncMeta(metaPatch);
-            setSyncState('Synced');
+            noteSyncSuccess();
             return true;
           }).catch(function () {
             setSyncState('Offline \u2014 saved here');
@@ -8402,6 +8452,13 @@
             }
             var fl = rd.folder_id ? localIdFor('folders', rd.folder_id) : null;
             if (fl && !lib.folders.some(function (f) { return f.id === fl; })) fl = null;
+            // Whether the remote row's placement claim can be
+            // judged at all on this device: a null folder_id is a
+            // real claim (the root); a non-null id is a claim
+            // only when it resolved to a folder this device
+            // actually has. An unresolvable folder_id is no claim
+            // at all and must never move a document.
+            var flResolved = !rd.folder_id || !!fl;
             if (!lid) {
               idmap.docs[rd.id] = rd.id;
               lib.docs.push({
@@ -8432,6 +8489,31 @@
                   // own row couldn't be placed in this pull.
                   if (fl || !folderById(ld.folderId)) ld.folderId = fl;
                   ld.updated = rUpdated;
+                } else if (rUpdated === (ld.updated || 0) && flResolved && (ld.folderId || null) !== fl) {
+                  // Membership-only divergence — the stuck-folder
+                  // bug. A move changes folder_id and nothing else,
+                  // and builds before 20261023-4 pushed such a move
+                  // carrying the document's OLD updated_at (moves
+                  // never stamped the document), so the receiving
+                  // merge compared EQUAL timestamps and the
+                  // strictly-greater rule above declined the new
+                  // placement — permanently, while both devices
+                  // reported "Synced" over different layouts. On an
+                  // exact tie the server row breaks it for
+                  // placement: it is the last state any device
+                  // managed to push, and the push that follows
+                  // every pull re-seeds the server from the merged
+                  // library, so every device converges on the same
+                  // placement. Content and title stay
+                  // strictly-newer-gated — only placement heals on
+                  // a tie, and only when the remote folder actually
+                  // resolved here (flResolved), so an unplaceable
+                  // folder row still can't spill a document. A
+                  // local move made from now on stamps the
+                  // document (see the move paths), lifting it above
+                  // the tie so a pull can never stomp a placement
+                  // this device hasn't pushed yet.
+                  ld.folderId = fl;
                 }
               }
             }
@@ -8541,6 +8623,9 @@
             if (r && r.error) return sb.from('documents').select('id, folder_id, title, content, updated_at');
             return r;
           });
+          var curIdBefore = lib.currentId;
+          var curBefore = lib.docs.find(function (d) { return d.id === curIdBefore; });
+          var curSigBefore = curBefore ? (curBefore.title || '') + '\n' + JSON.stringify(curBefore.content) : '';
           return Promise.all([
             foldersReq,
             docsReq,
@@ -8548,8 +8633,19 @@
             if (res[0].error || res[1].error) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
             mergeRemote(res[0].data || [], res[1].data || []);
             if (!lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs[0].id;
-            openDoc(lib.currentId, false);
+            var curAfter = lib.docs.find(function (d) { return d.id === lib.currentId; });
+            var curSigAfter = curAfter ? (curAfter.title || '') + '\n' + JSON.stringify(curAfter.content) : '';
+            // Reopening the open document resets the editor —
+            // content, scroll, cursor — so only do it when the
+            // merge actually changed what is open (or the open
+            // document went away). A pull that only moved OTHER
+            // documents refreshes the list alone. That restraint
+            // is what makes the 30-second background pull safe to
+            // run while someone is typing.
+            if (lib.currentId !== curIdBefore || curSigAfter !== curSigBefore) openDoc(lib.currentId, false);
+            else renderDocList();
             renderTagsSection();
+            noteSyncSuccess();
             return true;
           }).catch(function () {
             setSyncState('Offline \u2014 saved here');
@@ -8560,7 +8656,69 @@
         function initialSync() {
           if (!sb || !sbUser || syncStartedFor === sbUser.id) return;
           syncStartedFor = sbUser.id;
+          lastSyncAt = myMeta().lastSync || 0;
+          if (lastSyncAt) setSyncState(syncedLabel());
           pullMerge().then(function () { repairDuplicateDocs(); return pushAll(); }).then(function () { refreshShareBadge(); });
+        }
+
+        /* ---------------- sync cycle + Sync now ----------------
+           One full round trip, shared by the Sync now button, the
+           foreground triggers, and the while-visible interval:
+           flush any debounced local save, push everything
+           pending, pull and merge, then push once more so
+           anything the merge kept local-only (or re-placed)
+           reaches the server in the same cycle and every device
+           converges on the same rows. Calls coalesce onto the
+           in-flight cycle, so the focus + visibilitychange pair
+           and the interval timer can never stack two cycles.
+           The end state is honest: "Synced · <time>" appears
+           only when every leg landed. Any failed leg leaves
+           "Couldn't sync" in the status line with the button
+           live as the retry — a partial cycle never wears the
+           Synced label. */
+        var syncCyclePromise = null;
+        var lastAutoCycleAt = 0;
+        function syncCycle() {
+          if (!sb || !sbUser) return Promise.resolve(false);
+          if (syncCyclePromise) return syncCyclePromise;
+          if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; persist(true); }
+          setSyncState('Syncing\u2026');
+          setSyncSpinning(true);
+          syncCyclePromise = pushAll().then(function (okPush) {
+            if (!okPush) return false;
+            return pullMerge().then(function (okPull) {
+              if (!okPull) return false;
+              return pushAll();
+            });
+          }).then(function (ok) {
+            syncCyclePromise = null;
+            setSyncSpinning(false);
+            if (ok) noteSyncSuccess();
+            else setSyncState('Couldn\u2019t sync \u2014 tap Sync now to retry');
+            return ok;
+          }).catch(function () {
+            syncCyclePromise = null;
+            setSyncSpinning(false);
+            setSyncState('Couldn\u2019t sync \u2014 tap Sync now to retry');
+            return false;
+          });
+          return syncCyclePromise;
+        }
+        function syncNow() {
+          if (!sb || !sbUser) {
+            folioToast('Sign in to sync your documents across devices.', 3000);
+            return Promise.resolve(false);
+          }
+          return syncCycle();
+        }
+        /* Automatic cycles (foreground return, the interval) are
+           throttled so paired triggers can't fire two cycles back
+           to back; a manual Sync now always runs. */
+        function autoSyncCycle() {
+          var now = Date.now();
+          if (now - lastAutoCycleAt < 5000) return;
+          lastAutoCycleAt = now;
+          syncCycle();
         }
 
         /* ---------------- auth UI ---------------- */
@@ -8643,6 +8801,7 @@
             fail('Something went wrong \u2014 check your connection and try again.');
           });
         });
+        document.getElementById('syncNowBtn').addEventListener('click', function () { syncNow(); });
         document.getElementById('signOutBtn').addEventListener('click', function () {
           if (sb) sb.auth.signOut();
         });
@@ -9115,17 +9274,32 @@
               onSignedIn(session);
             }
           });
-          window.addEventListener('online', function () { scheduleSync(); });
+          window.addEventListener('online', function () { syncCycle(); });
           // iOS suspends a backgrounded web app mid-push without
           // ceremony: timers die and in-flight requests can be cut
           // before they land. Coming back to the foreground is the
-          // reliable moment to retry — anything still local (a
-          // folder whose upload never landed, a queued delete) is
-          // pushed again then, instead of waiting for the next edit.
+          // reliable moment to run a full cycle — anything still
+          // local (a folder whose upload never landed, a queued
+          // delete) is pushed again, and anything the other
+          // device changed is pulled in, instead of waiting for
+          // the next edit on either side.
           document.addEventListener('visibilitychange', function () {
-            if (!document.hidden) scheduleSync();
+            if (!document.hidden) autoSyncCycle();
           });
-          window.addEventListener('focus', function () { scheduleSync(); });
+          window.addEventListener('focus', function () { autoSyncCycle(); });
+          // While the app sits open and visible, a light cycle
+          // every 30 seconds bounds how stale this device can be:
+          // edits push within ~a second of being made (the
+          // debounced scheduleSync), arrivals land within half a
+          // minute. No Supabase Realtime subscription: it only
+          // delivers when the tables sit in the server's realtime
+          // publication, which can't be verified from here, and a
+          // half-enabled channel retries noisily in the console.
+          // These triggers need no server configuration and fail
+          // silently into the same cycle.
+          setInterval(function () {
+            if (!document.hidden) autoSyncCycle();
+          }, 30000);
         }
 
         /* ---------------- update check -------------------
@@ -9161,7 +9335,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261023-3';
+        var FOLIO_BUILD = '20261023-4';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
