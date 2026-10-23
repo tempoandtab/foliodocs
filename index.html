@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261023-5" />
+    <meta name="folio-build" content="20261023-6" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -8170,8 +8170,22 @@
           // tombstone now clears only when its own delete lands;
           // a failed one stays queued and retries on the next push.
           var deleteJobs = [];
-          tombstones.docs.forEach(function (rid) { deleteJobs.push({ kind: 'docs', rid: rid, p: sb.from('documents').delete().eq('id', rid) }); });
-          tombstones.folders.forEach(function (rid) { deleteJobs.push({ kind: 'folders', rid: rid, p: sb.from('folders').delete().eq('id', rid) }); });
+          // A delete is issued with .select('id') so the
+          // response names the rows actually removed. A bare
+          // DELETE reports success even when it removed nothing
+          // (a row-level-security filter makes a forbidden or
+          // unmatched delete a silent no-op), and this push used
+          // to take that silence as "landed" and clear the
+          // tombstone — the server row lived on, the next pull
+          // re-adopted it on the very device that deleted it,
+          // and no other device ever saw an absence. A tombstone
+          // now clears only on proof: the delete returned its
+          // row, or a later pull confirms the row is gone from
+          // the server (see mergeRemote). Until then it stays
+          // queued, every push re-issues the delete, and every
+          // merge refuses to re-adopt the row.
+          tombstones.docs.forEach(function (rid) { deleteJobs.push({ kind: 'docs', rid: rid, p: sb.from('documents').delete().eq('id', rid).select('id') }); });
+          tombstones.folders.forEach(function (rid) { deleteJobs.push({ kind: 'folders', rid: rid, p: sb.from('folders').delete().eq('id', rid).select('id') }); });
           var meta0 = myMeta();
           // Rows the merge currently suspects were deleted
           // remotely (absent from one pull, awaiting a confirming
@@ -8179,6 +8193,15 @@
           // push must not resurrect a row another device deleted
           // while the suspicion is outstanding.
           var absentDocs = meta0.absentDocs || {};
+          // A manual Sync now arms one reconcile push (consumed
+          // here): that push re-uploads any held row the last
+          // pull's inventory says the server lacks, whatever the
+          // signature book or the suspicion map claim — the
+          // complete heal for a stand-off where one device holds
+          // a document the server lost (or never kept) while its
+          // bookkeeping insists the row already landed.
+          var doReconcile = reconcileNextPush;
+          reconcileNextPush = false;
           // Change detection, per row: a push upserts only rows
           // whose state differs from what THIS device last landed
           // on the server (the signatures recorded by the last
@@ -8219,7 +8242,8 @@
           var folderPlan = orderedFolders.map(function (f) {
             var rid = ensureRemoteId('folders', f.id);
             var sig = folderSig(f);
-            return { f: f, rid: rid, sig: sig, changed: oldSigs.folders[rid] !== sig };
+            var serverLacks = doReconcile && lastPullFolderIds && !lastPullFolderIds[rid];
+            return { f: f, rid: rid, sig: sig, changed: oldSigs.folders[rid] !== sig || !!serverLacks };
           });
           var changedFolders = folderPlan.filter(function (p) { return p.changed; });
           var folderRows = changedFolders.map(function (p) {
@@ -8242,8 +8266,18 @@
           var docRows = [];
           var docPushedSigs = {};
           docPlan.forEach(function (p) {
-            if (absentDocs[p.rid]) return; // suspected remote delete: never resurrect
-            if (oldSigs.docs[p.rid] === p.sig) return; // unchanged since this device last pushed it
+            var serverLacks = doReconcile && lastPullDocIds && !lastPullDocIds[p.rid];
+            // Suspected remote delete: an UNCHANGED row is never
+            // resurrected from here (its absence may be a genuine
+            // delete still awaiting confirmation). But a row this
+            // device has changed since its last landed push is
+            // local work the server demonstrably lacks — the
+            // suspicion must not swallow it, or a device can hold
+            // the only copy of a document no push will ever send.
+            // A reconcile push overrides the suspicion entirely
+            // for rows the server lacks.
+            if (absentDocs[p.rid] && oldSigs.docs[p.rid] === p.sig && !serverLacks) return;
+            if (oldSigs.docs[p.rid] === p.sig && !serverLacks) return; // unchanged since this device last pushed it
             var d = p.d;
             docRows.push({
               id: p.rid,
@@ -8306,8 +8340,18 @@
           }
           var all = deleteJobs.map(function (dj) {
             return Promise.resolve(dj.p).then(
-              function (r) { return { del: dj, error: r && r.error ? r.error : null }; },
-              function (e) { return { del: dj, error: e || true }; });
+              function (r) {
+                // Landed means the response names this row among
+                // the removed ones. No error but no row is the
+                // silent no-op: not a failure of this push (the
+                // row may already be gone, which the cycle's pull
+                // will confirm and clear), but never proof enough
+                // to drop the tombstone here.
+                var landed = !!(r && !r.error && Array.isArray(r.data) &&
+                  r.data.some(function (row) { return row.id === dj.rid; }));
+                return { del: dj, error: r && r.error ? r.error : null, landed: landed };
+              },
+              function (e) { return { del: dj, error: e || true, landed: false }; });
           }).concat(jobs.map(function (p) {
             return Promise.resolve(p).then(
               function (r) { return { up: true, error: r && r.error ? r.error : null }; },
@@ -8315,7 +8359,7 @@
           }));
           return Promise.all(all).then(function (results) {
             var doneDeletes = {};
-            results.forEach(function (x) { if (x.del && !x.error) doneDeletes[x.del.kind + ':' + x.del.rid] = true; });
+            results.forEach(function (x) { if (x.del && x.landed) doneDeletes[x.del.kind + ':' + x.del.rid] = true; });
             if (Object.keys(doneDeletes).length) {
               tombstones.docs = tombstones.docs.filter(function (rid) { return !doneDeletes['docs:' + rid]; });
               tombstones.folders = tombstones.folders.filter(function (rid) { return !doneDeletes['folders:' + rid]; });
@@ -8431,6 +8475,31 @@
           remoteDocs.forEach(function (rd) { remoteDocIds[rd.id] = true; });
           var remoteFolderIds = {};
           remoteFolders.forEach(function (rf) { remoteFolderIds[rf.id] = true; });
+          // The pull's own inventory, kept for the reconcile
+          // pass a manual Sync now runs after this merge (see
+          // pushAll): it is the only moment a push can know
+          // which rows the server actually lacks.
+          lastPullDocIds = remoteDocIds;
+          lastPullFolderIds = remoteFolderIds;
+          // Tombstone confirmation by pull: a pending delete
+          // whose row this pull does NOT contain is achieved,
+          // however it happened (this device's delete landed on
+          // an earlier push, or another device removed the row)
+          // — clear and persist it. A tombstone whose row the
+          // pull DOES contain stays live: the merge below keeps
+          // refusing to re-adopt that row, and the next push
+          // re-issues its delete. This is the second of the two
+          // proofs that can retire a tombstone; the first is the
+          // delete response naming the removed row (pushAll).
+          if (tombstones.docs.length || tombstones.folders.length) {
+            var keptTD = tombstones.docs.filter(function (rid) { return !!remoteDocIds[rid]; });
+            var keptTF = tombstones.folders.filter(function (rid) { return !!remoteFolderIds[rid]; });
+            if (keptTD.length !== tombstones.docs.length || keptTF.length !== tombstones.folders.length) {
+              tombstones.docs = keptTD;
+              tombstones.folders = keptTF;
+              saveTombstones();
+            }
+          }
           var knownDocs = meta.knownDocs || [];
           var knownFolders = meta.knownFolders || [];
           // Completeness guard: a pull that comes back EMPTY for
@@ -8571,6 +8640,20 @@
             }
             var fl = rd.folder_id ? localIdFor('folders', rd.folder_id) : null;
             if (fl && !lib.folders.some(function (f) { return f.id === fl; })) fl = null;
+            // The local document the id map names for this row,
+            // if one actually stands behind the entry. A merge
+            // deletion can drop the document while leaving its
+            // map entry behind (the -4-era reopen deletion did
+            // exactly that to a just-imported document): the map
+            // then claims the row is already held locally, and
+            // the old adoption code below looked the named id up,
+            // found nothing, and silently swallowed the row —
+            // every pull, forever, while the row sat on the
+            // server the whole time. A map entry with no document
+            // behind it is no claim at all: the row is adopted
+            // fresh under the mapped id, like the folder branch
+            // above already does for the same case.
+            var ld = lid ? lib.docs.find(function (d) { return d.id === lid; }) : null;
             // Whether the remote row's placement claim can be
             // judged at all on this device: a null folder_id is a
             // real claim (the root); a non-null id is a claim
@@ -8578,20 +8661,20 @@
             // actually has. An unresolvable folder_id is no claim
             // at all and must never move a document.
             var flResolved = !rd.folder_id || !!fl;
-            if (!lid) {
-              idmap.docs[rd.id] = rd.id;
+            if (!ld) {
+              var adoptId = lid || rd.id;
+              if (!lid) idmap.docs[rd.id] = rd.id;
               lib.docs.push({
-                id: rd.id,
+                id: adoptId,
                 title: rd.title || 'Untitled',
                 content: rd.content || { type: 'doc', content: [{ type: 'paragraph' }] },
                 folderId: fl,
                 favorite: 'favorite' in rd ? !!rd.favorite : false,
                 updated: rUpdated,
               });
-              seenDocs[rd.id] = true;
+              seenDocs[adoptId] = true;
             } else {
               seenDocs[lid] = true;
-              var ld = lib.docs.find(function (d) { return d.id === lid; });
               if (ld) {
                 if (rUpdated > (ld.updated || 0)) {
                   ld.title = rd.title || 'Untitled';
@@ -8830,9 +8913,27 @@
            Synced label. */
         var syncCyclePromise = null;
         var lastAutoCycleAt = 0;
+        /* Full-reconciliation state for a manual Sync now. The
+           merge records every pull's server inventory in
+           lastPullDocIds/lastPullFolderIds; syncNow arms
+           manualReconcileOnce, and the cycle it starts turns
+           that into reconcileNextPush for its post-pull push —
+           which then re-uploads any local row the server lacks
+           and (via the merge fix above) adopts any server row
+           local state was wrongly refusing. Automatic cycles
+           never reconcile: their suspicion rules stay exactly as
+           conservative as they are, so a genuine remote delete
+           still propagates instead of being resurrected by a
+           background push. */
+        var lastPullDocIds = null;
+        var lastPullFolderIds = null;
+        var reconcileNextPush = false;
+        var manualReconcileOnce = false;
         function syncCycle() {
           if (!sb || !sbUser) return Promise.resolve(false);
           if (syncCyclePromise) return syncCyclePromise;
+          var wantReconcile = manualReconcileOnce;
+          manualReconcileOnce = false;
           if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; persist(true); }
           setSyncState('Syncing\u2026');
           setSyncSpinning(true);
@@ -8840,6 +8941,7 @@
             if (!okPush) return false;
             return pullMerge().then(function (okPull) {
               if (!okPull) return false;
+              if (wantReconcile) reconcileNextPush = true;
               return pushAll();
             });
           }).then(function (ok) {
@@ -8861,6 +8963,11 @@
             folioToast('Sign in to sync your documents across devices.', 3000);
             return Promise.resolve(false);
           }
+          // A manual Sync now is a full reconciliation, not just
+          // another cycle: the post-pull push re-uploads any
+          // local row the server lacks, and the merge adopts any
+          // server row local state was wrongly refusing.
+          manualReconcileOnce = true;
           return syncCycle();
         }
         /* Automatic cycles (foreground return, the interval) are
@@ -9487,7 +9594,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261023-5';
+        var FOLIO_BUILD = '20261023-6';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
