@@ -8,6 +8,12 @@
     <link rel="apple-touch-icon" sizes="180x180" href="IMG_2912.png" />
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#12332a" />
+    <!-- Build stamp: the update check fetches this page with the
+         cache bypassed and compares the stamp below against the
+         FOLIO_BUILD constant in the app script. Any difference
+         means the server is serving a newer build than the one
+         running. Bump both together on every deploy. -->
+    <meta name="folio-build" content="20261023-1" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -342,6 +348,39 @@
         font-size: 14.5px; font-weight: 500; line-height: 1.45; text-align: center;
       }
       .folio-toast[hidden] { display: none; }
+
+      /* "A new version is available" banner: same pill family as
+         the toast, but it stays until acted on — Reload (accent)
+         or the dismiss ×. Shown by the update check when the
+         served build stamp differs from the running one. */
+      .update-banner {
+        position: fixed; z-index: 230;
+        top: calc(env(safe-area-inset-top, 0px) + 14px);
+        left: 50%; transform: translateX(-50%);
+        max-width: min(92vw, 540px);
+        display: flex; align-items: center; gap: 10px;
+        background: var(--surface); color: var(--ink);
+        border: 1px solid var(--line); border-radius: 12px;
+        box-shadow: var(--shadow);
+        padding: 10px 12px 10px 16px;
+        font-size: 14.5px; font-weight: 500; line-height: 1.4;
+      }
+      .update-banner[hidden] { display: none; }
+      .update-banner-text { flex: 1; min-width: 0; }
+      .update-banner-btn {
+        flex: 0 0 auto;
+        background: var(--accent); color: var(--accent-ink);
+        font-size: 14px; font-weight: 600;
+        padding: 8px 14px; border-radius: 8px; min-height: 36px;
+      }
+      .update-banner-btn:hover { filter: brightness(1.07); }
+      .update-banner-x {
+        flex: 0 0 auto;
+        width: 36px; height: 36px; border-radius: 8px;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--ink-2);
+      }
+      .update-banner-x:hover { background: var(--hover); color: var(--ink); }
 
       .toolbar {
         display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
@@ -1637,6 +1676,21 @@
           document.documentElement.setAttribute('data-ctxbar', 'hidden');
         }
       } catch (e) {}
+      /* The update check's Reload lands here with a throwaway
+         ?foliofresh=… query param — that is what forces the
+         fresh HTML past a stale HTTP cache. Strip it before
+         anything else runs so the app always sees (and any
+         later navigation keeps) the canonical URL. Documents,
+         settings, and the sign-in session are all origin-scoped
+         (localStorage / Supabase auth storage), never URL-scoped,
+         so the param and its removal change nothing else. */
+      try {
+        var folioUrl = new URL(window.location.href);
+        if (folioUrl.searchParams.has('foliofresh')) {
+          folioUrl.searchParams.delete('foliofresh');
+          window.history.replaceState(null, '', folioUrl.pathname + folioUrl.search + folioUrl.hash);
+        }
+      } catch (e) {}
     </script>
   </head>
   <body>
@@ -2031,6 +2085,11 @@
     </div>
 
     <div class="folio-toast" id="folioToast" role="status" hidden></div>
+    <div class="update-banner" id="updateBanner" role="status" hidden>
+      <span class="update-banner-text">A new version of FolioDocs is available.</span>
+      <button type="button" class="update-banner-btn" id="updateReloadBtn">Reload</button>
+      <button type="button" class="update-banner-x" id="updateDismissBtn" aria-label="Dismiss update notice"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
 
     <div id="printRoot" aria-hidden="true">
       <h1 id="printTitle"></h1>
@@ -2924,6 +2983,8 @@
         var LABEL_ICONS_ONLY_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg>';
         var LABEL_ICONS_TEXT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="8" height="10" rx="1.5"/><path d="M15 9.5h6M15 14.5h6"/></svg>';
         var KEYBOARD_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>';
+        var UPDATE_CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
+        var RELOAD_APP_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36"/><path d="M3 3v6h6"/></svg>';
         function applyLabelMode() {
           document.documentElement.setAttribute('data-labels', labelMode);
         }
@@ -3001,6 +3062,43 @@
             openShortcutsModal();
           });
           settingsMenuEl.appendChild(kb);
+          /* App version + update actions. The version line is
+             the running build's stamp (FOLIO_BUILD, defined with
+             the update check); "Check for updates" runs that
+             check on demand, and "Reload app" is the same
+             cache-busting reload the update banner offers, for
+             when the user just wants a fresh load. */
+          var sep2 = document.createElement('div');
+          sep2.className = 'menu-sep';
+          settingsMenuEl.appendChild(sep2);
+          var verHead = document.createElement('div');
+          verHead.className = 'menu-head';
+          verHead.textContent = 'FolioDocs · build ' + FOLIO_BUILD;
+          settingsMenuEl.appendChild(verHead);
+          function appItem(icon, label, fn) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'menu-item';
+            b.setAttribute('role', 'menuitem');
+            var check = document.createElement('span');
+            check.className = 'check';
+            b.appendChild(check);
+            var ic = document.createElement('span');
+            ic.className = 'm-icon';
+            ic.innerHTML = icon;
+            b.appendChild(ic);
+            var s = document.createElement('span');
+            s.className = 'm-label';
+            s.textContent = label;
+            b.appendChild(s);
+            b.addEventListener('click', function () {
+              closeSettingsMenu();
+              fn();
+            });
+            settingsMenuEl.appendChild(b);
+          }
+          appItem(UPDATE_CHECK_SVG, 'Check for updates', function () { checkForUpdates(true); });
+          appItem(RELOAD_APP_SVG, 'Reload app', function () { reloadAppFresh(); });
         }
         function openSettingsMenu() {
           if (settingsMenuOpen) { closeSettingsMenu(); return; }
@@ -8778,6 +8876,123 @@
           });
           window.addEventListener('focus', function () { scheduleSync(); });
         }
+
+        /* ---------------- update check -------------------
+           Ends the "has the new build reached this device yet?"
+           guessing game. The served HTML carries a build stamp
+           (<meta name="folio-build"> in <head>); FOLIO_BUILD
+           below is the same stamp baked into the running script
+           — the two move together on every deploy. The check
+           fetches this app's own page with the HTTP cache
+           bypassed (cache: "no-store" plus a throwaway query
+           param, so neither the browser cache nor a CDN edge can
+           answer from a stale copy), parses the served stamp,
+           and compares. A difference means a newer build is
+           live: a dismissible banner offers a one-tap reload.
+           The banner is offered at most once per newly seen
+           stamp per session, and the reload never happens
+           without the user's tap.
+
+           The reload navigates to the canonical URL plus the
+           same throwaway param, which forces the fresh HTML
+           even when the cache is holding a stale copy; the
+           <head> script strips the param again on arrival.
+           Documents, settings, and the Supabase session are all
+           origin-scoped (localStorage / auth storage), not
+           URL-scoped, so everything survives the hop — and
+           before navigating, pending state is flushed exactly
+           the way ⌘S does (persist + a sync push), with the
+           navigation held just long enough for the push to get
+           out, capped so a hung network can never trap the user
+           on the old build.
+
+           Failure is silence by design: offline, a failed
+           fetch, or a served page whose stamp cannot be parsed
+           (a sandbox shell page, a captive portal) show nothing
+           and change nothing. */
+        var FOLIO_BUILD = '20261023-1';
+        var updateBannerEl = document.getElementById('updateBanner');
+        var updatePromptedStamp = null;
+        var updateCheckInFlight = false;
+        var updateLastCheckAt = 0;
+        function folioServedStamp(html) {
+          if (!html) return null;
+          var tag = /<meta[^>]*name=["']folio-build["'][^>]*>/i.exec(html);
+          if (!tag) return null;
+          var c = /content=["']([^"']+)["']/i.exec(tag[0]);
+          return c && c[1] ? c[1] : null;
+        }
+        function showUpdateBanner(stamp) {
+          if (!updateBannerEl) return;
+          updatePromptedStamp = stamp;
+          updateBannerEl.hidden = false;
+        }
+        function hideUpdateBanner() {
+          if (updateBannerEl) updateBannerEl.hidden = true;
+        }
+        function checkForUpdates(manual) {
+          if (updateCheckInFlight) return;
+          if (typeof fetch !== 'function') return;
+          var now = Date.now();
+          if (!manual && now - updateLastCheckAt < 60000) return;
+          updateLastCheckAt = now;
+          updateCheckInFlight = true;
+          var url = window.location.pathname + '?foliofresh=' + now;
+          fetch(url, { cache: 'no-store', credentials: 'same-origin' }).then(function (res) {
+            if (!res || !res.ok) throw new Error('update check failed');
+            return res.text();
+          }).then(function (html) {
+            updateCheckInFlight = false;
+            var served = folioServedStamp(html);
+            if (!served) return;
+            if (served === FOLIO_BUILD) {
+              hideUpdateBanner();
+              if (manual) folioToast('You\u2019re up to date \u2014 this is the latest version of FolioDocs.', 3500);
+              return;
+            }
+            if (manual || updatePromptedStamp !== served) showUpdateBanner(served);
+          }).catch(function () {
+            updateCheckInFlight = false;
+          });
+        }
+        function reloadAppFresh() {
+          /* Flush first, exactly like ⌘S: cancel the debounced
+             save, write the library out, and start a sync push. */
+          var push = null;
+          try {
+            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+            persist(true);
+            push = pushAll();
+          } catch (e) {}
+          var url = window.location.pathname + '?foliofresh=' + Date.now() + (window.location.hash || '');
+          var navigated = false;
+          function go() {
+            if (navigated) return;
+            navigated = true;
+            window.location.replace(url);
+          }
+          if (push && typeof push.then === 'function') {
+            push.then(go, go);
+            setTimeout(go, 1500);
+          } else {
+            go();
+          }
+        }
+        var updateReloadBtn = document.getElementById('updateReloadBtn');
+        if (updateReloadBtn) updateReloadBtn.addEventListener('click', reloadAppFresh);
+        var updateDismissBtn = document.getElementById('updateDismissBtn');
+        if (updateDismissBtn) updateDismissBtn.addEventListener('click', hideUpdateBanner);
+        /* Check on launch (delayed, so it never competes with
+           first paint or the backend boot) and again whenever
+           the app returns to the foreground — the moment a
+           home-screen app is most likely to be holding a stale
+           copy. The 60-second throttle inside checkForUpdates
+           keeps the focus + visibility pair from double-firing. */
+        setTimeout(function () { checkForUpdates(false); }, 2500);
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden) checkForUpdates(false);
+        });
+        window.addEventListener('focus', function () { checkForUpdates(false); });
 
         /* ---------------- keyboard shortcuts -------------------
            ONE registry is the source of truth for every binding:
