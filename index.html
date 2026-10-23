@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261023-6" />
+    <meta name="folio-build" content="20261023-7" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1338,6 +1338,15 @@
       }
       .sc-group { margin-bottom: 6px; }
 
+      /* ---------------- Sync details (diagnostics) ---------------- */
+      .sd-row {
+        display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+        padding: 6px 0; font-size: 14.5px; border-bottom: 1px solid var(--line);
+      }
+      .sd-row .sd-label { flex: 0 0 auto; color: var(--ink-2); }
+      .sd-row .sd-value { text-align: right; font-weight: 600; word-break: break-word; }
+      .sd-line { padding: 3px 0; font-size: 14.5px; }
+
       /* ---------------- Theme popover ---------------- */
       .theme-pop {
         position: absolute; left: 12px; right: 12px; bottom: 62px; z-index: 60;
@@ -2106,6 +2115,19 @@
         </div>
         <div id="shortcutsList"></div>
         <p class="form-note">In any menu: <strong>&uarr;</strong> <strong>&darr;</strong> move, <strong>Enter</strong> chooses, <strong>Esc</strong> closes.</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="syncDetailsModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="syncDetailsTitle" style="max-width:520px">
+        <div class="panel-head">
+          <h2 id="syncDetailsTitle">Sync details</h2>
+          <button class="icon-btn" id="syncDetailsClose" type="button" aria-label="Close sync details" data-tip="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div id="syncDetailsBody"></div>
+        <p class="form-note">What this device believes, from its own sync records. Open it on both devices to compare where they disagree.</p>
       </div>
     </div>
 
@@ -3107,6 +3129,7 @@
         var UPDATE_CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
         var RELOAD_APP_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36"/><path d="M3 3v6h6"/></svg>';
         var SYNC_NOW_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+        var SYNC_DETAILS_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>';
         function applyLabelMode() {
           document.documentElement.setAttribute('data-labels', labelMode);
         }
@@ -3142,6 +3165,7 @@
           verHead.textContent = 'FolioDocs · build ' + FOLIO_BUILD;
           menuEl.appendChild(verHead);
           makeItem(SYNC_NOW_SVG, 'Sync now', function () { syncNow(); });
+          makeItem(SYNC_DETAILS_SVG, 'Sync details', function () { openSyncDetails(); });
           makeItem(UPDATE_CHECK_SVG, 'Check for updates', function () { checkForUpdates(true); });
           makeItem(RELOAD_APP_SVG, 'Reload app', function () { reloadAppFresh(); });
         }
@@ -8057,6 +8081,24 @@
 
         function saveIdmap() { try { localStorage.setItem(IDMAP_KEY, JSON.stringify(idmap)); } catch (e) {} }
         function saveTombstones() { try { localStorage.setItem(TOMB_KEY, JSON.stringify(tombstones)); } catch (e) {} }
+        /* Delete sidecar: what the tombstone list alone cannot
+           say once the local row is gone. titles names a pending
+           delete for the Sync details view (a tombstone is just a
+           remote id). recent is the recently-deleted guard: for
+           every document deleted on THIS device, its remote id
+           and the updated_at the row carried when it was deleted
+           — mergeRemote refuses to re-adopt a pulled row at or
+           below that timestamp, because such a row is another
+           device's re-seeded copy of the deleted document, not
+           new life. Both persist beside the tombstones. */
+        var DELINFO_KEY = 'folio.deleteinfo.v1';
+        var RECENT_DELETE_TTL = 14 * 24 * 60 * 60 * 1000;
+        var deleteInfo = { titles: {}, recent: {} };
+        try {
+          var savedDelInfo = JSON.parse(localStorage.getItem(DELINFO_KEY) || 'null');
+          if (savedDelInfo && savedDelInfo.titles && savedDelInfo.recent) deleteInfo = savedDelInfo;
+        } catch (e) {}
+        function saveDeleteInfo() { try { localStorage.setItem(DELINFO_KEY, JSON.stringify(deleteInfo)); } catch (e) {} }
         function allSyncMeta() {
           try { return JSON.parse(localStorage.getItem(SYNCMETA_KEY) || '{}') || {}; } catch (e) { return {}; }
         }
@@ -8112,17 +8154,85 @@
           return rid;
         }
         function localIdFor(kind, remoteId) {
+          // Several local ids can map to one remote row (a merge
+          // deletion that dropped the document but kept its entry,
+          // a folder recreated under a new id). Prefer the id a
+          // live local document/folder actually stands behind: a
+          // dead signpost resolved as "the" local id makes the
+          // merge look the row up, find nothing, and place an
+          // adoption by guesswork instead of by the map.
           var found = null;
-          Object.keys(idmap[kind]).forEach(function (lid) { if (idmap[kind][lid] === remoteId) found = lid; });
-          return found;
+          var liveFound = null;
+          Object.keys(idmap[kind]).forEach(function (lid) {
+            if (idmap[kind][lid] !== remoteId) return;
+            found = lid;
+            var live = kind === 'docs'
+              ? lib.docs.some(function (d) { return d.id === lid; })
+              : lib.folders.some(function (f) { return f.id === lid; });
+            if (live) liveFound = lid;
+          });
+          return liveFound || found;
+        }
+        // When exactly one of several local ids mapped to a
+        // remote row is live, the rest are dangling signposts:
+        // drop them, so resolution can never pick a dead id.
+        // When none is live the entries stay — a fresh adoption
+        // is about to give one of them something to point at.
+        function pruneDanglingMapEntries(kind) {
+          var byRid = {};
+          Object.keys(idmap[kind]).forEach(function (lid) {
+            var rid = idmap[kind][lid];
+            if (!byRid[rid]) byRid[rid] = [];
+            byRid[rid].push(lid);
+          });
+          var changedMap = false;
+          Object.keys(byRid).forEach(function (rid) {
+            var lids = byRid[rid];
+            if (lids.length < 2) return;
+            var live = lids.filter(function (lid) {
+              return kind === 'docs'
+                ? lib.docs.some(function (d) { return d.id === lid; })
+                : lib.folders.some(function (f) { return f.id === lid; });
+            });
+            if (live.length !== 1) return;
+            lids.forEach(function (lid) { if (lid !== live[0]) { delete idmap[kind][lid]; changedMap = true; } });
+          });
+          if (changedMap) saveIdmap();
         }
         function recordTombstone(kind, localId) {
           var rid = idmap[kind][localId];
           if (!rid) return;
           if (tombstones[kind].indexOf(rid) === -1) tombstones[kind].push(rid);
+          // Capture the display title (for Sync details) and, for
+          // documents, the recently-deleted guard entry BEFORE the
+          // map entry goes: after this, the row's name and the
+          // timestamp it died with exist nowhere else on this
+          // device.
+          var held = kind === 'docs'
+            ? lib.docs.find(function (x) { return x.id === localId; })
+            : lib.folders.find(function (x) { return x.id === localId; });
+          if (held) {
+            deleteInfo.titles[rid] = kind === 'docs' ? (held.title || 'Untitled') : (held.name || 'Untitled folder');
+            if (kind === 'docs') deleteInfo.recent[rid] = { u: held.updated || 0, at: Date.now() };
+            saveDeleteInfo();
+          }
           delete idmap[kind][localId];
           saveIdmap();
           saveTombstones();
+        }
+        // A tombstone retiring on either proof (the delete's own
+        // response named the row, or a pull confirmed its
+        // absence) restarts the recently-deleted guard's clock —
+        // the guard must outlive the tombstone by its full TTL,
+        // because the resurrection it exists to refuse arrives
+        // AFTER the delete has landed, when another device
+        // re-seeds the row — and drops the display title, which
+        // only ever described a delete still in flight.
+        function retireTombstoneInfo(kind, rid) {
+          var changedInfo = false;
+          if (deleteInfo.titles[rid]) { delete deleteInfo.titles[rid]; changedInfo = true; }
+          if (kind === 'docs' && deleteInfo.recent[rid]) { deleteInfo.recent[rid].at = Date.now(); changedInfo = true; }
+          if (changedInfo) saveDeleteInfo();
         }
         function setSyncState(text) {
           var el = document.getElementById('syncState');
@@ -8136,6 +8246,16 @@
            label: the sync cycle below reports "Couldn't sync"
            instead, with Sync now as the retry. */
         var lastSyncAt = 0;
+        /* The last completed cycle's verdict, kept for the Sync
+           details view and persisted with the rest of the sync
+           meta so it survives a relaunch. */
+        var lastCycleOk = null;
+        var lastCycleAt = 0;
+        function noteCycleResult(ok) {
+          lastCycleOk = !!ok;
+          lastCycleAt = Date.now();
+          saveSyncMeta({ lastCycleOk: lastCycleOk, lastCycleAt: lastCycleAt });
+        }
         function syncedLabel() {
           if (!lastSyncAt) return 'Synced';
           var t = '';
@@ -8194,12 +8314,31 @@
           // while the suspicion is outstanding.
           var absentDocs = meta0.absentDocs || {};
           // A manual Sync now arms one reconcile push (consumed
-          // here): that push re-uploads any held row the last
-          // pull's inventory says the server lacks, whatever the
-          // signature book or the suspicion map claim — the
-          // complete heal for a stand-off where one device holds
-          // a document the server lost (or never kept) while its
-          // bookkeeping insists the row already landed.
+          // here): that push re-uploads a held row the last
+          // pull's inventory says the server lacks — but ONLY a
+          // row that has never been confirmed landed on the
+          // server, or one changed locally since its last landing
+          // (the serverLacks tests in the plans below). The
+          // earlier, unconditional version re-seeded ANY held row
+          // the server lacked, and that is exactly how a
+          // cross-device delete got undone: device A deletes a
+          // document and its DELETE lands; device B still holds
+          // the document, inside the two-pull window its own
+          // merge needs before it will drop the copy; a Sync now
+          // on B "healed" the server by re-uploading the deleted
+          // row, and A's next pull re-adopted it — the deletion
+          // resurrected on the very device that made it. A row
+          // that landed before, is locally unchanged, and is now
+          // absent is therefore treated as a probable remote
+          // delete and left to the absence machinery, never
+          // re-seeded. The stated trade-off: if the server ever
+          // loses a row through corruption (not a delete) while
+          // every holder's copy sits unchanged, Sync now will
+          // NOT restore it — the holders' copies fall to the
+          // same absence rule. Deletes win over corruption
+          // recovery by default: a delete is a user acting on
+          // purpose, and a resurrection is the failure the user
+          // can see and cannot undo.
           var doReconcile = reconcileNextPush;
           reconcileNextPush = false;
           // Change detection, per row: a push upserts only rows
@@ -8242,7 +8381,8 @@
           var folderPlan = orderedFolders.map(function (f) {
             var rid = ensureRemoteId('folders', f.id);
             var sig = folderSig(f);
-            var serverLacks = doReconcile && lastPullFolderIds && !lastPullFolderIds[rid];
+            var serverLacks = doReconcile && lastPullFolderIds && !lastPullFolderIds[rid] &&
+              (oldSigs.folders[rid] === undefined || oldSigs.folders[rid] !== sig);
             return { f: f, rid: rid, sig: sig, changed: oldSigs.folders[rid] !== sig || !!serverLacks };
           });
           var changedFolders = folderPlan.filter(function (p) { return p.changed; });
@@ -8266,7 +8406,8 @@
           var docRows = [];
           var docPushedSigs = {};
           docPlan.forEach(function (p) {
-            var serverLacks = doReconcile && lastPullDocIds && !lastPullDocIds[p.rid];
+            var serverLacks = doReconcile && lastPullDocIds && !lastPullDocIds[p.rid] &&
+              (oldSigs.docs[p.rid] === undefined || oldSigs.docs[p.rid] !== p.sig);
             // Suspected remote delete: an UNCHANGED row is never
             // resurrected from here (its absence may be a genuine
             // delete still awaiting confirmation). But a row this
@@ -8286,7 +8427,7 @@
               title: d.title || 'Untitled',
               content: d.content,
               tags: docTags(d).map(function (t) { return t.name; }),
-              favorite: !!d.favorite,
+              favorites: !!d.favorite,
               updated_at: new Date(d.updated || Date.now()).toISOString(),
             });
             docPushedSigs[p.rid] = p.sig;
@@ -8295,7 +8436,7 @@
           var allFolderRids = folderPlan.map(function (p) { return p.rid; });
           var docRowsBasic = docRows.map(function (r) {
             var c = {};
-            Object.keys(r).forEach(function (k) { if (k !== 'favorite') c[k] = r[k]; });
+            Object.keys(r).forEach(function (k) { if (k !== 'favorites') c[k] = r[k]; });
             return c;
           });
           // A locally deleted row is never in the same push's
@@ -8329,9 +8470,22 @@
             }));
           }
           if (docRows.length) {
-            // Favorite rides along when the documents table has that
-            // column; if it doesn't yet, retry without it so document
-            // sync itself never breaks (favorites stay local-only).
+            // The star rides the fullest payload under the
+            // column's real name — favorites, plural, verified
+            // against the live schema. For several builds the
+            // payload and the pull's select both used "favorite",
+            // a column that does not exist: PostgREST rejected
+            // every full upsert, the silent fallback below landed
+            // the starless payload instead, and the pull fell
+            // back the same way — so stars synced in NEITHER
+            // direction while documents, moves and timestamps
+            // all synced fine, and nothing reported it (the
+            // fallback also kept docFullOk false, so no landed
+            // signatures were ever recorded and every cycle
+            // re-uploaded the whole library). If the full payload
+            // ever errors again, retry without the star so
+            // document sync itself never breaks (favorites stay
+            // local-only).
             jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }).then(function (r) {
               if (r && r.error) return sb.from('documents').upsert(docRowsBasic, { onConflict: 'id' });
               docFullOk = true;
@@ -8361,6 +8515,8 @@
             var doneDeletes = {};
             results.forEach(function (x) { if (x.del && x.landed) doneDeletes[x.del.kind + ':' + x.del.rid] = true; });
             if (Object.keys(doneDeletes).length) {
+              tombstones.docs.forEach(function (rid) { if (doneDeletes['docs:' + rid]) retireTombstoneInfo('docs', rid); });
+              tombstones.folders.forEach(function (rid) { if (doneDeletes['folders:' + rid]) retireTombstoneInfo('folders', rid); });
               tombstones.docs = tombstones.docs.filter(function (rid) { return !doneDeletes['docs:' + rid]; });
               tombstones.folders = tombstones.folders.filter(function (rid) { return !doneDeletes['folders:' + rid]; });
               saveTombstones();
@@ -8470,7 +8626,15 @@
           // the suspicions this merge records for the next one.
           var absentBefore = meta.absentDocs || {};
           var pendingAbsent = {};
+          // Remote ids whose server row this merge found strictly
+          // OLDER than the divergent local copy: their landed
+          // signatures are un-recorded at the end of the merge so
+          // the push that follows re-lands the newer local state
+          // (see the doc loop below).
+          var relandRids = [];
           dedupeDocsById();
+          pruneDanglingMapEntries('docs');
+          pruneDanglingMapEntries('folders');
           var remoteDocIds = {};
           remoteDocs.forEach(function (rd) { remoteDocIds[rd.id] = true; });
           var remoteFolderIds = {};
@@ -8491,10 +8655,22 @@
           // re-issues its delete. This is the second of the two
           // proofs that can retire a tombstone; the first is the
           // delete response naming the removed row (pushAll).
+          // Age out the recently-deleted guard: an entry lives
+          // RECENT_DELETE_TTL past the delete (refreshed when its
+          // tombstone retires), long enough to outlast every
+          // other device's absence window and then lapse.
+          var rdCutoff = Date.now() - RECENT_DELETE_TTL;
+          var rdPruned = false;
+          Object.keys(deleteInfo.recent).forEach(function (rid) {
+            if ((deleteInfo.recent[rid].at || 0) < rdCutoff) { delete deleteInfo.recent[rid]; rdPruned = true; }
+          });
+          if (rdPruned) saveDeleteInfo();
           if (tombstones.docs.length || tombstones.folders.length) {
             var keptTD = tombstones.docs.filter(function (rid) { return !!remoteDocIds[rid]; });
             var keptTF = tombstones.folders.filter(function (rid) { return !!remoteFolderIds[rid]; });
             if (keptTD.length !== tombstones.docs.length || keptTF.length !== tombstones.folders.length) {
+              tombstones.docs.forEach(function (rid) { if (keptTD.indexOf(rid) === -1) retireTombstoneInfo('docs', rid); });
+              tombstones.folders.forEach(function (rid) { if (keptTF.indexOf(rid) === -1) retireTombstoneInfo('folders', rid); });
               tombstones.docs = keptTD;
               tombstones.folders = keptTF;
               saveTombstones();
@@ -8613,6 +8789,21 @@
           remoteDocs.forEach(function (rd) {
             if (tombstones.docs.indexOf(rd.id) !== -1) return; // deleted locally, delete pending
             var rUpdated = Date.parse(rd.updated_at) || 0;
+            // Recently-deleted guard: this device deleted this
+            // row and the delete landed (the tombstone is gone,
+            // or never gated this pull). A row reappearing at or
+            // below the timestamp it died with is another
+            // device's re-seeded copy of the SAME deleted
+            // document — refuse it, or the deletion resurrects
+            // here. A row NEWER than the deleted one is genuine
+            // new life (edited elsewhere after the delete):
+            // the guard lapses and adoption proceeds normally.
+            var rdGuard = deleteInfo.recent[rd.id];
+            if (rdGuard) {
+              if (rUpdated <= (rdGuard.u || 0)) return;
+              delete deleteInfo.recent[rd.id];
+              saveDeleteInfo();
+            }
             var lid = localIdFor('docs', rd.id);
             if (!lid && lib.docs.some(function (d) { return d.id === rd.id; })) {
               idmap.docs[rd.id] = rd.id;
@@ -8639,6 +8830,13 @@
               }
             }
             var fl = rd.folder_id ? localIdFor('folders', rd.folder_id) : null;
+            // Fallback: a folder adopted from its own remote row
+            // earlier in THIS merge stands in the library under
+            // its remote id — resolve to it directly when the map
+            // names nothing live, so an adopted document takes
+            // the server row's placement wholesale instead of
+            // spilling to the root on a stale map entry.
+            if (rd.folder_id && (!fl || !folderById(fl)) && folderById(rd.folder_id)) fl = rd.folder_id;
             if (fl && !lib.folders.some(function (f) { return f.id === fl; })) fl = null;
             // The local document the id map names for this row,
             // if one actually stands behind the entry. A merge
@@ -8669,7 +8867,7 @@
                 title: rd.title || 'Untitled',
                 content: rd.content || { type: 'doc', content: [{ type: 'paragraph' }] },
                 folderId: fl,
-                favorite: 'favorite' in rd ? !!rd.favorite : false,
+                favorite: 'favorites' in rd ? !!rd.favorites : false,
                 updated: rUpdated,
               });
               seenDocs[adoptId] = true;
@@ -8687,7 +8885,7 @@
                   // a star this device had just set but not yet
                   // pushed, and a stale row could flip a newer
                   // local star back off.
-                  if ('favorite' in rd) ld.favorite = !!rd.favorite;
+                  if ('favorites' in rd) ld.favorite = !!rd.favorites;
                   // Membership follows the remote row only when its
                   // folder actually resolved to a local folder, or
                   // the local membership is already dangling. A
@@ -8722,8 +8920,31 @@
                   // stamps the document, lifting it above the tie
                   // so a pull can never stomp a change this device
                   // hasn't pushed yet.
-                  if ('favorite' in rd) ld.favorite = !!rd.favorite;
+                  if ('favorites' in rd) ld.favorite = !!rd.favorites;
                   if (flResolved && (ld.folderId || null) !== fl) ld.folderId = fl;
+                } else if (rUpdated < (ld.updated || 0)) {
+                  // The local copy is strictly newer, and the
+                  // merge keeps it — but if the server row
+                  // disagrees with it on placement, star, title
+                  // or text, the pair is in the stand-off left
+                  // when another device once reverted the server
+                  // row to an older state and every holder of
+                  // the newer state had already recorded it as
+                  // landed: no push re-sent it (signature match)
+                  // and no pull could move it (strictly-greater
+                  // rule), so two devices wore honest "Synced"
+                  // labels over different libraries forever.
+                  // Un-record the row's landed signature (below,
+                  // at the end of the merge) so the push that
+                  // follows this pull re-lands the newer local
+                  // state and the divergence actually ends.
+                  var localFolderRid = ld.folderId ? (idmap.folders[ld.folderId] || null) : null;
+                  if (localFolderRid !== (rd.folder_id || null) ||
+                      (('favorites' in rd) && !!rd.favorites !== !!ld.favorite) ||
+                      (rd.title || 'Untitled') !== (ld.title || 'Untitled') ||
+                      docTextSignature(ld.content) !== docTextSignature(rd.content)) {
+                    relandRids.push(rd.id);
+                  }
                 }
               }
             }
@@ -8756,7 +8977,19 @@
             lib.docs.push({ id: uid(), title: 'Untitled', content: { type: 'doc', content: [{ type: 'paragraph' }] }, folderId: null, updated: Date.now() });
             lib.currentId = lib.docs[0].id;
           }
+          if (relandRids.length) {
+            var sigMeta = myMeta();
+            var landedSigs = sigMeta.pushedSigs;
+            if (landedSigs && landedSigs.docs) {
+              var sigsTouched = false;
+              relandRids.forEach(function (rid) {
+                if (rid in landedSigs.docs) { delete landedSigs.docs[rid]; sigsTouched = true; }
+              });
+              if (sigsTouched) saveSyncMeta({ pushedSigs: landedSigs });
+            }
+          }
           saveSyncMeta({
+            lastPullAt: Date.now(),
             knownDocs: remoteDocs.map(function (rd) { return rd.id; }),
             knownFolders: remoteFolders.map(function (rf) { return rf.id; }),
             // This merge's unconfirmed absences: the next merge
@@ -8842,7 +9075,7 @@
             });
             return r;
           });
-          var docsReq = sb.from('documents').select('id, folder_id, title, content, updated_at, favorite').then(function (r) {
+          var docsReq = sb.from('documents').select('id, folder_id, title, content, updated_at, favorites').then(function (r) {
             if (r && r.error) return sb.from('documents').select('id, folder_id, title, content, updated_at');
             return r;
           });
@@ -8892,8 +9125,10 @@
           if (!sb || !sbUser || syncStartedFor === sbUser.id) return;
           syncStartedFor = sbUser.id;
           lastSyncAt = myMeta().lastSync || 0;
+          var metaAtStart = myMeta();
+          if (typeof metaAtStart.lastCycleOk === 'boolean') { lastCycleOk = metaAtStart.lastCycleOk; lastCycleAt = metaAtStart.lastCycleAt || 0; }
           if (lastSyncAt) setSyncState(syncedLabel());
-          pullMerge().then(function () { repairDuplicateDocs(); return pushAll(); }).then(function () { refreshShareBadge(); });
+          pullMerge().then(function () { repairDuplicateDocs(); return pushAll(); }).then(function (ok) { noteCycleResult(ok); refreshShareBadge(); });
         }
 
         /* ---------------- sync cycle + Sync now ----------------
@@ -8947,12 +9182,14 @@
           }).then(function (ok) {
             syncCyclePromise = null;
             setSyncSpinning(false);
+            noteCycleResult(ok);
             if (ok) noteSyncSuccess();
             else setSyncState('Couldn\u2019t sync \u2014 tap Sync now to retry');
             return ok;
           }).catch(function () {
             syncCyclePromise = null;
             setSyncSpinning(false);
+            noteCycleResult(false);
             setSyncState('Couldn\u2019t sync \u2014 tap Sync now to retry');
             return false;
           });
@@ -8965,8 +9202,11 @@
           }
           // A manual Sync now is a full reconciliation, not just
           // another cycle: the post-pull push re-uploads any
-          // local row the server lacks, and the merge adopts any
-          // server row local state was wrongly refusing.
+          // local row the server lacks that has never landed or
+          // has changed since landing (a landed, unchanged,
+          // now-absent row is treated as a remote delete and is
+          // never re-seeded — see pushAll), and the merge adopts
+          // any server row local state was wrongly refusing.
           manualReconcileOnce = true;
           return syncCycle();
         }
@@ -8979,6 +9219,101 @@
           lastAutoCycleAt = now;
           syncCycle();
         }
+
+        /* ---------------- sync details (diagnostics) ----------
+           A read-only window onto what THIS device believes: the
+           build stamp, the last cycle's verdict and time, the
+           local library's size against the server inventory the
+           last pull actually returned, the deletes still in
+           flight by title, and the documents this device holds
+           that the server inventory does not. When two devices
+           disagree, opening this on both turns "sync is broken"
+           into two comparable statements of fact. It only reads —
+           nothing here mutates sync state. */
+        var syncDetailsModalEl = document.getElementById('syncDetailsModal');
+        function sdFmtTime(ts) {
+          if (!ts) return 'never';
+          try { return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; }
+        }
+        function openSyncDetails() {
+          if (!syncDetailsModalEl) return;
+          closeSettingsMenu();
+          closeTopMenu();
+          var body = document.getElementById('syncDetailsBody');
+          if (!body) return;
+          body.innerHTML = '';
+          function row(label, value) {
+            var r = document.createElement('div');
+            r.className = 'sd-row';
+            var l = document.createElement('span');
+            l.className = 'sd-label';
+            l.textContent = label;
+            r.appendChild(l);
+            var v = document.createElement('span');
+            v.className = 'sd-value';
+            v.textContent = value;
+            r.appendChild(v);
+            body.appendChild(r);
+          }
+          function listHead(text) {
+            var h = document.createElement('div');
+            h.className = 'pop-label';
+            h.textContent = text;
+            body.appendChild(h);
+          }
+          function listLine(text) {
+            var p = document.createElement('div');
+            p.className = 'sd-line';
+            p.textContent = text;
+            body.appendChild(p);
+          }
+          var meta = myMeta();
+          var haveInventory = !!lastPullDocIds || !!meta.lastPullAt;
+          var serverDocCount = lastPullDocIds ? Object.keys(lastPullDocIds).length : (meta.knownDocs || []).length;
+          var serverFolderCount = lastPullFolderIds ? Object.keys(lastPullFolderIds).length : (meta.knownFolders || []).length;
+          row('Build', FOLIO_BUILD);
+          row('Account', sbUser ? (sbUser.email || 'Signed in') : 'Not signed in — this device only');
+          row('Last sync cycle', lastCycleAt ? ((lastCycleOk ? 'Completed' : 'Failed') + ' · ' + sdFmtTime(lastCycleAt)) : 'No cycle yet this session');
+          row('Last successful sync', lastSyncAt ? sdFmtTime(lastSyncAt) : 'never');
+          row('Last pull', meta.lastPullAt ? sdFmtTime(meta.lastPullAt) : 'never');
+          row('Documents', 'This device ' + lib.docs.length + (haveInventory ? ' · Server (last pull) ' + serverDocCount : ''));
+          row('Folders', 'This device ' + lib.folders.length + (haveInventory ? ' · Server (last pull) ' + serverFolderCount : ''));
+          listHead('Deletes in flight');
+          var pending = [];
+          tombstones.docs.forEach(function (rid) { pending.push(deleteInfo.titles[rid] || ('Document ' + rid.slice(0, 8) + '\u2026')); });
+          tombstones.folders.forEach(function (rid) { pending.push((deleteInfo.titles[rid] || ('Folder ' + rid.slice(0, 8) + '\u2026')) + ' (folder)'); });
+          if (pending.length) pending.forEach(function (t) { listLine(t); });
+          else listLine('None');
+          listHead('Held here, not on the server (last pull)');
+          if (!sbUser) listLine('Sign in to compare against the server.');
+          else if (!haveInventory) listLine('No pull yet on this device.');
+          else {
+            var inv = {};
+            if (lastPullDocIds) { Object.keys(lastPullDocIds).forEach(function (rid) { inv[rid] = true; }); }
+            else (meta.knownDocs || []).forEach(function (rid) { inv[rid] = true; });
+            var lacking = [];
+            lib.docs.forEach(function (d) {
+              var rid = idmap.docs[d.id];
+              if (!rid || !inv[rid]) lacking.push(d.title || 'Untitled');
+            });
+            if (lacking.length) lacking.forEach(function (t) { listLine(t); });
+            else listLine('None');
+          }
+          syncDetailsModalEl.hidden = false;
+          var closeBtn = document.getElementById('syncDetailsClose');
+          if (closeBtn) closeBtn.focus();
+        }
+        function closeSyncDetails() {
+          if (syncDetailsModalEl) syncDetailsModalEl.hidden = true;
+        }
+        var syncDetailsCloseBtn = document.getElementById('syncDetailsClose');
+        if (syncDetailsCloseBtn) syncDetailsCloseBtn.addEventListener('click', closeSyncDetails);
+        if (syncDetailsModalEl) syncDetailsModalEl.addEventListener('click', function (ev) {
+          if (ev.target === this) closeSyncDetails();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && syncDetailsModalEl && !syncDetailsModalEl.hidden) closeSyncDetails();
+        });
 
         /* ---------------- auth UI ---------------- */
         var authMode = 'signin';
@@ -9594,7 +9929,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261023-6';
+        var FOLIO_BUILD = '20261023-7';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -9912,7 +10247,7 @@
            screen, shortcuts stand down (the modal's own keys,
            and the legacy ⌘P fallback, still work there). */
         function scAnyOverlayOpen() {
-          var ids = ['shareModal', 'deleteModal', 'shortcutsModal', 'authOverlay', 'shareView'];
+          var ids = ['shareModal', 'deleteModal', 'shortcutsModal', 'syncDetailsModal', 'authOverlay', 'shareView'];
           for (var i = 0; i < ids.length; i++) {
             var el = document.getElementById(ids[i]);
             if (el && !el.hidden) return true;
