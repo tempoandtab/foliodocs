@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261023-2" />
+    <meta name="folio-build" content="20261023-3" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1178,6 +1178,50 @@
       @media (prefers-reduced-motion: reduce) {
         .drag-ghost { box-shadow: var(--paper-shadow); }
       }
+      /* Multi-select: while the mode is on, each doc row leads
+         with a checkbox and selected rows paint like the current
+         doc. The bar sticks to the bottom of the visible list
+         area inside the Documents section, so it stays reachable
+         while a long folder scrolls. The drag ghost for a whole
+         selection carries a count pill at its corner. */
+      .doc-item.selected { background: var(--active); }
+      .doc-check {
+        flex: 0 0 auto; width: 20px; height: 20px; border-radius: 6px;
+        border: 1.5px solid var(--ink-3);
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--accent-ink); background: transparent;
+      }
+      .doc-check.on { background: var(--accent); border-color: var(--accent); }
+      .doc-check svg { width: 13px; height: 13px; }
+      .sel-bar {
+        position: sticky; bottom: 0; z-index: 5;
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin-top: 8px; padding: 9px 10px;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+        box-shadow: var(--paper-shadow);
+      }
+      .sel-bar[hidden] { display: none; }
+      /* The count takes its own line: at sidebar width the
+         count + both buttons never fit on one row, and a
+         squeezed count slid under the Move button. */
+      .sel-count { flex: 1 1 100%; min-width: 0; white-space: nowrap; font-size: 13.5px; font-weight: 700; color: var(--ink); }
+      #selMoveBtn { flex: 1; justify-content: center; }
+      .sel-btn {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 13px; font-weight: 600; color: var(--ink);
+        background: var(--hover); padding: 8px 11px; border-radius: 8px; min-height: 36px;
+      }
+      .sel-btn:hover { background: var(--active); }
+      .sel-btn:disabled { opacity: 0.45; cursor: default; }
+      .sel-btn:disabled:hover { background: var(--hover); }
+      .sel-btn.sel-done { background: var(--accent); color: var(--accent-ink); }
+      .sel-btn.sel-done:hover { filter: brightness(1.07); }
+      .drag-count {
+        position: absolute; top: -10px; right: -8px;
+        background: var(--accent); color: var(--accent-ink);
+        font-size: 12px; font-weight: 700; line-height: 1; white-space: nowrap;
+        padding: 5px 9px; border-radius: 999px; box-shadow: var(--shadow);
+      }
       .folder-empty { font-size: 12.5px; color: var(--ink-3); padding: 3px 10px 9px 12px; line-height: 1.45; }
       .doc-item .doc-act {
         flex: 0 0 auto; width: 30px; height: 30px; border-radius: 7px;
@@ -1218,7 +1262,7 @@
          WebKit never offers up for text selection. Interactive children
          (the ⋮ buttons, chevron toggles) keep receiving their presses,
          and clicks still reach the rows through the control. */
-      .sidebar .doc-name, .sidebar .doc-dot, .sidebar .doc-star,
+      .sidebar .doc-name, .sidebar .doc-dot, .sidebar .doc-star, .sidebar .doc-check,
       .sidebar .folder-name, .sidebar .folder-count, .sidebar .folder-badge,
       .sidebar .folder-empty, .sidebar .side-empty, .sidebar .wordmark,
       .sidebar .account-email, .sidebar .sync-state, .sidebar #docCount,
@@ -1243,17 +1287,32 @@
         font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
         color: var(--ink-3); padding: 7px 10px 4px;
       }
+      /* Items align to the TOP of the row, not the center: a
+         label may wrap to a second line (see .m-label below),
+         and the leading icon/check and the trailing shortcut
+         hint stay on the label's first line — the small top
+         margins on those slots center them on that first line
+         (14.5px text at line-height 1.3 ≈ a 19px line box).
+         Single-line items are exactly as tall as before. */
       .menu-item {
-        display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+        display: flex; align-items: flex-start; gap: 9px; width: 100%; text-align: left;
         padding: 10px; border-radius: 8px; font-size: 14.5px; font-weight: 500; min-height: 44px;
       }
       .menu-item:hover { background: var(--hover); }
-      .menu-item .check { flex: 0 0 16px; width: 16px; display: inline-flex; align-items: center; justify-content: center; color: var(--accent); visibility: hidden; }
+      .menu-item .check { flex: 0 0 16px; width: 16px; margin-top: 2px; display: inline-flex; align-items: center; justify-content: center; color: var(--accent); visibility: hidden; }
       .menu-item.on .check { visibility: visible; }
       .menu-item .check.lead-icon { visibility: visible; color: var(--ink-2); }
-      .menu-item .m-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .menu-item .m-icon { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2); }
-      .menu-item .m-hint { flex: 0 0 auto; margin-left: auto; padding-left: 12px; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+      /* Labels wrap to up to two lines instead of truncating
+         with an ellipsis — a long command ("Export as Markdown"
+         beside its ⌘⌥M hint) reads in full, and the menu grows
+         taller, never wider; the open handlers place menus from
+         their rendered height, so the clamp still holds. */
+      .menu-item .m-label {
+        flex: 1; min-width: 0; line-height: 1.3; overflow-wrap: break-word;
+        display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+      }
+      .menu-item .m-icon { flex: 0 0 auto; margin-top: 2px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2); }
+      .menu-item .m-hint { flex: 0 0 auto; margin-left: auto; margin-top: 2px; padding-left: 12px; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
       .menu-item.danger { color: var(--danger); }
       .menu-item.danger .m-icon { color: var(--danger); }
       .menu-item.danger.confirm { background: var(--danger); color: #fff; font-weight: 700; }
@@ -1730,6 +1789,11 @@
             </div>
             <div class="tag-filter-bar" id="tagFilterBar" hidden></div>
             <div id="docList"></div>
+            <div class="sel-bar" id="selBar" hidden>
+              <span class="sel-count" id="selCountLabel">0 selected</span>
+              <button class="sel-btn" id="selMoveBtn" type="button" aria-haspopup="menu" data-tip="Move the selected documents to a folder">Move to folder <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+              <button class="sel-btn sel-done" id="selDoneBtn" type="button">Done</button>
+            </div>
           </div>
           <div class="side-section" id="tagsSection" hidden>
             <div class="side-label"><span>Tags</span></div>
@@ -2429,6 +2493,7 @@
         var STAR_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
         var STAR_O_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
         var PLUS_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+        var CHECKLIST_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 7 2 2L8 5"/><path d="m2.5 16 2 2L8 14"/><path d="M12 7h9M12 16h9"/></svg>';
         var PENCIL_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>';
         var DOC_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
         var TAG_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8Z"/><circle cx="7" cy="7" r="1.3" fill="currentColor" stroke="none"/></svg>';
@@ -2513,6 +2578,7 @@
           return found || key;
         }
         function setTagFilter(key) {
+          if (selectMode) exitSelectMode();
           tagFilter = key;
           if (key) docViewMode = 'documents';
           renderTagFilterBar();
@@ -2568,23 +2634,41 @@
           moveMenuEl.innerHTML = '';
           moveMenuDocId = null;
         }
-        function openMoveMenu(anchor, docId) {
-          if (moveMenuDocId === docId && moveMenuEl.classList.contains('open')) { closeMoveMenu(); return; }
+        function openMoveMenu(anchor, docId, ids) {
+          // Two callers share this menu: a single document (its ⋮
+          // menu's "Move to folder") and the selection bar, which
+          // passes the whole selection as `ids` — the heading, the
+          // current-folder check, and the move itself then apply
+          // to every document in the set at once.
+          var multi = !!(ids && ids.length);
+          var key = multi ? 'multi' : docId;
+          if (moveMenuDocId === key && moveMenuEl.classList.contains('open')) { closeMoveMenu(); return; }
           closeFolderMenu();
           closeDocMenu();
           closeViewMenu();
-          var doc = lib.docs.find(function (d) { return d.id === docId; });
-          if (!doc) return;
-          moveMenuDocId = docId;
+          var docs;
+          var doc = null;
+          if (multi) {
+            docs = ids.map(function (id) { return lib.docs.find(function (d) { return d.id === id; }); }).filter(Boolean);
+            if (!docs.length) return;
+          } else {
+            doc = lib.docs.find(function (d) { return d.id === docId; });
+            if (!doc) return;
+            docs = [doc];
+          }
+          moveMenuDocId = key;
           moveMenuEl.innerHTML = '';
           var head = document.createElement('div');
           head.className = 'menu-head';
-          head.textContent = 'Move to';
+          head.textContent = multi
+            ? 'Move ' + docs.length + (docs.length === 1 ? ' document' : ' documents') + ' to'
+            : 'Move to';
           moveMenuEl.appendChild(head);
           function item(label, folderId, icon, depth) {
             var b = document.createElement('button');
             b.type = 'button';
-            b.className = 'menu-item' + ((doc.folderId || null) === folderId ? ' on' : '');
+            var allHere = docs.every(function (d) { return (d.folderId || null) === folderId; });
+            b.className = 'menu-item' + (allHere ? ' on' : '');
             if (depth) b.style.paddingLeft = (10 + depth * 18) + 'px';
             var check = document.createElement('span');
             check.className = 'check';
@@ -2600,15 +2684,16 @@
             s.textContent = label;
             b.appendChild(s);
             b.addEventListener('click', function () {
+              closeMoveMenu();
+              if (multi) { moveDocsToFolder(ids, folderId); return; }
               doc.folderId = folderId;
               if (folderId) expandFolderChain(folderId);
               persist(true);
-              closeMoveMenu();
               renderDocList();
             });
             moveMenuEl.appendChild(b);
           }
-          item('No folder', null, DOC_SVG, 0);
+          item(multi ? 'Root (no folder)' : 'No folder', null, DOC_SVG, 0);
           // The folder tree, depth-first: subfolders indent under
           // their parent and can be targeted at any depth.
           (function walk(parentId, depth) {
@@ -2619,7 +2704,10 @@
           })(null, 0);
           moveMenuEl.className = 'menu open';
           var r = anchor.getBoundingClientRect();
-          var menuH = 84 + lib.folders.length * 48;
+          // The rendered height, not an estimate: a folder name
+          // that wraps to two lines makes the menu taller, and
+          // the clamp below has to know.
+          var menuH = moveMenuEl.offsetHeight;
           moveMenuEl.style.left = Math.max(8, Math.min(r.left - 120, window.innerWidth - 232)) + 'px';
           moveMenuEl.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - menuH - 8)) + 'px';
         }
@@ -2659,6 +2747,10 @@
           item(FOLDER_PLUS_SVG, 'New folder inside', '', function () {
             closeFolderMenu();
             createFolder(f.id);
+          });
+          item(CHECKLIST_SVG, 'Select documents', '', function () {
+            closeFolderMenu();
+            enterSelectMode(null);
           });
           item(PALETTE_SVG, 'Edit folder (icon & color)', '', function () {
             var anchor = folderMenuAnchor;
@@ -2768,6 +2860,10 @@
           item(d.favorite ? STAR_SVG : STAR_O_SVG, d.favorite ? 'Unfavorite' : 'Favorite', '', hintFor('favorite'), function () {
             closeFn();
             toggleFavorite(d.id);
+          });
+          item(CHECKLIST_SVG, 'Select documents', '', '', function () {
+            closeFn();
+            enterSelectMode(d.id);
           });
           item(FOLDER_SVG, 'Move to folder', '', hintFor('move-doc'), function () {
             closeFn();
@@ -2908,6 +3004,7 @@
           if (label) label.textContent = docViewMode === 'favorites' ? 'Favorites' : 'Documents';
         }
         function setDocViewMode(mode) {
+          if (selectMode) exitSelectMode();
           docViewMode = mode === 'favorites' ? 'favorites' : 'documents';
           renderDocsViewLabel();
           renderDocList();
@@ -3588,6 +3685,110 @@
           renderDocList();
         }
 
+        /* ---------------- multi-select ----------------
+           "Select documents" in a doc's menu or a folder's menu
+           turns the list into a selection: rows grow checkboxes,
+           a tap toggles instead of opening, and the bar under
+           the list counts the set and offers the shared Move
+           menu (plus Done). Dragging a selected row drags the
+           whole set (see the drag module below); dragging an
+           unselected row is an ordinary single-doc drag and the
+           selection stands. On the desktop, Cmd/Ctrl+click
+           toggles a row into the mode and Shift+click extends
+           the selection over the visible range from the last
+           clicked row. Switching the Documents/Favorites view
+           or the tag filter leaves the mode; a doc that is
+           deleted drops out of the set. Selection is session
+           state only — never persisted, never synced. */
+        var selectMode = false;
+        var selectedDocs = {};
+        var lastClickedDocId = null;
+        var selBarEl = document.getElementById('selBar');
+        var selCountLabelEl = document.getElementById('selCountLabel');
+        var selMoveBtnEl = document.getElementById('selMoveBtn');
+        function selectedDocIds() {
+          return Object.keys(selectedDocs).filter(function (id) {
+            return lib.docs.some(function (d) { return d.id === id; });
+          });
+        }
+        function visibleDocIds() {
+          return Array.prototype.slice.call(docListEl.querySelectorAll('.doc-item')).map(function (el) {
+            return el.getAttribute('data-doc-id');
+          });
+        }
+        function renderSelBar() {
+          if (!selBarEl) return;
+          selBarEl.hidden = !selectMode;
+          if (!selectMode) return;
+          var n = selectedDocIds().length;
+          selCountLabelEl.textContent = n + ' selected';
+          selMoveBtnEl.disabled = n === 0;
+        }
+        function enterSelectMode(initialId) {
+          selectMode = true;
+          if (initialId && lib.docs.some(function (d) { return d.id === initialId; })) {
+            selectedDocs[initialId] = true;
+            lastClickedDocId = initialId;
+          }
+          renderSelBar();
+          renderDocList();
+        }
+        function exitSelectMode() {
+          selectMode = false;
+          selectedDocs = {};
+          lastClickedDocId = null;
+          renderSelBar();
+          renderDocList();
+        }
+        function toggleDocSelected(id) {
+          if (!lib.docs.some(function (d) { return d.id === id; })) return;
+          selectMode = true;
+          if (selectedDocs[id]) delete selectedDocs[id];
+          else selectedDocs[id] = true;
+          lastClickedDocId = id;
+          renderSelBar();
+          renderDocList();
+        }
+        function selectRangeTo(id) {
+          var vis = visibleDocIds();
+          var to = vis.indexOf(id);
+          if (to === -1) { toggleDocSelected(id); return; }
+          var from = lastClickedDocId ? vis.indexOf(lastClickedDocId) : -1;
+          if (from === -1) from = 0;
+          selectMode = true;
+          var lo = Math.min(from, to), hi = Math.max(from, to);
+          for (var i = lo; i <= hi; i++) selectedDocs[vis[i]] = true;
+          renderSelBar();
+          renderDocList();
+        }
+        // One move for the whole set: ordinary per-doc folder
+        // changes (the same field a single move writes, so the
+        // set syncs like any other move), then the mode exits
+        // and the selection clears — including when every doc
+        // was already in the target folder, which is a no-op
+        // move but still a completed drop.
+        function moveDocsToFolder(ids, folderId) {
+          folderId = folderId || null;
+          var changed = false;
+          (ids || []).forEach(function (id) {
+            var d = lib.docs.find(function (x) { return x.id === id; });
+            if (d && (d.folderId || null) !== folderId) { d.folderId = folderId; changed = true; }
+          });
+          if (changed) {
+            if (folderId) expandFolderChain(folderId);
+            persist(true);
+          }
+          exitSelectMode();
+        }
+        selMoveBtnEl.addEventListener('click', function () {
+          var ids = selectedDocIds();
+          if (!ids.length) return;
+          openMoveMenu(selMoveBtnEl, null, ids);
+        });
+        document.getElementById('selDoneBtn').addEventListener('click', function () {
+          exitSelectMode();
+        });
+
         /* ---------------- drag & drop in the library ----------------
            Pointer-based (mouse, trackpad, pen, and touch share one
            path — no HTML5 drag events, which touch never fires).
@@ -3653,11 +3854,15 @@
           document.removeEventListener('keydown', rowDragKey, true);
           if (drag.ghost) drag.ghost.remove();
           if (drag.srcEl) drag.srcEl.classList.remove('drag-src');
+          docListEl.querySelectorAll('.drag-src').forEach(function (el) { el.classList.remove('drag-src'); });
           clearDropHighlights();
           if (drag.active) {
             lastDragEndAt = Date.now();
             if (commit && drag.hasTarget) {
-              if (drag.kind === 'doc') moveDocToFolder(drag.id, drag.targetId);
+              if (drag.kind === 'doc') {
+                if (drag.ids && drag.ids.length > 1) moveDocsToFolder(drag.ids, drag.targetId);
+                else moveDocToFolder(drag.id, drag.targetId);
+              }
               else nestFolder(drag.id, drag.targetId);
             }
           }
@@ -3681,6 +3886,14 @@
             closeFolderMenu();
             closeDocMenu();
             closeViewMenu();
+            // A drag that starts on a SELECTED doc carries the
+            // whole selection with it (Finder semantics); a drag
+            // on any other row stays a single-doc drag and the
+            // selection is left standing.
+            if (drag.kind === 'doc') {
+              var selIds = selectedDocIds();
+              drag.ids = (selIds.indexOf(drag.id) !== -1 && selIds.length > 1) ? selIds : null;
+            }
             var ghost = drag.ghostFrom.cloneNode(true);
             ghost.className += ' drag-ghost';
             ghost.removeAttribute('id');
@@ -3688,11 +3901,23 @@
             ghost.style.width = r.width + 'px';
             ghost.style.left = r.left + 'px';
             ghost.style.top = r.top + 'px';
+            if (drag.ids) {
+              var cnt = document.createElement('span');
+              cnt.className = 'drag-count';
+              cnt.textContent = drag.ids.length + ' documents';
+              ghost.appendChild(cnt);
+            }
             document.body.appendChild(ghost);
             drag.ghost = ghost;
             drag.offX = drag.startX - r.left;
             drag.offY = drag.startY - r.top;
             if (drag.srcEl) drag.srcEl.classList.add('drag-src');
+            if (drag.ids) {
+              drag.ids.forEach(function (sid) {
+                var rowEl = docListEl.querySelector('.doc-item[data-doc-id="' + sid + '"]');
+                if (rowEl) rowEl.classList.add('drag-src');
+              });
+            }
           }
           if (drag.ghost) {
             drag.ghost.style.left = (ev.clientX - drag.offX) + 'px';
@@ -3776,9 +4001,18 @@
         function docItemEl(d) {
           var btn = document.createElement('button');
           btn.type = 'button';
-          btn.className = 'doc-item' + (d.id === lib.currentId ? ' current' : '');
+          var isSel = !!selectedDocs[d.id];
+          btn.className = 'doc-item' + (d.id === lib.currentId ? ' current' : '') + (isSel ? ' selected' : '');
           btn.setAttribute('data-doc-id', d.id);
           btn.setAttribute('data-tip', d.title || 'Untitled');
+          if (selectMode) {
+            btn.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+            var cb = document.createElement('span');
+            cb.className = 'doc-check' + (isSel ? ' on' : '');
+            cb.setAttribute('aria-hidden', 'true');
+            if (isSel) cb.innerHTML = CHECK_SVG;
+            btn.appendChild(cb);
+          }
           var dot = document.createElement('span'); dot.className = 'doc-dot';
           btn.appendChild(dot);
           if (d.favorite) {
@@ -3802,9 +4036,12 @@
             openDocMenu(d.id, menuBtn);
           });
           btn.appendChild(menuBtn);
-          btn.addEventListener('click', function () {
+          btn.addEventListener('click', function (ev) {
             if (Date.now() - lastDragEndAt < 500) return; // a drag just ended on this row
             if (Date.now() - docLongPressAt < 400) return; // the long-press already opened the menu
+            if (selectMode) { toggleDocSelected(d.id); return; }
+            if (ev && (ev.metaKey || ev.ctrlKey)) { toggleDocSelected(d.id); return; }
+            if (ev && ev.shiftKey) { selectRangeTo(d.id); return; }
             openDoc(d.id, true);
           });
           btn.addEventListener('contextmenu', function (ev) {
@@ -4562,6 +4799,7 @@
           if (lib.docs.length <= 1) return;
           recordTombstone('docs', id);
           lib.docs = lib.docs.filter(function (d) { return d.id !== id; });
+          if (selectedDocs[id]) { delete selectedDocs[id]; renderSelBar(); }
           if (lib.currentId === id) {
             lib.currentId = sortedDocs()[0].id;
             openDoc(lib.currentId, false);
@@ -7696,6 +7934,7 @@
             if (moveMenuDocId) closeMoveMenu();
             if (folderMenuId) closeFolderMenu();
             if (docMenuDocId) closeDocMenu();
+            if (selectMode) exitSelectMode();
             if (docBarMenuOpen) closeDocBarMenu();
             if (topMenuOpen) closeTopMenu();
             if (viewMenuOpen) closeViewMenu();
@@ -8922,7 +9161,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261023-2';
+        var FOLIO_BUILD = '20261023-3';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
