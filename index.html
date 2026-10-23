@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261023-1" />
+    <meta name="folio-build" content="20261023-2" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3001,6 +3001,27 @@
           settingsMenuOpen = false;
           if (settingsBtn) settingsBtn.setAttribute('aria-expanded', 'false');
         }
+        /* App version + update actions, shared by the Settings
+           menu and the small-screen top (⋮) menu so the two
+           surfaces can never drift: the version line is the
+           running build's stamp (FOLIO_BUILD, defined with the
+           update check); "Check for updates" runs that check on
+           demand, and "Reload app" is the same cache-busting
+           reload the update banner offers, for when the user
+           just wants a fresh load. makeItem(icon, label, fn)
+           is the caller's own menu-item factory, so each menu
+           keeps its markup and close behavior. */
+        function appendAppUpdateItems(menuEl, makeItem) {
+          var sep = document.createElement('div');
+          sep.className = 'menu-sep';
+          menuEl.appendChild(sep);
+          var verHead = document.createElement('div');
+          verHead.className = 'menu-head';
+          verHead.textContent = 'FolioDocs · build ' + FOLIO_BUILD;
+          menuEl.appendChild(verHead);
+          makeItem(UPDATE_CHECK_SVG, 'Check for updates', function () { checkForUpdates(true); });
+          makeItem(RELOAD_APP_SVG, 'Reload app', function () { reloadAppFresh(); });
+        }
         function buildSettingsMenu() {
           settingsMenuEl.innerHTML = '';
           var head = document.createElement('div');
@@ -3062,19 +3083,6 @@
             openShortcutsModal();
           });
           settingsMenuEl.appendChild(kb);
-          /* App version + update actions. The version line is
-             the running build's stamp (FOLIO_BUILD, defined with
-             the update check); "Check for updates" runs that
-             check on demand, and "Reload app" is the same
-             cache-busting reload the update banner offers, for
-             when the user just wants a fresh load. */
-          var sep2 = document.createElement('div');
-          sep2.className = 'menu-sep';
-          settingsMenuEl.appendChild(sep2);
-          var verHead = document.createElement('div');
-          verHead.className = 'menu-head';
-          verHead.textContent = 'FolioDocs · build ' + FOLIO_BUILD;
-          settingsMenuEl.appendChild(verHead);
           function appItem(icon, label, fn) {
             var b = document.createElement('button');
             b.type = 'button';
@@ -3097,8 +3105,7 @@
             });
             settingsMenuEl.appendChild(b);
           }
-          appItem(UPDATE_CHECK_SVG, 'Check for updates', function () { checkForUpdates(true); });
-          appItem(RELOAD_APP_SVG, 'Reload app', function () { reloadAppFresh(); });
+          appendAppUpdateItems(settingsMenuEl, appItem);
         }
         function openSettingsMenu() {
           if (settingsMenuOpen) { closeSettingsMenu(); return; }
@@ -3422,6 +3429,11 @@
           topMenuEl.appendChild(head);
           radio('icons', LABEL_ICONS_ONLY_SVG, 'Icons only in toolbars');
           radio('text', LABEL_ICONS_TEXT_SVG, 'Icons + text everywhere');
+          /* Same version line + update actions as the Settings
+             menu (shared builder): at this width the Settings
+             button is hidden, so this menu is the only surface
+             where they can appear. */
+          appendAppUpdateItems(topMenuEl, item);
         }
         function openTopMenu() {
           if (topMenuOpen) { closeTopMenu(); return; }
@@ -8910,7 +8922,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261023-1';
+        var FOLIO_BUILD = '20261023-2';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
