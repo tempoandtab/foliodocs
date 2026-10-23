@@ -7756,9 +7756,17 @@
         function pushAll() {
           if (!sb || !sbUser) return Promise.resolve(false);
           setSyncState('Syncing\u2026');
-          var deletes = [];
-          tombstones.docs.forEach(function (rid) { deletes.push(sb.from('documents').delete().eq('id', rid)); });
-          tombstones.folders.forEach(function (rid) { deletes.push(sb.from('folders').delete().eq('id', rid)); });
+          // Deletes and upserts run side by side, never gated on
+          // each other: a delete that errors must not wedge every
+          // upload behind it (it used to abort the whole push
+          // before a single upsert ran, and because tombstones
+          // only cleared on a fully successful push, one bad
+          // delete blocked sync permanently and silently). Each
+          // tombstone now clears only when its own delete lands;
+          // a failed one stays queued and retries on the next push.
+          var deleteJobs = [];
+          tombstones.docs.forEach(function (rid) { deleteJobs.push({ kind: 'docs', rid: rid, p: sb.from('documents').delete().eq('id', rid) }); });
+          tombstones.folders.forEach(function (rid) { deleteJobs.push({ kind: 'folders', rid: rid, p: sb.from('folders').delete().eq('id', rid) }); });
           // Folder rows ride parents-before-children (the tree
           // walked depth-first from the roots), so a subfolder's
           // parent_id always names a row uploaded before it.
@@ -7801,48 +7809,68 @@
             Object.keys(r).forEach(function (k) { if (k !== 'favorite') c[k] = r[k]; });
             return c;
           });
-          // Deletes land before upserts: a row removed locally stays
-          // removed even when a copy of it is uploaded in the same push.
-          // Uploads are upserts keyed by id, never blind inserts, so
-          // pushing the same document twice can never create a second row.
-          return Promise.all(deletes).then(function (dres) {
-            if (dres.some(function (r) { return r && r.error; })) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
-            var jobs = [];
-            if (folderRows.length) {
-              // Column fallbacks, widest first: parent_id + icon/color,
-              // then icon/color alone, then name-only — a folders table
-              // missing a newer column retries narrower so folder sync
-              // itself never breaks (the missing piece stays local-only).
-              jobs.push(sb.from('folders').upsert(folderRowsNested, { onConflict: 'id' }).then(function (r) {
-                if (r && r.error) return sb.from('folders').upsert(folderRows, { onConflict: 'id' }).then(function (r2) {
-                  if (r2 && r2.error) return sb.from('folders').upsert(folderRowsBasic, { onConflict: 'id' });
-                  return r2;
-                });
-                return r;
-              }));
+          // A locally deleted row is never in the same push's
+          // upserts (deleting removes it from the library first),
+          // so running deletes beside the upserts cannot resurrect
+          // it. Uploads are upserts keyed by id, never blind
+          // inserts, so pushing the same document twice can never
+          // create a second row.
+          var nestedOk = false;
+          var jobs = [];
+          if (folderRows.length) {
+            // Column fallbacks, widest first: parent_id + icon/color,
+            // then icon/color alone, then name-only — a folders table
+            // missing a newer column retries narrower so folder sync
+            // itself never breaks (the missing piece stays local-only).
+            jobs.push(sb.from('folders').upsert(folderRowsNested, { onConflict: 'id' }).then(function (r) {
+              if (r && r.error) return sb.from('folders').upsert(folderRows, { onConflict: 'id' }).then(function (r2) {
+                if (r2 && r2.error) return sb.from('folders').upsert(folderRowsBasic, { onConflict: 'id' });
+                return r2;
+              });
+              nestedOk = true;
+              return r;
+            }));
+          }
+          if (docRows.length) {
+            // Favorite rides along when the documents table has that
+            // column; if it doesn't yet, retry without it so document
+            // sync itself never breaks (favorites stay local-only).
+            jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }).then(function (r) {
+              if (r && r.error) return sb.from('documents').upsert(docRowsBasic, { onConflict: 'id' });
+              return r;
+            }));
+          }
+          var all = deleteJobs.map(function (dj) {
+            return Promise.resolve(dj.p).then(
+              function (r) { return { del: dj, error: r && r.error ? r.error : null }; },
+              function (e) { return { del: dj, error: e || true }; });
+          }).concat(jobs.map(function (p) {
+            return Promise.resolve(p).then(
+              function (r) { return { up: true, error: r && r.error ? r.error : null }; },
+              function (e) { return { up: true, error: e || true }; });
+          }));
+          return Promise.all(all).then(function (results) {
+            var doneDeletes = {};
+            results.forEach(function (x) { if (x.del && !x.error) doneDeletes[x.del.kind + ':' + x.del.rid] = true; });
+            if (Object.keys(doneDeletes).length) {
+              tombstones.docs = tombstones.docs.filter(function (rid) { return !doneDeletes['docs:' + rid]; });
+              tombstones.folders = tombstones.folders.filter(function (rid) { return !doneDeletes['folders:' + rid]; });
+              saveTombstones();
             }
-            if (docRows.length) {
-              // Favorite rides along when the documents table has that
-              // column; if it doesn't yet, retry without it so document
-              // sync itself never breaks (favorites stay local-only).
-              jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }).then(function (r) {
-                if (r && r.error) return sb.from('documents').upsert(docRowsBasic, { onConflict: 'id' });
-                return r;
-              }));
-            }
-            return Promise.all(jobs);
-          }).then(function (results) {
-            if (!Array.isArray(results)) return false;
-            var failed = results.some(function (r) { return r && r.error; });
+            var failed = results.some(function (x) { return x.up && x.error; });
             if (failed) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
-            tombstones = { docs: [], folders: [] };
-            saveTombstones();
-            saveSyncMeta({
+            var metaPatch = {
               lastSync: Date.now(),
               migrated: true,
               knownDocs: docRows.map(function (r) { return r.id; }),
               knownFolders: folderRows.map(function (r) { return r.id; }),
-            });
+            };
+            // Once a nested (parent_id-carrying) folder upsert has
+            // landed from this device, remote parent_id values —
+            // nulls included — are real data; the pull merge reads
+            // this flag before trusting a null parent.
+            if (nestedOk) metaPatch.nestedFolders = true;
+            saveSyncMeta(metaPatch);
             setSyncState('Synced');
             return true;
           }).catch(function () {
@@ -7924,16 +7952,34 @@
               return true;
             });
           }
+          // Folder removal by pull is deliberately near-impossible.
+          // A local folder leaves the library during a merge ONLY
+          // when every one of these holds: its remote id was
+          // confirmed on the server before (it is in knownFolders),
+          // it is absent from this pull, and it is completely empty
+          // — no local documents, no subfolders, and no document in
+          // this pull points at it. Anything with content, and
+          // anything that was never confirmed remotely (its upload
+          // failed, was interrupted, or never ran — an id in the
+          // idmap proves nothing, ids are minted before the upsert
+          // is attempted), stays exactly as it is and is uploaded
+          // by the push that follows every pull. A sync may fail to
+          // place a folder; it must never reconcile one away and
+          // spill its documents.
           var knownFolders = meta.knownFolders || [];
           if (knownFolders.length) {
             lib.folders = lib.folders.filter(function (f) {
               var rid = idmap.folders[f.id];
-              if (rid && knownFolders.indexOf(rid) !== -1 && !remoteFolderIds[rid]) {
-                delete idmap.folders[f.id];
-                delete lib.expandedFolders[f.id];
-                return false;
-              }
-              return true;
+              if (!rid) return true;
+              if (remoteFolderIds[rid]) return true;
+              if (knownFolders.indexOf(rid) === -1) return true;
+              var hasDocs = lib.docs.some(function (d) { return d.folderId === f.id; });
+              var hasKids = lib.folders.some(function (x) { return x.parentId === f.id; });
+              var hasRemoteDocs = remoteDocs.some(function (rd) { return rd.folder_id === rid; });
+              if (hasDocs || hasKids || hasRemoteDocs) return true;
+              delete idmap.folders[f.id];
+              delete lib.expandedFolders[f.id];
+              return false;
             });
           }
           remoteFolders.forEach(function (rf) {
@@ -7957,9 +8003,18 @@
           // remote id, and a child can precede its parent in the
           // list. Only rows that carry the column touch local
           // nesting; until the column exists, nesting stays
-          // exactly as this device has it.
+          // exactly as this device has it. A NULL parent needs one
+          // more guard: rows uploaded before the column existed
+          // carry null because nesting never reached the server,
+          // not because the folder sits at the root — so a null is
+          // trusted only once this device has itself landed a
+          // parent-carrying folder push (meta.nestedFolders),
+          // after which nulls are real un-nesting. Until then a
+          // null leaves the local parent untouched, and the push
+          // after this pull uploads the real one.
           remoteFolders.forEach(function (rf) {
             if (!('parent_id' in rf)) return;
+            if (!rf.parent_id && !meta.nestedFolders) return;
             var lid2 = localIdFor('folders', rf.id);
             var lf2 = lid2 ? folderById(lid2) : null;
             if (!lf2) return;
@@ -7967,14 +8022,6 @@
             lf2.parentId = lp && lp !== lid2 ? lp : null;
           });
           sanitizeFolderParents();
-          if (meta.migrated) {
-            lib.folders = lib.folders.filter(function (f) {
-              var rid = idmap.folders[f.id];
-              if (!rid) return true;
-              if (remoteFolders.some(function (rf) { return rf.id === rid; })) return true;
-              return (f.created || 0) > lastSync;
-            });
-          }
           var seenDocs = {};
           remoteDocs.forEach(function (rd) {
             if (tombstones.docs.indexOf(rd.id) !== -1) return; // deleted locally, delete pending
@@ -8028,7 +8075,13 @@
                 if (rUpdated > (ld.updated || 0)) {
                   ld.title = rd.title || 'Untitled';
                   ld.content = rd.content;
-                  ld.folderId = fl;
+                  // Membership follows the remote row only when its
+                  // folder actually resolved to a local folder, or
+                  // the local membership is already dangling. A
+                  // document must never spill out of a folder that
+                  // exists on this device just because the folder's
+                  // own row couldn't be placed in this pull.
+                  if (fl || !folderById(ld.folderId)) ld.folderId = fl;
                   ld.updated = rUpdated;
                 }
               }
@@ -8038,6 +8091,12 @@
             lib.docs = lib.docs.filter(function (d) {
               var rid = idmap.docs[d.id];
               if (!rid || seenDocs[d.id]) return true;
+              // A document whose remote id was never confirmed on
+              // the server (absent from knownDocs) is local-only,
+              // however old it is: keep it and let the push upload
+              // it. Only a confirmed row that has since vanished
+              // remotely counts as deleted elsewhere.
+              if (knownDocs.indexOf(rid) === -1) return true;
               return (d.updated || 0) > lastSync;
             });
           }
@@ -8708,6 +8767,16 @@
             }
           });
           window.addEventListener('online', function () { scheduleSync(); });
+          // iOS suspends a backgrounded web app mid-push without
+          // ceremony: timers die and in-flight requests can be cut
+          // before they land. Coming back to the foreground is the
+          // reliable moment to retry — anything still local (a
+          // folder whose upload never landed, a queued delete) is
+          // pushed again then, instead of waiting for the next edit.
+          document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) scheduleSync();
+          });
+          window.addEventListener('focus', function () { scheduleSync(); });
         }
 
         /* ---------------- keyboard shortcuts -------------------
