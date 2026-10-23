@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261023-4" />
+    <meta name="folio-build" content="20261023-5" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2990,6 +2990,14 @@
           var d = lib.docs.find(function (dx) { return dx.id === id; });
           if (!d) return;
           d.favorite = !d.favorite;
+          // A star is a real change and stamps the document, like
+          // a move or an edit: unstamped, the push carried the new
+          // flag with the document's OLD updated_at, so the flag
+          // sat at a permanent timestamp tie with every other
+          // device's copy — and any device whose cycle pushed its
+          // stale copy before pulling reverted the star on the
+          // server before its own pull could ever see it.
+          d.updated = Date.now();
           persist(true);
           renderDocList();
         }
@@ -7799,7 +7807,9 @@
         titleInput.addEventListener('blur', function () {
           if (!titleInput.value.trim()) {
             titleInput.value = 'Untitled';
-            currentDoc().title = 'Untitled';
+            var blurDoc = currentDoc();
+            blurDoc.title = 'Untitled';
+            blurDoc.updated = Date.now();
             persist(true);
             refreshAfterLibraryChange();
           }
@@ -8162,6 +8172,37 @@
           var deleteJobs = [];
           tombstones.docs.forEach(function (rid) { deleteJobs.push({ kind: 'docs', rid: rid, p: sb.from('documents').delete().eq('id', rid) }); });
           tombstones.folders.forEach(function (rid) { deleteJobs.push({ kind: 'folders', rid: rid, p: sb.from('folders').delete().eq('id', rid) }); });
+          var meta0 = myMeta();
+          // Rows the merge currently suspects were deleted
+          // remotely (absent from one pull, awaiting a confirming
+          // second absence) are never re-upserted from here: a
+          // push must not resurrect a row another device deleted
+          // while the suspicion is outstanding.
+          var absentDocs = meta0.absentDocs || {};
+          // Change detection, per row: a push upserts only rows
+          // whose state differs from what THIS device last landed
+          // on the server (the signatures recorded by the last
+          // fully successful push). This is what keeps two
+          // devices from reverting each other forever: every
+          // cycle used to re-upsert the whole library before
+          // pulling, so a device holding a stale copy of a
+          // document — an old folder, an old star — overwrote
+          // the newer server row with its stale one moments
+          // before its own pull, and the pull then faithfully
+          // read back the stale state it had just written. A
+          // move or star made elsewhere never survived the other
+          // device's next cycle, even with correct timestamps.
+          // A device that changed nothing now pushes nothing, so
+          // the newer row survives until its pull adopts it.
+          var oldSigs = meta0.pushedSigs || { docs: {}, folders: {} };
+          if (!oldSigs.docs) oldSigs.docs = {};
+          if (!oldSigs.folders) oldSigs.folders = {};
+          function docSig(d) {
+            return JSON.stringify([d.title || 'Untitled', d.folderId ? (idmap.folders[d.folderId] || '') : '', !!d.favorite, d.updated || 0, d.content]);
+          }
+          function folderSig(f) {
+            return JSON.stringify([f.name, f.icon || null, f.color || null, f.parentId ? (idmap.folders[f.parentId] || '') : '']);
+          }
           // Folder rows ride parents-before-children (the tree
           // walked depth-first from the roots), so a subfolder's
           // parent_id always names a row uploaded before it.
@@ -8175,21 +8216,37 @@
           // Defensive: any folder the walk could not reach still syncs.
           lib.folders.forEach(function (f) { if (orderedFolders.indexOf(f) === -1) orderedFolders.push(f); });
           lib.folders.forEach(function (f) { ensureRemoteId('folders', f.id); });
-          var folderRows = orderedFolders.map(function (f) {
-            return { id: ensureRemoteId('folders', f.id), owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null };
+          var folderPlan = orderedFolders.map(function (f) {
+            var rid = ensureRemoteId('folders', f.id);
+            var sig = folderSig(f);
+            return { f: f, rid: rid, sig: sig, changed: oldSigs.folders[rid] !== sig };
+          });
+          var changedFolders = folderPlan.filter(function (p) { return p.changed; });
+          var folderRows = changedFolders.map(function (p) {
+            var f = p.f;
+            return { id: p.rid, owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null };
           });
           // parent_id rides along when the folders table has that
           // (nullable text) column; until it does, the upsert below
           // retries without it and nesting stays per-device.
-          var folderRowsNested = orderedFolders.map(function (f) {
-            return { id: ensureRemoteId('folders', f.id), owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null, parent_id: f.parentId ? (idmap.folders[f.parentId] || null) : null };
+          var folderRowsNested = changedFolders.map(function (p) {
+            var f = p.f;
+            return { id: p.rid, owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null, parent_id: f.parentId ? (idmap.folders[f.parentId] || null) : null };
           });
-          var folderRowsBasic = orderedFolders.map(function (f) {
-            return { id: ensureRemoteId('folders', f.id), owner_id: sbUser.id, name: f.name };
+          var folderRowsBasic = changedFolders.map(function (p) {
+            return { id: p.rid, owner_id: sbUser.id, name: p.f.name };
           });
-          var docRows = lib.docs.map(function (d) {
-            return {
-              id: ensureRemoteId('docs', d.id),
+          var docPlan = lib.docs.map(function (d) {
+            return { d: d, rid: ensureRemoteId('docs', d.id), sig: docSig(d) };
+          });
+          var docRows = [];
+          var docPushedSigs = {};
+          docPlan.forEach(function (p) {
+            if (absentDocs[p.rid]) return; // suspected remote delete: never resurrect
+            if (oldSigs.docs[p.rid] === p.sig) return; // unchanged since this device last pushed it
+            var d = p.d;
+            docRows.push({
+              id: p.rid,
               owner_id: sbUser.id,
               folder_id: d.folderId ? (idmap.folders[d.folderId] || null) : null,
               title: d.title || 'Untitled',
@@ -8197,8 +8254,11 @@
               tags: docTags(d).map(function (t) { return t.name; }),
               favorite: !!d.favorite,
               updated_at: new Date(d.updated || Date.now()).toISOString(),
-            };
+            });
+            docPushedSigs[p.rid] = p.sig;
           });
+          var allDocRids = docPlan.map(function (p) { return p.rid; });
+          var allFolderRids = folderPlan.map(function (p) { return p.rid; });
           var docRowsBasic = docRows.map(function (r) {
             var c = {};
             Object.keys(r).forEach(function (k) { if (k !== 'favorite') c[k] = r[k]; });
@@ -8211,6 +8271,13 @@
           // inserts, so pushing the same document twice can never
           // create a second row.
           var nestedOk = false;
+          // Signatures are recorded only for rows that landed via
+          // the WIDEST upsert variant: a row that needed a narrower
+          // fallback (a missing column) keeps no signature, so the
+          // next push retries it in full — exactly the pre-signature
+          // behavior on a schema that lacks the newer columns.
+          var folderFullOk = false;
+          var docFullOk = false;
           var jobs = [];
           if (folderRows.length) {
             // Column fallbacks, widest first: parent_id + icon/color,
@@ -8223,6 +8290,7 @@
                 return r2;
               });
               nestedOk = true;
+              folderFullOk = true;
               return r;
             }));
           }
@@ -8232,6 +8300,7 @@
             // sync itself never breaks (favorites stay local-only).
             jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }).then(function (r) {
               if (r && r.error) return sb.from('documents').upsert(docRowsBasic, { onConflict: 'id' });
+              docFullOk = true;
               return r;
             }));
           }
@@ -8258,11 +8327,32 @@
             // Synced over a push that only partly landed.
             var failed = results.some(function (x) { return !!x.error; });
             if (failed) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
+            // The signature book this push leaves behind: rows
+            // pushed in full record the signature of the state
+            // just landed; rows skipped as unchanged keep theirs;
+            // rows under a remote-delete suspicion keep whatever
+            // they had. Anything else (a fallback landed it) gets
+            // no entry and is retried next push.
+            var newSigs = { docs: {}, folders: {} };
+            docPlan.forEach(function (p) {
+              if (docPushedSigs[p.rid]) { if (docFullOk) newSigs.docs[p.rid] = p.sig; }
+              else if (absentDocs[p.rid]) { if (oldSigs.docs[p.rid]) newSigs.docs[p.rid] = oldSigs.docs[p.rid]; }
+              else newSigs.docs[p.rid] = p.sig;
+            });
+            folderPlan.forEach(function (p) {
+              if (!p.changed) newSigs.folders[p.rid] = p.sig;
+              else if (folderFullOk) newSigs.folders[p.rid] = p.sig;
+            });
             var metaPatch = {
               lastSync: Date.now(),
               migrated: true,
-              knownDocs: docRows.map(function (r) { return r.id; }),
-              knownFolders: folderRows.map(function (r) { return r.id; }),
+              // knownDocs/knownFolders name every row this device
+              // holds, pushed or skipped: the merge remote-delete
+              // detection compares against them, and a row skipped
+              // as unchanged is no less known than a pushed one.
+              knownDocs: allDocRids,
+              knownFolders: allFolderRids,
+              pushedSigs: newSigs,
             };
             // Once a nested (parent_id-carrying) folder upsert has
             // landed from this device, remote parent_id values —
@@ -8331,23 +8421,52 @@
         function mergeRemote(remoteFolders, remoteDocs) {
           var meta = myMeta();
           var lastSync = meta.lastSync || 0;
+          // Remote ids this device already suspected missing at
+          // the PREVIOUS merge (see the delete rules below), and
+          // the suspicions this merge records for the next one.
+          var absentBefore = meta.absentDocs || {};
+          var pendingAbsent = {};
           dedupeDocsById();
           var remoteDocIds = {};
           remoteDocs.forEach(function (rd) { remoteDocIds[rd.id] = true; });
           var remoteFolderIds = {};
           remoteFolders.forEach(function (rf) { remoteFolderIds[rf.id] = true; });
+          var knownDocs = meta.knownDocs || [];
+          var knownFolders = meta.knownFolders || [];
+          // Completeness guard: a pull that comes back EMPTY for
+          // a table this device knows holds rows is not a
+          // successful fetch, whatever the transport reported —
+          // read as authoritative, its delete rules below would
+          // reconcile the whole library away. Abort the merge
+          // (the caller reports the sync as failed) rather than
+          // let an unproven pull delete anything. The folders
+          // table alone being empty does not trip it: folder
+          // removal below is already near-impossible by design,
+          // and a library whose folders were all genuinely
+          // deleted elsewhere must still be able to sync.
+          if (!remoteDocs.length && knownDocs.length) return false;
+          if (!remoteDocs.length && !remoteFolders.length && knownFolders.length) return false;
           // Rows that were on the server at the last sync but are gone
           // now were deleted remotely — drop the local copies too, so a
           // later push can't resurrect them. Rows never seen on the
-          // server are local-only and stay.
-          var knownDocs = meta.knownDocs || [];
+          // server are local-only and stay. But a single absence is
+          // only a suspicion, never a verdict: a pull can come back
+          // without a row that still exists (the reopen pull that
+          // lost a just-imported, just-moved document did exactly
+          // that), so a confirmed row is dropped only when it is
+          // absent from TWO consecutive merges — and never when it
+          // was edited locally after the last sync, since an
+          // unpushed edit makes its server absence unprovable.
+          // While a suspicion is outstanding the push leaves the
+          // row alone (see pushAll), so keeping it locally cannot
+          // resurrect a genuine remote delete either.
           if (knownDocs.length) {
             lib.docs = lib.docs.filter(function (d) {
               var rid = idmap.docs[d.id];
-              if (rid && knownDocs.indexOf(rid) !== -1 && !remoteDocIds[rid]) {
-                delete idmap.docs[d.id];
-                return false;
-              }
+              if (!rid || knownDocs.indexOf(rid) === -1 || remoteDocIds[rid]) return true;
+              if ((d.updated || 0) > lastSync) return true;
+              if (absentBefore[rid]) { delete idmap.docs[d.id]; return false; }
+              pendingAbsent[rid] = true;
               return true;
             });
           }
@@ -8474,13 +8593,18 @@
               seenDocs[lid] = true;
               var ld = lib.docs.find(function (d) { return d.id === lid; });
               if (ld) {
-                // Like folder icon/color, favorite follows the remote row
-                // whenever the column exists; without it, the local flag
-                // is left untouched.
-                if ('favorite' in rd) ld.favorite = !!rd.favorite;
                 if (rUpdated > (ld.updated || 0)) {
                   ld.title = rd.title || 'Untitled';
                   ld.content = rd.content;
+                  // Favorite rides the same newer-wins rule as
+                  // title and content (when the column exists;
+                  // without it the local flag is left untouched).
+                  // It used to be adopted unconditionally, ahead of
+                  // the timestamp comparison — so any pull reverted
+                  // a star this device had just set but not yet
+                  // pushed, and a stale row could flip a newer
+                  // local star back off.
+                  if ('favorite' in rd) ld.favorite = !!rd.favorite;
                   // Membership follows the remote row only when its
                   // folder actually resolved to a local folder, or
                   // the local membership is already dangling. A
@@ -8489,31 +8613,34 @@
                   // own row couldn't be placed in this pull.
                   if (fl || !folderById(ld.folderId)) ld.folderId = fl;
                   ld.updated = rUpdated;
-                } else if (rUpdated === (ld.updated || 0) && flResolved && (ld.folderId || null) !== fl) {
-                  // Membership-only divergence — the stuck-folder
-                  // bug. A move changes folder_id and nothing else,
-                  // and builds before 20261023-4 pushed such a move
-                  // carrying the document's OLD updated_at (moves
-                  // never stamped the document), so the receiving
+                } else if (rUpdated === (ld.updated || 0)) {
+                  // Metadata-only divergence at an exact tie — the
+                  // stuck-folder bug and its favorite twin. A move
+                  // changes folder_id and nothing else, and builds
+                  // before 20261023-4 pushed such a move carrying
+                  // the document's OLD updated_at (moves never
+                  // stamped the document); favorite toggles never
+                  // stamped at all, until this build. The receiving
                   // merge compared EQUAL timestamps and the
                   // strictly-greater rule above declined the new
                   // placement — permanently, while both devices
                   // reported "Synced" over different layouts. On an
-                  // exact tie the server row breaks it for
-                  // placement: it is the last state any device
-                  // managed to push, and the push that follows
-                  // every pull re-seeds the server from the merged
-                  // library, so every device converges on the same
-                  // placement. Content and title stay
-                  // strictly-newer-gated — only placement heals on
-                  // a tie, and only when the remote folder actually
-                  // resolved here (flResolved), so an unplaceable
-                  // folder row still can't spill a document. A
-                  // local move made from now on stamps the
-                  // document (see the move paths), lifting it above
-                  // the tie so a pull can never stomp a placement
-                  // this device hasn't pushed yet.
-                  ld.folderId = fl;
+                  // exact tie the server row breaks it for the
+                  // metadata fields: it is the last state any device
+                  // managed to push, and the push that follows every
+                  // pull re-seeds the server from the merged library,
+                  // so every device converges on the same placement
+                  // and the same stars. Content and title stay
+                  // strictly-newer-gated — only placement (and only
+                  // when the remote folder actually resolved here,
+                  // flResolved, so an unplaceable folder row still
+                  // can't spill a document) and favorite heal on a
+                  // tie. A local move or star made from now on
+                  // stamps the document, lifting it above the tie
+                  // so a pull can never stomp a change this device
+                  // hasn't pushed yet.
+                  if ('favorite' in rd) ld.favorite = !!rd.favorite;
+                  if (flResolved && (ld.folderId || null) !== fl) ld.folderId = fl;
                 }
               }
             }
@@ -8526,9 +8653,15 @@
               // the server (absent from knownDocs) is local-only,
               // however old it is: keep it and let the push upload
               // it. Only a confirmed row that has since vanished
-              // remotely counts as deleted elsewhere.
+              // remotely counts as deleted elsewhere — and, as in
+              // the filter above, only after the SAME absence has
+              // repeated across two merges: one incomplete pull
+              // must never be enough to delete a document.
               if (knownDocs.indexOf(rid) === -1) return true;
-              return (d.updated || 0) > lastSync;
+              if ((d.updated || 0) > lastSync) return true;
+              if (absentBefore[rid]) return false;
+              pendingAbsent[rid] = true;
+              return true;
             });
           }
           dedupeDocsById();
@@ -8543,7 +8676,14 @@
           saveSyncMeta({
             knownDocs: remoteDocs.map(function (rd) { return rd.id; }),
             knownFolders: remoteFolders.map(function (rf) { return rf.id; }),
+            // This merge's unconfirmed absences: the next merge
+            // reads them as absentBefore, and only a repeat
+            // absence confirms a remote delete (see above). The
+            // map is rebuilt from each merge's candidates, so a
+            // row that reappears clears its own suspicion.
+            absentDocs: pendingAbsent,
           });
+          return true;
         }
 
         // One-time repair (v2): the same document can exist under several
@@ -8631,7 +8771,11 @@
             docsReq,
           ]).then(function (res) {
             if (res[0].error || res[1].error) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
-            mergeRemote(res[0].data || [], res[1].data || []);
+            // A merge that refused the pull (completeness guard:
+            // the fetch came back empty for a table known to hold
+            // rows) is a failed sync, not a silent success — the
+            // status must say so and offer the retry.
+            if (mergeRemote(res[0].data || [], res[1].data || []) === false) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
             if (!lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs[0].id;
             var curAfter = lib.docs.find(function (d) { return d.id === lib.currentId; });
             var curSigAfter = curAfter ? (curAfter.title || '') + '\n' + JSON.stringify(curAfter.content) : '';
@@ -8645,6 +8789,14 @@
             if (lib.currentId !== curIdBefore || curSigAfter !== curSigBefore) openDoc(lib.currentId, false);
             else renderDocList();
             renderTagsSection();
+            // The merged library is the device's truth now —
+            // persist it. A pull used to leave its adoptions and
+            // moves in memory only (unless the open document
+            // happened to change and openDoc persisted), so a
+            // force-close quietly rolled the library back to
+            // whatever the last local edit had saved, and a
+            // document adopted by pull vanished with it.
+            persist(false);
             noteSyncSuccess();
             return true;
           }).catch(function () {
@@ -9335,7 +9487,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261023-4';
+        var FOLIO_BUILD = '20261023-5';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
