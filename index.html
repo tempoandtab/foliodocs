@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261023-7" />
+    <meta name="folio-build" content="20261023-8" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -301,7 +301,12 @@
         display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2);
       }
       .icon-btn:hover { background: var(--hover); color: var(--ink); }
-      #libraryToggle { display: none; }
+      /* The library button shows at every width now: it toggles
+         the sidebar — the drawer on narrow screens, the
+         slide-away pane on wide ones (see the sidebar rules in
+         the Responsive section and the sidebar module in the app
+         script). */
+      #libraryToggle { display: inline-flex; }
       /* The context tools button is a small-screens control: it
          appears in the topbar only under the 860px tier (see the
          Responsive section), next to the both-toolbars toggle.
@@ -1664,8 +1669,30 @@
         .folio-prose { font-size: 18.5px; }
         .save-state { display: none; }
       }
+      /* Wide screens: the sidebar is a pane in the flex row that
+         can slide away — the topbar library button and the edge
+         slide gesture both drive data-sidebar on <html> (the
+         per-device folio-sidebar preference, applied before
+         first paint). A negative left margin pulls the pane
+         off-canvas and hands its 292px + border to the editor;
+         visibility keeps the hidden pane out of the tab order
+         and the accessibility tree once it has slid away. The
+         pane itself is never rebuilt or re-parented, so its
+         scroll position and folder expansion survive a
+         hide/show untouched. */
+      @media (min-width: 901px) {
+        .sidebar {
+          transition: margin-left 0.25s ease, visibility 0s linear 0s;
+        }
+        :root[data-sidebar="hidden"] .sidebar {
+          margin-left: -293px;
+          visibility: hidden;
+          transition: margin-left 0.25s ease, visibility 0s linear 0.25s;
+        }
+      }
       @media (prefers-reduced-motion: reduce) {
         .sidebar { transition: none; }
+        :root[data-sidebar="hidden"] .sidebar { transition: none; }
         .folio-prose h1, .folio-prose h2, .folio-prose h3, .folio-prose h4 { transition: none; }
         .folder-toggle svg { transition: none; }
         .side-chev svg { transition: none; }
@@ -1748,6 +1775,17 @@
       try {
         if (window.localStorage && localStorage.getItem('folio-ctxbar') === 'hidden') {
           document.documentElement.setAttribute('data-ctxbar', 'hidden');
+        }
+      } catch (e) {}
+      /* Same treatment for the wide-screens sidebar preference
+         (the topbar library button, and the edge slide gesture):
+         when the saved choice is "hidden", the stylesheet slides
+         the pane away from the first frame and the editor starts
+         at full width. Narrow screens ignore the attribute —
+         there the sidebar is the drawer, as before. */
+      try {
+        if (window.localStorage && localStorage.getItem('folio-sidebar') === 'hidden') {
+          document.documentElement.setAttribute('data-sidebar', 'hidden');
         }
       } catch (e) {}
       /* The update check's Reload lands here with a throwaway
@@ -1860,7 +1898,7 @@
 
       <div class="main">
         <div class="topbar">
-          <button class="icon-btn" id="libraryToggle" type="button" aria-label="Open library" data-tip="Library, folders &amp; outline">
+          <button class="icon-btn" id="libraryToggle" type="button" aria-label="Hide library" aria-expanded="true" data-tip="Library, folders &amp; outline">
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </button>
           <textarea class="title-input" id="titleInput" rows="1" autocomplete="off" autocapitalize="sentences" aria-label="Document title"></textarea>
@@ -3364,6 +3402,125 @@
           setToolbarsHidden(!toolbarsHidden);
         });
         applyToolbarsBtn();
+
+        /* ---------------- sidebar show/hide + slide gesture ----
+           One library toggle at every width, driven by the
+           topbar button, the ⌘⌥L shortcut, and a horizontal
+           slide gesture:
+           - Narrow screens (≤900px): the sidebar is the slide-in
+             drawer it has always been, opened and closed through
+             body.nav-open; nothing about it persists.
+           - Wide screens: the pane slides away to the left and
+             the editor takes the full width (data-sidebar on
+             <html>, applied before first paint by the <head>
+             script). The choice is per-device — folio-sidebar in
+             localStorage — like the toolbar and label
+             preferences. The sidebar element is never rebuilt or
+             moved in the DOM, so its scroll position and folder
+             expansion survive a hide/show exactly as they were.
+           The button reflects the state either path leaves
+           behind: it is refreshed by the toggle functions, on
+           resize (the width decides which mechanism "open"
+           means), and whenever body.nav-open changes for any
+           other reason (opening a document closes the drawer).
+           Gesture arbitration with the sidebar's other touch
+           behaviors is by origin and direction: opening is an
+           edge gesture — a touch that starts within the screen's
+           leftmost strip and travels right — so it can never
+           begin on a list row or in the middle of the text;
+           closing starts on the sidebar itself but never on a
+           draggable row (the .doc-item and .folder-head rows
+           keep their drag, long-press, and tap), or on the scrim
+           beside the phone drawer. A slide counts only when it
+           travels far enough horizontally with at most half as
+           much vertical drift; a vertical-led touch abandons the
+           gesture to the scroller or the editor's selection.
+           When a slide fires, its trailing click is swallowed —
+           the same timestamp trick the row drags use — so the
+           release cannot also tap whatever it ends over. */
+        var SIDEBAR_KEY = 'folio-sidebar';
+        var sidebarHidden = false;
+        try { sidebarHidden = localStorage.getItem(SIDEBAR_KEY) === 'hidden'; } catch (e) {}
+        var libraryBtn = document.getElementById('libraryToggle');
+        var sbPanelEl = document.getElementById('sidebar');
+        var sbScrimEl = document.getElementById('scrim');
+        function sidebarIsOpen() {
+          if (window.innerWidth <= 900) return document.body.classList.contains('nav-open');
+          return !sidebarHidden;
+        }
+        function applyLibraryBtn() {
+          if (!libraryBtn) return;
+          var open = sidebarIsOpen();
+          libraryBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          libraryBtn.setAttribute('aria-label', open ? 'Hide library' : 'Show library');
+        }
+        function setSidebarHidden(hidden) {
+          sidebarHidden = !!hidden;
+          try { localStorage.setItem(SIDEBAR_KEY, sidebarHidden ? 'hidden' : 'shown'); } catch (e) {}
+          if (sidebarHidden) document.documentElement.setAttribute('data-sidebar', 'hidden');
+          else document.documentElement.removeAttribute('data-sidebar');
+          applyLibraryBtn();
+        }
+        function openSidebar() {
+          if (window.innerWidth <= 900) document.body.classList.add('nav-open');
+          else setSidebarHidden(false);
+          applyLibraryBtn();
+        }
+        function closeSidebar() {
+          if (window.innerWidth <= 900) document.body.classList.remove('nav-open');
+          else setSidebarHidden(true);
+          applyLibraryBtn();
+        }
+        function toggleSidebar() {
+          if (sidebarIsOpen()) closeSidebar();
+          else openSidebar();
+        }
+        if (libraryBtn) libraryBtn.addEventListener('click', function () { toggleSidebar(); });
+        window.addEventListener('resize', applyLibraryBtn);
+        if (window.MutationObserver) {
+          new MutationObserver(function () { applyLibraryBtn(); })
+            .observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        }
+        applyLibraryBtn();
+
+        var sbSwipe = null;
+        var lastSwipeAt = 0;
+        document.addEventListener('pointerdown', function (ev) {
+          sbSwipe = null;
+          if (!ev.isPrimary || ev.pointerType !== 'touch') return;
+          if (ev.target && ev.target.closest && ev.target.closest('.overlay, .auth-overlay')) return;
+          var mode = null;
+          if (!sidebarIsOpen()) {
+            if (ev.clientX <= 26) mode = 'open';
+          } else if (ev.target === sbScrimEl) {
+            mode = 'close';
+          } else if (sbPanelEl && sbPanelEl.contains(ev.target) &&
+                     !(ev.target.closest && ev.target.closest('.doc-item, .folder-head, input, textarea'))) {
+            mode = 'close';
+          }
+          if (mode) sbSwipe = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, mode: mode };
+        }, true);
+        document.addEventListener('pointermove', function (ev) {
+          if (!sbSwipe || ev.pointerId !== sbSwipe.id) return;
+          var dx = ev.clientX - sbSwipe.x;
+          var dy = ev.clientY - sbSwipe.y;
+          if (sbSwipe.mode === 'open' && dx >= 52 && dx > 2 * Math.abs(dy)) {
+            sbSwipe = null;
+            lastSwipeAt = Date.now();
+            openSidebar();
+          } else if (sbSwipe.mode === 'close' && dx <= -52 && -dx > 2 * Math.abs(dy)) {
+            sbSwipe = null;
+            lastSwipeAt = Date.now();
+            closeSidebar();
+          } else if (Math.abs(dy) > 40 && Math.abs(dy) >= Math.abs(dx)) {
+            sbSwipe = null;
+          }
+        }, true);
+        document.addEventListener('pointerup', function () { sbSwipe = null; }, true);
+        document.addEventListener('pointercancel', function () { sbSwipe = null; }, true);
+        document.addEventListener('click', function (ev) {
+          if (Date.now() - lastSwipeAt < 400) { ev.preventDefault(); ev.stopPropagation(); }
+        }, true);
 
         /* ---------------- context tools button (small screens) ----
            One topbar button in the slot next to the both-toolbars
@@ -7873,9 +8030,9 @@
         document.getElementById('newFolderBtn').addEventListener('click', function () {
           createFolder(null);
         });
-        document.getElementById('libraryToggle').addEventListener('click', function () {
-          document.body.classList.toggle('nav-open');
-        });
+        /* The library button's click lives with the sidebar
+           module above (it toggles the drawer on narrow screens
+           and the persisted pane on wide ones). */
         document.getElementById('scrim').addEventListener('click', function () {
           document.body.classList.remove('nav-open');
         });
@@ -8618,7 +8775,25 @@
           lib.docs = order.map(function (id) { return best[id]; });
         }
 
-        function mergeRemote(remoteFolders, remoteDocs) {
+        /* True while the user is actively editing the open
+           document: the editor surface holds focus with a caret
+           or selection in it, or the title field does. While that
+           is so, no sync phase may rebuild the editor surface or
+           overwrite the text under the caret — a merge defers a
+           remote change to the open document's title and text to
+           a later cycle that finds the user not editing, while
+           everything else (other documents, and this document's
+           folder and star) still merges as usual. */
+        function openDocBeingEdited() {
+          var ae = document.activeElement;
+          if (ae && ae.id === 'titleInput') return true;
+          var ed = editorHandle && editorHandle.editor;
+          if (!ed) return false;
+          if (ed.isFocused) return true;
+          try { return !!(ed.view && ed.view.hasFocus && ed.view.hasFocus()); } catch (e) { return false; }
+        }
+
+        function mergeRemote(remoteFolders, remoteDocs, keepOpenLive) {
           var meta = myMeta();
           var lastSync = meta.lastSync || 0;
           // Remote ids this device already suspected missing at
@@ -8874,9 +9049,17 @@
             } else {
               seenDocs[lid] = true;
               if (ld) {
+                // The open document under the user's caret keeps
+                // its live title and text (see openDocBeingEdited):
+                // a newer remote row contributes only its star
+                // and folder below, and the local timestamp
+                // stands, so the deferred text adoption is
+                // retried by a later cycle rather than stamped
+                // over the editing session.
+                var liveOpen = !!keepOpenLive && lid === lib.currentId;
                 if (rUpdated > (ld.updated || 0)) {
-                  ld.title = rd.title || 'Untitled';
-                  ld.content = rd.content;
+                  if (!liveOpen) ld.title = rd.title || 'Untitled';
+                  if (!liveOpen) ld.content = rd.content;
                   // Favorite rides the same newer-wins rule as
                   // title and content (when the column exists;
                   // without it the local flag is left untouched).
@@ -8893,7 +9076,7 @@
                   // exists on this device just because the folder's
                   // own row couldn't be placed in this pull.
                   if (fl || !folderById(ld.folderId)) ld.folderId = fl;
-                  ld.updated = rUpdated;
+                  if (!liveOpen) ld.updated = rUpdated;
                 } else if (rUpdated === (ld.updated || 0)) {
                   // Metadata-only divergence at an exact tie — the
                   // stuck-folder bug and its favorite twin. A move
@@ -9059,9 +9242,15 @@
           if (!Object.keys(loserIds).length) return;
           Object.keys(loserIds).forEach(function (id) { recordTombstone('docs', id); });
           lib.docs = lib.docs.filter(function (d) { return !loserIds[d.id]; });
+          var curIdBeforeRepair = lib.currentId;
           if (!lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs[0].id;
           persist(false);
-          openDoc(lib.currentId, false);
+          // Reopen only when the repair actually took the open
+          // document away; a surviving open document is already
+          // on screen, and rebuilding the editor here would
+          // reset the caret of anyone typing through the initial
+          // sync for no benefit.
+          if (lib.currentId !== curIdBeforeRepair) openDoc(lib.currentId, false);
           renderDocList();
         }
 
@@ -9079,30 +9268,54 @@
             if (r && r.error) return sb.from('documents').select('id, folder_id, title, content, updated_at');
             return r;
           });
-          var curIdBefore = lib.currentId;
-          var curBefore = lib.docs.find(function (d) { return d.id === curIdBefore; });
-          var curSigBefore = curBefore ? (curBefore.title || '') + '\n' + JSON.stringify(curBefore.content) : '';
           return Promise.all([
             foldersReq,
             docsReq,
           ]).then(function (res) {
             if (res[0].error || res[1].error) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
+            // The before-signature is taken HERE — with the fetch
+            // resolved and the merge about to run in this same
+            // synchronous pass — never when the pull started.
+            // It used to be captured at pull start, and that was
+            // the caret bug: the editor's onUpdate writes every
+            // keystroke into the open document while the fetch is
+            // in flight, so a signature from before the fetch
+            // differed from the after one even when the merge
+            // itself changed nothing — and the difference was
+            // read as "the merge changed the open document" and
+            // answered with a full editor rebuild, caret and
+            // scroll reset, on any cycle whose fetch window
+            // happened to catch a keystroke. Taken here, the
+            // signature measures only what the merge itself did.
+            var curIdBefore = lib.currentId;
+            var curBefore = lib.docs.find(function (d) { return d.id === curIdBefore; });
+            var curSigBefore = curBefore ? (curBefore.title || '') + '\n' + JSON.stringify(curBefore.content) : '';
+            // While the user is editing the open document, the
+            // merge defers its title and text entirely (see
+            // mergeRemote) and the rebuild decision below is
+            // disarmed for it: the live editor surface is never
+            // touched mid-typing, whichever phase of the cycle
+            // this is — automatic, foreground, interval, or a
+            // manual Sync now.
+            var keepOpenLive = openDocBeingEdited();
             // A merge that refused the pull (completeness guard:
             // the fetch came back empty for a table known to hold
             // rows) is a failed sync, not a silent success — the
             // status must say so and offer the retry.
-            if (mergeRemote(res[0].data || [], res[1].data || []) === false) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
+            if (mergeRemote(res[0].data || [], res[1].data || [], keepOpenLive) === false) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
             if (!lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs[0].id;
             var curAfter = lib.docs.find(function (d) { return d.id === lib.currentId; });
             var curSigAfter = curAfter ? (curAfter.title || '') + '\n' + JSON.stringify(curAfter.content) : '';
             // Reopening the open document resets the editor —
             // content, scroll, cursor — so only do it when the
             // merge actually changed what is open (or the open
-            // document went away). A pull that only moved OTHER
-            // documents refreshes the list alone. That restraint
-            // is what makes the 30-second background pull safe to
-            // run while someone is typing.
-            if (lib.currentId !== curIdBefore || curSigAfter !== curSigBefore) openDoc(lib.currentId, false);
+            // document went away and another must take its
+            // place). A pull that only moved OTHER documents
+            // refreshes the list alone. That restraint is what
+            // makes the 30-second background pull safe to run
+            // while someone is typing.
+            if (lib.currentId !== curIdBefore) openDoc(lib.currentId, false);
+            else if (!keepOpenLive && curSigAfter !== curSigBefore) openDoc(lib.currentId, false);
             else renderDocList();
             renderTagsSection();
             // The merged library is the device's truth now —
@@ -9929,7 +10142,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261023-7';
+        var FOLIO_BUILD = '20261023-8';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -10116,7 +10329,7 @@
           { id: 'toggle-ctxbar', combo: 'mod+alt+shift+b', hint: '⌘⌥⇧B', group: 'General', label: 'Show / hide secondary toolbar',
             run: function () { if (!toolbarsHidden) setCtxBarHidden(!ctxBarHidden); } },
           { id: 'library', combo: 'mod+alt+l', hint: '⌘⌥L', group: 'General', label: 'Show / hide library',
-            run: function () { document.body.classList.toggle('nav-open'); } },
+            run: function () { toggleSidebar(); } },
           { id: 'settings', combo: 'mod+,', hint: '⌘,', group: 'General', label: 'Settings',
             run: function () { scRunSettings(); } },
           { id: 'shortcuts-help', combo: 'mod+/', hint: '⌘/', group: 'General', label: 'Keyboard shortcuts',
