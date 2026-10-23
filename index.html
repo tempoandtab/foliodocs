@@ -1220,6 +1220,25 @@
       .menu-item.danger.confirm { background: var(--danger); color: #fff; font-weight: 700; }
       .menu-item.danger.confirm .m-icon { color: #fff; }
       .menu-sep { height: 1px; background: var(--line-soft); margin: 5px 4px; }
+      /* Keyboard navigation inside menus: the item the arrow
+         keys have landed on paints like a hover, so "without
+         clicking" never means hunting for where focus went. */
+      .menu-item.kb-focus { background: var(--hover); }
+      .menu-item:focus-visible { background: var(--hover); outline: none; }
+      .menu .tb-btn.kb-focus { background: var(--hover); color: var(--ink); }
+      .menu .tb-btn:focus-visible { background: var(--hover); color: var(--ink); outline: none; }
+
+      /* ---------------- Shortcuts reference ---------------- */
+      .sc-row {
+        display: flex; align-items: center; gap: 14px;
+        padding: 7px 2px; font-size: 14.5px;
+      }
+      .sc-row .sc-name { flex: 1; min-width: 0; }
+      .sc-row .sc-key {
+        flex: 0 0 auto; color: var(--ink-3);
+        font-size: 13px; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap;
+      }
+      .sc-group { margin-bottom: 6px; }
 
       /* ---------------- Theme popover ---------------- */
       .theme-pop {
@@ -1634,7 +1653,7 @@
                 <button class="docs-view-btn" id="docsViewBtn" type="button" aria-haspopup="menu" aria-expanded="false" data-tip="Switch between Documents and Favorites"><span id="docsViewLabel">Documents</span><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
               </span>
               <span class="side-label-actions">
-                <button class="mini-btn" id="importBtn" type="button" aria-label="Import a file as a new document" data-tip="Import a Markdown, Word (.docx), or PDF file as a new document">
+                <button class="mini-btn" id="importBtn" type="button" aria-label="Import a file as a new document" data-sc="import" data-tip="Import a Markdown, Word (.docx), or PDF file as a new document">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="m7 9.5 5 5 5-5"/><path d="M4 20h16"/></svg>
                 </button>
                 <!-- iOS's Files picker matches declared types by UTI,
@@ -1646,10 +1665,10 @@
                      the extensions and MIME types stay for desktop
                      browsers, which ignore the UTI tokens. -->
                 <input type="file" id="importFile" accept=".md,.markdown,.mdown,.docx,.pdf,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,com.adobe.pdf,org.openxmlformats.wordprocessingml.document,net.daringfireball.markdown" hidden />
-                <button class="mini-btn" id="newFolderBtn" type="button" aria-label="New folder" data-tip="New folder">
+                <button class="mini-btn" id="newFolderBtn" type="button" aria-label="New folder" data-sc="new-folder" data-tip="New folder">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/></svg>
                 </button>
-                <button class="new-doc-btn" id="newDocBtn" type="button" aria-label="New document" data-tip="New document">
+                <button class="new-doc-btn" id="newDocBtn" type="button" aria-label="New document" data-sc="new-doc" data-tip="New document">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
                   New
                 </button>
@@ -1712,7 +1731,7 @@
           <button class="icon-btn" id="docSettingsBtn" type="button" aria-label="Document settings" aria-haspopup="menu" aria-expanded="false" data-tip="Document settings — favorite, move, export, print, delete">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </button>
-          <button class="tb-btn share-btn" id="shareBtn" type="button" aria-label="Share this document" data-tip="Share this document — create a view or comment link">
+          <button class="tb-btn share-btn" id="shareBtn" type="button" aria-label="Share this document" data-sc="share" data-tip="Share this document — create a view or comment link">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
             <span class="share-label">Share</span>
             <span class="share-badge" id="shareBadge" hidden></span>
@@ -1721,7 +1740,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           </button>
           <span class="save-state" id="saveState">Saved</span>
-          <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings" aria-haspopup="menu" aria-expanded="false" data-tip="Settings — button label style">
+          <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings" aria-haspopup="menu" aria-expanded="false" data-sc="settings" data-tip="Settings — button label style">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h9M19 8h1M4 16h3M13 16h7"/><circle cx="16" cy="8" r="2.3"/><circle cx="10" cy="16" r="2.3"/></svg>
           </button>
           <button class="icon-btn" id="ctxToolsBtn" type="button" aria-label="Hide secondary toolbar" aria-pressed="true" data-tip="Hide secondary toolbar">
@@ -1736,45 +1755,45 @@
         </div>
 
         <div class="toolbar" id="toolbar" role="toolbar" aria-label="Formatting">
-          <button class="tb-btn tb-h" data-cmd="h1" type="button" aria-label="Heading 1" data-tip="Heading 1 — or start a line with # and a space">H<small>1</small></button>
-          <button class="tb-btn tb-h" data-cmd="h2" data-more="a" type="button" aria-label="Heading 2" data-tip="Heading 2 — or start a line with ##">H<small>2</small></button>
-          <button class="tb-btn tb-h" data-cmd="h3" data-more="a" type="button" aria-label="Heading 3" data-tip="Heading 3 — or start a line with ###">H<small>3</small></button>
-          <button class="tb-btn" data-cmd="para" type="button" aria-label="Body text" data-tip="Body text">
+          <button class="tb-btn tb-h" data-cmd="h1" data-sc="h1" type="button" aria-label="Heading 1" data-tip="Heading 1 — or start a line with # and a space">H<small>1</small></button>
+          <button class="tb-btn tb-h" data-cmd="h2" data-sc="h2" data-more="a" type="button" aria-label="Heading 2" data-tip="Heading 2 — or start a line with ##">H<small>2</small></button>
+          <button class="tb-btn tb-h" data-cmd="h3" data-sc="h3" data-more="a" type="button" aria-label="Heading 3" data-tip="Heading 3 — or start a line with ###">H<small>3</small></button>
+          <button class="tb-btn" data-cmd="para" data-sc="para" type="button" aria-label="Body text" data-tip="Body text">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 5v14M14 5v14M10 5h6a4 4 0 0 1 0 8h-6"/></svg>
           </button>
           <span class="tb-sep"></span>
-          <button class="tb-btn" data-cmd="bold" type="button" aria-label="Bold" data-tip="Bold (⌘B)"><strong style="font-size:16px">B</strong></button>
-          <button class="tb-btn" data-cmd="italic" type="button" aria-label="Italic" data-tip="Italic (⌘I)"><em style="font-family:Georgia,serif;font-size:16px">I</em></button>
-          <button class="tb-btn" data-cmd="strike" data-more="a" type="button" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s></button>
-          <button class="tb-btn" data-cmd="code" data-more="b" type="button" aria-label="Inline code" data-tip="Inline code (⌘`)">
+          <button class="tb-btn" data-cmd="bold" data-sc="bold" type="button" aria-label="Bold" data-tip="Bold (⌘B)"><strong style="font-size:16px">B</strong></button>
+          <button class="tb-btn" data-cmd="italic" data-sc="italic" type="button" aria-label="Italic" data-tip="Italic (⌘I)"><em style="font-family:Georgia,serif;font-size:16px">I</em></button>
+          <button class="tb-btn" data-cmd="strike" data-sc="strike" data-more="a" type="button" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s></button>
+          <button class="tb-btn" data-cmd="code" data-sc="code" data-more="b" type="button" aria-label="Inline code" data-tip="Inline code (⌘`)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>
           </button>
-          <button class="tb-btn" id="hlBtn" data-cmd="highlight" type="button" aria-label="Highlight color" aria-haspopup="true" data-tip="Highlight — pick a color">
+          <button class="tb-btn" id="hlBtn" data-cmd="highlight" data-sc="highlight" type="button" aria-label="Highlight color" aria-haspopup="true" data-tip="Highlight — pick a color">
             <span class="hl-demo" id="hlDemo">A</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </button>
-          <button class="tb-btn" id="colorBtn" data-cmd="textcolor" data-more="a" type="button" aria-label="Text color" aria-haspopup="true" data-tip="Text color">
+          <button class="tb-btn" id="colorBtn" data-cmd="textcolor" data-sc="textcolor" data-more="a" type="button" aria-label="Text color" aria-haspopup="true" data-tip="Text color">
             <span class="tc-demo"><span id="tcDemoA">A</span><span class="tc-bar" id="tcBar"></span></span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <span class="tb-sep tb-sep-a"></span>
-          <button class="tb-btn" data-cmd="quote" data-more="a" type="button" aria-label="Blockquote" data-tip="Blockquote — or start a line with &gt;">
+          <button class="tb-btn" data-cmd="quote" data-sc="quote" data-more="a" type="button" aria-label="Blockquote" data-tip="Blockquote — or start a line with &gt;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 8H6a4 4 0 0 0-4 4v6h7v-7H6.5A2.5 2.5 0 0 1 9 8.6V8h1zm12 0h-4a4 4 0 0 0-4 4v6h7v-7h-2.5A2.5 2.5 0 0 1 21 8.6V8h1z"/></svg>
           </button>
-          <button class="tb-btn" data-cmd="bullet" data-more="b" type="button" aria-label="Bullet list" data-tip="Bullet list — or start a line with -">
+          <button class="tb-btn" data-cmd="bullet" data-sc="bullet" data-more="b" type="button" aria-label="Bullet list" data-tip="Bullet list — or start a line with -">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg>
           </button>
-          <button class="tb-btn" data-cmd="ordered" data-more="a" type="button" aria-label="Numbered list" data-tip="Numbered list — or start a line with 1.">
+          <button class="tb-btn" data-cmd="ordered" data-sc="ordered" data-more="a" type="button" aria-label="Numbered list" data-tip="Numbered list — or start a line with 1.">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6h1v4M4 10h2M5 10v3M4.5 16.5a1.8 1.8 0 1 1 2.6 2L4 21h3.5" stroke-width="1.5"/></svg>
           </button>
-          <button class="tb-btn" id="tableBtn" data-cmd="table" type="button" aria-label="Insert table" aria-haspopup="true" data-tip="Insert table">
+          <button class="tb-btn" id="tableBtn" data-cmd="table" data-sc="table-insert" type="button" aria-label="Insert table" aria-haspopup="true" data-tip="Insert table">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg>
           </button>
           <span class="tb-sep"></span>
-          <button class="tb-btn" data-cmd="wikilink" data-more="a" type="button" aria-label="Insert wiki-link" data-tip="Insert a [[wiki-link]] to another document" style="font-family:ui-monospace,Menlo,monospace;font-size:14px">[[ ]]</button>
+          <button class="tb-btn" data-cmd="wikilink" data-sc="wikilink" data-more="a" type="button" aria-label="Insert wiki-link" data-tip="Insert a [[wiki-link]] to another document" style="font-family:ui-monospace,Menlo,monospace;font-size:14px">[[ ]]</button>
           <span class="tb-sep tb-sep-a"></span>
-          <button class="tb-btn" data-cmd="undo" type="button" aria-label="Undo" data-tip="Undo (⌘Z)">
+          <button class="tb-btn" data-cmd="undo" data-sc="undo" type="button" aria-label="Undo" data-tip="Undo (⌘Z)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
           </button>
-          <button class="tb-btn" data-cmd="redo" data-more="b" type="button" aria-label="Redo" data-tip="Redo (⌘⇧Z)">
+          <button class="tb-btn" data-cmd="redo" data-sc="redo" data-more="b" type="button" aria-label="Redo" data-tip="Redo (⌘⇧Z)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>
           </button>
           <button class="tb-btn tb-more-btn" id="tbMoreBtn" type="button" aria-label="More formatting options" aria-haspopup="menu" aria-expanded="false" data-tip="More formatting options">
@@ -1784,8 +1803,8 @@
 
         <div class="toolbar table-bar" id="tableBar" role="toolbar" aria-label="Contextual tools">
           <span class="ctx-group off" id="ctxTableTools">
-            <button class="tb-btn tb-txt" type="button" data-tact="row-below" aria-label="Add row below" data-tip="Add row below"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="14.9" width="17" height="4.9" fill="currentColor" fill-opacity="0.3" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.3h18M3 14.7h18"/><path d="M19.6 0.9v4.2M17.5 3h4.2" stroke-width="2.2"/></svg><span class="tb-label">Row ↓</span></button>
-            <button class="tb-btn tb-txt" type="button" data-tact="col-right" aria-label="Add column to the right" data-tip="Add column to the right"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14.9" y="4.4" width="5.6" height="15.2" fill="currentColor" fill-opacity="0.3" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9.3 4v16M14.7 4v16"/><path d="M19.6 0.9v4.2M17.5 3h4.2" stroke-width="2.2"/></svg><span class="tb-label">Col →</span></button>
+            <button class="tb-btn tb-txt" type="button" data-tact="row-below" data-sc="tbl-row-below" aria-label="Add row below" data-tip="Add row below"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="14.9" width="17" height="4.9" fill="currentColor" fill-opacity="0.3" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.3h18M3 14.7h18"/><path d="M19.6 0.9v4.2M17.5 3h4.2" stroke-width="2.2"/></svg><span class="tb-label">Row ↓</span></button>
+            <button class="tb-btn tb-txt" type="button" data-tact="col-right" data-sc="tbl-col-right" aria-label="Add column to the right" data-tip="Add column to the right"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14.9" y="4.4" width="5.6" height="15.2" fill="currentColor" fill-opacity="0.3" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9.3 4v16M14.7 4v16"/><path d="M19.6 0.9v4.2M17.5 3h4.2" stroke-width="2.2"/></svg><span class="tb-label">Col →</span></button>
             <button class="tb-btn tb-txt" type="button" data-tact="merge" aria-label="Merge selected cells" data-tip="Merge the selected cells into one"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14" stroke-dasharray="2.5 3"/><path d="M5.8 9.3 8.4 12l-2.6 2.7M18.2 9.3 15.6 12l2.6 2.7"/></svg><span class="tb-label">Merge</span></button>
             <button class="tb-btn tb-txt" type="button" id="tblFillBtn" aria-label="Cell fill" aria-haspopup="true" aria-expanded="false" data-tip="Cell fill color"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.6s6.2 6.9 6.2 11.1a6.2 6.2 0 0 1-12.4 0C5.8 10.5 12 3.6 12 3.6Z"/></svg><span class="tb-label">Fill</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
             <button class="tb-btn tb-txt" type="button" id="tblBorderColorBtn" aria-label="Border color" aria-haspopup="true" aria-expanded="false" data-tip="Table border color"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.6" width="16" height="13" rx="1.5"/><rect x="4" y="19.4" width="16" height="2.6" rx="1.3" fill="currentColor" stroke="none"/></svg><span class="tb-label">Border color</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -1805,25 +1824,25 @@
             </button>
           </span>
           <span class="ctx-group off" id="ctxSelTools">
-            <button class="tb-btn tb-txt" type="button" id="selHlBtn" data-sel="highlight" aria-label="Highlight" aria-haspopup="true" data-tip="Highlight — pick a color"><span class="hl-demo">A</span><span class="tb-label">Highlight</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-            <button class="tb-btn tb-txt" type="button" id="selTcBtn" data-sel="textcolor" aria-label="Text color" aria-haspopup="true" data-tip="Text color — pick a color"><span class="tc-demo"><span>A</span><span class="tc-bar"></span></span><span class="tb-label">Text color</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-            <button class="tb-btn tb-txt" type="button" id="selStrikeBtn" data-sel="strike" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s><span class="tb-label">Strikethrough</span></button>
-            <button class="tb-btn tb-txt" type="button" id="selCodeBtn" data-sel="code" aria-label="Inline code" data-tip="Inline code (⌘`)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span class="tb-label">Inline code</span></button>
-            <button class="tb-btn tb-txt" type="button" id="selQuoteBtn" data-sel="quote" aria-label="Block quote" data-tip="Blockquote — or start a line with &gt;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 8H6a4 4 0 0 0-4 4v6h7v-7H6.5A2.5 2.5 0 0 1 9 8.6V8h1zm12 0h-4a4 4 0 0 0-4 4v6h7v-7h-2.5A2.5 2.5 0 0 1 21 8.6V8h1z"/></svg><span class="tb-label">Block quote</span></button>
-            <button class="tb-btn tb-txt" type="button" data-sel="wikilink" aria-label="Make wikilink" data-tip="Turn the selection into a [[wikilink]]"><span class="tb-wiki">[[ ]]</span><span class="tb-label">Make wikilink</span></button>
-            <button class="tb-btn tb-txt" type="button" data-sel="copy" aria-label="Copy selection" data-tip="Copy the selected text"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="tb-label">Copy</span></button>
-            <button class="tb-btn tb-txt" type="button" data-sel="clearfmt" aria-label="Clear formatting" data-tip="Strip the selection's formatting back to plain body text"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span class="tb-label">Clear formatting</span></button>
+            <button class="tb-btn tb-txt" type="button" id="selHlBtn" data-sel="highlight" data-sc="highlight" aria-label="Highlight" aria-haspopup="true" data-tip="Highlight — pick a color"><span class="hl-demo">A</span><span class="tb-label">Highlight</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <button class="tb-btn tb-txt" type="button" id="selTcBtn" data-sel="textcolor" data-sc="textcolor" aria-label="Text color" aria-haspopup="true" data-tip="Text color — pick a color"><span class="tc-demo"><span>A</span><span class="tc-bar"></span></span><span class="tb-label">Text color</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <button class="tb-btn tb-txt" type="button" id="selStrikeBtn" data-sel="strike" data-sc="strike" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s><span class="tb-label">Strikethrough</span></button>
+            <button class="tb-btn tb-txt" type="button" id="selCodeBtn" data-sel="code" data-sc="code" aria-label="Inline code" data-tip="Inline code (⌘`)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span class="tb-label">Inline code</span></button>
+            <button class="tb-btn tb-txt" type="button" id="selQuoteBtn" data-sel="quote" data-sc="quote" aria-label="Block quote" data-tip="Blockquote — or start a line with &gt;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 8H6a4 4 0 0 0-4 4v6h7v-7H6.5A2.5 2.5 0 0 1 9 8.6V8h1zm12 0h-4a4 4 0 0 0-4 4v6h7v-7h-2.5A2.5 2.5 0 0 1 21 8.6V8h1z"/></svg><span class="tb-label">Block quote</span></button>
+            <button class="tb-btn tb-txt" type="button" data-sel="wikilink" data-sc="wikilink" aria-label="Make wikilink" data-tip="Turn the selection into a [[wikilink]]"><span class="tb-wiki">[[ ]]</span><span class="tb-label">Make wikilink</span></button>
+            <button class="tb-btn tb-txt" type="button" data-sel="copy" data-sc="copy-sel" aria-label="Copy selection" data-tip="Copy the selected text"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="tb-label">Copy</span></button>
+            <button class="tb-btn tb-txt" type="button" data-sel="clearfmt" data-sc="clearfmt" aria-label="Clear formatting" data-tip="Strip the selection's formatting back to plain body text"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span class="tb-label">Clear formatting</span></button>
             <span class="ctx-count ctx-nofold" id="selCount"></span>
             <button class="tb-btn sel-more-btn" id="selMoreBtn" type="button" aria-label="More selection options" aria-haspopup="menu" aria-expanded="false" data-tip="More selection options">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
             </button>
           </span>
           <span class="ctx-group" id="ctxInsertTools">
-            <button class="tb-btn tb-txt" type="button" id="insTableBtn" data-ins="table" aria-label="Insert table" aria-haspopup="true" data-tip="Insert table"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg><span class="tb-label">Insert table</span></button>
-            <button class="tb-btn tb-txt" type="button" data-ins="codeblock" aria-label="Code block" data-tip="Insert a code block"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m9.8 9.8-2.6 2.2 2.6 2.2M14.2 9.8l2.6 2.2-2.6 2.2"/></svg><span class="tb-label">Code block</span></button>
-            <button class="tb-btn tb-txt" type="button" data-ins="divider" aria-label="Divider" data-tip="Insert a horizontal rule"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h6.5M14.5 12H21"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg><span class="tb-label">Divider</span></button>
-            <button class="tb-btn tb-txt" type="button" data-ins="datestamp" aria-label="Date stamp" data-tip="Insert today's date"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg><span class="tb-label">Date stamp</span></button>
-            <button class="tb-btn tb-txt" type="button" data-ins="wikilink" aria-label="Wikilink" data-tip="Insert a [[wiki-link]] to another document"><span class="tb-wiki">[[ ]]</span><span class="tb-label">Wikilink</span></button>
+            <button class="tb-btn tb-txt" type="button" id="insTableBtn" data-ins="table" data-sc="table-insert" aria-label="Insert table" aria-haspopup="true" data-tip="Insert table"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg><span class="tb-label">Insert table</span></button>
+            <button class="tb-btn tb-txt" type="button" data-ins="codeblock" data-sc="codeblock" aria-label="Code block" data-tip="Insert a code block"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m9.8 9.8-2.6 2.2 2.6 2.2M14.2 9.8l2.6 2.2-2.6 2.2"/></svg><span class="tb-label">Code block</span></button>
+            <button class="tb-btn tb-txt" type="button" data-ins="divider" data-sc="divider" aria-label="Divider" data-tip="Insert a horizontal rule"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h6.5M14.5 12H21"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg><span class="tb-label">Divider</span></button>
+            <button class="tb-btn tb-txt" type="button" data-ins="datestamp" data-sc="datestamp" aria-label="Date stamp" data-tip="Insert today's date"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg><span class="tb-label">Date stamp</span></button>
+            <button class="tb-btn tb-txt" type="button" data-ins="wikilink" data-sc="wikilink" aria-label="Wikilink" data-tip="Insert a [[wiki-link]] to another document"><span class="tb-wiki">[[ ]]</span><span class="tb-label">Wikilink</span></button>
             <span class="ctx-count ctx-nofold" id="ctxDocCount"></span>
             <button class="tb-btn ins-more-btn" id="insMoreBtn" type="button" aria-label="More insert options" aria-haspopup="menu" aria-expanded="false" data-tip="More insert options">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
@@ -1947,6 +1966,19 @@
           <button class="btn-ghost" id="deleteCancel" type="button">Cancel</button>
           <button class="btn-danger" id="deleteConfirm" type="button">Delete</button>
         </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shortcutsModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle" style="max-width:520px">
+        <div class="panel-head">
+          <h2 id="shortcutsTitle">Keyboard shortcuts</h2>
+          <button class="icon-btn" id="shortcutsClose" type="button" aria-label="Close shortcuts" data-tip="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div id="shortcutsList"></div>
+        <p class="form-note">In any menu: <strong>&uarr;</strong> <strong>&darr;</strong> move, <strong>Enter</strong> chooses, <strong>Esc</strong> closes.</p>
       </div>
     </div>
 
@@ -2674,30 +2706,30 @@
             s.className = 'menu-sep';
             menuEl.appendChild(s);
           }
-          item(d.favorite ? STAR_SVG : STAR_O_SVG, d.favorite ? 'Unfavorite' : 'Favorite', '', '', function () {
+          item(d.favorite ? STAR_SVG : STAR_O_SVG, d.favorite ? 'Unfavorite' : 'Favorite', '', hintFor('favorite'), function () {
             closeFn();
             toggleFavorite(d.id);
           });
-          item(FOLDER_SVG, 'Move to folder', '', '', function () {
+          item(FOLDER_SVG, 'Move to folder', '', hintFor('move-doc'), function () {
             closeFn();
             if (moveAnchor) openMoveMenu(moveAnchor, d.id);
           });
           sep();
-          item(DOWNLOAD_SVG, 'Export as Markdown', '', '', function () {
+          item(DOWNLOAD_SVG, 'Export as Markdown', '', hintFor('export-md'), function () {
             closeFn();
             exportDocMarkdown(d.id);
           });
-          item(PRINT_SVG, 'Export as PDF', '', '', function () {
+          item(PRINT_SVG, 'Export as PDF', '', hintFor('export-pdf'), function () {
             closeFn();
             exportDocPDF(d.id);
           });
-          item(PRINT_SVG, 'Print', '', '⌘P', function () {
+          item(PRINT_SVG, 'Print', '', hintFor('print'), function () {
             closeFn();
             printDocById(d.id);
           });
           if (lib.docs.length > 1) {
             sep();
-            item(TRASH_SVG, 'Delete', 'danger', '', function () {
+            item(TRASH_SVG, 'Delete', 'danger', hintFor('delete-doc'), function () {
               closeFn();
               openDeleteModal(d.id);
             });
@@ -2850,6 +2882,13 @@
             s.className = 'm-label';
             s.textContent = label;
             b.appendChild(s);
+            var viewHint = hintFor(mode === 'favorites' ? 'view-favorites' : 'view-documents');
+            if (viewHint) {
+              var vh = document.createElement('span');
+              vh.className = 'm-hint';
+              vh.textContent = viewHint;
+              b.appendChild(vh);
+            }
             b.addEventListener('click', function () { closeViewMenu(); setDocViewMode(mode); });
             viewMenuEl.appendChild(b);
           }
@@ -2884,6 +2923,7 @@
         var settingsMenuOpen = false;
         var LABEL_ICONS_ONLY_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg>';
         var LABEL_ICONS_TEXT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="8" height="10" rx="1.5"/><path d="M15 9.5h6M15 14.5h6"/></svg>';
+        var KEYBOARD_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>';
         function applyLabelMode() {
           document.documentElement.setAttribute('data-labels', labelMode);
         }
@@ -2931,6 +2971,36 @@
           }
           item('icons', LABEL_ICONS_ONLY_SVG, 'Icons only in toolbars');
           item('text', LABEL_ICONS_TEXT_SVG, 'Icons + text everywhere');
+          var sep = document.createElement('div');
+          sep.className = 'menu-sep';
+          settingsMenuEl.appendChild(sep);
+          var kb = document.createElement('button');
+          kb.type = 'button';
+          kb.className = 'menu-item';
+          kb.setAttribute('role', 'menuitem');
+          var kbCheck = document.createElement('span');
+          kbCheck.className = 'check';
+          kb.appendChild(kbCheck);
+          var kbIc = document.createElement('span');
+          kbIc.className = 'm-icon';
+          kbIc.innerHTML = KEYBOARD_SVG;
+          kb.appendChild(kbIc);
+          var kbLabel = document.createElement('span');
+          kbLabel.className = 'm-label';
+          kbLabel.textContent = 'Keyboard shortcuts';
+          kb.appendChild(kbLabel);
+          var kbHintText = hintFor('shortcuts-help');
+          if (kbHintText) {
+            var kbHint = document.createElement('span');
+            kbHint.className = 'm-hint';
+            kbHint.textContent = kbHintText;
+            kb.appendChild(kbHint);
+          }
+          kb.addEventListener('click', function () {
+            closeSettingsMenu();
+            openShortcutsModal();
+          });
+          settingsMenuEl.appendChild(kb);
         }
         function openSettingsMenu() {
           if (settingsMenuOpen) { closeSettingsMenu(); return; }
@@ -3012,7 +3082,7 @@
           if (!toolbarsBtn) return;
           toolbarsBtn.innerHTML = toolbarsHidden ? TB_SHOW_SVG : TB_HIDE_SVG;
           toolbarsBtn.setAttribute('aria-label', toolbarsHidden ? 'Show toolbars' : 'Hide toolbars');
-          toolbarsBtn.setAttribute('data-tip', toolbarsHidden ? 'Show toolbars' : 'Hide toolbars');
+          toolbarsBtn.setAttribute('data-tip', (toolbarsHidden ? 'Show toolbars' : 'Hide toolbars') + scHintSuffix('toggle-toolbars'));
           toolbarsBtn.setAttribute('aria-pressed', toolbarsHidden ? 'true' : 'false');
         }
         function setToolbarsHidden(hidden) {
@@ -3120,7 +3190,7 @@
             var name = ctxBarHidden ? 'Show secondary toolbar' : 'Hide secondary toolbar';
             ctxToolsBtn.innerHTML = ctxBarHidden ? CTX_TOGGLE_OFF_SVG : CTX_TOGGLE_ON_SVG;
             ctxToolsBtn.setAttribute('aria-label', name);
-            ctxToolsBtn.setAttribute('data-tip', name);
+            ctxToolsBtn.setAttribute('data-tip', name + scHintSuffix('toggle-ctxbar'));
             ctxToolsBtn.setAttribute('aria-pressed', ctxBarHidden ? 'false' : 'true');
             ctxToolsBtn.removeAttribute('aria-haspopup');
             ctxToolsBtn.setAttribute('aria-expanded', 'false');
@@ -3185,7 +3255,7 @@
         }
         function buildTopMenu() {
           topMenuEl.innerHTML = '';
-          function item(icon, label, fn) {
+          function item(icon, label, fn, scId) {
             var b = document.createElement('button');
             b.type = 'button';
             b.className = 'menu-item';
@@ -3198,6 +3268,13 @@
             s.className = 'm-label';
             s.textContent = label;
             b.appendChild(s);
+            var hint = scId ? hintFor(scId) : '';
+            if (hint) {
+              var h = document.createElement('span');
+              h.className = 'm-hint';
+              h.textContent = hint;
+              b.appendChild(h);
+            }
             b.addEventListener('click', function () { closeTopMenu(); fn(); });
             topMenuEl.appendChild(b);
             return b;
@@ -3228,17 +3305,18 @@
             s.className = 'menu-sep';
             topMenuEl.appendChild(s);
           }
-          item(SHARE_SVG, 'Share', function () { openShareModal(); });
-          item(PRINT_SVG, 'Print', function () { printDocById(lib.currentId); });
+          item(SHARE_SVG, 'Share', function () { openShareModal(); }, 'share');
+          item(PRINT_SVG, 'Print', function () { printDocById(lib.currentId); }, 'print');
+          item(KEYBOARD_SVG, 'Keyboard shortcuts', function () { openShortcutsModal(); }, 'shortcuts-help');
           sep();
           if (!toolbarsHidden) {
             item(ctxBarHidden ? CTX_TOGGLE_OFF_SVG : CTX_TOGGLE_ON_SVG,
               ctxBarHidden ? 'Show secondary toolbar' : 'Hide secondary toolbar',
-              function () { setCtxBarHidden(!ctxBarHidden); });
+              function () { setCtxBarHidden(!ctxBarHidden); }, 'toggle-ctxbar');
           }
           item(toolbarsHidden ? TB_SHOW_SVG : TB_HIDE_SVG,
             toolbarsHidden ? 'Show toolbars' : 'Hide toolbars',
-            function () { setToolbarsHidden(!toolbarsHidden); });
+            function () { setToolbarsHidden(!toolbarsHidden); }, 'toggle-toolbars');
           sep();
           var head = document.createElement('div');
           head.className = 'menu-head';
@@ -5927,6 +6005,7 @@
             s.className = 'm-label';
             s.textContent = btn.getAttribute('aria-label') || cmd;
             b.appendChild(s);
+            addMenuHint(b, btn);
             b.addEventListener('click', function () {
               closeTbMenu();
               if (cmd === 'highlight') openFmtPop('highlight', tbMoreBtn);
@@ -6839,6 +6918,7 @@
           if (danger) label = label.replace(/^✕\s*/, '');
           s.textContent = label;
           b.appendChild(s);
+          addMenuHint(b, realBtn);
           b.addEventListener('click', function () {
             closeTblMenu();
             closeCtxToolsMenu();
@@ -7033,6 +7113,7 @@
             s.className = 'm-label';
             s.textContent = el.getAttribute('aria-label') || el.textContent.trim();
             b.appendChild(s);
+            addMenuHint(b, el);
             b.addEventListener('click', function () {
               closeCtxMenu();
               if (groupEl === ctxSelTools) runSelCmd(el, moreBtn);
@@ -7111,6 +7192,7 @@
           s.className = 'm-label';
           s.textContent = real.getAttribute('aria-label') || cmd;
           b.appendChild(s);
+          addMenuHint(b, real);
           b.addEventListener('click', function () {
             closeCtxToolsMenu();
             real.click();
@@ -7132,6 +7214,7 @@
           s.className = 'm-label';
           s.textContent = el.getAttribute('aria-label') || el.textContent.trim();
           b.appendChild(s);
+          addMenuHint(b, el);
           b.addEventListener('click', function () {
             closeCtxToolsMenu();
             if (groupEl === ctxSelTools) runSelCmd(el, ctxToolsBtn);
@@ -8432,6 +8515,12 @@
           printDocById(lib.currentId);
         });
         document.addEventListener('keydown', function (ev) {
+          /* The shortcut registry's capture-phase handler owns
+             ⌘P and preventDefaults it; this listener remains as
+             the fallback for the states the registry stands down
+             in (a modal open), so Print keeps its "works
+             anywhere the app has focus" behavior there too. */
+          if (ev.defaultPrevented) return;
           if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && !ev.shiftKey && (ev.key === 'p' || ev.key === 'P')) {
             ev.preventDefault();
             printDocById(lib.currentId);
@@ -8620,6 +8709,390 @@
           });
           window.addEventListener('online', function () { scheduleSync(); });
         }
+
+        /* ---------------- keyboard shortcuts -------------------
+           ONE registry is the source of truth for every binding:
+           the capture-phase keydown dispatcher below fires from
+           it, the gray hints in the menus read from it (through
+           hintFor), toolbar tooltips gain their hint from it (the
+           data-sc sweep at the bottom), and the Keyboard
+           shortcuts dialog in the Settings menu lists it. Same
+           anti-drift pattern as the shared document menu: a hint
+           can never disagree with the key that actually fires.
+           Combos are normalized as "mod+alt+shift+key", where mod
+           is ⌘ on Apple keyboards and Ctrl elsewhere; combos the
+           browser reserves for itself (⌘N, ⌘T, ⌘W, ⌘Q) are never
+           used. An entry marked native is a binding the browser
+           or the editor already delivers (Copy) — listed so its
+           hint and reference row exist, never intercepted. */
+        function scClickBtn(el) { if (el) el.click(); }
+        function scChain(fn) {
+          if (!editorHandle) return;
+          var chain = editorHandle.editor.chain().focus();
+          fn(chain);
+          refreshToolbar();
+        }
+        /* The anchor a format popover should open under when its
+           real button is folded away or the bars are hidden: the
+           first candidate actually on screen. */
+        function scVisAnchor(candidates, lastResort) {
+          for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            if (el && el.getClientRects && el.getClientRects().length) return el;
+          }
+          return lastResort;
+        }
+        function scRunFormatPop(mode) {
+          var mainBtn = document.getElementById(mode === 'highlight' ? 'hlBtn' : 'colorBtn');
+          if (mainBtn && mainBtn.getClientRects().length) { mainBtn.click(); return; }
+          var selBtn = mode === 'highlight' ? selHlBtn : selTcBtn;
+          openFmtPop(mode, scVisAnchor([selBtn, tbMoreBtn], docBarMenuBtn));
+          setTimeout(function () {
+            var sw = document.querySelector('#fmtSwatches .fmt-swatch');
+            if (sw) sw.focus();
+          }, 0);
+        }
+        function scRunWikilink() {
+          if (!editorHandle) return;
+          var ed = editorHandle.editor;
+          var sel = ed.state.selection;
+          if (sel && !sel.empty) {
+            var b = ctxSelTools.querySelector('[data-sel="wikilink"]');
+            if (b) { runSelCmd(b, b); return; }
+          }
+          editorHandle.insertWikiLinkTrigger();
+        }
+        function scRunView(mode) {
+          setDocViewMode(mode);
+          if (window.innerWidth <= 900) document.body.classList.add('nav-open');
+        }
+        function scRunSettings() {
+          var btn = document.getElementById('settingsBtn');
+          if (btn && btn.getClientRects().length) {
+            openSettingsMenu();
+            kbFocusFirst(settingsMenuEl);
+          } else {
+            openTopMenu();
+            kbFocusFirst(topMenuEl);
+          }
+        }
+        var SHORTCUTS = [
+          /* General */
+          { id: 'view-documents', combo: 'mod+1', hint: '⌘1', group: 'General', label: 'Documents view',
+            run: function () { scRunView('documents'); } },
+          { id: 'view-favorites', combo: 'mod+2', hint: '⌘2', group: 'General', label: 'Favorites view',
+            run: function () { scRunView('favorites'); } },
+          { id: 'new-doc', combo: 'mod+alt+n', hint: '⌘⌥N', group: 'General', label: 'New document',
+            run: function () { scClickBtn(document.getElementById('newDocBtn')); } },
+          { id: 'new-folder', combo: 'mod+alt+shift+n', hint: '⌘⌥⇧N', group: 'General', label: 'New folder',
+            run: function () { scClickBtn(document.getElementById('newFolderBtn')); } },
+          { id: 'import', combo: 'mod+alt+i', hint: '⌘⌥I', group: 'General', label: 'Import a file',
+            run: function () { scClickBtn(document.getElementById('importBtn')); } },
+          { id: 'save-now', combo: 'mod+s', hint: '⌘S', group: 'General', label: 'Save & sync now',
+            run: function () {
+              if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+              persist(true);
+              pushAll();
+            } },
+          { id: 'print', combo: 'mod+p', hint: '⌘P', group: 'General', label: 'Print',
+            run: function () { printDocById(lib.currentId); } },
+          { id: 'share', combo: 'mod+alt+s', hint: '⌘⌥S', group: 'General', label: 'Share',
+            run: function () { openShareModal(); } },
+          { id: 'favorite', combo: 'mod+shift+f', hint: '⌘⇧F', group: 'General', label: 'Favorite / unfavorite',
+            run: function () { toggleFavorite(lib.currentId); } },
+          { id: 'move-doc', combo: 'mod+alt+v', hint: '⌘⌥V', group: 'General', label: 'Move document to folder',
+            run: function () { openMoveMenu(docBarMenuBtn, lib.currentId); kbFocusFirst(moveMenuEl); } },
+          { id: 'export-md', combo: 'mod+alt+m', hint: '⌘⌥M', group: 'General', label: 'Export as Markdown',
+            run: function () { exportDocMarkdown(lib.currentId); } },
+          { id: 'export-pdf', combo: 'mod+alt+p', hint: '⌘⌥P', group: 'General', label: 'Export as PDF',
+            run: function () { exportDocPDF(lib.currentId); } },
+          { id: 'delete-doc', combo: 'mod+alt+backspace', hint: '⌘⌥⌫', group: 'General', label: 'Delete document',
+            run: function () { if (lib.docs.length > 1) openDeleteModal(lib.currentId); } },
+          { id: 'toggle-toolbars', combo: 'mod+alt+b', hint: '⌘⌥B', group: 'General', label: 'Show / hide toolbars',
+            run: function () { setToolbarsHidden(!toolbarsHidden); } },
+          { id: 'toggle-ctxbar', combo: 'mod+alt+shift+b', hint: '⌘⌥⇧B', group: 'General', label: 'Show / hide secondary toolbar',
+            run: function () { if (!toolbarsHidden) setCtxBarHidden(!ctxBarHidden); } },
+          { id: 'library', combo: 'mod+alt+l', hint: '⌘⌥L', group: 'General', label: 'Show / hide library',
+            run: function () { document.body.classList.toggle('nav-open'); } },
+          { id: 'settings', combo: 'mod+,', hint: '⌘,', group: 'General', label: 'Settings',
+            run: function () { scRunSettings(); } },
+          { id: 'shortcuts-help', combo: 'mod+/', hint: '⌘/', group: 'General', label: 'Keyboard shortcuts',
+            run: function () { openShortcutsModal(); } },
+          /* Formatting */
+          { id: 'bold', combo: 'mod+b', hint: '⌘B', group: 'Formatting', label: 'Bold',
+            run: function () { scClickBtn(toolbarBtns.bold); } },
+          { id: 'italic', combo: 'mod+i', hint: '⌘I', group: 'Formatting', label: 'Italic',
+            run: function () { scClickBtn(toolbarBtns.italic); } },
+          { id: 'strike', combo: 'mod+shift+x', hint: '⌘⇧X', group: 'Formatting', label: 'Strikethrough',
+            run: function () { scClickBtn(toolbarBtns.strike); } },
+          { id: 'code', combo: 'mod+`', hint: '⌘`', group: 'Formatting', label: 'Inline code',
+            run: function () { scClickBtn(toolbarBtns.code); } },
+          { id: 'highlight', combo: 'mod+shift+h', hint: '⌘⇧H', group: 'Formatting', label: 'Highlight',
+            run: function () { scRunFormatPop('highlight'); } },
+          { id: 'textcolor', combo: 'mod+shift+c', hint: '⌘⇧C', group: 'Formatting', label: 'Text color',
+            run: function () { scRunFormatPop('textcolor'); } },
+          { id: 'h1', combo: 'mod+alt+1', hint: '⌘⌥1', group: 'Formatting', label: 'Heading 1',
+            run: function () { scClickBtn(toolbarBtns.h1); } },
+          { id: 'h2', combo: 'mod+alt+2', hint: '⌘⌥2', group: 'Formatting', label: 'Heading 2',
+            run: function () { scClickBtn(toolbarBtns.h2); } },
+          { id: 'h3', combo: 'mod+alt+3', hint: '⌘⌥3', group: 'Formatting', label: 'Heading 3',
+            run: function () { scClickBtn(toolbarBtns.h3); } },
+          { id: 'h4', combo: 'mod+alt+4', hint: '⌘⌥4', group: 'Formatting', label: 'Heading 4',
+            run: function () { scChain(function (c) { c.toggleHeading({ level: 4 }).run(); }); } },
+          { id: 'para', combo: 'mod+alt+0', hint: '⌘⌥0', group: 'Formatting', label: 'Body text',
+            run: function () { scClickBtn(toolbarBtns.para); } },
+          { id: 'bullet', combo: 'mod+shift+8', hint: '⌘⇧8', group: 'Formatting', label: 'Bullet list',
+            run: function () { scClickBtn(toolbarBtns.bullet); } },
+          { id: 'ordered', combo: 'mod+shift+7', hint: '⌘⇧7', group: 'Formatting', label: 'Numbered list',
+            run: function () { scClickBtn(toolbarBtns.ordered); } },
+          { id: 'quote', combo: 'mod+shift+b', hint: '⌘⇧B', group: 'Formatting', label: 'Blockquote',
+            run: function () { scClickBtn(toolbarBtns.quote); } },
+          { id: 'codeblock', combo: 'mod+alt+c', hint: '⌘⌥C', group: 'Formatting', label: 'Code block',
+            run: function () { scChain(function (c) { c.toggleCodeBlock().run(); }); } },
+          { id: 'divider', combo: 'mod+alt+-', hint: '⌘⌥-', group: 'Formatting', label: 'Divider',
+            run: function () { scChain(function (c) { c.setHorizontalRule().run(); }); } },
+          { id: 'table-insert', combo: 'mod+alt+t', hint: '⌘⌥T', group: 'Formatting', label: 'Insert table',
+            run: function () {
+              if (!editorHandle) return;
+              if (toolbarBtns.table && toolbarBtns.table.getClientRects().length) toolbarBtns.table.click();
+              else openTblPop(docBarMenuBtn);
+            } },
+          { id: 'wikilink', combo: 'mod+alt+k', hint: '⌘⌥K', group: 'Formatting', label: 'Wiki-link',
+            run: function () { scRunWikilink(); } },
+          { id: 'datestamp', combo: 'mod+alt+d', hint: '⌘⌥D', group: 'Formatting', label: 'Date stamp',
+            run: function () {
+              var s = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+              scChain(function (c) { c.insertContent({ type: 'text', text: s }).run(); });
+            } },
+          { id: 'clearfmt', combo: 'mod+alt+r', hint: '⌘⌥R', group: 'Formatting', label: 'Clear formatting',
+            run: function () { scChain(function (c) { c.unsetAllMarks().clearNodes().run(); }); } },
+          { id: 'copy-sel', combo: 'mod+c', hint: '⌘C', group: 'Formatting', label: 'Copy selection', native: true },
+          { id: 'undo', combo: 'mod+z', hint: '⌘Z', group: 'Formatting', label: 'Undo',
+            run: function () { scClickBtn(toolbarBtns.undo); } },
+          { id: 'redo', combo: 'mod+shift+z', hint: '⌘⇧Z', group: 'Formatting', label: 'Redo',
+            run: function () { scClickBtn(toolbarBtns.redo); } },
+          /* Table */
+          { id: 'tbl-row-below', combo: 'mod+alt+arrowdown', hint: '⌘⌥↓', group: 'Table', label: 'Add row below',
+            run: function () {
+              if (!editorHandle) return;
+              runTableCmd(function () {
+                editorHandle.editor.chain().focus().folioAddRowAfter().run();
+                refreshToolbar();
+              });
+            } },
+          { id: 'tbl-col-right', combo: 'mod+alt+arrowright', hint: '⌘⌥→', group: 'Table', label: 'Add column to the right',
+            run: function () {
+              if (!editorHandle) return;
+              runTableCmd(function () {
+                editorHandle.editor.chain().focus().folioAddColumnAfter().run();
+                refreshToolbar();
+              });
+            } },
+        ];
+        var SHORTCUT_BY_ID = {};
+        var SHORTCUT_BY_COMBO = {};
+        SHORTCUTS.forEach(function (sc) {
+          SHORTCUT_BY_ID[sc.id] = sc;
+          SHORTCUT_BY_COMBO[sc.combo] = sc;
+        });
+        function hintFor(id) {
+          if (!SHORTCUTS || !id) return '';
+          var sc = SHORTCUT_BY_ID[id];
+          return sc ? sc.hint : '';
+        }
+        function scHintSuffix(id) {
+          var h = hintFor(id);
+          return h ? ' · ' + h : '';
+        }
+        /* The gray hint span for a menu item proxied from a
+           button: the button's data-sc names its registry entry,
+           so overflow and context menus show the same hint the
+           registry fires. */
+        function addMenuHint(itemEl, sourceEl) {
+          if (!itemEl || !sourceEl || !sourceEl.getAttribute) return;
+          var hint = hintFor(sourceEl.getAttribute('data-sc'));
+          if (!hint) return;
+          var h = document.createElement('span');
+          h.className = 'm-hint';
+          h.textContent = hint;
+          itemEl.appendChild(h);
+        }
+        /* Normalize a keydown into the registry's combo form.
+           Letters and digits come from ev.code, so a shifted
+           digit still names its key (⇧8, not *) and the binding
+           is the physical key the hint shows. */
+        function scComboOf(ev) {
+          var parts = [];
+          if (ev.metaKey || ev.ctrlKey) parts.push('mod');
+          if (ev.altKey) parts.push('alt');
+          if (ev.shiftKey) parts.push('shift');
+          var code = ev.code || '';
+          var key;
+          if (/^Key[A-Z]$/.test(code)) key = code.slice(3).toLowerCase();
+          else if (/^Digit[0-9]$/.test(code)) key = code.slice(5);
+          else if (code === 'Backquote') key = '`';
+          else if (code === 'Slash') key = '/';
+          else if (code === 'Comma') key = ',';
+          else if (code === 'Minus') key = '-';
+          else if (code === 'Period') key = '.';
+          else key = String(ev.key || '').toLowerCase();
+          if (key === ' ') key = 'space';
+          parts.push(key);
+          return parts.join('+');
+        }
+        /* While a modal or the public share view owns the
+           screen, shortcuts stand down (the modal's own keys,
+           and the legacy ⌘P fallback, still work there). */
+        function scAnyOverlayOpen() {
+          var ids = ['shareModal', 'deleteModal', 'shortcutsModal', 'authOverlay', 'shareView'];
+          for (var i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (el && !el.hidden) return true;
+          }
+          return false;
+        }
+        /* Typing in a rename field, a dialog input, or any other
+           text field must never fire a shortcut — the editor's
+           own contenteditable is the one exception, and the
+           safe globals below still apply inside fields. */
+        function scInTextField(ev) {
+          var t = ev.target;
+          if (!t || t === document.body) return false;
+          if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
+          if (t.isContentEditable && !(t.closest && t.closest('#editorMount'))) return true;
+          return false;
+        }
+        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true };
+        /* ---------------- menu keyboard navigation -------------
+           While any .menu is open, ↑/↓ move a visible focus
+           through its items (Enter and Space then choose
+           natively — the items are real buttons — and Esc
+           closes through the existing handler). Menus a shortcut
+           opens focus their first item, so the whole flow —
+           open, move, choose — never needs a pointer. */
+        function scMenuItems(menu) {
+          return Array.prototype.slice.call(menu.querySelectorAll('.menu-item:not(:disabled), .tb-btn:not(:disabled)')).filter(function (el) {
+            return el.getClientRects().length > 0;
+          });
+        }
+        function kbFocusItem(menu, item) {
+          if (!menu || !item) return;
+          menu.querySelectorAll('.kb-focus').forEach(function (el) { el.classList.remove('kb-focus'); });
+          item.classList.add('kb-focus');
+          item.focus();
+          if (item.scrollIntoView) item.scrollIntoView({ block: 'nearest' });
+        }
+        function kbFocusFirst(menuEl) {
+          if (!menuEl) return;
+          setTimeout(function () {
+            if (!menuEl.classList.contains('open')) return;
+            var items = scMenuItems(menuEl);
+            if (items.length) kbFocusItem(menuEl, items[0]);
+          }, 0);
+        }
+        function scMenuNav(menu, dir) {
+          var items = scMenuItems(menu);
+          if (!items.length) return false;
+          var idx = items.indexOf(document.activeElement);
+          var next = idx === -1
+            ? (dir > 0 ? items[0] : items[items.length - 1])
+            : items[(idx + dir + items.length) % items.length];
+          kbFocusItem(menu, next);
+          return true;
+        }
+        document.addEventListener('keydown', function (ev) {
+          if (ev.isComposing) return;
+          if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')) {
+            var menu = document.querySelector('.menu.open');
+            if (menu && scMenuNav(menu, ev.key === 'ArrowDown' ? 1 : -1)) {
+              ev.preventDefault();
+              ev.stopPropagation();
+            }
+            return;
+          }
+          var sc = SHORTCUT_BY_COMBO[scComboOf(ev)];
+          if (!sc || sc.native || !sc.run) return;
+          if (scAnyOverlayOpen()) return;
+          if (scInTextField(ev) && !SC_SAFE_IN_FIELD[sc.id]) return;
+          /* Capture phase + stopPropagation: the editor's own
+             keymap never sees a combo the registry owns, so
+             nothing can fire twice; unregistered keys pass
+             through untouched (markdown shortcuts, surround on
+             type, the suggestion popup's own keys). */
+          ev.preventDefault();
+          ev.stopPropagation();
+          sc.run(ev);
+        }, true);
+        /* Toolbar tooltips gain their shortcut from the same
+           registry: every button carrying data-sc gets " · ⌘…"
+           appended, unless its tip already names the keys. */
+        document.querySelectorAll('[data-sc]').forEach(function (el) {
+          var hint = hintFor(el.getAttribute('data-sc'));
+          if (!hint) return;
+          var tip = el.getAttribute('data-tip');
+          if (tip) {
+            if (tip.indexOf(hint) === -1) el.setAttribute('data-tip', tip + ' · ' + hint);
+          } else {
+            var label = el.getAttribute('aria-label');
+            if (label) el.setAttribute('data-tip', label + ' · ' + hint);
+          }
+        });
+        /* The two state-flipping toggle buttons build their
+           tooltips from the registry too — repaint them now
+           that it exists (their first paint ran before it). */
+        applyToolbarsBtn();
+        applyCtxToolsBtn();
+
+        /* ---------------- shortcuts reference dialog ----------
+           Rendered from the registry on every open, grouped as
+           the registry groups them, so the list can never drift
+           from the bindings either. */
+        var shortcutsModalEl = document.getElementById('shortcutsModal');
+        function openShortcutsModal() {
+          if (!shortcutsModalEl) return;
+          closeSettingsMenu();
+          closeTopMenu();
+          var list = document.getElementById('shortcutsList');
+          list.innerHTML = '';
+          var groups = [];
+          SHORTCUTS.forEach(function (sc) { if (groups.indexOf(sc.group) === -1) groups.push(sc.group); });
+          groups.forEach(function (g) {
+            var wrap = document.createElement('div');
+            wrap.className = 'sc-group';
+            var head = document.createElement('div');
+            head.className = 'pop-label';
+            head.textContent = g;
+            wrap.appendChild(head);
+            SHORTCUTS.forEach(function (sc) {
+              if (sc.group !== g) return;
+              var row = document.createElement('div');
+              row.className = 'sc-row';
+              var name = document.createElement('span');
+              name.className = 'sc-name';
+              name.textContent = sc.label;
+              row.appendChild(name);
+              var key = document.createElement('span');
+              key.className = 'sc-key';
+              key.textContent = sc.hint;
+              row.appendChild(key);
+              wrap.appendChild(row);
+            });
+            list.appendChild(wrap);
+          });
+          shortcutsModalEl.hidden = false;
+          var closeBtn = document.getElementById('shortcutsClose');
+          if (closeBtn) closeBtn.focus();
+        }
+        function closeShortcutsModal() {
+          if (shortcutsModalEl) shortcutsModalEl.hidden = true;
+        }
+        document.getElementById('shortcutsClose').addEventListener('click', closeShortcutsModal);
+        shortcutsModalEl.addEventListener('click', function (ev) {
+          if (ev.target === this) closeShortcutsModal();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && shortcutsModalEl && !shortcutsModalEl.hidden) closeShortcutsModal();
+        });
 
         /* ---------------- init ---------------- */
         renderTagFilterBar();
