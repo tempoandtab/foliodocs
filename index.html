@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-24" />
+    <meta name="folio-build" content="20261024-25" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1852,8 +1852,12 @@
            every button keeps the first row at its usual size,
            and the title drops to a second row beside its
            settings chevron with nearly the full width of the
-           bar — real words on up to two lines (the 860px tier's
-           cap still applies), never a per-character stack. The
+           bar, on ONE line: the title module shrinks its font
+           (the 21px base down toward a 13px floor) until the
+           whole title fits, and past the floor shows what fits
+           with a trailing …. While the title is being edited it
+           returns to the base size and the 860px tier's wrap, so
+           the full text stays readable and reachable. The
            title's min-width reserves exactly the chevron's slot
            (42px + the 6px gap) so the pair always shares the
            second row. The first row's trailing cluster stays
@@ -1871,6 +1875,19 @@
         .topbar .title-input {
           order: 7;
           flex: 1 1 0; min-width: calc(100% - 48px);
+          /* Display state: one line, no wrap — the title
+             module shrinks the font to fit and truncates the
+             SHOWN text with an ellipsis past the floor (the
+             stored title is never touched). */
+          white-space: nowrap; overflow: hidden;
+          max-height: calc(1.3em + 12px);
+        }
+        /* Editing state: the 860px tier's wrap returns (the
+           module also clears its font shrink), capped at two
+           lines with internal scroll past that. */
+        .topbar .title-input.title-editing {
+          white-space: normal; overflow-y: auto;
+          max-height: calc(1.3em * 2 + 12px);
         }
         .topbar #docSettingsBtn { order: 8; }
         :root:not([data-toolbars="hidden"]) .topbar #focusBtn { margin-left: auto; }
@@ -5947,6 +5964,7 @@
           lib.currentId = id;
           document.getElementById('titleInput').value = doc.title;
           fitTitleHeight();
+          fitTitlePhone();
           if (editorHandle) {
             editorHandle.setContent(doc.content);
             editorScroll.scrollTop = 0;
@@ -8979,6 +8997,87 @@
           titleInput.style.height = 'auto';
           titleInput.style.height = titleInput.scrollHeight + 'px';
         }
+        /* Phone title display (≤620px, where the topbar puts
+           the title on its own row): the title shows on ONE
+           line. fitTitlePhone steps the font down from the
+           21px base toward a 13px floor until the whole title
+           fits the width beside the settings chevron; past the
+           floor it shows what fits with a trailing …. Both are
+           display-only — the field's shown text is swapped,
+           never the document's title — and focusing the field
+           restores the full title at the base size (with the
+           wrap the 860px tier gives it) for editing; when
+           editing ends the display rule reapplies. */
+        var phoneTitleMq = window.matchMedia('(max-width: 620px)');
+        var TITLE_BASE_PX = 21;
+        var TITLE_FLOOR_PX = 13;
+        var titleShownTruncated = false;
+        var titleMeasureCtx = null;
+        function titleTextWidth(text, px) {
+          if (!titleMeasureCtx) titleMeasureCtx = document.createElement('canvas').getContext('2d');
+          titleMeasureCtx.font = '600 ' + px + 'px Newsreader, Georgia, serif';
+          return titleMeasureCtx.measureText(text).width;
+        }
+        function clearTitlePhoneDisplay() {
+          titleInput.style.removeProperty('font-size');
+          if (titleShownTruncated) {
+            var doc = currentDoc();
+            if (doc) titleInput.value = doc.title;
+            titleShownTruncated = false;
+          }
+        }
+        function fitTitlePhone() {
+          if (!phoneTitleMq || !titleInput) return;
+          if (!phoneTitleMq.matches || document.activeElement === titleInput) {
+            clearTitlePhoneDisplay();
+            return;
+          }
+          var doc = currentDoc();
+          var full = doc ? doc.title : titleInput.value;
+          /* The text box: the field's width minus its own
+             horizontal padding (8px a side), plus a hair of
+             safety so a borderline fit never clips a glyph. */
+          var avail = titleInput.clientWidth - 16 - 2;
+          if (avail <= 0) return;
+          var size = TITLE_BASE_PX;
+          while (size > TITLE_FLOOR_PX && titleTextWidth(full, size) > avail) size -= 0.5;
+          titleInput.style.fontSize = size + 'px';
+          if (titleTextWidth(full, size) <= avail) {
+            if (titleInput.value !== full) titleInput.value = full;
+            titleShownTruncated = false;
+          } else {
+            var lo = 0, hi = full.length;
+            while (lo < hi) {
+              var mid = (lo + hi + 1) >> 1;
+              if (titleTextWidth(full.slice(0, mid) + '…', TITLE_FLOOR_PX) <= avail) lo = mid;
+              else hi = mid - 1;
+            }
+            titleInput.value = full.slice(0, lo) + '…';
+            titleShownTruncated = true;
+          }
+          titleInput.scrollLeft = 0;
+          titleInput.scrollTop = 0;
+          fitTitleHeight();
+        }
+        fitTitlePhone();
+        window.addEventListener('resize', fitTitlePhone);
+        if (phoneTitleMq.addEventListener) phoneTitleMq.addEventListener('change', fitTitlePhone);
+        /* Font metrics change when the webfont lands, and the
+           title's available width changes when the toolbar
+           preference or focus mode flips the chrome around it. */
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fitTitlePhone(); });
+        new MutationObserver(function () { fitTitlePhone(); }).observe(document.documentElement, {
+          attributes: true, attributeFilter: ['data-toolbars', 'data-focus']
+        });
+        titleInput.addEventListener('focus', function () {
+          titleInput.classList.add('title-editing');
+          clearTitlePhoneDisplay();
+          fitTitleHeight();
+        });
+        titleInput.addEventListener('blur', function () {
+          titleInput.classList.remove('title-editing');
+          fitTitlePhone();
+        });
         titleInput.addEventListener('input', function () {
           // One logical line even where the display wraps:
           // pasted line breaks become spaces.
@@ -11170,7 +11269,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-24';
+        var FOLIO_BUILD = '20261024-25';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
