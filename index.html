@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-15" />
+    <meta name="folio-build" content="20261024-16" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1424,6 +1424,7 @@
         outline: 2px solid var(--accent); outline-offset: 2px;
       }
       .theme-row.kb-focus, .fbm-item.kb-focus { background: var(--hover); }
+      .outline-item.kb-focus { background: var(--hover); color: var(--ink); }
       .tbl-gc.kb-focus { outline: 2px solid var(--accent); outline-offset: 1px; position: relative; z-index: 1; }
 
       /* ---------------- Shortcuts reference ---------------- */
@@ -2171,7 +2172,7 @@
 
         <div class="outline-anchor">
           <div class="outline-pop" id="outlinePop">
-            <button class="outline-toggle" id="outlineToggle" type="button" aria-label="Document outline" aria-expanded="false" aria-haspopup="true" data-tip="Outline — jump to a heading">
+            <button class="outline-toggle" id="outlineToggle" type="button" aria-label="Document outline" aria-expanded="false" aria-haspopup="true" data-tip="Outline — jump to a heading" data-sc="outline-toggle">
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h7"/><path d="M4 6h.01M4 12h.01M4 18h.01" stroke-width="2.6"/></svg>
             </button>
             <div class="outline-card" id="outlineCard" hidden>
@@ -3802,6 +3803,7 @@
         var outlinePinned = false;
         try { outlinePinned = localStorage.getItem(OUTLINE_PIN_KEY) === 'pinned'; } catch (e) {}
         var outlineOpen = outlinePinned;
+        var outlineKb = false;
         var outlineReducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
         var outlinePopEl = document.getElementById('outlinePop');
         var outlineToggleBtn = document.getElementById('outlineToggle');
@@ -3837,6 +3839,14 @@
             outlineCardEl.classList.toggle('content-in', outlineOpen);
           }
           if (outlineToggleBtn) outlineToggleBtn.style.visibility = outlineOpen ? 'hidden' : '';
+          /* Every close path lands here — click-away, Esc, a
+             heading jump, the toggle shortcut — so keyboard
+             focus mode (below) ends with the card, however it
+             was dismissed. */
+          if (!outlineOpen) {
+            outlineKb = false;
+            if (outlineEl) outlineEl.querySelectorAll('.kb-focus').forEach(function (el) { el.classList.remove('kb-focus'); });
+          }
           syncOutlineChrome();
         }
         function setOutlineOpen(open) {
@@ -3919,6 +3929,97 @@
           setOutlineOpen(false);
         }, true);
         applyOutlinePop();
+
+        /* ---------------- outline keyboard focus -------------
+           The registry's Outline shortcut (⌘⌥O) is an explicit
+           toggle with a keyboard mode the mouse path never
+           enters: opening it lands a .kb-focus highlight on
+           the heading nearest the caret, ↑/↓ walk the headings
+           (the shortcut dispatcher's capture branch routes the
+           keys here while the mode is live, so the caret and
+           the scroll position behind the card never move),
+           Enter clicks the highlighted item — the same handler
+           a mouse click runs, so the jump and the unpinned
+           fold come for free — and Esc closes without jumping.
+           As an explicit toggle the shortcut closes the card
+           even when pinned; the pin preference itself is
+           untouched and still governs click-away and jumps. */
+        function outlineKbItems() {
+          if (!outlineEl) return [];
+          return Array.prototype.slice.call(outlineEl.querySelectorAll('.outline-item'));
+        }
+        function outlineKbCurrent() {
+          var items = outlineKbItems();
+          var cur = outlineEl ? outlineEl.querySelector('.kb-focus') : null;
+          return cur && items.indexOf(cur) !== -1 ? cur : null;
+        }
+        function outlineKbSet(item) {
+          if (!item) return;
+          outlineEl.querySelectorAll('.kb-focus').forEach(function (el) { el.classList.remove('kb-focus'); });
+          item.classList.add('kb-focus');
+          if (item.scrollIntoView) item.scrollIntoView({ block: 'nearest' });
+        }
+        /* The heading the highlight opens on: the last heading
+           at or above the caret, else the first heading. */
+        function outlineKbStartIndex(items) {
+          var idx = 0;
+          var ed = editorHandle && editorHandle.editor;
+          if (ed && ed.state && ed.state.selection && ed.state.doc) {
+            var from = ed.state.selection.from;
+            var seen = -1;
+            ed.state.doc.descendants(function (node, pos) {
+              if (node.type && node.type.name === 'heading') {
+                seen++;
+                if (pos <= from) idx = seen;
+              }
+            });
+          }
+          return Math.min(idx, items.length - 1);
+        }
+        function outlineKbPrime() {
+          if (!outlineKb || !outlineOpen) return;
+          var items = outlineKbItems();
+          if (!items.length || outlineKbCurrent()) return;
+          outlineKbSet(items[outlineKbStartIndex(items)]);
+        }
+        function outlineKbEnter() {
+          outlineKb = true;
+          /* Prime once the morph has unhidden the card, and
+             again when it settles, in case layout was not
+             ready for the first pass. */
+          setTimeout(outlineKbPrime, 0);
+          setTimeout(outlineKbPrime, OUTLINE_MORPH_MS + 60);
+        }
+        function outlineKbExit(refocus) {
+          outlineKb = false;
+          if (outlineEl) outlineEl.querySelectorAll('.kb-focus').forEach(function (el) { el.classList.remove('kb-focus'); });
+          if (refocus && editorHandle) editorHandle.editor.chain().focus().run();
+        }
+        function outlineKbMove(dir) {
+          var items = outlineKbItems();
+          if (!items.length) return;
+          var cur = outlineKbCurrent();
+          if (!cur) { outlineKbPrime(); return; }
+          var next = items.indexOf(cur) + dir;
+          if (next < 0) next = 0;
+          if (next > items.length - 1) next = items.length - 1;
+          outlineKbSet(items[next]);
+        }
+        function toggleOutlineKb() {
+          if (outlineOpen) {
+            setOutlineOpen(false);
+            outlineKbExit(true);
+          } else {
+            setOutlineOpen(true);
+            outlineKbEnter();
+          }
+        }
+        /* A pointer press inside the card hands control back
+           to the mouse: the keyboard mode ends, the mouse's
+           own handlers run exactly as before. */
+        if (outlinePopEl) outlinePopEl.addEventListener('pointerdown', function () {
+          if (outlineKb) outlineKbExit(false);
+        });
 
         /* ---------------- context tools button (small screens) ----
            One topbar button in the slot next to the both-toolbars
@@ -10576,7 +10677,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-15';
+        var FOLIO_BUILD = '20261024-16';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -10770,6 +10871,14 @@
              registry uses it. */
           { id: 'focus-mode', combo: 'mod+alt+f', hint: '⌘⌥F', group: 'General', label: 'Focus mode',
             run: function () { setFocusMode(!focusMode); } },
+          /* ⌘⌥O: O for Outline. Unclaimed by iPadOS and Safari,
+             unused elsewhere in this registry, and its Option
+             glyph (ø) already resolves through the dispatcher's
+             Option-character table. The run is the keyboard
+             toggle: it opens the outline keyboard-focused and
+             closes it even when pinned (see the outline block). */
+          { id: 'outline-toggle', combo: 'mod+alt+o', hint: '⌘⌥O', group: 'General', label: 'Show / hide outline',
+            run: function () { toggleOutlineKb(); } },
           { id: 'settings', combo: 'mod+,', hint: '⌘,', group: 'General', label: 'Settings',
             run: function () { scRunSettings(); } },
           { id: 'shortcuts-help', combo: 'mod+/', hint: '⌘/', group: 'General', label: 'Keyboard shortcuts',
@@ -10929,11 +11038,8 @@
           '÷': '/'
         };
         function scComboOf(ev) {
-          var parts = [];
-          if (ev.metaKey || ev.ctrlKey) parts.push('mod');
-          if (ev.altKey) parts.push('alt');
-          if (ev.shiftKey) parts.push('shift');
           var code = ev.code || '';
+          var rawKey = String(ev.key || '').toLowerCase();
           var key;
           if (/^Key[A-Z]$/.test(code)) key = code.slice(3).toLowerCase();
           else if (/^Digit[0-9]$/.test(code)) key = code.slice(5);
@@ -10942,15 +11048,45 @@
           else if (code === 'Comma') key = ',';
           else if (code === 'Minus') key = '-';
           else if (code === 'Period') key = '.';
-          else key = String(ev.key || '').toLowerCase();
+          else key = rawKey;
           if (key === ' ') key = 'space';
-          if (ev.altKey && key.length === 1) {
+          /* A dead-key or unidentified press names no key at
+             all ('Dead' is what WebKit reports for an Option
+             chord it treats as a compose start, and an empty
+             ev.code gives nothing to fall back on) — but the
+             legacy keyCode still carries the physical key's
+             identity in that shape, so recover letters and
+             digits from it. Only fires where the resolved key
+             is otherwise unusable, so named keys (Backspace,
+             arrows, Escape) never pass through here. */
+          if ((key === 'dead' || key === 'unidentified' || key === '') && (ev.keyCode || ev.which)) {
+            var kc = ev.keyCode || ev.which;
+            if (kc >= 65 && kc <= 90) key = String.fromCharCode(kc + 32);
+            else if (kc >= 48 && kc <= 57) key = String.fromCharCode(kc);
+          }
+          /* An Option-layer glyph in ev.key is itself proof
+             Option was physically held — the glyph cannot be
+             produced without it — so when a mod chord arrives
+             carrying the glyph but with altKey unflagged (the
+             shape the -15 build still missed on a real iPad:
+             key 'ƒ', metaKey set, altKey clear), count Alt as
+             held and let the translation below resolve the
+             glyph to its physical key. A plain ⌘F reports key
+             'f', never 'ƒ', so no un-Optioned chord can grow
+             an Alt it did not have. */
+          var altHeld = !!ev.altKey ||
+            ((ev.metaKey || ev.ctrlKey) && rawKey.length === 1 && !!SC_OPTION_CHARS[rawKey]);
+          if (altHeld && key.length === 1) {
             if (SC_OPTION_CHARS[key]) key = SC_OPTION_CHARS[key];
             else if (key.charCodeAt(0) > 127 && key.normalize) {
               var folded = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
               if (/^[a-z0-9]$/.test(folded)) key = folded;
             }
           }
+          var parts = [];
+          if (ev.metaKey || ev.ctrlKey) parts.push('mod');
+          if (altHeld) parts.push('alt');
+          if (ev.shiftKey) parts.push('shift');
           parts.push(key);
           return parts.join('+');
         }
@@ -10976,7 +11112,12 @@
           if (t.isContentEditable && !(t.closest && t.closest('#editorMount'))) return true;
           return false;
         }
-        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true };
+        /* Focus mode rides along: it is a global view toggle
+           like the view switches, and its ⌘⌥F chord cannot be
+           typed into a field as text, so letting it fire from
+           the title field (the natural place the caret sits
+           after naming a doc) costs the typing guard nothing. */
+        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
@@ -11185,6 +11326,46 @@
         document.addEventListener('keydown', function (ev) {
           if (ev.isComposing) return;
           if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey) {
+            /* While the outline is keyboard-focused (opened
+               with ⌘⌥O), it owns ↑/↓, Enter, and Esc the same
+               way an open popover owns its keys below: the
+               presses are swallowed here in the capture phase,
+               so the document never scrolls and the caret never
+               moves behind the card. Esc is handled even if
+               the card is mid-close — the older outline Esc
+               listener may already have folded it — so focus
+               reliably returns to the editor. */
+            if (outlineKb && !document.querySelector('.menu.open')) {
+              if (ev.key === 'Escape') {
+                if (outlineOpen) setOutlineOpen(false);
+                outlineKbExit(true);
+                ev.preventDefault();
+                ev.stopPropagation();
+                return;
+              }
+              if (outlineOpen && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')) {
+                outlineKbMove(ev.key === 'ArrowDown' ? 1 : -1);
+                ev.preventDefault();
+                ev.stopPropagation();
+                return;
+              }
+              if (outlineOpen && ev.key === 'Enter') {
+                var okbItems = outlineKbItems();
+                var okbCur = outlineKbCurrent() || okbItems[0];
+                if (okbCur) {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  /* The item's own click handler jumps and,
+                     when unpinned, folds the card; hand focus
+                     back to the editor when it folded. When
+                     pinned the card — and the keyboard mode —
+                     stay live. */
+                  okbCur.click();
+                  if (!outlineOpen) outlineKbExit(true);
+                }
+                return;
+              }
+            }
             /* An open popover owns the arrows and Enter while it
                is up (see the popover navigation block above):
                the keys never reach the editor, so the caret
