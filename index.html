@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-23" />
+    <meta name="folio-build" content="20261024-24" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1841,6 +1841,39 @@
         .toolbar .tb-sep { margin: 0 3px; }
         .toolbar [data-more="b"] { display: none; }
         .statusbar .status-hint { display: none; }
+        /* Phone topbar: two rows. In a single row the buttons
+           alone — library, Back, Forward, the title's settings
+           chevron, the context-tools button (in the bar while
+           the toolbars are hidden), Zen, and the overflow, 42px
+           each plus gaps and bar padding — consume nearly the
+           whole ~390px screen, leaving the title a sliver so
+           narrow that the two-line wrap above stacks it a
+           character at a time. So at this tier the bar wraps:
+           every button keeps the first row at its usual size,
+           and the title drops to a second row beside its
+           settings chevron with nearly the full width of the
+           bar — real words on up to two lines (the 860px tier's
+           cap still applies), never a per-character stack. The
+           title's min-width reserves exactly the chevron's slot
+           (42px + the 6px gap) so the pair always shares the
+           second row. The first row's trailing cluster stays
+           right-aligned via an auto left margin on whichever
+           button leads it: the context-tools button while it
+           is in the bar (toolbars hidden), the Zen button
+           otherwise. */
+        .topbar { flex-wrap: wrap; }
+        .topbar #libraryToggle { order: 1; }
+        .topbar #navBackBtn { order: 2; }
+        .topbar #navForwardBtn { order: 3; }
+        .topbar #ctxToolsBtn { order: 4; margin-left: auto; }
+        .topbar #focusBtn { order: 5; }
+        .topbar #topOverflowBtn { order: 6; }
+        .topbar .title-input {
+          order: 7;
+          flex: 1 1 0; min-width: calc(100% - 48px);
+        }
+        .topbar #docSettingsBtn { order: 8; }
+        :root:not([data-toolbars="hidden"]) .topbar #focusBtn { margin-left: auto; }
         /* The context (second) bar needs no phone rules of its
            own: it is one row at every width, and its overflow
            manager folds whatever does not fit into its ⋯ menu
@@ -11137,7 +11170,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-23';
+        var FOLIO_BUILD = '20261024-24';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
