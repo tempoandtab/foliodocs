@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-19" />
+    <meta name="folio-build" content="20261024-20" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -372,6 +372,11 @@
         display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2);
       }
       .icon-btn:hover { background: var(--hover); color: var(--ink); }
+      /* A disabled icon button (the history chevrons at the ends
+         of the visit stack) dims and stops answering the hover,
+         the same face .tb-btn:disabled wears. */
+      .icon-btn:disabled { opacity: 0.35; cursor: default; }
+      .icon-btn:disabled:hover { background: none; color: var(--ink-2); }
       /* The library button shows at every width now: it toggles
          the sidebar — the drawer on narrow screens, the
          slide-away pane on wide ones (see the sidebar rules in
@@ -2109,6 +2114,12 @@
 
       <div class="main">
         <div class="topbar">
+          <button class="icon-btn" id="navBackBtn" type="button" aria-label="Back" data-sc="nav-back" data-tip="Back" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg>
+          </button>
+          <button class="icon-btn" id="navForwardBtn" type="button" aria-label="Forward" data-sc="nav-forward" data-tip="Forward" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>
+          </button>
           <button class="icon-btn" id="libraryToggle" type="button" aria-label="Hide library" aria-expanded="true" data-tip="Library &amp; folders">
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </button>
@@ -5676,9 +5687,179 @@
           if (editorHandle) editorHandle.refreshWikiLinks();
         }
 
+        /* ---------------- document navigation ----------------
+           Two kinds of travel, sharing one openDoc door.
+           HISTORY (⌘⌥← Back / ⌘⌥→ Forward, and the chevron
+           pair at the topbar's left edge): a browser-style
+           stack of opened documents with a position pointer.
+           Every genuine open — sidebar click, Omnisearch pick,
+           wikilink jump, the sibling walk below — records a
+           visit through openDoc: a visit truncates any forward
+           entries beyond the pointer and pushes, while Back /
+           Forward move the pointer only and never record.
+           Reopening the document already at the pointer
+           records nothing. The stack is a per-device habit,
+           not library data: it persists in localStorage like
+           the action bar's recents, capped at 50 entries, and
+           is pruned against the library on load, so a document
+           deleted on another device (or since the last visit)
+           simply drops out; an entry that dies while the app
+           runs is skipped over during traversal and stops
+           counting toward the chevrons' enabled state.
+           SIBLINGS (⌘⌥↑ Previous / ⌘⌥↓ Next): a walk through
+           the Documents view's flattened display order — the
+           sidebar's own tree order, folder nesting respected,
+           documents inside collapsed folders included without
+           touching any folder's expansion state — wrapping at
+           both ends. A sibling jump is a genuine open, so it
+           records into history like any other.
+           The vertical/horizontal split has one wrinkle: ⌘⌥↓
+           and ⌘⌥→ were already the table chords (Add row below
+           / Add column to the right). Those keep the chords
+           while the caret sits in a table — their registry
+           runs fall through to Next / Forward everywhere else,
+           so outside a table the arrows navigate instead of
+           landing nowhere.
+           All four chords stand down while a menu, a popover,
+           or the outline's keyboard mode owns the arrows (the
+           navSurfaceBusy guard on the registry runs and the
+           table fall-throughs); the palettes never see them at
+           all, because their inputs are text fields and these
+           commands are not field-safe. Navigation itself is
+           never recorded in the action bar's recents (see
+           abRecord): repeated flipping would flood the five
+           slots and push real actions out. */
+        var NAVHIST_KEY = 'folio-nav-history';
+        var NAVHIST_MAX = 50;
+        var navStack = [];
+        var navIdx = -1;
+        var navReady = false;
+        var navTraversing = false;
+
+        function navDocExists(id) {
+          return !!id && lib.docs.some(function (d) { return d.id === id; });
+        }
+        function folioCaretInTable() {
+          return !!(editorHandle && editorHandle.editor && editorHandle.editor.isActive('table'));
+        }
+        function navSurfaceBusy() {
+          if (document.querySelector('.menu.open')) return true;
+          if (typeof popNavOpenPop === 'function' && popNavOpenPop()) return true;
+          if (typeof outlineKb !== 'undefined' && outlineKb) return true;
+          return false;
+        }
+        function navHistSave() {
+          try { localStorage.setItem(NAVHIST_KEY, JSON.stringify({ stack: navStack, idx: navIdx })); } catch (e) {}
+        }
+        function navHasLive(dir) {
+          for (var i = navIdx + dir; i >= 0 && i < navStack.length; i += dir) {
+            if (navDocExists(navStack[i])) return true;
+          }
+          return false;
+        }
+        function navPaint() {
+          var backBtn = document.getElementById('navBackBtn');
+          var fwdBtn = document.getElementById('navForwardBtn');
+          if (backBtn) backBtn.disabled = !navHasLive(-1);
+          if (fwdBtn) fwdBtn.disabled = !navHasLive(1);
+        }
+        function navHistInit() {
+          if (navReady) return;
+          navReady = true;
+          try {
+            var savedNav = JSON.parse(localStorage.getItem(NAVHIST_KEY) || 'null');
+            if (savedNav && Array.isArray(savedNav.stack)) {
+              navStack = savedNav.stack.filter(function (x) { return typeof x === 'string'; });
+              navIdx = typeof savedNav.idx === 'number' ? savedNav.idx : navStack.length - 1;
+            }
+          } catch (e) {}
+          navStack = navStack.filter(function (id) { return navDocExists(id); });
+          if (navIdx >= navStack.length) navIdx = navStack.length - 1;
+          if (navIdx < 0) navIdx = navStack.length - 1;
+          var curId = lib.currentId;
+          if (curId && navDocExists(curId)) {
+            if (!navStack.length) {
+              navStack = [curId];
+              navIdx = 0;
+              navHistSave();
+            } else if (navStack[navIdx] !== curId) {
+              /* The open document is not where the pointer
+                 rests (first run on a second device, a cleared
+                 store): count the restore itself as a visit. */
+              navRecordVisit(curId);
+            }
+          }
+          navPaint();
+        }
+        function navRecordVisit(id) {
+          navHistInit();
+          if (!navDocExists(id)) return;
+          if (navIdx >= 0 && navStack[navIdx] === id) { navPaint(); return; }
+          navStack = navStack.slice(0, navIdx + 1);
+          navStack.push(id);
+          while (navStack.length > NAVHIST_MAX) navStack.shift();
+          navIdx = navStack.length - 1;
+          navHistSave();
+          navPaint();
+        }
+        function navStep(dir) {
+          navHistInit();
+          for (var i = navIdx + dir; i >= 0 && i < navStack.length; i += dir) {
+            if (!navDocExists(navStack[i])) continue;
+            navIdx = i;
+            navHistSave();
+            navTraversing = true;
+            openDoc(navStack[i], true);
+            navTraversing = false;
+            navPaint();
+            return;
+          }
+        }
+        function navBack() { navStep(-1); }
+        function navForward() { navStep(1); }
+        /* The sidebar's Documents view, flattened exactly as
+           rendered: at every level the child folders come
+           first (each contributing its whole subtree,
+           depth-first) and the level's own documents follow,
+           each group in its displayed order — sibling folders
+           in library order, documents by most recently edited.
+           Collapse state is ignored on purpose: a collapsed
+           folder's documents are still stops on the walk. */
+        function sidebarDocOrder() {
+          var out = [];
+          (function walk(folderId) {
+            childFolders(folderId).forEach(function (f) { walk(f.id); });
+            sortedDocs().forEach(function (d) {
+              if ((d.folderId || null) === (folderId || null)) out.push(d.id);
+            });
+          })(null);
+          return out;
+        }
+        function navSiblingDoc(dir) {
+          if (navSurfaceBusy()) return;
+          var order = sidebarDocOrder();
+          if (order.length < 2) return;
+          var i = order.indexOf(lib.currentId);
+          var nextId = i === -1
+            ? (dir > 0 ? order[0] : order[order.length - 1])
+            : order[(i + dir + order.length) % order.length];
+          if (nextId && nextId !== lib.currentId) openDoc(nextId, true);
+        }
+        function navNextDoc() { navSiblingDoc(1); }
+        function navPrevDoc() { navSiblingDoc(-1); }
+        var navBackBtnEl = document.getElementById('navBackBtn');
+        var navForwardBtnEl = document.getElementById('navForwardBtn');
+        if (navBackBtnEl) navBackBtnEl.addEventListener('click', function () { navBack(); });
+        if (navForwardBtnEl) navForwardBtnEl.addEventListener('click', function () { navForward(); });
+        navHistInit();
+
         function openDoc(id, focusEditor) {
           var doc = lib.docs.find(function (d) { return d.id === id; });
           if (!doc) return;
+          /* A genuine open records a history visit; a Back /
+             Forward traversal replays an entry instead (it set
+             navTraversing, and the pointer is already there). */
+          if (!navTraversing) navRecordVisit(id);
           persist(false);
           lib.currentId = id;
           document.getElementById('titleInput').value = doc.title;
@@ -5740,6 +5921,11 @@
             lib.currentId = sortedDocs()[0].id;
             openDoc(lib.currentId, false);
           }
+          /* The deleted document's history entries stay in the
+             stack as dead stops (traversal skips them), but the
+             chevrons' enabled state is computed live, so repaint
+             it even when the deleted doc was not the open one. */
+          navPaint();
           persist(true);
           refreshAfterLibraryChange();
         }
@@ -10896,7 +11082,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-19';
+        var FOLIO_BUILD = '20261024-20';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -11135,6 +11321,29 @@
              the palette opens from the title field too. */
           { id: 'omnisearch', combo: 'alt+space', hint: '⌥Space', group: 'General', label: 'Omnisearch',
             run: function () { openOmni(); } },
+          /* Document navigation: ⌘⌥← / ⌘⌥→ walk the visit
+             history, ⌘⌥↑ / ⌘⌥↓ walk the sidebar's list order
+             (see the document navigation module beside
+             openDoc). ← and ↑ own their combos outright —
+             nothing else claimed them. → and ↓ were already
+             the table chords (Add column to the right / Add
+             row below), so Forward and Next carry no combo of
+             their own: the table entries keep the dispatch and
+             fall through to navigation whenever the caret is
+             outside a table. These entries give the commands
+             their labels, hints, and action-bar rows; the runs
+             stand down while a menu, popover, or the outline's
+             keyboard mode owns the arrows (navSurfaceBusy),
+             and abRecord never records any of the four, so
+             flipping through documents can't flood the recents. */
+          { id: 'nav-back', combo: 'mod+alt+arrowleft', hint: '⌘⌥←', group: 'General', label: 'Back',
+            run: function () { if (!navSurfaceBusy()) navBack(); } },
+          { id: 'nav-forward', hint: '⌘⌥→', group: 'General', label: 'Forward',
+            run: function () { if (!navSurfaceBusy()) navForward(); } },
+          { id: 'nav-prev-doc', combo: 'mod+alt+arrowup', hint: '⌘⌥↑', group: 'General', label: 'Previous document',
+            run: function () { navPrevDoc(); } },
+          { id: 'nav-next-doc', hint: '⌘⌥↓', group: 'General', label: 'Next document',
+            run: function () { navNextDoc(); } },
           /* Formatting */
           { id: 'bold', combo: 'mod+b', hint: '⌘B', group: 'Formatting', label: 'Bold',
             run: function () { scClickBtn(toolbarBtns.bold); } },
@@ -11216,6 +11425,12 @@
           { id: 'tbl-row-below', combo: 'mod+alt+arrowdown', hint: '⌘⌥↓', group: 'Table', label: 'Add row below',
             run: function () {
               if (!editorHandle) return;
+              /* ⌘⌥↓ doubles as Next document: the table
+                 meaning owns the chord only while the caret is
+                 in a table — outside one, the press walks the
+                 sidebar's list order (navNextDoc) instead of
+                 landing nowhere. */
+              if (!folioCaretInTable()) { navNextDoc(); return; }
               runTableCmd(function () {
                 editorHandle.editor.chain().focus().folioAddRowAfter().run();
                 refreshToolbar();
@@ -11224,6 +11439,11 @@
           { id: 'tbl-col-right', combo: 'mod+alt+arrowright', hint: '⌘⌥→', group: 'Table', label: 'Add column to the right',
             run: function () {
               if (!editorHandle) return;
+              /* ⌘⌥→ doubles as Forward, the same pairing as
+                 ⌘⌥↓ / Next document above: in a table the chord
+                 adds a column; anywhere else it walks the visit
+                 history forward (navForward). */
+              if (!folioCaretInTable()) { if (!navSurfaceBusy()) navForward(); return; }
               runTableCmd(function () {
                 editorHandle.editor.chain().focus().folioAddColumnAfter().run();
                 refreshToolbar();
@@ -11914,6 +12134,13 @@
            stable identity to record. */
         function abRecord(id) {
           if (!id || id === 'action-search') return;
+          /* Document navigation is never a recent: Back /
+             Forward / Previous / Next are how you MOVE, not
+             things you did, and a flip through a few documents
+             would push every real action out of the five slots.
+             The four still appear in the catalog below — they
+             are searchable, just never remembered. */
+          if (id === 'nav-back' || id === 'nav-forward' || id === 'nav-prev-doc' || id === 'nav-next-doc') return;
           var i = abRecents.indexOf(id);
           if (i !== -1) abRecents.splice(i, 1);
           abRecents.unshift(id);
