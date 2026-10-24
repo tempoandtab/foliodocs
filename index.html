@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261023-11" />
+    <meta name="folio-build" content="20261024-12" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1330,6 +1330,19 @@
       .menu-item:focus-visible { background: var(--hover); outline: none; }
       .menu .tb-btn.kb-focus { background: var(--hover); color: var(--ink); }
       .menu .tb-btn:focus-visible { background: var(--hover); color: var(--ink); outline: none; }
+      /* Keyboard navigation inside the swatch / grid popovers
+         (the same engine that walks the list menus): the option
+         the arrow keys have landed on wears a kb-focus ring,
+         since a background change would be invisible on a flat
+         color tile. Row-shaped items paint like a menu hover
+         instead, and the table size grid's cursor cell rings
+         over its painted size preview. */
+      .fmt-swatch.kb-focus, .tbl-swatch.kb-focus, .fp-tile.kb-focus,
+      .accent-dot.kb-focus, .fbm-swatch.kb-focus, .fbm-size.kb-focus {
+        outline: 2px solid var(--accent); outline-offset: 2px;
+      }
+      .theme-row.kb-focus, .fbm-item.kb-focus { background: var(--hover); }
+      .tbl-gc.kb-focus { outline: 2px solid var(--accent); outline-offset: 1px; position: relative; z-index: 1; }
 
       /* ---------------- Shortcuts reference ---------------- */
       .sc-row {
@@ -2312,6 +2325,10 @@
             d.addEventListener('click', function () { accentId = a.id; persistTheme(); applyTheme(); });
             acc.appendChild(d);
           });
+          /* Rebuilt on every pick; keep the popover keyboard
+             highlight on the applied row/dot while it is open
+             (popNavPrime stands down while the pop is hidden). */
+          popNavPrime(themePop);
         }
         function applyTheme() {
           rootEl.setAttribute('data-theme', themeId);
@@ -4574,6 +4591,9 @@
             customRow.appendChild(cur);
           }
           folderPopEl.appendChild(customRow);
+          /* The pop is rebuilt on every pick; re-land the
+             keyboard highlight on the applied tile/swatch. */
+          popNavPrime(folderPopEl);
         }
         function openFolderPop(folderId, anchor, force) {
           var f = lib.folders.find(function (x) { return x.id === folderId; });
@@ -6309,6 +6329,7 @@
           if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
           fmtPop.style.left = left + 'px';
           fmtPop.style.top = top + 'px';
+          popNavPrime(fmtPop);
         }
         fmtPop.addEventListener('mousedown', function (ev) {
           if (ev.target.closest && ev.target.closest('.fmt-swatch')) ev.preventDefault();
@@ -6885,6 +6906,7 @@
           if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
           tblPop.style.left = left + 'px';
           tblPop.style.top = top + 'px';
+          popNavPrime(tblPop);
         }
         tblGrid.addEventListener('pointerover', function (ev) {
           var b = ev.target.closest ? ev.target.closest('.tbl-gc') : null;
@@ -7167,6 +7189,11 @@
           var top = r.bottom + 6;
           if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
           pop.style.top = top + 'px';
+          /* The swatch popovers join the popover keyboard
+             navigation; the two list menus in this family take
+             the menu path's initial focus instead. */
+          if (pop === tblFillPop || pop === tblBorderColorPop) popNavPrime(pop);
+          else kbFocusFirst(pop);
         }
         [[tblFillBtn, 'fill'], [tblBorderColorBtn, 'borderColor'], [tblBorderSizeBtn, 'borderSize'], [tblAlignBtn, 'align']].forEach(function (pair) {
           pair[0].addEventListener('click', function (ev) {
@@ -10159,7 +10186,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261023-11';
+        var FOLIO_BUILD = '20261024-12';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -10280,10 +10307,10 @@
           if (mainBtn && mainBtn.getClientRects().length) { mainBtn.click(); return; }
           var selBtn = mode === 'highlight' ? selHlBtn : selTcBtn;
           openFmtPop(mode, scVisAnchor([selBtn, tbMoreBtn], docBarMenuBtn));
-          setTimeout(function () {
-            var sw = document.querySelector('#fmtSwatches .fmt-swatch');
-            if (sw) sw.focus();
-          }, 0);
+          /* No focus steal: openFmtPop primes the popover
+             keyboard highlight, and the arrows + Enter drive it
+             from the dispatcher while focus (and the text
+             selection) stays in the editor. */
         }
         function scRunWikilink() {
           if (!editorHandle) return;
@@ -10522,7 +10549,7 @@
            opens focus their first item, so the whole flow —
            open, move, choose — never needs a pointer. */
         function scMenuItems(menu) {
-          return Array.prototype.slice.call(menu.querySelectorAll('.menu-item:not(:disabled), .tb-btn:not(:disabled)')).filter(function (el) {
+          return Array.prototype.slice.call(menu.querySelectorAll('.menu-item:not(:disabled), .tb-btn:not(:disabled), .tbl-swatch:not(:disabled), .fmt-swatch:not(:disabled)')).filter(function (el) {
             return el.getClientRects().length > 0;
           });
         }
@@ -10538,28 +10565,235 @@
           setTimeout(function () {
             if (!menuEl.classList.contains('open')) return;
             var items = scMenuItems(menuEl);
-            if (items.length) kbFocusItem(menuEl, items[0]);
+            if (!items.length) return;
+            /* Start on the currently-applied option when the
+               menu marks one (.on), else the first item. */
+            var on = null;
+            items.forEach(function (el) { if (!on && el.classList.contains('on')) on = el; });
+            kbFocusItem(menuEl, on || items[0]);
           }, 0);
         }
         function scMenuNav(menu, dir) {
           var items = scMenuItems(menu);
           if (!items.length) return false;
-          var idx = items.indexOf(document.activeElement);
+          /* Move from wherever the highlight currently rests —
+             the focused item, the hover-synced .kb-focus item,
+             or the menu's applied (.on) option — so mouse and
+             keyboard share one position. */
+          var cur = menu.querySelector('.kb-focus');
+          var idx = cur ? items.indexOf(cur) : items.indexOf(document.activeElement);
+          if (idx === -1) {
+            items.forEach(function (el, i) { if (idx === -1 && el.classList.contains('on')) idx = i; });
+          }
           var next = idx === -1
             ? (dir > 0 ? items[0] : items[items.length - 1])
             : items[(idx + dir + items.length) % items.length];
           kbFocusItem(menu, next);
           return true;
         }
+        /* ---------------- popover keyboard navigation ----------
+           The grid popovers — the format color / highlight
+           swatches, the table fill and border-color swatches,
+           the insert-table size grid, the folder icon & color
+           tiles, the theme rows & accent dots, and the editor
+           bundle's table border menu — get the same treatment
+           as the list menus: while one is open the arrow keys
+           walk a visible .kb-focus highlight through its
+           options in 2D (grids move by cell and by row), Enter
+           clicks the highlighted option (so each popover's own
+           pick handler applies and closes exactly as a mouse
+           click does), and Esc closes without applying. The
+           highlight is class-only — DOM focus never leaves the
+           editor — and the dispatcher below swallows the keys
+           in the capture phase, so the caret behind the popover
+           never moves and the text selection the pick applies
+           to survives untouched. Hovering an option moves the
+           highlight to it, keeping mouse and keyboard in sync. */
+        function popNavSurfaces() {
+          var pops = [];
+          var bm = document.querySelector('.folio-border-menu');
+          if (bm) pops.push(bm);
+          [fmtPop, tblFillPop, tblBorderColorPop, tblPop, folderPopEl, themePop].forEach(function (p) {
+            if (p && !p.hidden) pops.push(p);
+          });
+          return pops;
+        }
+        function popNavOpenPop() {
+          var pops = popNavSurfaces();
+          return pops.length ? pops[0] : null;
+        }
+        function popNavItems(pop) {
+          return Array.prototype.slice.call(pop.querySelectorAll('button:not(:disabled)')).filter(function (el) {
+            return el.getClientRects().length > 0;
+          });
+        }
+        function popNavCurrent(pop) {
+          var items = popNavItems(pop);
+          var cur = pop.querySelector('.kb-focus');
+          if (cur && items.indexOf(cur) !== -1) return cur;
+          return null;
+        }
+        function popNavSet(pop, item) {
+          if (!pop || !item) return;
+          pop.querySelectorAll('.kb-focus').forEach(function (el) { el.classList.remove('kb-focus'); });
+          item.classList.add('kb-focus');
+          if (item.scrollIntoView) item.scrollIntoView({ block: 'nearest' });
+          /* The size grid's painted preview follows its cursor
+             cell, exactly as it follows the mouse. */
+          if (pop === tblPop) {
+            tblHover = { rows: Number(item.getAttribute('data-r')), cols: Number(item.getAttribute('data-c')) };
+            paintTblGrid();
+          }
+        }
+        /* Land the highlight on the currently-applied option
+           (the one wearing .on) when there is one, else the
+           first option. Deferred so a popover opened this tick
+           has its layout (and its .on paint) settled. */
+        function popNavPrime(pop) {
+          if (!pop) return;
+          setTimeout(function () {
+            if (pop.hidden || !document.contains(pop)) return;
+            var items = popNavItems(pop);
+            if (!items.length) return;
+            if (popNavCurrent(pop)) return;
+            var on = null;
+            items.forEach(function (el) { if (!on && el.classList.contains('on')) on = el; });
+            popNavSet(pop, on || items[0]);
+          }, 0);
+        }
+        function popNavMove(pop, key) {
+          var items = popNavItems(pop);
+          if (!items.length) return false;
+          var cur = popNavCurrent(pop);
+          if (!cur) {
+            var on = null;
+            items.forEach(function (el) { if (!on && el.classList.contains('on')) on = el; });
+            popNavSet(pop, on || items[0]);
+            return true;
+          }
+          var idx = items.indexOf(cur);
+          var next = null;
+          if (key === 'ArrowLeft' || key === 'ArrowRight') {
+            /* By cell, staying on the current row. */
+            var t = idx + (key === 'ArrowRight' ? 1 : -1);
+            if (t >= 0 && t < items.length && items[t].offsetTop === cur.offsetTop) next = items[t];
+          } else {
+            /* By row: the item on the adjacent row whose left
+               edge sits closest to the current item's. */
+            var dirY = key === 'ArrowDown' ? 1 : -1;
+            var best = null, bestScore = Infinity;
+            items.forEach(function (el) {
+              if (el === cur) return;
+              var dy = el.offsetTop - cur.offsetTop;
+              if (dirY > 0 ? dy <= 2 : dy >= -2) return;
+              var score = Math.abs(dy) * 1000 + Math.abs(el.offsetLeft - cur.offsetLeft);
+              if (score < bestScore) { bestScore = score; best = el; }
+            });
+            next = best;
+          }
+          if (next) popNavSet(pop, next);
+          return true;
+        }
+        function popNavClose(pop) {
+          if (pop === fmtPop) closeFmtPop();
+          else if (pop === tblFillPop || pop === tblBorderColorPop) closeTblStylePops();
+          else if (pop === tblPop) closeTblPop();
+          else if (pop === folderPopEl) closeFolderPop();
+          else if (pop === themePop) closeThemePop();
+          else if (pop.classList.contains('folio-border-menu')) {
+            /* The border menu belongs to the editor bundle and
+               closes on any outside pointerdown; synthesize the
+               tap-away it already understands. */
+            document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+            return;
+          } else return;
+          /* Applying never needed this — the pick handlers
+             refocus the editor themselves — but Esc should hand
+             the caret back too. The editor-only popovers get it;
+             the sidebar popovers (folder, theme) just close. */
+          if ((pop === fmtPop || pop === tblFillPop || pop === tblBorderColorPop || pop === tblPop) && editorHandle) {
+            editorHandle.editor.chain().focus().run();
+          }
+        }
+        /* The border menu is built by the editor bundle on a
+           border tap, so prime it the moment it lands in the
+           document. */
+        if (window.MutationObserver) {
+          new MutationObserver(function (recs) {
+            recs.forEach(function (rec) {
+              rec.addedNodes.forEach(function (n) {
+                if (n.nodeType === 1 && n.classList && n.classList.contains('folio-border-menu')) popNavPrime(n);
+              });
+            });
+          }).observe(document.body, { childList: true });
+        }
+        /* Hover sync: the pointer resting on an option is the
+           highlight's position, for popovers and list menus
+           alike, so an arrow press continues from what the
+           mouse last touched. */
+        document.addEventListener('pointerover', function (ev) {
+          var t = ev.target;
+          if (!t || !t.closest) return;
+          var pop = popNavOpenPop();
+          if (pop && pop.contains(t)) {
+            var pb = t.closest('button');
+            if (pb && popNavItems(pop).indexOf(pb) !== -1) popNavSet(pop, pb);
+            return;
+          }
+          var menu = document.querySelector('.menu.open');
+          if (menu && menu.contains(t)) {
+            var mb = t.closest('.menu-item, .tb-btn, .tbl-swatch, .fmt-swatch');
+            if (mb && scMenuItems(menu).indexOf(mb) !== -1 && document.activeElement !== mb) kbFocusItem(menu, mb);
+          }
+        });
         document.addEventListener('keydown', function (ev) {
           if (ev.isComposing) return;
-          if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')) {
-            var menu = document.querySelector('.menu.open');
-            if (menu && scMenuNav(menu, ev.key === 'ArrowDown' ? 1 : -1)) {
-              ev.preventDefault();
-              ev.stopPropagation();
+          if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey) {
+            /* An open popover owns the arrows and Enter while it
+               is up (see the popover navigation block above):
+               the keys never reach the editor, so the caret
+               stays put and the selection the pick applies to
+               survives. A key aimed at a field inside the
+               popover (the custom-color input, the folder emoji
+               field) is the field's own, not navigation. */
+            var pop = popNavOpenPop();
+            if (pop && !(ev.target && pop.contains(ev.target) && /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName || ''))) {
+              if (ev.key === 'Escape') {
+                popNavClose(pop);
+                ev.preventDefault();
+                ev.stopPropagation();
+                return;
+              }
+              if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp' || ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+                if (popNavMove(pop, ev.key)) {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                }
+                return;
+              }
+              if (ev.key === 'Enter') {
+                var cur = popNavCurrent(pop) || (function () {
+                  var items = popNavItems(pop);
+                  var on = null;
+                  items.forEach(function (el) { if (!on && el.classList.contains('on')) on = el; });
+                  return on || items[0] || null;
+                })();
+                if (cur) {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  cur.click();
+                }
+                return;
+              }
             }
-            return;
+            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+              var menu = document.querySelector('.menu.open');
+              if (menu && scMenuNav(menu, ev.key === 'ArrowDown' ? 1 : -1)) {
+                ev.preventDefault();
+                ev.stopPropagation();
+              }
+              return;
+            }
           }
           var sc = SHORTCUT_BY_COMBO[scComboOf(ev)];
           if (!sc || sc.native || !sc.run) return;
