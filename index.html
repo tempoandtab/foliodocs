@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-12" />
+    <meta name="folio-build" content="20261024-13" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1952,7 +1952,7 @@
           <button class="tb-btn" data-cmd="bold" data-sc="bold" type="button" aria-label="Bold" data-tip="Bold (⌘B)"><strong style="font-size:16px">B</strong></button>
           <button class="tb-btn" data-cmd="italic" data-sc="italic" type="button" aria-label="Italic" data-tip="Italic (⌘I)"><em style="font-family:Georgia,serif;font-size:16px">I</em></button>
           <button class="tb-btn" data-cmd="strike" data-sc="strike" data-more="a" type="button" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s></button>
-          <button class="tb-btn" data-cmd="code" data-sc="code" data-more="b" type="button" aria-label="Inline code" data-tip="Inline code (⌘`)">
+          <button class="tb-btn" data-cmd="code" data-sc="code" data-more="b" type="button" aria-label="Inline code" data-tip="Inline code (⌘E)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>
           </button>
           <button class="tb-btn" id="hlBtn" data-cmd="highlight" data-sc="highlight" type="button" aria-label="Highlight color" aria-haspopup="true" data-tip="Highlight — pick a color">
@@ -2014,7 +2014,7 @@
             <button class="tb-btn tb-txt" type="button" id="selHlBtn" data-sel="highlight" data-sc="highlight" aria-label="Highlight" aria-haspopup="true" data-tip="Highlight — pick a color"><span class="hl-demo">A</span><span class="tb-label">Highlight</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
             <button class="tb-btn tb-txt" type="button" id="selTcBtn" data-sel="textcolor" data-sc="textcolor" aria-label="Text color" aria-haspopup="true" data-tip="Text color — pick a color"><span class="tc-demo"><span>A</span><span class="tc-bar"></span></span><span class="tb-label">Text color</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
             <button class="tb-btn tb-txt" type="button" id="selStrikeBtn" data-sel="strike" data-sc="strike" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s><span class="tb-label">Strikethrough</span></button>
-            <button class="tb-btn tb-txt" type="button" id="selCodeBtn" data-sel="code" data-sc="code" aria-label="Inline code" data-tip="Inline code (⌘`)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span class="tb-label">Inline code</span></button>
+            <button class="tb-btn tb-txt" type="button" id="selCodeBtn" data-sel="code" data-sc="code" aria-label="Inline code" data-tip="Inline code (⌘E)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span class="tb-label">Inline code</span></button>
             <button class="tb-btn tb-txt" type="button" id="selQuoteBtn" data-sel="quote" data-sc="quote" aria-label="Block quote" data-tip="Blockquote — or start a line with &gt;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 8H6a4 4 0 0 0-4 4v6h7v-7H6.5A2.5 2.5 0 0 1 9 8.6V8h1zm12 0h-4a4 4 0 0 0-4 4v6h7v-7h-2.5A2.5 2.5 0 0 1 21 8.6V8h1z"/></svg><span class="tb-label">Block quote</span></button>
             <button class="tb-btn tb-txt" type="button" data-sel="wikilink" data-sc="wikilink" aria-label="Make wikilink" data-tip="Turn the selection into a [[wikilink]]"><span class="tb-wiki">[[ ]]</span><span class="tb-label">Make wikilink</span></button>
             <button class="tb-btn tb-txt" type="button" data-sel="copy" data-sc="copy-sel" aria-label="Copy selection" data-tip="Copy the selected text"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="tb-label">Copy</span></button>
@@ -6744,8 +6744,15 @@
         });
 
         attachCodeCopy(document.getElementById('editorMount'), editorHandle.editor);
+        /* Inline code's in-editor fallback, kept on the same
+           chord the shortcut registry binds (⌘E): the original
+           ⌘` binding never fired on iPad, where iPadOS claims
+           that chord for cycling the app's windows before the
+           page can see it. The registry's capture-phase
+           dispatcher normally wins and stops propagation, so
+           this only speaks when the dispatcher stood down. */
         document.getElementById('editorMount').addEventListener('keydown', function (ev) {
-          if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && (ev.key === '`' || ev.code === 'Backquote')) {
+          if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && !ev.shiftKey && (ev.key === 'e' || ev.key === 'E' || ev.code === 'KeyE')) {
             ev.preventDefault();
             if (editorHandle) { editorHandle.editor.chain().focus().toggleCode().run(); refreshToolbar(); }
           }
@@ -10186,7 +10193,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-12';
+        var FOLIO_BUILD = '20261024-13';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -10385,7 +10392,13 @@
             run: function () { scClickBtn(toolbarBtns.italic); } },
           { id: 'strike', combo: 'mod+shift+x', hint: '⌘⇧X', group: 'Formatting', label: 'Strikethrough',
             run: function () { scClickBtn(toolbarBtns.strike); } },
-          { id: 'code', combo: 'mod+`', hint: '⌘`', group: 'Formatting', label: 'Inline code',
+          /* Inline code rides ⌘E, not the ⌘` it shipped with:
+             iPadOS claims ⌘` as its cycle-windows gesture, so
+             the keydown never reaches the page there at all
+             (the same OS-claim family as ⌥⌘R). ⌘E is claimed
+             by neither iPadOS nor Safari and is the chord the
+             editor's own code mark has always used. */
+          { id: 'code', combo: 'mod+e', hint: '⌘E', group: 'Formatting', label: 'Inline code',
             run: function () { scClickBtn(toolbarBtns.code); } },
           { id: 'highlight', combo: 'mod+shift+h', hint: '⌘⇧H', group: 'Formatting', label: 'Highlight',
             run: function () { scRunFormatPop('highlight'); } },
