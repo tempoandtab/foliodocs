@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-13" />
+    <meta name="folio-build" content="20261024-14" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -267,6 +267,52 @@
       .outline-item.lvl-2 { padding-left: 22px; }
       .outline-item.lvl-3 { padding-left: 34px; font-size: 13px; }
       .outline-item.lvl-4 { padding-left: 46px; font-size: 13px; }
+      /* -------- floating outline (document area) --------
+         The open document's outline lives here now, not in
+         the sidebar: a zero-height anchor in the main column
+         (between the bars and the scroller) carries an
+         absolutely positioned panel at the document area's
+         top right, so it overlays the paper's corner at
+         every width, with the sidebar hidden, and in focus
+         mode — it belongs to the document, not the library.
+         Collapsed it is one slim button that barely covers
+         the paper's margin; expanded it is a card holding
+         the heading list, a pin, and a close button. */
+      .outline-anchor { position: relative; height: 0; flex: 0 0 auto; z-index: 30; }
+      .outline-pop {
+        position: absolute; top: 10px; right: 14px;
+        display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+      }
+      .outline-toggle {
+        width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--ink-2); background: var(--surface);
+        border: 1px solid var(--line); box-shadow: var(--shadow);
+      }
+      .outline-toggle:hover { color: var(--ink); }
+      .outline-card {
+        width: min(272px, calc(100vw - 28px));
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: 12px; box-shadow: var(--shadow);
+        display: flex; flex-direction: column; overflow: hidden;
+      }
+      .outline-card[hidden] { display: none; }
+      .outline-head {
+        display: flex; align-items: center; gap: 4px;
+        padding: 6px 6px 6px 14px; border-bottom: 1px solid var(--line-soft);
+      }
+      .outline-title {
+        flex: 1; min-width: 0;
+        font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
+        text-transform: uppercase; color: var(--ink-3);
+      }
+      .outline-pin, .outline-close {
+        width: 34px; height: 34px; border-radius: 8px; flex: 0 0 auto;
+        display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2);
+      }
+      .outline-pin:hover, .outline-close:hover { background: var(--hover); color: var(--ink); }
+      .outline-pin[aria-pressed="true"] { background: var(--active); color: var(--accent); }
+      #outlineList { overflow-y: auto; max-height: min(56vh, 460px); padding: 6px; }
       .side-empty { font-size: 13px; color: var(--ink-3); padding: 4px 10px 8px; line-height: 1.45; }
       .backlink-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 8px 6px; }
       .backlink-chip {
@@ -307,6 +353,12 @@
          the Responsive section and the sidebar module in the app
          script). */
       #libraryToggle { display: inline-flex; }
+      /* The Focus Mode button stays in the topbar at every
+         width — it is the way out of focus mode, so unlike
+         the toolbars toggle it never folds into the
+         small-screens overflow menu; while focus mode is on
+         it wears the pressed face. */
+      #focusBtn.on { background: var(--active); color: var(--accent); }
       /* The context tools button is a small-screens control: it
          appears in the topbar only under the 860px tier (see the
          Responsive section), next to the both-toolbars toggle.
@@ -400,6 +452,11 @@
          height back to the editor, and removing the attribute
          restores the rows exactly as they were. */
       :root[data-toolbars="hidden"] .toolbar { display: none; }
+      /* Focus mode collapses both rows the same way, as a
+         layer over the toolbar preference: data-focus hides
+         the rows without touching data-toolbars, so leaving
+         focus restores them exactly as they were. */
+      :root[data-focus="on"] .toolbar { display: none; }
       /* The context tools button deliberately does NOT follow
          the toolbars into hiding: in the hidden state it switches
          to its menu mode (see the context tools button script),
@@ -1678,6 +1735,15 @@
           position: fixed; inset: 0; background: rgba(10, 12, 10, 0.4); z-index: 35;
         }
         body.nav-open .scrim { display: block; }
+        /* Focus mode keeps the drawer away even if nav-open
+           gets set while it is on (a view switch adds the
+           class directly): pane and scrim stay hidden until
+           focus exits. */
+        :root[data-focus="on"] .sidebar {
+          transform: translateX(-105%);
+          visibility: hidden;
+        }
+        :root[data-focus="on"] .scrim { display: none; }
         .paper { margin: 12px 8px 60px; padding: 30px 22px 52px; }
         .folio-prose { font-size: 18.5px; }
         .save-state { display: none; }
@@ -1702,10 +1768,20 @@
           visibility: hidden;
           transition: margin-left 0.25s ease, visibility 0s linear 0.25s;
         }
+        /* Focus mode slides the pane away identically, as a
+           layer over the stored preference: data-focus does
+           the hiding and folio-sidebar is never touched, so
+           exiting focus restores the pane as it was. */
+        :root[data-focus="on"] .sidebar {
+          margin-left: -293px;
+          visibility: hidden;
+          transition: margin-left 0.25s ease, visibility 0s linear 0.25s;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .sidebar { transition: none; }
         :root[data-sidebar="hidden"] .sidebar { transition: none; }
+        :root[data-focus="on"] .sidebar { transition: none; }
         .folio-prose h1, .folio-prose h2, .folio-prose h3, .folio-prose h4 { transition: none; }
         .folder-toggle svg { transition: none; }
         .side-chev svg { transition: none; }
@@ -1801,6 +1877,17 @@
           document.documentElement.setAttribute('data-sidebar', 'hidden');
         }
       } catch (e) {}
+      /* Same treatment for Focus Mode (the topbar toggle and
+         its shortcut): a layer over the sidebar and toolbar
+         preferences above, never a rewrite of them — when the
+         saved flag is on, the stylesheet hides the pane and
+         both toolbar rows from the first frame, and exiting
+         focus hands both back exactly as they were. */
+      try {
+        if (window.localStorage && localStorage.getItem('folio-focus') === 'on') {
+          document.documentElement.setAttribute('data-focus', 'on');
+        }
+      } catch (e) {}
       /* The update check's Reload lands here with a throwaway
          ?foliofresh=… query param — that is what forces the
          fresh HTML past a stale HTTP cache. Strip it before
@@ -1820,7 +1907,7 @@
   </head>
   <body>
     <div class="app" id="appRoot">
-      <aside class="sidebar" id="sidebar" aria-label="Library and outline">
+      <aside class="sidebar" id="sidebar" aria-label="Library">
         <div class="sidebar-head">
           <div class="wordmark">FolioDocs<em>.</em></div>
         </div>
@@ -1861,20 +1948,6 @@
               <button class="sel-btn sel-done" id="selDoneBtn" type="button">Done</button>
             </div>
           </div>
-          <div class="side-section" id="tagsSection" hidden>
-            <div class="side-label"><span>Tags</span></div>
-            <div class="backlink-row" id="tagList"></div>
-          </div>
-          <div class="side-section" id="outlineSection">
-            <hr class="side-hr" />
-            <div class="side-label clickable">
-              <span class="side-label-left">
-                <span class="side-chev" data-chev="outline" role="button" aria-label="Collapse or expand the Outline section" data-tip="Collapse / expand section"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
-                <span>Outline</span>
-              </span>
-            </div>
-            <div id="outlineList"></div>
-          </div>
           <div class="side-section" id="backlinkSection" hidden>
             <hr class="side-hr" />
             <div class="side-label clickable">
@@ -1884,6 +1957,11 @@
               </span>
             </div>
             <div class="backlink-row" id="backlinkList"></div>
+          </div>
+          <div class="side-section" id="tagsSection" hidden>
+            <hr class="side-hr" />
+            <div class="side-label"><span>Tags</span></div>
+            <div class="backlink-row" id="tagList"></div>
           </div>
         </div>
         <div class="theme-pop" id="themePop" hidden>
@@ -1911,7 +1989,7 @@
 
       <div class="main">
         <div class="topbar">
-          <button class="icon-btn" id="libraryToggle" type="button" aria-label="Hide library" aria-expanded="true" data-tip="Library, folders &amp; outline">
+          <button class="icon-btn" id="libraryToggle" type="button" aria-label="Hide library" aria-expanded="true" data-tip="Library &amp; folders">
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </button>
           <textarea class="title-input" id="titleInput" rows="1" autocomplete="off" autocapitalize="sentences" aria-label="Document title"></textarea>
@@ -1935,6 +2013,9 @@
           </button>
           <button class="icon-btn" id="toolbarsBtn" type="button" aria-label="Hide toolbars" aria-pressed="false" data-tip="Hide toolbars">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/><path d="m8.8 17.2 3.2-3.2 3.2 3.2"/></svg>
+          </button>
+          <button class="icon-btn" id="focusBtn" type="button" aria-label="Focus mode" aria-pressed="false" data-tip="Focus mode">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M16 21h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
           </button>
           <button class="icon-btn" id="topOverflowBtn" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" data-tip="More — share, print, toolbars &amp; settings">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>
@@ -2061,6 +2142,26 @@
           <button class="menu-item" type="button" role="menuitem" data-valign="top"><span class="check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="m-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4h16"/><path d="M12 20V9.5"/><path d="m8 13 4-4 4 4"/></svg></span><span class="m-label">Top</span></button>
           <button class="menu-item" type="button" role="menuitem" data-valign="middle"><span class="check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="m-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12h18"/><path d="M12 4.5v15"/><path d="m8.5 8 3.5-3.5L15.5 8"/><path d="m8.5 16 3.5 3.5L15.5 16"/></svg></span><span class="m-label">Middle</span></button>
           <button class="menu-item" type="button" role="menuitem" data-valign="bottom"><span class="check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="m-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20h16"/><path d="M12 4v10.5"/><path d="m8 11 4 4 4-4"/></svg></span><span class="m-label">Bottom</span></button>
+        </div>
+
+        <div class="outline-anchor">
+          <div class="outline-pop" id="outlinePop">
+            <button class="outline-toggle" id="outlineToggle" type="button" aria-label="Document outline" aria-expanded="false" aria-haspopup="true" data-tip="Outline — jump to a heading">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h7"/><path d="M4 6h.01M4 12h.01M4 18h.01" stroke-width="2.6"/></svg>
+            </button>
+            <div class="outline-card" id="outlineCard" hidden>
+              <div class="outline-head">
+                <span class="outline-title">Outline</span>
+                <button class="outline-pin" id="outlinePin" type="button" aria-label="Pin outline open" aria-pressed="false" data-tip="Pin outline open">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6v6l3 4H6l3-4z"/><path d="M12 14v7"/></svg>
+                </button>
+                <button class="outline-close" id="outlineClose" type="button" aria-label="Close outline" data-tip="Close outline">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div id="outlineList"></div>
+            </div>
+          </div>
         </div>
 
         <div class="editor-scroll" id="editorScroll">
@@ -2371,7 +2472,7 @@
               head(2, 'Link your thinking'),
               richPara(['Type ', '[[', ' anywhere and FolioDocs suggests documents by title. Pick one and it becomes a link chip, like this one: ', { link: 'Ideas' }, '. Tap a chip to jump to that document — and if it doesn\u2019t exist yet, FolioDocs creates it for you.']),
               head(2, 'Markdown-flavoured shortcuts'),
-              para('Start a line with # for a heading, ## for a smaller one. Use > for a quote, - for a bullet list, and 1. for a numbered list. Type #tag in the middle of a line to tag it — tap a tag to filter the library. The outline on the left is built from your headings — tap one to jump to it. Put code between ``` lines for a code block, and reach for the highlighter and text color in the toolbar to mark up key passages.'),
+              para('Start a line with # for a heading, ## for a smaller one. Use > for a quote, - for a bullet list, and 1. for a numbered list. Type #tag in the middle of a line to tag it — tap a tag to filter the library. The outline button at the top right of the page is built from your headings — tap one to jump to it. Put code between ``` lines for a code block, and reach for the highlighter and text color in the toolbar to mark up key passages.'),
               { type: 'blockquote', content: [para('Writing is thinking on paper. — William Zinsser')] },
               head(2, 'Make it yours'),
               para('Rename this document up top, start a new one from the library, and try the dark mode toggle at the bottom of the sidebar. A good next step: jot a few sparks in '),
@@ -3181,6 +3282,7 @@
         var LABEL_ICONS_ONLY_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg>';
         var LABEL_ICONS_TEXT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="8" height="10" rx="1.5"/><path d="M15 9.5h6M15 14.5h6"/></svg>';
         var KEYBOARD_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>';
+        var FOCUS_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M16 21h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>';
         var UPDATE_CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
         var RELOAD_APP_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36"/><path d="M3 3v6h6"/></svg>';
         var SYNC_NOW_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
@@ -3285,6 +3387,38 @@
             openShortcutsModal();
           });
           settingsMenuEl.appendChild(kb);
+          /* Focus mode rides in this menu too, built like the
+             shortcuts row: its label flips with the state, its
+             check shows while the mode is on, and its hint
+             comes from the shortcut registry. */
+          var fm = document.createElement('button');
+          fm.type = 'button';
+          fm.className = 'menu-item' + (focusMode ? ' on' : '');
+          fm.setAttribute('role', 'menuitem');
+          var fmCheck = document.createElement('span');
+          fmCheck.className = 'check';
+          fmCheck.innerHTML = CHECK_SVG;
+          fm.appendChild(fmCheck);
+          var fmIc = document.createElement('span');
+          fmIc.className = 'm-icon';
+          fmIc.innerHTML = FOCUS_SVG;
+          fm.appendChild(fmIc);
+          var fmLabel = document.createElement('span');
+          fmLabel.className = 'm-label';
+          fmLabel.textContent = focusMode ? 'Exit focus mode' : 'Focus mode';
+          fm.appendChild(fmLabel);
+          var fmHintText = hintFor('focus-mode');
+          if (fmHintText) {
+            var fmHint = document.createElement('span');
+            fmHint.className = 'm-hint';
+            fmHint.textContent = fmHintText;
+            fm.appendChild(fmHint);
+          }
+          fm.addEventListener('click', function () {
+            closeSettingsMenu();
+            setFocusMode(!focusMode);
+          });
+          settingsMenuEl.appendChild(fm);
           function appItem(icon, label, fn) {
             var b = document.createElement('button');
             b.type = 'button';
@@ -3479,6 +3613,10 @@
           applyLibraryBtn();
         }
         function openSidebar() {
+          /* Summoning the sidebar out of focus mode exits
+             focus (see the focus module below): the pane and
+             the toolbars come back together. */
+          if (focusMode) setFocusMode(false);
           if (window.innerWidth <= 900) document.body.classList.add('nav-open');
           else setSidebarHidden(false);
           applyLibraryBtn();
@@ -3489,6 +3627,10 @@
           applyLibraryBtn();
         }
         function toggleSidebar() {
+          /* In focus mode the library button is a summon, not
+             a toggle: it exits focus, and the sidebar returns
+             to whatever its own preference says. */
+          if (focusMode) { setFocusMode(false); return; }
           if (sidebarIsOpen()) closeSidebar();
           else openSidebar();
         }
@@ -3538,6 +3680,136 @@
         document.addEventListener('click', function (ev) {
           if (Date.now() - lastSwipeAt < 400) { ev.preventDefault(); ev.stopPropagation(); }
         }, true);
+
+        /* ---------------- focus mode ----------------
+           One toggle that hides the sidebar AND both toolbar
+           rows together, for distraction-free writing. It is a
+           LAYER over the two visibility preferences, never a
+           rewrite of them: the mode is a flag of its own
+           (folio-focus in localStorage, per device like the
+           others, applied before first paint by the <head>
+           script as data-focus on <html>), and the stylesheet
+           does all the hiding off that attribute — folio-sidebar
+           and folio-toolbars are never read or written here, so
+           exiting focus restores the sidebar and the toolbars
+           exactly as the user left them, and a reload in focus
+           stays in focus. The slim topbar always stays: it
+           carries the document title and this toggle, the way
+           back. Escape deliberately does NOT exit — focus is a
+           mode you leave the way you entered it, by the button
+           or its shortcut (⌘⌥F, in the shortcut registry) —
+           but summoning the sidebar does: the library button
+           and the edge swipe exit focus first (toggleSidebar /
+           openSidebar above), so the pane is never more than
+           one gesture away. Entering focus also closes
+           anything the toolbars had open and folds the phone
+           drawer away. The context tools button keeps its two
+           modes untouched: they key off the toolbars
+           preference, which focus does not move. */
+        var FOCUS_KEY = 'folio-focus';
+        var focusMode = false;
+        try { focusMode = localStorage.getItem(FOCUS_KEY) === 'on'; } catch (e) {}
+        var focusBtn = document.getElementById('focusBtn');
+        /* Corner brackets: pointing out to enter (the page
+           expands into the freed space), pointing in to exit. */
+        var FOCUS_ENTER_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M16 21h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>';
+        var FOCUS_EXIT_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h3a2 2 0 0 0 2-2V3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M21 16h-3a2 2 0 0 0-2 2v3"/></svg>';
+        function applyFocusBtn() {
+          if (!focusBtn) return;
+          focusBtn.innerHTML = focusMode ? FOCUS_EXIT_SVG : FOCUS_ENTER_SVG;
+          focusBtn.setAttribute('aria-label', focusMode ? 'Exit focus mode' : 'Focus mode');
+          focusBtn.setAttribute('data-tip', (focusMode ? 'Exit focus mode' : 'Focus mode') + scHintSuffix('focus-mode'));
+          focusBtn.setAttribute('aria-pressed', focusMode ? 'true' : 'false');
+          focusBtn.classList.toggle('on', focusMode);
+        }
+        function setFocusMode(on) {
+          focusMode = !!on;
+          try { localStorage.setItem(FOCUS_KEY, focusMode ? 'on' : 'off'); } catch (e) {}
+          if (focusMode) {
+            closeTbMenu();
+            closeTblMenu();
+            closeCtxMenu();
+            closeCtxToolsMenu();
+            closeFmtPop();
+            closeTblPop();
+            document.body.classList.remove('nav-open');
+            document.documentElement.setAttribute('data-focus', 'on');
+          } else {
+            document.documentElement.removeAttribute('data-focus');
+          }
+          applyFocusBtn();
+          applyLibraryBtn();
+        }
+        if (focusBtn) focusBtn.addEventListener('click', function () {
+          setFocusMode(!focusMode);
+        });
+        applyFocusBtn();
+
+        /* ---------------- floating outline ----------------
+           The open document's outline moved out of the sidebar
+           into the floating panel at the document area's top
+           right (the .outline-anchor markup in the main
+           column): it works with the sidebar hidden and in
+           focus mode, because it belongs to the document, not
+           the library. renderOutline fills #outlineList inside
+           the card exactly as it filled the sidebar section.
+           Collapsed, the panel is one slim button. Expanded
+           and unpinned, it folds away on an outside tap or
+           Escape, and after a heading jump; the pin keeps it
+           open through all of that, and the pinned choice
+           persists per device (folio-outline-pin), so a pinned
+           outline is already open on the next load. Closing a
+           pinned outline with its × unpins it — the × means
+           "put it away", not "hide it until the next load". */
+        var OUTLINE_PIN_KEY = 'folio-outline-pin';
+        var outlinePinned = false;
+        try { outlinePinned = localStorage.getItem(OUTLINE_PIN_KEY) === 'pinned'; } catch (e) {}
+        var outlineOpen = outlinePinned;
+        var outlinePopEl = document.getElementById('outlinePop');
+        var outlineToggleBtn = document.getElementById('outlineToggle');
+        var outlineCardEl = document.getElementById('outlineCard');
+        var outlinePinBtn = document.getElementById('outlinePin');
+        var outlineCloseBtn = document.getElementById('outlineClose');
+        function applyOutlinePop() {
+          if (outlineCardEl) outlineCardEl.hidden = !outlineOpen;
+          if (outlineToggleBtn) outlineToggleBtn.setAttribute('aria-expanded', outlineOpen ? 'true' : 'false');
+          if (outlinePinBtn) {
+            outlinePinBtn.setAttribute('aria-pressed', outlinePinned ? 'true' : 'false');
+            outlinePinBtn.setAttribute('aria-label', outlinePinned ? 'Unpin outline' : 'Pin outline open');
+            outlinePinBtn.setAttribute('data-tip', outlinePinned ? 'Unpin outline' : 'Pin outline open');
+          }
+        }
+        function setOutlineOpen(open) {
+          outlineOpen = !!open;
+          applyOutlinePop();
+        }
+        function setOutlinePinned(pinned) {
+          outlinePinned = !!pinned;
+          try { localStorage.setItem(OUTLINE_PIN_KEY, outlinePinned ? 'pinned' : 'unpinned'); } catch (e) {}
+          if (outlinePinned) outlineOpen = true;
+          applyOutlinePop();
+        }
+        if (outlineToggleBtn) outlineToggleBtn.addEventListener('click', function () {
+          setOutlineOpen(!outlineOpen);
+        });
+        if (outlinePinBtn) outlinePinBtn.addEventListener('click', function () {
+          setOutlinePinned(!outlinePinned);
+        });
+        if (outlineCloseBtn) outlineCloseBtn.addEventListener('click', function () {
+          if (outlinePinned) setOutlinePinned(false);
+          setOutlineOpen(false);
+        });
+        document.addEventListener('pointerdown', function (ev) {
+          if (!outlineOpen || outlinePinned) return;
+          if (outlinePopEl && outlinePopEl.contains(ev.target)) return;
+          setOutlineOpen(false);
+        }, true);
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key !== 'Escape' || !outlineOpen || outlinePinned) return;
+          if (document.querySelector('.menu.open')) return;
+          setOutlineOpen(false);
+        }, true);
+        applyOutlinePop();
 
         /* ---------------- context tools button (small screens) ----
            One topbar button in the slot next to the both-toolbars
@@ -3743,6 +4015,9 @@
           item(toolbarsHidden ? TB_SHOW_SVG : TB_HIDE_SVG,
             toolbarsHidden ? 'Show toolbars' : 'Hide toolbars',
             function () { setToolbarsHidden(!toolbarsHidden); }, 'toggle-toolbars');
+          item(FOCUS_SVG,
+            focusMode ? 'Exit focus mode' : 'Focus mode',
+            function () { setFocusMode(!focusMode); }, 'focus-mode');
           sep();
           var head = document.createElement('div');
           head.className = 'menu-head';
@@ -3795,7 +4070,7 @@
 
         /* ---------------- collapsible sidebar sections ---------------- */
         function applySectionCollapse() {
-          var map = { docsSection: 'documents', outlineSection: 'outline', backlinkSection: 'backlinks' };
+          var map = { docsSection: 'documents', backlinkSection: 'backlinks' };
           Object.keys(map).forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.classList.toggle('is-collapsed', !!lib.collapsedSections[map[id]]);
@@ -4680,7 +4955,9 @@
             b.setAttribute('data-tip', 'Jump to \u201C' + h.text + '\u201D');
             b.addEventListener('click', function () {
               if (editorHandle) editorHandle.scrollToHeading(i);
-              if (window.innerWidth <= 900) document.body.classList.remove('nav-open');
+              /* An unpinned outline folds away once it has
+                 taken you somewhere; a pinned one stays. */
+              if (!outlinePinned) setOutlineOpen(false);
             });
             outlineEl.appendChild(b);
           });
@@ -8062,9 +8339,6 @@
           ev.stopPropagation();
           toggleSection('documents');
         });
-        document.querySelector('#outlineSection .side-label').addEventListener('click', function () {
-          toggleSection('outline');
-        });
         document.querySelector('#backlinkSection .side-label').addEventListener('click', function () {
           toggleSection('backlinks');
         });
@@ -10193,7 +10467,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-13';
+        var FOLIO_BUILD = '20261024-14';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -10381,6 +10655,12 @@
             run: function () { if (!toolbarsHidden) setCtxBarHidden(!ctxBarHidden); } },
           { id: 'library', combo: 'mod+alt+l', hint: '⌘⌥L', group: 'General', label: 'Show / hide library',
             run: function () { toggleSidebar(); } },
+          /* ⌘⌥F: F for Focus. Not claimed by iPadOS or Safari
+             (no reload or window-cycling lives on it, unlike
+             the ⌥⌘R and ⌘` families), and nothing else in this
+             registry uses it. */
+          { id: 'focus-mode', combo: 'mod+alt+f', hint: '⌘⌥F', group: 'General', label: 'Focus mode',
+            run: function () { setFocusMode(!focusMode); } },
           { id: 'settings', combo: 'mod+,', hint: '⌘,', group: 'General', label: 'Settings',
             run: function () { scRunSettings(); } },
           { id: 'shortcuts-help', combo: 'mod+/', hint: '⌘/', group: 'General', label: 'Keyboard shortcuts',
