@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-16" />
+    <meta name="folio-build" content="20261024-17" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2040,7 +2040,7 @@
           <button class="icon-btn" id="toolbarsBtn" type="button" aria-label="Hide toolbars" aria-pressed="false" data-tip="Hide toolbars">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/><path d="m8.8 17.2 3.2-3.2 3.2 3.2"/></svg>
           </button>
-          <button class="icon-btn" id="focusBtn" type="button" aria-label="Focus mode" aria-pressed="false" data-tip="Focus mode">
+          <button class="icon-btn" id="focusBtn" type="button" aria-label="Zen mode" aria-pressed="false" data-tip="Zen mode">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M16 21h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
           </button>
           <button class="icon-btn" id="topOverflowBtn" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" data-tip="More — share, print, toolbars &amp; settings">
@@ -3431,7 +3431,7 @@
           fm.appendChild(fmIc);
           var fmLabel = document.createElement('span');
           fmLabel.className = 'm-label';
-          fmLabel.textContent = focusMode ? 'Exit focus mode' : 'Focus mode';
+          fmLabel.textContent = focusMode ? 'Exit zen mode' : 'Zen mode';
           fm.appendChild(fmLabel);
           var fmHintText = hintFor('focus-mode');
           if (fmHintText) {
@@ -3723,7 +3723,7 @@
            carries the document title and this toggle, the way
            back. Escape deliberately does NOT exit — focus is a
            mode you leave the way you entered it, by the button
-           or its shortcut (⌘⌥F, in the shortcut registry) —
+           or its shortcut (⌘⌥Z, in the shortcut registry) —
            but summoning the sidebar does: the library button
            and the edge swipe exit focus first (toggleSidebar /
            openSidebar above), so the pane is never more than
@@ -3743,8 +3743,8 @@
         function applyFocusBtn() {
           if (!focusBtn) return;
           focusBtn.innerHTML = focusMode ? FOCUS_EXIT_SVG : FOCUS_ENTER_SVG;
-          focusBtn.setAttribute('aria-label', focusMode ? 'Exit focus mode' : 'Focus mode');
-          focusBtn.setAttribute('data-tip', (focusMode ? 'Exit focus mode' : 'Focus mode') + scHintSuffix('focus-mode'));
+          focusBtn.setAttribute('aria-label', focusMode ? 'Exit zen mode' : 'Zen mode');
+          focusBtn.setAttribute('data-tip', (focusMode ? 'Exit zen mode' : 'Zen mode') + scHintSuffix('focus-mode'));
           focusBtn.setAttribute('aria-pressed', focusMode ? 'true' : 'false');
           focusBtn.classList.toggle('on', focusMode);
         }
@@ -4226,7 +4226,7 @@
             toolbarsHidden ? 'Show toolbars' : 'Hide toolbars',
             function () { setToolbarsHidden(!toolbarsHidden); }, 'toggle-toolbars');
           item(FOCUS_SVG,
-            focusMode ? 'Exit focus mode' : 'Focus mode',
+            focusMode ? 'Exit zen mode' : 'Zen mode',
             function () { setFocusMode(!focusMode); }, 'focus-mode');
           sep();
           var head = document.createElement('div');
@@ -5164,7 +5164,40 @@
             b.textContent = h.text;
             b.setAttribute('data-tip', 'Jump to \u201C' + h.text + '\u201D');
             b.addEventListener('click', function () {
-              if (editorHandle) editorHandle.scrollToHeading(i);
+              if (editorHandle) {
+                editorHandle.scrollToHeading(i);
+                /* Also land the caret at the start of that
+                   heading's text and give the editor focus, so
+                   activating a heading moves the insertion point
+                   there too — not just the scroll position. This
+                   handler is the single activation path: a mouse
+                   or touch click runs it directly, and the
+                   outline's keyboard Enter path clicks the item.
+                   The heading's document position + 1 is the
+                   first position inside it (the start of its
+                   text). When the card folds (below, or via
+                   outlineKbExit on the Enter path) focus stays
+                   with this caret; when the outline is pinned the
+                   card stays open but the caret still moves. */
+                try {
+                  var ed = editorHandle.editor;
+                  var seenH = -1;
+                  var targetPos = null;
+                  ed.state.doc.descendants(function (node, pos) {
+                    if (targetPos !== null) return false;
+                    if (node.type && node.type.name === 'heading') {
+                      seenH++;
+                      if (seenH === i) { targetPos = pos; return false; }
+                    }
+                    return true;
+                  });
+                  if (targetPos !== null) {
+                    ed.chain().focus().setTextSelection(targetPos + 1).run();
+                  } else {
+                    ed.chain().focus().run();
+                  }
+                } catch (e) {}
+              }
               /* An unpinned outline folds away once it has
                  taken you somewhere; a pinned one stays. */
               if (!outlinePinned) setOutlineOpen(false);
@@ -10677,7 +10710,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-16';
+        var FOLIO_BUILD = '20261024-17';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -10865,11 +10898,17 @@
             run: function () { if (!toolbarsHidden) setCtxBarHidden(!ctxBarHidden); } },
           { id: 'library', combo: 'mod+alt+l', hint: '⌘⌥L', group: 'General', label: 'Show / hide library',
             run: function () { toggleSidebar(); } },
-          /* ⌘⌥F: F for Focus. Not claimed by iPadOS or Safari
-             (no reload or window-cycling lives on it, unlike
-             the ⌥⌘R and ⌘` families), and nothing else in this
-             registry uses it. */
-          { id: 'focus-mode', combo: 'mod+alt+f', hint: '⌘⌥F', group: 'General', label: 'Focus mode',
+          /* ⌘⌥Z: Focus moved off its previous F chord — that
+             chord never reached the page reliably on the
+             user's iPad despite the dispatcher's Option-glyph
+             handling, so rather than fight it the binding moved.
+             ⌘⌥Z is unclaimed by iPadOS and Safari, nothing
+             else in this registry uses mod+alt+z (plain ⌘Z is
+             Undo and ⌘⇧Z is Redo, both distinct combos), and
+             its Option glyph (Ω, lowercased ω) already
+             resolves through the dispatcher's Option-character
+             table to 'z'. */
+          { id: 'focus-mode', combo: 'mod+alt+z', hint: '⌘⌥Z', group: 'General', label: 'Zen mode',
             run: function () { setFocusMode(!focusMode); } },
           /* ⌘⌥O: O for Outline. Unclaimed by iPadOS and Safari,
              unused elsewhere in this registry, and its Option
@@ -11113,7 +11152,7 @@
           return false;
         }
         /* Focus mode rides along: it is a global view toggle
-           like the view switches, and its ⌘⌥F chord cannot be
+           like the view switches, and its ⌘⌥Z chord cannot be
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
