@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-22" />
+    <meta name="folio-build" content="20261024-23" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11137,7 +11137,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-22';
+        var FOLIO_BUILD = '20261024-23';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -11522,17 +11522,23 @@
                 refreshToolbar();
               });
             } },
-          /* ⇧Space / ⌃Space paint the caret's whole row /
+          /* ⇧Space / ⌥⇧Space paint the caret's whole row /
              column as a cell selection — the handle bars'
              selection, made from the keyboard (Excel's
              convention). Both are tableOnly, so outside a
              table the presses stay native: ⇧Space types its
-             space and ⌃Space is left to the system. The
-             dispatcher folds Ctrl and ⌘ into one 'mod', so
-             the column chord is registered as mod+space —
-             the hint names the ⌃Space the feature is specced
-             on (⌘Space is claimed by the OS on the target
-             devices before the page can see it anyway). */
+             space and ⌥⇧Space falls through untouched. The
+             column chord was Ctrl+Space until build -23, but
+             iPadOS claims Ctrl+Space for input-source
+             switching — the floating layout badge (a capital
+             'A' for English) — and the keydown never reaches
+             the page, so the chord moved to ⌥⇧Space: Select
+             row's chord with Option added, pairing the two.
+             Option+Space arrives as a non-breaking space
+             (U+00A0) either way, so Shift is the discriminator
+             that keeps this chord strictly distinct from
+             Omnisearch's plain ⌥Space: the dispatcher sees
+             alt+shift+space here, alt+space there. */
           { id: 'tbl-select-row', combo: 'shift+space', hint: '⇧Space', group: 'Table', label: 'Select row', tableOnly: true,
             run: function () {
               if (!editorHandle || !folioCaretInTable()) return;
@@ -11541,7 +11547,7 @@
                 refreshToolbar();
               });
             } },
-          { id: 'tbl-select-col', combo: 'mod+space', hint: '⌃Space', group: 'Table', label: 'Select column', tableOnly: true,
+          { id: 'tbl-select-col', combo: 'alt+shift+space', hint: '⌥⇧Space', group: 'Table', label: 'Select column', tableOnly: true,
             run: function () {
               if (!editorHandle || !folioCaretInTable()) return;
               runTableCmd(function () {
