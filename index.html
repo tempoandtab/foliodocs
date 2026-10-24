@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-18" />
+    <meta name="folio-build" content="20261024-19" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1485,6 +1485,42 @@
       .ab-item.kb-focus { background: var(--hover); }
       .ab-empty { padding: 12px 10px; font-size: 14px; color: var(--ink-3); }
 
+      /* ---------------- Omnisearch (⌥Space) ----------------
+         The action bar's content twin: same floating shell
+         (.action-bar), same result rows, but the rows carry a
+         leading kind icon and an optional snippet line under
+         the label — the body-text excerpt that explains why a
+         document matched. */
+      .om-icon {
+        flex: 0 0 auto; display: inline-flex; margin-top: 2px; color: var(--ink-3);
+      }
+      .ab-main { flex: 1; min-width: 0; }
+      .ab-main .m-label {
+        line-height: 1.3; overflow-wrap: break-word;
+        display: -webkit-box; -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2; overflow: hidden;
+      }
+      .ab-sub {
+        display: block;
+        margin-top: 2px; font-size: 12.5px; font-weight: 400; line-height: 1.35;
+        color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      /* The ring Omnisearch leaves on the folder it reveals:
+         the drop-target's inset accent ring, held for a few
+         seconds, then faded away by the keyframes (the class
+         itself is removed on the same schedule). */
+      .folder.omni-found > .folder-head {
+        background: var(--active);
+        box-shadow: inset 0 0 0 2px var(--accent);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .folder.omni-found > .folder-head { animation: omni-ring 3s ease-out forwards; }
+        @keyframes omni-ring {
+          0%, 72% { background: var(--active); box-shadow: inset 0 0 0 2px var(--accent); }
+          100% { background: transparent; box-shadow: inset 0 0 0 2px transparent; }
+        }
+      }
+
       /* ---------------- Shortcuts reference ---------------- */
       .sc-row {
         display: flex; align-items: center; gap: 14px;
@@ -2374,6 +2410,15 @@
         <span class="ab-key">⌥/</span>
       </div>
       <div class="ab-results" id="actionResults" role="listbox" aria-label="Actions"></div>
+    </div>
+
+    <div class="action-bar" id="omniBar" hidden role="dialog" aria-label="Omnisearch">
+      <div class="ab-box">
+        <span class="ab-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <input class="ab-input" id="omniInput" type="text" placeholder="Search documents, folders, tags" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Omnisearch" />
+        <span class="ab-key">⌥Space</span>
+      </div>
+      <div class="ab-results" id="omniResults" role="listbox" aria-label="Search results"></div>
     </div>
 
     <div class="share-view" id="shareView" hidden>
@@ -3517,6 +3562,37 @@
             openActionBar();
           });
           settingsMenuEl.appendChild(abm);
+          /* Omnisearch rides beside it, built the same way:
+             the content palette's discoverable door, its hint
+             from its own registry entry. */
+          var osm = document.createElement('button');
+          osm.type = 'button';
+          osm.className = 'menu-item';
+          osm.setAttribute('role', 'menuitem');
+          var osmCheck = document.createElement('span');
+          osmCheck.className = 'check';
+          osm.appendChild(osmCheck);
+          var osmIc = document.createElement('span');
+          osmIc.className = 'm-icon';
+          osmIc.innerHTML = DOC_SVG;
+          osm.appendChild(osmIc);
+          var osmLabel = document.createElement('span');
+          osmLabel.className = 'm-label';
+          osmLabel.textContent = 'Omnisearch';
+          osm.appendChild(osmLabel);
+          var osmHintText = hintFor('omnisearch');
+          if (osmHintText) {
+            var osmHint = document.createElement('span');
+            osmHint.className = 'm-hint';
+            osmHint.textContent = osmHintText;
+            osm.appendChild(osmHint);
+          }
+          osm.addEventListener('click', function () {
+            abRecord('omnisearch');
+            closeSettingsMenu();
+            openOmni();
+          });
+          settingsMenuEl.appendChild(osm);
           /* Focus mode rides in this menu too, built like the
              shortcuts row: its label flips with the state, its
              check shows while the mode is on, and its hint
@@ -4324,6 +4400,7 @@
           item(PRINT_SVG, 'Print', function () { printDocById(lib.currentId); }, 'print');
           item(KEYBOARD_SVG, 'Keyboard shortcuts', function () { openShortcutsModal(); }, 'shortcuts-help');
           item(SEARCH_SVG, 'Search actions', function () { openActionBar(); }, 'action-search');
+          item(DOC_SVG, 'Omnisearch', function () { openOmni(); }, 'omnisearch');
           sep();
           if (!toolbarsHidden) {
             item(ctxBarHidden ? CTX_TOGGLE_OFF_SVG : CTX_TOGGLE_ON_SVG,
@@ -10819,7 +10896,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-18';
+        var FOLIO_BUILD = '20261024-19';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -11044,6 +11121,20 @@
              field too. */
           { id: 'action-search', combo: 'alt+/', hint: '⌥/', group: 'General', label: 'Search actions',
             run: function () { openActionBar(); } },
+          /* ⌥Space opens Omnisearch: the action bar's content
+             twin — one palette over documents (title and body
+             text), folders, and hashtags (see the omnisearch
+             block below). Bare Alt again, so the combo is
+             'alt+space'; nothing else in the registry claims
+             it, and plain Space / ⌘Space / ⌘⇧Space stay
+             untouched. The glyph trap: on Mac layouts
+             Option+Space reports its key as a non-breaking
+             space (U+00A0), never ' ' — scComboOf resolves
+             the chord from the ' ', U+00A0, and code 'Space'
+             shapes alike. Field-safe (SC_SAFE_IN_FIELD) so
+             the palette opens from the title field too. */
+          { id: 'omnisearch', combo: 'alt+space', hint: '⌥Space', group: 'General', label: 'Omnisearch',
+            run: function () { openOmni(); } },
           /* Formatting */
           { id: 'bold', combo: 'mod+b', hint: '⌘B', group: 'Formatting', label: 'Bold',
             run: function () { scClickBtn(toolbarBtns.bold); } },
@@ -11209,8 +11300,14 @@
           else if (code === 'Comma') key = ',';
           else if (code === 'Minus') key = '-';
           else if (code === 'Period') key = '.';
+          else if (code === 'Space') key = 'space';
           else key = rawKey;
-          if (key === ' ') key = 'space';
+          /* Option+Space on Mac layouts reports its key as a
+             non-breaking space (U+00A0), not ' ': both name
+             the spacebar here, so ⌥Space resolves whichever
+             shape the press arrives in (the code 'Space'
+             branch above covers the third). */
+          if (key === ' ' || key === '\u00a0') key = 'space';
           /* A dead-key or unidentified press names no key at
              all ('Dead' is what WebKit reports for an Option
              chord it treats as a compose start, and an empty
@@ -11243,7 +11340,12 @@
              binding that includes Alt also includes Mod —
              except ⌥/ itself, whose glyph ÷ no layout types
              without Option — so nothing can misfire. */
-          var altHeld = !!ev.altKey ||
+          /* A U+00A0 key value is the same kind of proof for
+             ⌥Space: no layout types a non-breaking space from
+             the spacebar without Option (or AltGr) held, so
+             count Alt as held for it too — the combo it can
+             mint is 'alt+space' and nothing plainer. */
+          var altHeld = !!ev.altKey || rawKey === '\u00a0' ||
             (rawKey.length === 1 && !!SC_OPTION_CHARS[rawKey]);
           if (altHeld && key.length === 1) {
             if (SC_OPTION_CHARS[key]) key = SC_OPTION_CHARS[key];
@@ -11286,7 +11388,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true };
+        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
@@ -11524,6 +11626,29 @@
               }
               return;
             }
+            /* Omnisearch owns the same keys while IT is up —
+               the two palettes are never open together (each
+               opening folds the other), so this branch and the
+               action bar's above can never contend. */
+            if (omniOpen) {
+              if (ev.key === 'Escape') {
+                closeOmni(true);
+                ev.preventDefault();
+                ev.stopPropagation();
+              } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                omniMove(ev.key === 'ArrowDown' ? 1 : -1);
+                ev.preventDefault();
+                ev.stopPropagation();
+              } else if (ev.key === 'Enter') {
+                omniRunHighlighted();
+                ev.preventDefault();
+                ev.stopPropagation();
+              } else if (ev.key === 'Tab') {
+                ev.preventDefault();
+                ev.stopPropagation();
+              }
+              return;
+            }
             /* While the outline is keyboard-focused (opened
                with ⌘⌥O), it owns ↑/↓, Enter, and Esc the same
                way an open popover owns its keys below: the
@@ -11622,6 +11747,13 @@
             closeActionBar(true);
             return;
           }
+          /* ⌥Space toggles Omnisearch the same way. */
+          if (omniOpen && scComboOf(ev) === 'alt+space') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            closeOmni(true);
+            return;
+          }
           var sc = SHORTCUT_BY_COMBO[scComboOf(ev)];
           if (!sc || sc.native || !sc.run) return;
           if (scAnyOverlayOpen()) return;
@@ -11639,6 +11771,7 @@
              launcher, never a state the command must know
              about. */
           if (actionBarOpen) closeActionBar(false);
+          if (omniOpen) closeOmni(false);
           abRecord(sc.id);
           sc.run(ev);
         }, true);
@@ -11987,6 +12120,7 @@
         function openActionBar() {
           if (!actionBarEl || actionBarOpen) return;
           if (scAnyOverlayOpen()) return;
+          if (omniOpen) closeOmni(false);
           /* One surface at a time: every menu and popover
              folds away before the bar opens, as they do for
              each other. */
@@ -12039,6 +12173,317 @@
           if (!actionBarOpen) return;
           if (actionBarEl.contains(ev.target)) return;
           closeActionBar(true);
+        }, true);
+
+        /* ---------------- omnisearch (⌥Space) ----------------
+           The action bar's content twin: where ⌥/ searches
+           what the app can DO, ⌥Space searches what the
+           library HOLDS — documents by title and body text,
+           folders by name, and hashtags — grouped by kind in
+           one floating palette on the action bar's shell and
+           discipline: input focused on open, ↑/↓ walk the
+           highlight, Enter runs, Esc folds, a tap outside
+           folds, and the two palettes are never open together.
+           An empty query lists the most recently edited
+           documents, the way the action bar opens on its
+           recents. Picking a result does exactly what its own
+           surface does: a document opens; a folder is revealed
+           in the sidebar — the pane summoned (which exits Zen,
+           the established rule), the view reset to Documents,
+           the section un-collapsed, its ancestors expanded,
+           the list scrolled to it, and a ring left on its head
+           that fades after a few seconds; a hashtag applies
+           the very toggle a click on its sidebar chip applies. */
+        var omniBarEl = document.getElementById('omniBar');
+        var omniInput = document.getElementById('omniInput');
+        var omniResults = document.getElementById('omniResults');
+        var omniOpen = false;
+        var omniReturnFocus = null;
+        var omniItems = [];
+        var omniEntries = [];
+        var omniRingTimer = null;
+        /* The plain text of a document: every text node in
+           its content tree, space-joined and whitespace-
+           collapsed, so a body match reads as prose and the
+           snippet cut from it needs no further cleanup. */
+        function omniDocText(doc) {
+          var parts = [];
+          (function walk(node) {
+            if (!node || typeof node !== 'object') return;
+            if (node.type === 'text' && node.text) parts.push(node.text);
+            (node.content || []).forEach(walk);
+          })(doc.content);
+          return parts.join(' ').replace(/\s+/g, ' ').trim();
+        }
+        function omniFolderPath(f, includeSelf) {
+          var names = [];
+          var seen = {};
+          var cur = includeSelf ? f : (f && f.parentId ? folderById(f.parentId) : null);
+          while (cur && !seen[cur.id]) {
+            seen[cur.id] = true;
+            names.unshift(cur.name);
+            cur = cur.parentId ? folderById(cur.parentId) : null;
+          }
+          return names.join(' / ');
+        }
+        function omniSnippet(text, idx, len) {
+          var start = Math.max(0, idx - 32);
+          var end = Math.min(text.length, idx + len + 58);
+          return (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+        }
+        function omniDocEntry(d, snippet) {
+          var f = d.folderId ? folderById(d.folderId) : null;
+          return {
+            icon: DOC_SVG,
+            label: d.title || 'Untitled',
+            sub: snippet || '',
+            hint: f ? omniFolderPath(f, true) : '',
+            run: function () { openDoc(d.id, true); }
+          };
+        }
+        function omniFolderEntry(f) {
+          return {
+            icon: FOLDER_SVG,
+            label: f.name,
+            sub: '',
+            hint: omniFolderPath(f, false),
+            run: function () { omniRevealFolder(f.id); }
+          };
+        }
+        function omniTagEntry(t) {
+          return {
+            icon: TAG_SVG,
+            label: '#' + t.name,
+            sub: '',
+            hint: t.count + (t.count === 1 ? ' document' : ' documents'),
+            run: function () { omniPickTag(t); }
+          };
+        }
+        function omniCollect() {
+          var q = (omniInput.value || '').trim().toLowerCase();
+          var sections = [];
+          if (!q) {
+            var recents = sortedDocs().slice(0, 5).map(function (d) { return omniDocEntry(d, ''); });
+            if (recents.length) sections.push({ head: 'Recent documents', items: recents });
+            return sections;
+          }
+          /* Title hits rank above body-only hits; each tier
+             keeps the library's most-recently-edited order. */
+          var titleHits = [], bodyHits = [];
+          sortedDocs().forEach(function (d) {
+            if ((d.title || '').toLowerCase().indexOf(q) !== -1) { titleHits.push(omniDocEntry(d, '')); return; }
+            var text = omniDocText(d);
+            var idx = text.toLowerCase().indexOf(q);
+            if (idx !== -1) bodyHits.push(omniDocEntry(d, omniSnippet(text, idx, q.length)));
+          });
+          var docs = titleHits.concat(bodyHits).slice(0, 12);
+          if (docs.length) sections.push({ head: 'Documents', items: docs });
+          var folders = lib.folders.filter(function (f) {
+            return f.name.toLowerCase().indexOf(q) !== -1;
+          }).slice(0, 6).map(omniFolderEntry);
+          if (folders.length) sections.push({ head: 'Folders', items: folders });
+          /* A leading # in the query is the tag sigil, not
+             part of the name; tag keys are already lowercase. */
+          var tagQ = q.charAt(0) === '#' ? q.slice(1) : q;
+          if (tagQ) {
+            var tags = allTagCounts().filter(function (t) {
+              return t.key.indexOf(tagQ) !== -1;
+            }).slice(0, 6).map(omniTagEntry);
+            if (tags.length) sections.push({ head: 'Tags', items: tags });
+          }
+          return sections;
+        }
+        function omniRender() {
+          var sections = omniCollect();
+          omniResults.innerHTML = '';
+          omniItems = [];
+          omniEntries = [];
+          if (!sections.length) {
+            var empty = document.createElement('div');
+            empty.className = 'ab-empty';
+            empty.textContent = 'No results for "' + (omniInput.value || '').trim() + '"';
+            omniResults.appendChild(empty);
+            return;
+          }
+          sections.forEach(function (sec) {
+            var head = document.createElement('div');
+            head.className = 'ab-group';
+            head.textContent = sec.head;
+            omniResults.appendChild(head);
+            sec.items.forEach(function (e) {
+              var b = document.createElement('button');
+              b.type = 'button';
+              b.className = 'ab-item';
+              b.setAttribute('role', 'option');
+              var ic = document.createElement('span');
+              ic.className = 'om-icon';
+              ic.setAttribute('aria-hidden', 'true');
+              ic.innerHTML = e.icon;
+              b.appendChild(ic);
+              var main = document.createElement('span');
+              main.className = 'ab-main';
+              var s = document.createElement('span');
+              s.className = 'm-label';
+              s.textContent = e.label;
+              main.appendChild(s);
+              if (e.sub) {
+                var sub = document.createElement('span');
+                sub.className = 'ab-sub';
+                sub.textContent = e.sub;
+                main.appendChild(sub);
+              }
+              b.appendChild(main);
+              if (e.hint) {
+                var h = document.createElement('span');
+                h.className = 'm-hint';
+                h.textContent = e.hint;
+                b.appendChild(h);
+              }
+              b.addEventListener('click', function () { omniRun(e); });
+              omniResults.appendChild(b);
+              omniItems.push(b);
+              omniEntries.push(e);
+            });
+          });
+          omniHighlight(0);
+        }
+        function omniHighlight(i) {
+          omniItems.forEach(function (el, j) { el.classList.toggle('kb-focus', j === i); });
+          var el = omniItems[i];
+          if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+        }
+        function omniCurrentIndex() {
+          for (var i = 0; i < omniItems.length; i++) {
+            if (omniItems[i].classList.contains('kb-focus')) return i;
+          }
+          return -1;
+        }
+        function omniMove(dir) {
+          if (!omniItems.length) return;
+          var i = omniCurrentIndex();
+          var next = i === -1
+            ? (dir > 0 ? 0 : omniItems.length - 1)
+            : (i + dir + omniItems.length) % omniItems.length;
+          omniHighlight(next);
+        }
+        function omniRunHighlighted() {
+          var i = omniCurrentIndex();
+          if (i === -1 && omniItems.length) i = 0;
+          if (i >= 0 && omniEntries[i]) omniRun(omniEntries[i]);
+        }
+        function omniRestoreFocus() {
+          var t = omniReturnFocus;
+          omniReturnFocus = null;
+          if (t && t !== document.body && document.contains(t) && t.focus) {
+            try { t.focus({ preventScroll: true }); } catch (e) { try { t.focus(); } catch (e2) {} }
+          } else if (editorHandle) {
+            editorHandle.editor.chain().focus().run();
+          }
+        }
+        function omniRun(e) {
+          /* Focus goes back before the pick runs, so it lands
+             in the same state its own surface would find —
+             the action bar's rule, kept. */
+          closeOmni(true);
+          e.run();
+        }
+        function omniRevealFolder(id) {
+          if (!folderById(id)) return;
+          openSidebar();
+          if (docViewMode !== 'documents') setDocViewMode('documents');
+          if (tagFilter) setTagFilter(null);
+          if (lib.collapsedSections.documents) {
+            lib.collapsedSections.documents = false;
+            applySectionCollapse();
+          }
+          expandFolderChain(id);
+          persist(false);
+          renderDocList();
+          var wrap = null;
+          docListEl.querySelectorAll('.folder').forEach(function (el) {
+            if (el.getAttribute('data-folder-id') === id) wrap = el;
+          });
+          if (!wrap) return;
+          if (omniRingTimer) clearTimeout(omniRingTimer);
+          wrap.classList.add('omni-found');
+          var head = wrap.querySelector('.folder-head') || wrap;
+          if (head.scrollIntoView) {
+            head.scrollIntoView({ block: 'center', behavior: outlineReducedMotion ? 'auto' : 'smooth' });
+          }
+          omniRingTimer = setTimeout(function () {
+            wrap.classList.remove('omni-found');
+            omniRingTimer = null;
+          }, 3000);
+        }
+        function omniPickTag(t) {
+          openSidebar();
+          if (lib.collapsedSections.documents) {
+            lib.collapsedSections.documents = false;
+            applySectionCollapse();
+          }
+          /* The sidebar chip's own click, verbatim: picking
+             the tag that is already filtering clears it. */
+          setTagFilter(tagFilter === t.key ? null : t.key);
+        }
+        function omniPlace() {
+          var vv = window.visualViewport;
+          if (!vv || !omniBarEl) return;
+          omniBarEl.style.top = (vv.offsetTop + 10) + 'px';
+          omniBarEl.style.left = (vv.offsetLeft + vv.width / 2) + 'px';
+        }
+        function openOmni() {
+          if (!omniBarEl || omniOpen) return;
+          if (scAnyOverlayOpen()) return;
+          /* One surface at a time, the action bar's list,
+             plus the action bar itself. */
+          closeSettingsMenu();
+          closeTopMenu();
+          closeDocBarMenu();
+          closeDocMenu();
+          closeFolderMenu();
+          closeMoveMenu();
+          closeViewMenu();
+          closeTbMenu();
+          closeTblMenu();
+          closeCtxMenu();
+          closeCtxToolsMenu();
+          closeFmtPop();
+          closeTblPop();
+          closeTblStylePops();
+          closeFolderPop();
+          closeThemePop();
+          if (actionBarOpen) closeActionBar(false);
+          if (outlineKb) outlineKbExit(false);
+          omniReturnFocus = document.activeElement;
+          omniOpen = true;
+          omniBarEl.hidden = false;
+          omniInput.value = '';
+          omniRender();
+          omniPlace();
+          if (window.visualViewport) window.visualViewport.addEventListener('resize', omniPlace);
+          omniInput.focus();
+        }
+        function closeOmni(restore) {
+          if (!omniOpen) return;
+          omniOpen = false;
+          omniBarEl.hidden = true;
+          if (window.visualViewport) window.visualViewport.removeEventListener('resize', omniPlace);
+          if (restore) omniRestoreFocus();
+          else omniReturnFocus = null;
+        }
+        if (omniInput) omniInput.addEventListener('input', omniRender);
+        if (omniResults) {
+          omniResults.addEventListener('pointerover', function (ev) {
+            var b = ev.target && ev.target.closest ? ev.target.closest('.ab-item') : null;
+            if (!b) return;
+            var i = omniItems.indexOf(b);
+            if (i !== -1) omniHighlight(i);
+          });
+        }
+        document.addEventListener('pointerdown', function (ev) {
+          if (!omniOpen) return;
+          if (omniBarEl.contains(ev.target)) return;
+          closeOmni(true);
         }, true);
 
         /* ---------------- init ---------------- */
