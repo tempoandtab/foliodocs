@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-17" />
+    <meta name="folio-build" content="20261024-18" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1427,6 +1427,64 @@
       .outline-item.kb-focus { background: var(--hover); color: var(--ink); }
       .tbl-gc.kb-focus { outline: 2px solid var(--accent); outline-offset: 1px; position: relative; z-index: 1; }
 
+      /* ---------------- Action bar (⌥/) ----------------
+         A floating command palette anchored to the top edge
+         of the app: a search row over a results list that
+         reuses the menus' item typography (.m-label / .m-hint
+         are re-scoped here), with the same .kb-focus highlight
+         the menus and popovers walk. It is a launcher, not a
+         dialog: no scrim, and it folds away on Esc, on ⌥/
+         again, or on any tap outside it. */
+      .action-bar {
+        position: fixed; z-index: 200; top: 10px; left: 50%;
+        transform: translateX(-50%);
+        width: min(560px, calc(100vw - 20px));
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: 14px; box-shadow: var(--shadow); padding: 6px;
+      }
+      .action-bar[hidden] { display: none; }
+      @media (prefers-reduced-motion: no-preference) {
+        .action-bar { animation: ab-in 0.13s ease-out; }
+        @keyframes ab-in {
+          from { opacity: 0; transform: translate(-50%, -4px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+      }
+      .ab-box { display: flex; align-items: center; gap: 9px; padding: 2px 8px; }
+      .ab-icon { flex: 0 0 auto; display: inline-flex; color: var(--ink-3); }
+      .ab-input {
+        flex: 1; min-width: 0; border: 0; background: transparent;
+        color: var(--ink); font: inherit; font-size: 16px;
+        outline: none; padding: 7px 0;
+      }
+      .ab-input::placeholder { color: var(--ink-3); }
+      .ab-key { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+      .ab-results {
+        max-height: min(46vh, 430px); overflow-y: auto;
+        border-top: 1px solid var(--line-soft); margin-top: 4px; padding-top: 4px;
+      }
+      .ab-group {
+        font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+        text-transform: uppercase; color: var(--ink-3); padding: 7px 10px 3px;
+      }
+      .ab-item {
+        display: flex; align-items: flex-start; gap: 9px; width: 100%;
+        text-align: left; padding: 9px 10px; border-radius: 8px;
+        font-size: 14.5px; font-weight: 500; min-height: 40px;
+      }
+      .ab-item .m-label {
+        flex: 1; min-width: 0; line-height: 1.3; overflow-wrap: break-word;
+        display: -webkit-box; -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2; overflow: hidden;
+      }
+      .ab-item .m-hint {
+        flex: 0 0 auto; margin-left: auto; margin-top: 2px; padding-left: 12px;
+        font-size: 12.5px; font-weight: 600; color: var(--ink-3);
+      }
+      .ab-item.danger { color: var(--danger); }
+      .ab-item.kb-focus { background: var(--hover); }
+      .ab-empty { padding: 12px 10px; font-size: 14px; color: var(--ink-3); }
+
       /* ---------------- Shortcuts reference ---------------- */
       .sc-row {
         display: flex; align-items: center; gap: 14px;
@@ -2309,6 +2367,15 @@
       </div>
     </div>
 
+    <div class="action-bar" id="actionBar" hidden role="dialog" aria-label="Search actions">
+      <div class="ab-box">
+        <span class="ab-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <input class="ab-input" id="actionInput" type="text" placeholder="Search actions" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search actions" />
+        <span class="ab-key">⌥/</span>
+      </div>
+      <div class="ab-results" id="actionResults" role="listbox" aria-label="Actions"></div>
+    </div>
+
     <div class="share-view" id="shareView" hidden>
       <div class="paper">
         <div class="share-loading" id="shareLoading">Loading&hellip;</div>
@@ -3049,7 +3116,7 @@
            the Export-as-PDF print flow (printDocById). */
         function fillDocMenu(menuEl, d, closeFn, moveAnchor) {
           menuEl.innerHTML = '';
-          function item(icon, label, cls, hint, fn) {
+          function item(icon, label, cls, hint, fn, recId) {
             var b = document.createElement('button');
             b.type = 'button';
             b.className = 'menu-item' + (cls ? ' ' + cls : '');
@@ -3068,7 +3135,10 @@
               h.textContent = hint;
               b.appendChild(h);
             }
-            b.addEventListener('click', fn);
+            /* recId names the action in the action bar's
+               recent list (see abRecord): a menu pick is an
+               action taken, wherever it was taken from. */
+            b.addEventListener('click', function () { if (recId) abRecord(recId); fn(); });
             menuEl.appendChild(b);
             return b;
           }
@@ -3080,34 +3150,34 @@
           item(d.favorite ? STAR_SVG : STAR_O_SVG, d.favorite ? 'Unfavorite' : 'Favorite', '', hintFor('favorite'), function () {
             closeFn();
             toggleFavorite(d.id);
-          });
+          }, 'favorite');
           item(CHECKLIST_SVG, 'Select documents', '', '', function () {
             closeFn();
             enterSelectMode(d.id);
-          });
+          }, 'select-documents');
           item(FOLDER_SVG, 'Move to folder', '', hintFor('move-doc'), function () {
             closeFn();
             if (moveAnchor) openMoveMenu(moveAnchor, d.id);
-          });
+          }, 'move-doc');
           sep();
           item(DOWNLOAD_SVG, 'Export as Markdown', '', hintFor('export-md'), function () {
             closeFn();
             exportDocMarkdown(d.id);
-          });
+          }, 'export-md');
           item(PRINT_SVG, 'Export as PDF', '', hintFor('export-pdf'), function () {
             closeFn();
             exportDocPDF(d.id);
-          });
+          }, 'export-pdf');
           item(PRINT_SVG, 'Print', '', hintFor('print'), function () {
             closeFn();
             printDocById(d.id);
-          });
+          }, 'print');
           if (lib.docs.length > 1) {
             sep();
             item(TRASH_SVG, 'Delete', 'danger', hintFor('delete-doc'), function () {
               closeFn();
               openDeleteModal(d.id);
-            });
+            }, 'delete-doc');
           }
         }
         function buildDocMenu(d) {
@@ -3273,7 +3343,7 @@
               vh.textContent = viewHint;
               b.appendChild(vh);
             }
-            b.addEventListener('click', function () { closeViewMenu(); setDocViewMode(mode); });
+            b.addEventListener('click', function () { abRecord(mode === 'favorites' ? 'view-favorites' : 'view-documents'); closeViewMenu(); setDocViewMode(mode); });
             viewMenuEl.appendChild(b);
           }
           item('Documents', DOC_SVG, 'documents');
@@ -3308,6 +3378,7 @@
         var LABEL_ICONS_ONLY_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg>';
         var LABEL_ICONS_TEXT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="8" height="10" rx="1.5"/><path d="M15 9.5h6M15 14.5h6"/></svg>';
         var KEYBOARD_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>';
+        var SEARCH_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
         var FOCUS_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M16 21h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>';
         var UPDATE_CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
         var RELOAD_APP_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36"/><path d="M3 3v6h6"/></svg>';
@@ -3347,10 +3418,10 @@
           verHead.className = 'menu-head';
           verHead.textContent = 'FolioDocs · build ' + FOLIO_BUILD;
           menuEl.appendChild(verHead);
-          makeItem(SYNC_NOW_SVG, 'Sync now', function () { syncNow(); });
-          makeItem(SYNC_DETAILS_SVG, 'Sync details', function () { openSyncDetails(); });
-          makeItem(UPDATE_CHECK_SVG, 'Check for updates', function () { checkForUpdates(true); });
-          makeItem(RELOAD_APP_SVG, 'Reload app', function () { reloadAppFresh(); });
+          makeItem(SYNC_NOW_SVG, 'Sync now', function () { abRecord('sync-now'); syncNow(); });
+          makeItem(SYNC_DETAILS_SVG, 'Sync details', function () { abRecord('sync-details'); openSyncDetails(); });
+          makeItem(UPDATE_CHECK_SVG, 'Check for updates', function () { abRecord('check-updates'); checkForUpdates(true); });
+          makeItem(RELOAD_APP_SVG, 'Reload app', function () { abRecord('reload-app'); reloadAppFresh(); });
         }
         function buildSettingsMenu() {
           settingsMenuEl.innerHTML = '';
@@ -3376,6 +3447,7 @@
             s.textContent = label;
             b.appendChild(s);
             b.addEventListener('click', function () {
+              abRecord('button-labels');
               setLabelMode(mode);
               closeSettingsMenu();
             });
@@ -3409,10 +3481,42 @@
             kb.appendChild(kbHint);
           }
           kb.addEventListener('click', function () {
+            abRecord('shortcuts-help');
             closeSettingsMenu();
             openShortcutsModal();
           });
           settingsMenuEl.appendChild(kb);
+          /* The action bar rides in this menu too, built like
+             the shortcuts row above: it is the discoverable
+             way in for anyone who has not met ⌥/ yet, and its
+             hint comes from the same registry entry. */
+          var abm = document.createElement('button');
+          abm.type = 'button';
+          abm.className = 'menu-item';
+          abm.setAttribute('role', 'menuitem');
+          var abmCheck = document.createElement('span');
+          abmCheck.className = 'check';
+          abm.appendChild(abmCheck);
+          var abmIc = document.createElement('span');
+          abmIc.className = 'm-icon';
+          abmIc.innerHTML = SEARCH_SVG;
+          abm.appendChild(abmIc);
+          var abmLabel = document.createElement('span');
+          abmLabel.className = 'm-label';
+          abmLabel.textContent = 'Search actions';
+          abm.appendChild(abmLabel);
+          var abmHintText = hintFor('action-search');
+          if (abmHintText) {
+            var abmHint = document.createElement('span');
+            abmHint.className = 'm-hint';
+            abmHint.textContent = abmHintText;
+            abm.appendChild(abmHint);
+          }
+          abm.addEventListener('click', function () {
+            closeSettingsMenu();
+            openActionBar();
+          });
+          settingsMenuEl.appendChild(abm);
           /* Focus mode rides in this menu too, built like the
              shortcuts row: its label flips with the state, its
              check shows while the mode is on, and its hint
@@ -3441,6 +3545,7 @@
             fm.appendChild(fmHint);
           }
           fm.addEventListener('click', function () {
+            abRecord('focus-mode');
             closeSettingsMenu();
             setFocusMode(!focusMode);
           });
@@ -3576,6 +3681,7 @@
           if (!toolbarsHidden) refreshContextBar();
         }
         if (toolbarsBtn) toolbarsBtn.addEventListener('click', function () {
+          abRecord('toggle-toolbars');
           setToolbarsHidden(!toolbarsHidden);
         });
         applyToolbarsBtn();
@@ -3660,7 +3766,7 @@
           if (sidebarIsOpen()) closeSidebar();
           else openSidebar();
         }
-        if (libraryBtn) libraryBtn.addEventListener('click', function () { toggleSidebar(); });
+        if (libraryBtn) libraryBtn.addEventListener('click', function () { abRecord('library'); toggleSidebar(); });
         window.addEventListener('resize', applyLibraryBtn);
         if (window.MutationObserver) {
           new MutationObserver(function () { applyLibraryBtn(); })
@@ -3767,6 +3873,7 @@
           applyLibraryBtn();
         }
         if (focusBtn) focusBtn.addEventListener('click', function () {
+          abRecord('focus-mode');
           setFocusMode(!focusMode);
         });
         applyFocusBtn();
@@ -4183,7 +4290,7 @@
               h.textContent = hint;
               b.appendChild(h);
             }
-            b.addEventListener('click', function () { closeTopMenu(); fn(); });
+            b.addEventListener('click', function () { if (scId) abRecord(scId); closeTopMenu(); fn(); });
             topMenuEl.appendChild(b);
             return b;
           }
@@ -4204,7 +4311,7 @@
             s.className = 'm-label';
             s.textContent = label;
             b.appendChild(s);
-            b.addEventListener('click', function () { closeTopMenu(); setLabelMode(mode); });
+            b.addEventListener('click', function () { abRecord('button-labels'); closeTopMenu(); setLabelMode(mode); });
             topMenuEl.appendChild(b);
             return b;
           }
@@ -4216,6 +4323,7 @@
           item(SHARE_SVG, 'Share', function () { openShareModal(); }, 'share');
           item(PRINT_SVG, 'Print', function () { printDocById(lib.currentId); }, 'print');
           item(KEYBOARD_SVG, 'Keyboard shortcuts', function () { openShortcutsModal(); }, 'shortcuts-help');
+          item(SEARCH_SVG, 'Search actions', function () { openActionBar(); }, 'action-search');
           sep();
           if (!toolbarsHidden) {
             item(ctxBarHidden ? CTX_TOGGLE_OFF_SVG : CTX_TOGGLE_ON_SVG,
@@ -8472,7 +8580,7 @@
              secondary bar, exactly as its old dedicated toggle
              did — no menu, the tools are already on screen. */
           if (toolbarsHidden) openCtxToolsMenu();
-          else setCtxBarHidden(!ctxBarHidden);
+          else { abRecord('toggle-ctxbar'); setCtxBarHidden(!ctxBarHidden); }
         });
 
         /* ---------------- right-click table menu -------------------
@@ -10454,6 +10562,7 @@
            whole app chrome) whenever the app has focus — in the
            editor, in the title field, anywhere. */
         document.getElementById('printBtn').addEventListener('click', function () {
+          abRecord('print');
           printDocById(lib.currentId);
         });
         document.addEventListener('keydown', function (ev) {
@@ -10710,7 +10819,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-17';
+        var FOLIO_BUILD = '20261024-18';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -10922,6 +11031,19 @@
             run: function () { scRunSettings(); } },
           { id: 'shortcuts-help', combo: 'mod+/', hint: '⌘/', group: 'General', label: 'Keyboard shortcuts',
             run: function () { openShortcutsModal(); } },
+          /* ⌥/ opens the action bar: a searchable palette over
+             every command in the app (see the action bar block
+             below), Google-style — a different surface from
+             ⌘/'s static reference list above, on its own chord.
+             Plain Alt with no ⌘, so the combo is 'alt+/'; on
+             Mac layouts the press reports the Option glyph ÷,
+             which the dispatcher's Option-character table maps
+             back to '/'. Nothing else in the registry claims
+             the combo, and the entry is field-safe (see
+             SC_SAFE_IN_FIELD) so the bar opens from the title
+             field too. */
+          { id: 'action-search', combo: 'alt+/', hint: '⌥/', group: 'General', label: 'Search actions',
+            run: function () { openActionBar(); } },
           /* Formatting */
           { id: 'bold', combo: 'mod+b', hint: '⌘B', group: 'Formatting', label: 'Bold',
             run: function () { scClickBtn(toolbarBtns.bold); } },
@@ -11105,16 +11227,24 @@
           }
           /* An Option-layer glyph in ev.key is itself proof
              Option was physically held — the glyph cannot be
-             produced without it — so when a mod chord arrives
+             produced without it — so when a chord arrives
              carrying the glyph but with altKey unflagged (the
              shape the -15 build still missed on a real iPad:
              key 'ƒ', metaKey set, altKey clear), count Alt as
              held and let the translation below resolve the
              glyph to its physical key. A plain ⌘F reports key
              'f', never 'ƒ', so no un-Optioned chord can grow
-             an Alt it did not have. */
+             an Alt it did not have. The inference no longer
+             asks for ⌘/Ctrl as a witness: the action bar's
+             bare ⌥/ chord carries no ⌘ at all, and its glyph
+             (÷) needs the same rescue. A false Alt from a
+             layout that types one of these glyphs plainly can
+             only mint an alt-… combo, and every registry
+             binding that includes Alt also includes Mod —
+             except ⌥/ itself, whose glyph ÷ no layout types
+             without Option — so nothing can misfire. */
           var altHeld = !!ev.altKey ||
-            ((ev.metaKey || ev.ctrlKey) && rawKey.length === 1 && !!SC_OPTION_CHARS[rawKey]);
+            (rawKey.length === 1 && !!SC_OPTION_CHARS[rawKey]);
           if (altHeld && key.length === 1) {
             if (SC_OPTION_CHARS[key]) key = SC_OPTION_CHARS[key];
             else if (key.charCodeAt(0) > 127 && key.normalize) {
@@ -11156,7 +11286,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true };
+        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
@@ -11365,6 +11495,35 @@
         document.addEventListener('keydown', function (ev) {
           if (ev.isComposing) return;
           if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey) {
+            /* While the action bar is open it owns ↑/↓, Enter,
+               and Esc the same way an open popover owns its
+               keys below: the presses are swallowed here in
+               the capture phase, so the caret behind the bar
+               never moves and the editor never scrolls. Every
+               other key is the search input's own (typing,
+               caret keys), and the input holds DOM focus, so
+               nothing else in this branch may run either. */
+            if (actionBarOpen) {
+              if (ev.key === 'Escape') {
+                closeActionBar(true);
+                ev.preventDefault();
+                ev.stopPropagation();
+              } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                abMove(ev.key === 'ArrowDown' ? 1 : -1);
+                ev.preventDefault();
+                ev.stopPropagation();
+              } else if (ev.key === 'Enter') {
+                abRunHighlighted();
+                ev.preventDefault();
+                ev.stopPropagation();
+              } else if (ev.key === 'Tab') {
+                /* Focus stays in the search input while the
+                   bar is up; Tab is simply not a way out. */
+                ev.preventDefault();
+                ev.stopPropagation();
+              }
+              return;
+            }
             /* While the outline is keyboard-focused (opened
                with ⌘⌥O), it owns ↑/↓, Enter, and Esc the same
                way an open popover owns its keys below: the
@@ -11451,6 +11610,18 @@
               return;
             }
           }
+          /* ⌥/ while the action bar is open folds it away
+             again — the chord toggles its surface, like the
+             other view toggles toggle theirs. (The registry
+             dispatch below would stand down anyway: the bar's
+             input is a text field and, modal-like, the bar
+             owns the screen while it is up.) */
+          if (actionBarOpen && scComboOf(ev) === 'alt+/') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            closeActionBar(true);
+            return;
+          }
           var sc = SHORTCUT_BY_COMBO[scComboOf(ev)];
           if (!sc || sc.native || !sc.run) return;
           if (scAnyOverlayOpen()) return;
@@ -11462,6 +11633,13 @@
              type, the suggestion popup's own keys). */
           ev.preventDefault();
           ev.stopPropagation();
+          /* A registry chord pressed with the action bar up
+             (⌘⌥Z from the search input, say) runs its command
+             with the bar folded away first — the bar is a
+             launcher, never a state the command must know
+             about. */
+          if (actionBarOpen) closeActionBar(false);
+          abRecord(sc.id);
           sc.run(ev);
         }, true);
         /* Toolbar tooltips gain their shortcut from the same
@@ -11478,11 +11656,17 @@
             if (label) el.setAttribute('data-tip', label + ' · ' + hint);
           }
         });
-        /* The two state-flipping toggle buttons build their
+        /* The state-flipping toggle buttons build their
            tooltips from the registry too — repaint them now
-           that it exists (their first paint ran before it). */
+           that it exists (their first paint ran before it).
+           The zen button belongs on this list with the other
+           two: without the repaint its tooltip kept the bare
+           "Zen mode" from its pre-registry first paint — no
+           ⌘⌥Z clue — until the first toggle re-ran its paint
+           with the registry live, after which the clue stuck. */
         applyToolbarsBtn();
         applyCtxToolsBtn();
+        applyFocusBtn();
 
         /* ---------------- shortcuts reference dialog ----------
            Rendered from the registry on every open, grouped as
@@ -11534,6 +11718,328 @@
         document.addEventListener('keydown', function (ev) {
           if (ev.key === 'Escape' && shortcutsModalEl && !shortcutsModalEl.hidden) closeShortcutsModal();
         });
+
+        /* ---------------- action bar (⌥/) -------------------
+           A searchable command palette in the Google mold:
+           ⌥/ floats a search box at the top edge of the app,
+           and typing filters every command the app offers.
+           The catalog is the shortcut registry's commands
+           first (they bring their hints with them), then the
+           actions that live only in menus — document selection
+           mode from the document menus, the label-style
+           switch, the theme picker, and the sync / update rows
+           the Settings and ⋮ menus share — then, while the
+           caret sits in a table, the table tool set beyond the
+           two chorded commands. Every result runs the very
+           handler its own surface runs: a registry run, a menu
+           builder's own function, or a .click() on the real
+           toolbar button — so the palette can never drift from
+           the surfaces it indexes, and context gating is
+           inherited, not reinvented: table tools appear only
+           in a table, Merge and Split only while their buttons
+           are enabled, Delete document only while another
+           document would remain, the theme picker only while
+           its sidebar button is on screen.
+           The bar also remembers the last few actions taken
+           ANYWHERE in the app (abRecord below) and offers them
+           first on open — most recent at the top, highlight
+           already on it — so ⌥/ then Enter repeats the last
+           thing you did, and the arrows walk the recents
+           before the full catalog below them. Typing swaps
+           the list to plain search results. */
+        var actionBarEl = document.getElementById('actionBar');
+        var actionInput = document.getElementById('actionInput');
+        var actionResults = document.getElementById('actionResults');
+        var actionBarOpen = false;
+        var abReturnFocus = null;
+        var abItems = [];
+        var abActions = [];
+        var AB_RECENTS_KEY = 'folio-action-recents';
+        var AB_RECENTS_MAX = 5;
+        var abRecents = [];
+        try {
+          var abSavedRecents = JSON.parse(localStorage.getItem(AB_RECENTS_KEY) || '[]');
+          if (Array.isArray(abSavedRecents)) {
+            abRecents = abSavedRecents.filter(function (x) { return typeof x === 'string'; }).slice(0, AB_RECENTS_MAX);
+          }
+        } catch (e) {}
+        /* One recording point for the whole app. Every
+           invocation path funnels through here: the shortcut
+           dispatcher records each registry run, buttons record
+           through their data-sc / data-tact identity in the
+           capture-phase click listener below, the topbar's
+           state toggles (zen, toolbars, library, print) record
+           beside their click handlers, and the menu builders
+           record beside the handlers they wire — so a recent
+           is a recent however it was taken.
+           Re-running an action moves it back to the top
+           rather than duplicating it, and the list is capped
+           at the last few. Per device, like the other display
+           preferences: a device habit, not library data. The
+           palette's own chord is never recorded, and freeform
+           inputs (a typed hex color, a folder name) have no
+           stable identity to record. */
+        function abRecord(id) {
+          if (!id || id === 'action-search') return;
+          var i = abRecents.indexOf(id);
+          if (i !== -1) abRecents.splice(i, 1);
+          abRecents.unshift(id);
+          if (abRecents.length > AB_RECENTS_MAX) abRecents.length = AB_RECENTS_MAX;
+          try { localStorage.setItem(AB_RECENTS_KEY, JSON.stringify(abRecents)); } catch (e) {}
+        }
+        document.addEventListener('click', function (ev) {
+          var t = ev.target;
+          if (!t || !t.closest) return;
+          if (actionBarEl && actionBarEl.contains(t)) return;
+          var scEl = t.closest('[data-sc]');
+          if (scEl) { abRecord(scEl.getAttribute('data-sc')); return; }
+          var tact = t.closest('[data-tact]');
+          if (tact) { abRecord('tbl-' + tact.getAttribute('data-tact')); return; }
+          var thdr = t.closest('[data-thdr]');
+          if (thdr) { abRecord('tbl-header-' + thdr.getAttribute('data-thdr')); return; }
+          var popBtn = t.closest('#tblFillBtn, #tblBorderColorBtn, #tblBorderSizeBtn, #tblAlignBtn');
+          if (popBtn) {
+            abRecord({ tblFillBtn: 'tbl-fill', tblBorderColorBtn: 'tbl-border-color', tblBorderSizeBtn: 'tbl-border-size', tblAlignBtn: 'tbl-align' }[popBtn.id]);
+          }
+        }, true);
+        function abInTable() {
+          return !!(editorHandle && editorHandle.editor && editorHandle.editor.isActive('table'));
+        }
+        function abCatalog() {
+          var list = [];
+          function push(id, label, hint, group, run, danger) {
+            list.push({ id: id, label: label, hint: hint || '', group: group, run: run, danger: !!danger });
+          }
+          function pushRegistry(group) {
+            SHORTCUTS.forEach(function (sc) {
+              if (sc.group !== group || !sc.run || sc.native || sc.id === 'action-search') return;
+              if (sc.group === 'Table' && !abInTable()) return;
+              if (sc.id === 'delete-doc' && lib.docs.length <= 1) return;
+              if (sc.id === 'toggle-ctxbar' && toolbarsHidden) return;
+              push(sc.id, sc.label, sc.hint, sc.group, sc.run, sc.id === 'delete-doc');
+            });
+          }
+          pushRegistry('General');
+          /* The one document-menu action with no chord of its
+             own: selection mode, acting on the open document
+             exactly as its menu entry does. */
+          push('select-documents', 'Select documents', '', 'General', function () { enterSelectMode(lib.currentId); });
+          pushRegistry('Formatting');
+          pushRegistry('Table');
+          if (abInTable()) {
+            function tItem(sel, id, label, danger) {
+              var b = tableBar ? tableBar.querySelector(sel) : null;
+              if (b && !b.disabled) push(id, label, hintFor(b.getAttribute('data-sc')), 'Table', function () { b.click(); }, danger);
+            }
+            tItem('[data-tact="row-above"]', 'tbl-row-above', 'Add row above');
+            tItem('[data-tact="col-left"]', 'tbl-col-left', 'Add column to the left');
+            tItem('[data-tact="merge"]', 'tbl-merge', 'Merge selected cells');
+            tItem('[data-tact="split"]', 'tbl-split', 'Split merged cell');
+            tItem('[data-thdr="row"]', 'tbl-header-row', 'Header row');
+            tItem('[data-thdr="col"]', 'tbl-header-col', 'Header column');
+            tItem('[data-tact="reset-widths"]', 'tbl-reset-widths', 'Reset column widths');
+            tItem('[data-tact="del-row"]', 'tbl-del-row', 'Delete row', true);
+            tItem('[data-tact="del-col"]', 'tbl-del-col', 'Delete column', true);
+            tItem('[data-tact="del-table"]', 'tbl-del-table', 'Delete table', true);
+            if (tblFillBtn) push('tbl-fill', 'Cell fill…', '', 'Table', function () { tblFillBtn.click(); });
+            if (tblBorderColorBtn) push('tbl-border-color', 'Border color…', '', 'Table', function () { tblBorderColorBtn.click(); });
+            if (tblBorderSizeBtn) push('tbl-border-size', 'Border size…', '', 'Table', function () { tblBorderSizeBtn.click(); });
+            if (tblAlignBtn) push('tbl-align', 'Cell alignment…', '', 'Table', function () { tblAlignBtn.click(); });
+          }
+          /* Settings & app actions, mirroring the menus: the
+             label switch names the mode it switches TO, the
+             way the menus' radio rows name both modes and
+             check the current one. */
+          push('button-labels', labelMode === 'icons' ? 'Button labels: icons + text' : 'Button labels: icons only', '', 'App',
+            function () { setLabelMode(labelMode === 'icons' ? 'text' : 'icons'); });
+          var themeBtnEl = document.getElementById('themeBtn');
+          if (themeBtnEl && themeBtnEl.getClientRects().length) {
+            push('theme', 'Theme & accent colors', '', 'App', function () { themeBtnEl.click(); });
+          }
+          push('sync-now', 'Sync now', '', 'App', function () { syncNow(); });
+          push('sync-details', 'Sync details', '', 'App', function () { openSyncDetails(); });
+          push('check-updates', 'Check for updates', '', 'App', function () { checkForUpdates(true); });
+          push('reload-app', 'Reload app', '', 'App', function () { reloadAppFresh(); });
+          return list;
+        }
+        function abRender() {
+          var q = (actionInput.value || '').trim().toLowerCase();
+          var catalog = abCatalog();
+          var byId = {};
+          catalog.forEach(function (a) { byId[a.id] = a; });
+          var sections = [];
+          if (q) {
+            var matched = catalog.filter(function (a) { return a.label.toLowerCase().indexOf(q) !== -1; });
+            if (matched.length) sections.push({ head: null, items: matched });
+          } else {
+            /* Recents first, resolved through the CURRENT
+               catalog, so a recent whose context has passed
+               (a table tool outside a table, the theme picker
+               with the sidebar hidden) is simply not offered —
+               the same disappearance its own surface would
+               show. Recents are not repeated in their groups
+               below. */
+            var recentActions = [];
+            abRecents.forEach(function (id) { if (byId[id]) recentActions.push(byId[id]); });
+            var recentIds = {};
+            recentActions.forEach(function (a) { recentIds[a.id] = true; });
+            if (recentActions.length) sections.push({ head: 'Recent', items: recentActions });
+            var lastGroup = null, cur = null;
+            catalog.forEach(function (a) {
+              if (recentIds[a.id]) return;
+              if (a.group !== lastGroup) {
+                lastGroup = a.group;
+                cur = { head: a.group, items: [] };
+                sections.push(cur);
+              }
+              cur.items.push(a);
+            });
+          }
+          actionResults.innerHTML = '';
+          abItems = [];
+          abActions = [];
+          if (!sections.length) {
+            var empty = document.createElement('div');
+            empty.className = 'ab-empty';
+            empty.textContent = 'No actions match "' + (actionInput.value || '').trim() + '"';
+            actionResults.appendChild(empty);
+            return;
+          }
+          sections.forEach(function (sec) {
+            if (sec.head) {
+              var head = document.createElement('div');
+              head.className = 'ab-group';
+              head.textContent = sec.head;
+              actionResults.appendChild(head);
+            }
+            sec.items.forEach(function (a) {
+              var b = document.createElement('button');
+              b.type = 'button';
+              b.className = 'ab-item' + (a.danger ? ' danger' : '');
+              b.setAttribute('role', 'option');
+              var s = document.createElement('span');
+              s.className = 'm-label';
+              s.textContent = a.label;
+              b.appendChild(s);
+              if (a.hint) {
+                var h = document.createElement('span');
+                h.className = 'm-hint';
+                h.textContent = a.hint;
+                b.appendChild(h);
+              }
+              b.addEventListener('click', function () { abRunAction(a); });
+              actionResults.appendChild(b);
+              abItems.push(b);
+              abActions.push(a);
+            });
+          });
+          abHighlight(0);
+        }
+        function abHighlight(i) {
+          abItems.forEach(function (el, j) { el.classList.toggle('kb-focus', j === i); });
+          var el = abItems[i];
+          if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+        }
+        function abCurrentIndex() {
+          for (var i = 0; i < abItems.length; i++) {
+            if (abItems[i].classList.contains('kb-focus')) return i;
+          }
+          return -1;
+        }
+        function abMove(dir) {
+          if (!abItems.length) return;
+          var i = abCurrentIndex();
+          var next = i === -1
+            ? (dir > 0 ? 0 : abItems.length - 1)
+            : (i + dir + abItems.length) % abItems.length;
+          abHighlight(next);
+        }
+        function abRunHighlighted() {
+          var i = abCurrentIndex();
+          if (i === -1 && abItems.length) i = 0;
+          if (i >= 0 && abActions[i]) abRunAction(abActions[i]);
+        }
+        function abRestoreFocus() {
+          var t = abReturnFocus;
+          abReturnFocus = null;
+          if (t && t !== document.body && document.contains(t) && t.focus) {
+            try { t.focus({ preventScroll: true }); } catch (e) { try { t.focus(); } catch (e2) {} }
+          } else if (editorHandle) {
+            editorHandle.editor.chain().focus().run();
+          }
+        }
+        function abRunAction(a) {
+          /* Record first: even if the action itself reloads
+             the app, the recent is already saved. Focus goes
+             back before the run, so the command executes in
+             the same focus state its own shortcut or menu
+             pick would find. */
+          abRecord(a.id);
+          closeActionBar(true);
+          a.run();
+        }
+        function abPlace() {
+          var vv = window.visualViewport;
+          if (!vv || !actionBarEl) return;
+          actionBarEl.style.top = (vv.offsetTop + 10) + 'px';
+          actionBarEl.style.left = (vv.offsetLeft + vv.width / 2) + 'px';
+        }
+        function openActionBar() {
+          if (!actionBarEl || actionBarOpen) return;
+          if (scAnyOverlayOpen()) return;
+          /* One surface at a time: every menu and popover
+             folds away before the bar opens, as they do for
+             each other. */
+          closeSettingsMenu();
+          closeTopMenu();
+          closeDocBarMenu();
+          closeDocMenu();
+          closeFolderMenu();
+          closeMoveMenu();
+          closeViewMenu();
+          closeTbMenu();
+          closeTblMenu();
+          closeCtxMenu();
+          closeCtxToolsMenu();
+          closeFmtPop();
+          closeTblPop();
+          closeTblStylePops();
+          closeFolderPop();
+          closeThemePop();
+          if (outlineKb) outlineKbExit(false);
+          abReturnFocus = document.activeElement;
+          actionBarOpen = true;
+          actionBarEl.hidden = false;
+          actionInput.value = '';
+          abRender();
+          abPlace();
+          if (window.visualViewport) window.visualViewport.addEventListener('resize', abPlace);
+          actionInput.focus();
+        }
+        function closeActionBar(restore) {
+          if (!actionBarOpen) return;
+          actionBarOpen = false;
+          actionBarEl.hidden = true;
+          if (window.visualViewport) window.visualViewport.removeEventListener('resize', abPlace);
+          if (restore) abRestoreFocus();
+          else abReturnFocus = null;
+        }
+        if (actionInput) actionInput.addEventListener('input', abRender);
+        if (actionResults) {
+          /* Hover moves the same highlight the arrows walk,
+             so mouse and keyboard never disagree. */
+          actionResults.addEventListener('pointerover', function (ev) {
+            var b = ev.target && ev.target.closest ? ev.target.closest('.ab-item') : null;
+            if (!b) return;
+            var i = abItems.indexOf(b);
+            if (i !== -1) abHighlight(i);
+          });
+        }
+        document.addEventListener('pointerdown', function (ev) {
+          if (!actionBarOpen) return;
+          if (actionBarEl.contains(ev.target)) return;
+          closeActionBar(true);
+        }, true);
 
         /* ---------------- init ---------------- */
         renderTagFilterBar();
