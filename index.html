@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-20" />
+    <meta name="folio-build" content="20261024-21" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2114,14 +2114,14 @@
 
       <div class="main">
         <div class="topbar">
+          <button class="icon-btn" id="libraryToggle" type="button" aria-label="Hide library" aria-expanded="true" data-tip="Library &amp; folders">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
           <button class="icon-btn" id="navBackBtn" type="button" aria-label="Back" data-sc="nav-back" data-tip="Back" disabled>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg>
           </button>
           <button class="icon-btn" id="navForwardBtn" type="button" aria-label="Forward" data-sc="nav-forward" data-tip="Forward" disabled>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>
-          </button>
-          <button class="icon-btn" id="libraryToggle" type="button" aria-label="Hide library" aria-expanded="true" data-tip="Library &amp; folders">
-            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </button>
           <textarea class="title-input" id="titleInput" rows="1" autocomplete="off" autocapitalize="sentences" aria-label="Document title"></textarea>
           <button class="icon-btn" id="docSettingsBtn" type="button" aria-label="Document settings" aria-haspopup="menu" aria-expanded="false" data-tip="Document settings — favorite, move, export, print, delete">
@@ -2209,8 +2209,8 @@
             <button class="tb-btn tb-txt" type="button" id="tblBorderColorBtn" aria-label="Border color" aria-haspopup="true" aria-expanded="false" data-tip="Table border color"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.6" width="16" height="13" rx="1.5"/><rect x="4" y="19.4" width="16" height="2.6" rx="1.3" fill="currentColor" stroke="none"/></svg><span class="tb-label">Border color</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
             <button class="tb-btn tb-txt" type="button" id="tblBorderSizeBtn" aria-label="Border size" aria-haspopup="true" aria-expanded="false" data-tip="Table border size"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16" stroke-width="4"/><path d="M4 12h16" stroke-width="2"/><path d="M4 18.5h16" stroke-width="1.2"/></svg><span class="tb-label">Border size</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
             <button class="tb-btn tb-txt" type="button" id="tblAlignBtn" aria-label="Cell alignment" aria-haspopup="true" aria-expanded="false" data-tip="Cell alignment"><span class="tbl-align-ic" id="tblAlignIc"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h9M4 18h13"/></svg></span><span class="tb-label">Align</span><svg class="tb-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-            <button class="tb-btn tb-txt" type="button" data-tact="row-above" aria-label="Add row above" data-tip="Add row above"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.4" width="17" height="4.9" fill="currentColor" fill-opacity="0.3" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.3h18M3 14.7h18"/><path d="M19.6 0.9v4.2M17.5 3h4.2" stroke-width="2.2"/></svg><span class="tb-label">↑ Row</span></button>
-            <button class="tb-btn tb-txt" type="button" data-tact="col-left" aria-label="Add column to the left" data-tip="Add column to the left"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.4" width="5.6" height="15.2" fill="currentColor" fill-opacity="0.3" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9.3 4v16M14.7 4v16"/><path d="M19.6 0.9v4.2M17.5 3h4.2" stroke-width="2.2"/></svg><span class="tb-label">← Col</span></button>
+            <button class="tb-btn tb-txt" type="button" data-tact="row-above" data-sc="tbl-row-above" aria-label="Add row above" data-tip="Add row above"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.4" width="17" height="4.9" fill="currentColor" fill-opacity="0.3" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.3h18M3 14.7h18"/><path d="M19.6 0.9v4.2M17.5 3h4.2" stroke-width="2.2"/></svg><span class="tb-label">↑ Row</span></button>
+            <button class="tb-btn tb-txt" type="button" data-tact="col-left" data-sc="tbl-col-left" aria-label="Add column to the left" data-tip="Add column to the left"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.4" width="5.6" height="15.2" fill="currentColor" fill-opacity="0.3" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9.3 4v16M14.7 4v16"/><path d="M19.6 0.9v4.2M17.5 3h4.2" stroke-width="2.2"/></svg><span class="tb-label">← Col</span></button>
             <button class="tb-btn tb-txt" type="button" data-tact="split" aria-label="Split merged cell" data-tip="Split this merged cell back into separate cells"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><path d="M8.4 9.3 5.8 12l2.6 2.7M15.6 9.3l2.6 2.7-2.6 2.7"/></svg><span class="tb-label">Split</span></button>
             <button class="tb-btn tb-txt" type="button" data-thdr="row" aria-label="Header row" aria-pressed="true" data-tip="Style the first row as a header"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.4" width="17" height="4.9" fill="currentColor" fill-opacity="0.5" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.3h18M3 14.7h18"/></svg><span class="tb-label">Header row</span></button>
             <button class="tb-btn tb-txt" type="button" data-thdr="col" aria-label="Header column" aria-pressed="false" data-tip="Style the first column as a header"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.4" width="5.6" height="15.2" fill="currentColor" fill-opacity="0.5" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9.3 4v16M14.7 4v16"/></svg><span class="tb-label">Header col</span></button>
@@ -5712,18 +5712,22 @@
            documents inside collapsed folders included without
            touching any folder's expansion state — wrapping at
            both ends. A sibling jump is a genuine open, so it
-           records into history like any other.
-           The vertical/horizontal split has one wrinkle: ⌘⌥↓
-           and ⌘⌥→ were already the table chords (Add row below
-           / Add column to the right). Those keep the chords
-           while the caret sits in a table — their registry
-           runs fall through to Next / Forward everywhere else,
-           so outside a table the arrows navigate instead of
-           landing nowhere.
+           records into history like any other — and it reveals
+           the landed document's row in the sidebar
+           (navRevealSibling): a nearest-edge scroll, skipped
+           entirely when the row isn't rendered (a collapsed
+           ancestor — expansion states are never touched) or
+           the sidebar isn't on screen (Zen, slid away, phone
+           drawer closed — navigation never summons it).
+           The four ⌘⌥ chords are unconditional: they navigate
+           everywhere, caret in a table included. Table
+           insertion used to share ⌘⌥↓ / ⌘⌥→ contextually, but
+           it moved to plain ⌥+arrows (Numbers-style), which
+           the registry resolves only inside a table — so the
+           split is gone and nothing here falls through.
            All four chords stand down while a menu, a popover,
            or the outline's keyboard mode owns the arrows (the
-           navSurfaceBusy guard on the registry runs and the
-           table fall-throughs); the palettes never see them at
+           navSurfaceBusy guard on the registry runs); the palettes never see them at
            all, because their inputs are text fields and these
            commands are not field-safe. Navigation itself is
            never recorded in the action bar's recents (see
@@ -5843,7 +5847,34 @@
           var nextId = i === -1
             ? (dir > 0 ? order[0] : order[order.length - 1])
             : order[(i + dir + order.length) % order.length];
-          if (nextId && nextId !== lib.currentId) openDoc(nextId, true);
+          if (nextId && nextId !== lib.currentId) {
+            openDoc(nextId, true);
+            navRevealSibling(nextId);
+          }
+        }
+        /* After a sibling jump, scroll the sidebar's list so
+           the newly opened document's row is visible — reveal
+           semantics (block 'nearest': scroll just enough, never
+           force the row to the top), the same scrollIntoView
+           the app's menus and palettes use. Deliberate
+           boundaries: a row that isn't rendered — its ancestor
+           folder is collapsed, or another view/filter owns the
+           list — skips the scroll and leaves every folder's
+           expansion state exactly as it was (flipping must
+           never pop folders open); and a sidebar that isn't
+           on screen (Zen mode, the slid-away pane, the closed
+           phone drawer) skips it too, without summoning the
+           pane — navigating never exits Zen or opens the
+           drawer. openDoc has already re-rendered the list by
+           the time this runs, so the row it looks up is the
+           fresh one. Sibling jumps only: Back / Forward and
+           every other open path keep their old behavior. */
+        function navRevealSibling(id) {
+          if (focusMode) return;
+          if (!sidebarIsOpen()) return;
+          var row = docListEl.querySelector('.doc-item[data-doc-id="' + id + '"]');
+          if (!row || !row.getClientRects().length) return;
+          if (row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
         }
         function navNextDoc() { navSiblingDoc(1); }
         function navPrevDoc() { navSiblingDoc(-1); }
@@ -11082,7 +11113,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-20';
+        var FOLIO_BUILD = '20261024-21';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -11324,25 +11355,23 @@
           /* Document navigation: ⌘⌥← / ⌘⌥→ walk the visit
              history, ⌘⌥↑ / ⌘⌥↓ walk the sidebar's list order
              (see the document navigation module beside
-             openDoc). ← and ↑ own their combos outright —
-             nothing else claimed them. → and ↓ were already
-             the table chords (Add column to the right / Add
-             row below), so Forward and Next carry no combo of
-             their own: the table entries keep the dispatch and
-             fall through to navigation whenever the caret is
-             outside a table. These entries give the commands
-             their labels, hints, and action-bar rows; the runs
-             stand down while a menu, popover, or the outline's
-             keyboard mode owns the arrows (navSurfaceBusy),
-             and abRecord never records any of the four, so
-             flipping through documents can't flood the recents. */
+             openDoc). All four own their combos outright and
+             fire everywhere, caret in a table included — the
+             table insertion chords moved to plain ⌥+arrows
+             (Numbers-style, see the Table group below), so no
+             contextual split remains. The runs stand down
+             while a menu, popover, or the outline's keyboard
+             mode owns the arrows (navSurfaceBusy), and
+             abRecord never records any of the four, so
+             flipping through documents can't flood the
+             recents. */
           { id: 'nav-back', combo: 'mod+alt+arrowleft', hint: '⌘⌥←', group: 'General', label: 'Back',
             run: function () { if (!navSurfaceBusy()) navBack(); } },
-          { id: 'nav-forward', hint: '⌘⌥→', group: 'General', label: 'Forward',
+          { id: 'nav-forward', combo: 'mod+alt+arrowright', hint: '⌘⌥→', group: 'General', label: 'Forward',
             run: function () { if (!navSurfaceBusy()) navForward(); } },
           { id: 'nav-prev-doc', combo: 'mod+alt+arrowup', hint: '⌘⌥↑', group: 'General', label: 'Previous document',
             run: function () { navPrevDoc(); } },
-          { id: 'nav-next-doc', hint: '⌘⌥↓', group: 'General', label: 'Next document',
+          { id: 'nav-next-doc', combo: 'mod+alt+arrowdown', hint: '⌘⌥↓', group: 'General', label: 'Next document',
             run: function () { navNextDoc(); } },
           /* Formatting */
           { id: 'bold', combo: 'mod+b', hint: '⌘B', group: 'Formatting', label: 'Bold',
@@ -11421,29 +11450,49 @@
             run: function () { scClickBtn(toolbarBtns.undo); } },
           { id: 'redo', combo: 'mod+shift+z', hint: '⌘⇧Z', group: 'Formatting', label: 'Redo',
             run: function () { scClickBtn(toolbarBtns.redo); } },
-          /* Table */
-          { id: 'tbl-row-below', combo: 'mod+alt+arrowdown', hint: '⌘⌥↓', group: 'Table', label: 'Add row below',
+          /* Table — insertion rides plain ⌥+arrows, exactly
+             as in Apple Numbers: ⌥↑ row above, ⌥↓ row below,
+             ⌥← column before, ⌥→ column after. The four are
+             tableOnly: the dispatcher resolves them only
+             while the caret or the painted cell selection is
+             in a table, so outside one the press falls
+             through to the editor's native ⌥+arrow text
+             behavior (word/paragraph movement) untouched —
+             and ⇧⌥+arrows (word selection) names a different
+             combo everywhere, so it is untouched too. Each
+             run is the very command its table-bar button and
+             menu rows invoke (same folioAdd… command through
+             the same runTableCmd scroll guard), so insertion
+             position and selection behavior match the menus
+             exactly. ⌘⌥+arrows belong to document navigation
+             alone now (see the nav entries above). */
+          { id: 'tbl-row-above', combo: 'alt+arrowup', hint: '⌥↑', group: 'Table', label: 'Add row above', tableOnly: true,
             run: function () {
-              if (!editorHandle) return;
-              /* ⌘⌥↓ doubles as Next document: the table
-                 meaning owns the chord only while the caret is
-                 in a table — outside one, the press walks the
-                 sidebar's list order (navNextDoc) instead of
-                 landing nowhere. */
-              if (!folioCaretInTable()) { navNextDoc(); return; }
+              if (!editorHandle || !folioCaretInTable()) return;
+              runTableCmd(function () {
+                editorHandle.editor.chain().focus().folioAddRowBefore().run();
+                refreshToolbar();
+              });
+            } },
+          { id: 'tbl-row-below', combo: 'alt+arrowdown', hint: '⌥↓', group: 'Table', label: 'Add row below', tableOnly: true,
+            run: function () {
+              if (!editorHandle || !folioCaretInTable()) return;
               runTableCmd(function () {
                 editorHandle.editor.chain().focus().folioAddRowAfter().run();
                 refreshToolbar();
               });
             } },
-          { id: 'tbl-col-right', combo: 'mod+alt+arrowright', hint: '⌘⌥→', group: 'Table', label: 'Add column to the right',
+          { id: 'tbl-col-left', combo: 'alt+arrowleft', hint: '⌥←', group: 'Table', label: 'Add column to the left', tableOnly: true,
             run: function () {
-              if (!editorHandle) return;
-              /* ⌘⌥→ doubles as Forward, the same pairing as
-                 ⌘⌥↓ / Next document above: in a table the chord
-                 adds a column; anywhere else it walks the visit
-                 history forward (navForward). */
-              if (!folioCaretInTable()) { if (!navSurfaceBusy()) navForward(); return; }
+              if (!editorHandle || !folioCaretInTable()) return;
+              runTableCmd(function () {
+                editorHandle.editor.chain().focus().folioAddColumnBefore().run();
+                refreshToolbar();
+              });
+            } },
+          { id: 'tbl-col-right', combo: 'alt+arrowright', hint: '⌥→', group: 'Table', label: 'Add column to the right', tableOnly: true,
+            run: function () {
+              if (!editorHandle || !folioCaretInTable()) return;
               runTableCmd(function () {
                 editorHandle.editor.chain().focus().folioAddColumnAfter().run();
                 refreshToolbar();
@@ -11976,6 +12025,15 @@
           }
           var sc = SHORTCUT_BY_COMBO[scComboOf(ev)];
           if (!sc || sc.native || !sc.run) return;
+          /* A tableOnly entry (the ⌥+arrow insertion chords)
+             resolves only while the caret or the painted cell
+             selection is in a table: outside one the press is
+             not the registry's at all — it passes through
+             untouched, before any preventDefault, so the
+             editor's native ⌥+arrow text behavior (word /
+             paragraph movement) runs exactly as it always
+             has. */
+          if (sc.tableOnly && !folioCaretInTable()) return;
           if (scAnyOverlayOpen()) return;
           if (scInTextField(ev) && !SC_SAFE_IN_FIELD[sc.id]) return;
           /* Capture phase + stopPropagation: the editor's own
@@ -12083,7 +12141,7 @@
            switch, the theme picker, and the sync / update rows
            the Settings and ⋮ menus share — then, while the
            caret sits in a table, the table tool set beyond the
-           two chorded commands. Every result runs the very
+           four chorded insertion commands. Every result runs the very
            handler its own surface runs: a registry run, a menu
            builder's own function, or a .click() on the real
            toolbar button — so the palette can never drift from
@@ -12191,8 +12249,11 @@
               var b = tableBar ? tableBar.querySelector(sel) : null;
               if (b && !b.disabled) push(id, label, hintFor(b.getAttribute('data-sc')), 'Table', function () { b.click(); }, danger);
             }
-            tItem('[data-tact="row-above"]', 'tbl-row-above', 'Add row above');
-            tItem('[data-tact="col-left"]', 'tbl-col-left', 'Add column to the left');
+            /* Row above / column left arrive through
+               pushRegistry('Table') above — all four insertion
+               commands are registry entries now — so only the
+               chordless tools are proxied from their buttons
+               here. */
             tItem('[data-tact="merge"]', 'tbl-merge', 'Merge selected cells');
             tItem('[data-tact="split"]', 'tbl-split', 'Split merged cell');
             tItem('[data-thdr="row"]', 'tbl-header-row', 'Header row');
