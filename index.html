@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-14" />
+    <meta name="folio-build" content="20261024-15" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -279,24 +279,49 @@
          the paper's margin; expanded it is a card holding
          the heading list, a pin, and a close button. */
       .outline-anchor { position: relative; height: 0; flex: 0 0 auto; z-index: 30; }
+      /* The pop IS the toggler's box, and the card is anchored
+         to the same top-right corner so it can MORPH out of
+         the toggler (see the outline module): opening grows
+         the card from the toggler's 40×40 at that corner —
+         the toggler sits underneath, covered — and closing
+         shrinks it back into the button it came from. */
       .outline-pop {
         position: absolute; top: 10px; right: 14px;
-        display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+        width: 40px; height: 40px;
       }
       .outline-toggle {
-        width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto;
+        width: 40px; height: 40px; border-radius: 10px;
         display: inline-flex; align-items: center; justify-content: center;
         color: var(--ink-2); background: var(--surface);
         border: 1px solid var(--line); box-shadow: var(--shadow);
       }
       .outline-toggle:hover { color: var(--ink); }
       .outline-card {
+        position: absolute; top: 0; right: 0;
         width: min(272px, calc(100vw - 28px));
         background: var(--surface); border: 1px solid var(--line);
         border-radius: 12px; box-shadow: var(--shadow);
         display: flex; flex-direction: column; overflow: hidden;
       }
       .outline-card[hidden] { display: none; }
+      /* The morph itself: explicit pixel width/height set
+         from JS, transitioned here; the head and list fade
+         rather than ride the resize, so nothing squashes
+         mid-flight. .measuring keeps an off-screen size read
+         invisible. */
+      .outline-card.morphing {
+        transition: width 200ms ease, height 200ms ease, opacity 160ms ease;
+      }
+      .outline-card.measuring { visibility: hidden; }
+      .outline-card .outline-head, .outline-card #outlineList {
+        transition: opacity 120ms ease;
+      }
+      .outline-card:not(.content-in) .outline-head,
+      .outline-card:not(.content-in) #outlineList { opacity: 0; }
+      @media (prefers-reduced-motion: reduce) {
+        .outline-card.morphing { transition: none; }
+        .outline-card .outline-head, .outline-card #outlineList { transition: none; }
+      }
       .outline-head {
         display: flex; align-items: center; gap: 4px;
         padding: 6px 6px 6px 14px; border-bottom: 1px solid var(--line-soft);
@@ -3760,18 +3785,41 @@
            persists per device (folio-outline-pin), so a pinned
            outline is already open on the next load. Closing a
            pinned outline with its × unpins it — the × means
-           "put it away", not "hide it until the next load". */
+           "put it away", not "hide it until the next load".
+           The toggler and the card are one surface in two
+           sizes: the card is anchored to the toggler's own
+           top-right corner and MORPHS out of its 40×40 box
+           when it opens (the toggler waits underneath,
+           covered, and is hidden once the card has settled);
+           closing runs the same morph in reverse, shrinking
+           the card back into the button, so the × in the
+           card's corner collapses the menu into the toggler
+           it came from. The head and list fade instead of
+           riding the resize. ~200ms, and reduced motion (or
+           a state change mid-flight) settles instantly. */
         var OUTLINE_PIN_KEY = 'folio-outline-pin';
+        var OUTLINE_MORPH_MS = 210;
         var outlinePinned = false;
         try { outlinePinned = localStorage.getItem(OUTLINE_PIN_KEY) === 'pinned'; } catch (e) {}
         var outlineOpen = outlinePinned;
+        var outlineReducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
         var outlinePopEl = document.getElementById('outlinePop');
         var outlineToggleBtn = document.getElementById('outlineToggle');
         var outlineCardEl = document.getElementById('outlineCard');
         var outlinePinBtn = document.getElementById('outlinePin');
         var outlineCloseBtn = document.getElementById('outlineClose');
-        function applyOutlinePop() {
-          if (outlineCardEl) outlineCardEl.hidden = !outlineOpen;
+        var outlineMorphTimers = [];
+        function outlineMorphLater(fn, ms) { outlineMorphTimers.push(setTimeout(fn, ms)); }
+        function outlineMorphCancel() {
+          outlineMorphTimers.forEach(function (t) { clearTimeout(t); });
+          outlineMorphTimers = [];
+          if (!outlineCardEl) return;
+          outlineCardEl.classList.remove('morphing', 'measuring');
+          outlineCardEl.style.width = '';
+          outlineCardEl.style.height = '';
+          outlineCardEl.style.opacity = '';
+        }
+        function syncOutlineChrome() {
           if (outlineToggleBtn) outlineToggleBtn.setAttribute('aria-expanded', outlineOpen ? 'true' : 'false');
           if (outlinePinBtn) {
             outlinePinBtn.setAttribute('aria-pressed', outlinePinned ? 'true' : 'false');
@@ -3779,15 +3827,76 @@
             outlinePinBtn.setAttribute('data-tip', outlinePinned ? 'Unpin outline' : 'Pin outline open');
           }
         }
+        /* The settled state, applied instantly: the initial
+           paint, the reduced-motion path, and the landing
+           every morph ends in. */
+        function applyOutlinePop() {
+          outlineMorphCancel();
+          if (outlineCardEl) {
+            outlineCardEl.hidden = !outlineOpen;
+            outlineCardEl.classList.toggle('content-in', outlineOpen);
+          }
+          if (outlineToggleBtn) outlineToggleBtn.style.visibility = outlineOpen ? 'hidden' : '';
+          syncOutlineChrome();
+        }
         function setOutlineOpen(open) {
-          outlineOpen = !!open;
-          applyOutlinePop();
+          open = !!open;
+          if (open === outlineOpen || !outlineCardEl || outlineReducedMotion) {
+            outlineOpen = open;
+            applyOutlinePop();
+            return;
+          }
+          outlineOpen = open;
+          outlineMorphCancel();
+          syncOutlineChrome();
+          var card = outlineCardEl;
+          if (open) {
+            /* Measure the settled size invisibly, start from
+               wherever the card currently sits (the toggler's
+               box, or mid-shrink if this press reverses a
+               close), then grow into the card. */
+            var startW = card.hidden ? 40 : (card.offsetWidth || 40);
+            var startH = card.hidden ? 40 : (card.offsetHeight || 40);
+            card.style.width = '';
+            card.style.height = '';
+            card.style.opacity = '';
+            card.classList.add('measuring');
+            card.hidden = false;
+            var w = card.offsetWidth, h = card.offsetHeight;
+            card.classList.remove('measuring');
+            card.style.width = startW + 'px';
+            card.style.height = startH + 'px';
+            card.style.opacity = '0';
+            void card.offsetWidth;
+            card.classList.add('morphing');
+            card.style.width = w + 'px';
+            card.style.height = h + 'px';
+            card.style.opacity = '1';
+            outlineMorphLater(function () { card.classList.add('content-in'); }, 90);
+            outlineMorphLater(applyOutlinePop, OUTLINE_MORPH_MS + 40);
+          } else {
+            /* Shrink back into the toggler's box; the toggler
+               returns underneath at once, so the card's fade
+               lands on the button it is becoming. */
+            card.classList.remove('content-in');
+            var cw = card.offsetWidth || 40, ch = card.offsetHeight || 40;
+            card.style.width = cw + 'px';
+            card.style.height = ch + 'px';
+            card.style.opacity = '1';
+            void card.offsetWidth;
+            card.classList.add('morphing');
+            card.style.width = '40px';
+            card.style.height = '40px';
+            card.style.opacity = '0';
+            if (outlineToggleBtn) outlineToggleBtn.style.visibility = '';
+            outlineMorphLater(applyOutlinePop, OUTLINE_MORPH_MS + 40);
+          }
         }
         function setOutlinePinned(pinned) {
           outlinePinned = !!pinned;
           try { localStorage.setItem(OUTLINE_PIN_KEY, outlinePinned ? 'pinned' : 'unpinned'); } catch (e) {}
-          if (outlinePinned) outlineOpen = true;
-          applyOutlinePop();
+          if (outlinePinned) setOutlineOpen(true);
+          else applyOutlinePop();
         }
         if (outlineToggleBtn) outlineToggleBtn.addEventListener('click', function () {
           setOutlineOpen(!outlineOpen);
@@ -10467,7 +10576,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-14';
+        var FOLIO_BUILD = '20261024-15';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -10791,7 +10900,34 @@
         /* Normalize a keydown into the registry's combo form.
            Letters and digits come from ev.code, so a shifted
            digit still names its key (⇧8, not *) and the binding
-           is the physical key the hint shows. */
+           is the physical key the hint shows. BUT WebKit on
+           iPad does not reliably fill ev.code for a hardware-
+           keyboard press, and with Option held its ev.key is
+           the Option-layer character — ƒ for F, ¬ for L, ¡ for
+           1 — never the letter the hint names, so every ⌘⌥…
+           binding silently missed there while the same chord
+           fired on desktop. (⌘⌥⇧F survived by luck: with
+           Shift held, iPad reports the plain capital letter.)
+           When a chord carries Alt, translate the Option
+           character back to the physical key it came from
+           (the US layout's Option layer, keyed by the
+           lowercased character), and fold any remaining
+           accented letter to its base letter — so the whole
+           registry reads the same on an iPad keyboard as on
+           a desktop one, not just the one chord that was
+           reported broken. */
+        var SC_OPTION_CHARS = {
+          'ƒ': 'f', '¬': 'l', 'ß': 's', '√': 'v', 'ç': 'c',
+          '∂': 'd', 'π': 'p', '†': 't', '∫': 'b', '©': 'g',
+          '®': 'r', '¥': 'y', 'ø': 'o', 'å': 'a', 'œ': 'q',
+          '∑': 'w', '∆': 'j', 'µ': 'm', 'ω': 'z', '≈': 'x',
+          '´': 'e', '¨': 'u', 'ˆ': 'i', '˜': 'n', '˙': 'h',
+          '˚': 'k', '¡': '1', '™': '2', '£': '3', '¢': '4',
+          '∞': '5', '§': '6', '¶': '7', '•': '8', 'ª': '9',
+          'º': '0', '–': '-', '≠': '=', '“': '[', '‘': ']',
+          '«': '\\', '…': ';', 'æ': "'", '≤': ',', '≥': '.',
+          '÷': '/'
+        };
         function scComboOf(ev) {
           var parts = [];
           if (ev.metaKey || ev.ctrlKey) parts.push('mod');
@@ -10808,6 +10944,13 @@
           else if (code === 'Period') key = '.';
           else key = String(ev.key || '').toLowerCase();
           if (key === ' ') key = 'space';
+          if (ev.altKey && key.length === 1) {
+            if (SC_OPTION_CHARS[key]) key = SC_OPTION_CHARS[key];
+            else if (key.charCodeAt(0) > 127 && key.normalize) {
+              var folded = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              if (/^[a-z0-9]$/.test(folded)) key = folded;
+            }
+          }
           parts.push(key);
           return parts.join('+');
         }
