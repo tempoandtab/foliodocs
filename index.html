@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-27" />
+    <meta name="folio-build" content="20261024-28" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -611,6 +611,16 @@
         -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
       }
       .folio-prose .callout-title--default::after { content: attr(data-callout-label); }
+      /* An empty (default) title's paragraph ends with the icon
+         widget rather than text, so ProseMirror appends its
+         trailing <br> after the widget — and the generated
+         label above then breaks onto a second line under the
+         icon instead of riding beside it, until any title edit
+         gives the paragraph a text ending and the break goes
+         away. The widget and the label give the line its
+         height on their own; the break has nothing to hold
+         up, so it never renders in a default title. */
+      .folio-prose .callout-title--default > br.ProseMirror-trailingBreak { display: none; }
       /* When the icon widget button rides the title (every
          editor-rendered callout), it IS the icon — the
          ::before mask would double it. */
@@ -1514,6 +1524,39 @@
       .sidebar .account-email, .sidebar .sync-state, .sidebar #docCount,
       .sidebar .side-label-left > span:not(.side-chev),
       .sidebar .docs-view-btn span {
+        pointer-events: none;
+      }
+      /* The same native-callout suppression for the right-click
+         surfaces the callout build added — the editor's
+         right-click menu, the callout options popover (the
+         icon menu and the toolbar button's composer are the
+         one element), and the two Insert callout toolbar
+         buttons themselves: nothing in them is document text,
+         so selection and the touch callout are off, and their
+         text labels are transparent to hit-testing so a press
+         lands on the control, which WebKit never offers up
+         for text selection. The matching event guards live
+         with the surfaces' own handlers in the app script.
+         The popover's color input stays a real field, like
+         the sidebar's text fields. */
+      #editorMenu, #editorMenu *, #calloutPop, #calloutPop *,
+      #insCalloutBtn, #insCalloutBtn *, #selCalloutBtn, #selCalloutBtn * {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      #calloutPop input {
+        -webkit-touch-callout: default;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+      #editorMenu .m-label, #editorMenu .m-icon,
+      #calloutPop .m-label, #calloutPop .pop-label, #calloutPop .menu-head,
+      #insCalloutBtn .tb-label, #selCalloutBtn .tb-label {
         pointer-events: none;
       }
 
@@ -8957,26 +9000,49 @@
             ins.className = 'callout-insert-btn';
             ins.setAttribute('data-sc', 'insert-callout');
             ins.textContent = 'Insert callout';
-            ins.addEventListener('click', function () {
-              var cfg = calloutPopState ? { type: calloutPopState.template, icon: calloutPopState.icon, color: calloutPopState.color } : { type: 'info' };
-              closeCalloutPop();
-              insertCalloutWith(cfg);
-            });
+            ins.addEventListener('click', function () { calloutPopCommit(); });
             foot.appendChild(ins);
             el.appendChild(foot);
           }
+        }
+        /* The composer's commit — insert the pending callout
+           and close — shared by the footer's Insert callout
+           button and by ⌘Enter while the composer is open
+           (the keydown dispatcher's own branch). Edit mode
+           has no pending insert and no footer, so it stands
+           down there. */
+        function calloutPopCommit() {
+          var st = calloutPopState;
+          if (!st || st.mode !== 'insert') return false;
+          var cfg = { type: st.template, icon: st.icon, color: st.color };
+          closeCalloutPop();
+          insertCalloutWith(cfg);
+          return true;
         }
         function calloutPopPick(pick) {
           var st = calloutPopState;
           if (!st) return;
           if (st.mode === 'insert') {
             /* Composer: the pick updates the pending
-               configuration in place and the menu stays open. */
+               configuration in place and the menu stays open.
+               The rebuild replaces every element in the
+               popover, so the keyboard highlight's position is
+               carried across it by index — the rebuilt item at
+               the same index is the same Type row, glyph tile,
+               or swatch the user just picked. Re-priming here
+               (popNavPrime) would instead land the ring on the
+               pending template's .on row, mid-Type-list,
+               wherever in the menu the pick was made. */
+            var itemsBefore = popNavItems(calloutPopEl);
+            var curBefore = popNavCurrent(calloutPopEl);
+            var focusIdx = curBefore ? itemsBefore.indexOf(curBefore) : -1;
             if (pick.kind === 'type') { st.template = pick.type; st.icon = null; st.color = null; }
             else if (pick.kind === 'icon') st.icon = pick.icon;
             else if (pick.kind === 'color') st.color = pick.color;
             buildCalloutPop();
-            popNavPrime(calloutPopEl);
+            var itemsAfter = popNavItems(calloutPopEl);
+            if (focusIdx >= 0 && itemsAfter[focusIdx]) popNavSet(calloutPopEl, itemsAfter[focusIdx]);
+            else popNavPrime(calloutPopEl);
             return;
           }
           var pos = st.pos;
@@ -8998,6 +9064,7 @@
           calloutPopState = state;
           buildCalloutPop();
           calloutPopEl.hidden = false;
+          dismissNativeEditMenu();
           var w = 288, h = calloutPopEl.offsetHeight || 320;
           var left = rect && typeof rect.left === 'number' ? rect.left : 16;
           var bottom = rect && typeof rect.bottom === 'number' ? rect.bottom : 16;
@@ -9046,6 +9113,57 @@
             openCalloutComposer(btn);
           });
         });
+        /* The sidebar's native-menu suppression, carried to
+           this build's right-click surfaces (the stylesheet
+           carries the matching touch-callout / user-select /
+           hit-testing rules): CSS alone does not stop iPadOS
+           from presenting its native edit callout over the
+           editor menu or the callout popover, because the
+           callout rides on the contextmenu and gesture events
+           WebKit fires for the press — block those defaults
+           anywhere inside the two surfaces, with the sidebar's
+           text-field exception (the composer's color input).
+           The toolbar buttons get the gesture and selection
+           guards too; their contextmenu is already claimed by
+           the composer handler above. */
+        [editorMenuEl, calloutPopEl].forEach(function (el) {
+          if (!el) return;
+          el.addEventListener('contextmenu', function (ev) {
+            if (ev.target.closest && ev.target.closest('input, textarea')) return;
+            ev.preventDefault();
+          }, true);
+          el.addEventListener('gesturestart', function (ev) { ev.preventDefault(); });
+          el.addEventListener('gesturechange', function (ev) { ev.preventDefault(); });
+          el.addEventListener('selectstart', function (ev) {
+            if (ev.target.closest && ev.target.closest('input, textarea')) return;
+            ev.preventDefault();
+          }, true);
+        });
+        [document.getElementById('insCalloutBtn'), document.getElementById('selCalloutBtn')].forEach(function (btn) {
+          if (!btn) return;
+          btn.addEventListener('gesturestart', function (ev) { ev.preventDefault(); });
+          btn.addEventListener('gesturechange', function (ev) { ev.preventDefault(); });
+          btn.addEventListener('selectstart', function (ev) { ev.preventDefault(); }, true);
+        });
+        /* The app's main pointerdown handler dismisses iOS's
+           floating text menu by collapsing the DOM selection
+           whenever a press lands outside the editor — but the
+           presses that open these two surfaces land INSIDE it
+           (a right-click in the document, a tap on a callout's
+           icon), so the native menu would still be floating
+           when the app's menu opens under it. Do the same
+           dismissal as each surface opens: ProseMirror keeps
+           the selection in its own state (the composer's
+           selection-becomes-body and the editor menu's Insert
+           callout both read it from there) and repaints the
+           DOM selection the moment a command runs, and the
+           app paint keeps what was selected visible meanwhile
+           — only Apple's menu goes away. */
+        function dismissNativeEditMenu() {
+          var domSel = window.getSelection ? window.getSelection() : null;
+          if (domSel && domSel.rangeCount) { try { domSel.removeAllRanges(); } catch (e) {} }
+          updateSelPaint();
+        }
 
         /* ---------------- editor right-click menu ----------------
            The document area's own right-click menu (mouse only,
@@ -9099,6 +9217,7 @@
           editorMenuEl.appendChild(b);
           editorMenuEl.className = 'menu open';
           editorMenuOpen = true;
+          dismissNativeEditMenu();
           var w = 224, h = editorMenuEl.offsetHeight;
           editorMenuEl.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
           var top = y + 6;
@@ -11988,7 +12107,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-27';
+        var FOLIO_BUILD = '20261024-28';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -13021,6 +13140,23 @@
                 ev.preventDefault();
                 ev.stopPropagation();
               }
+              return;
+            }
+          }
+          /* ⌘Enter while the callout composer is open is the
+             composer's commit — the same act as its footer's
+             Insert callout button — from anywhere in the menu.
+             Plain Enter keeps its per-item pick behavior (the
+             no-modifier branch above owns it), and the
+             registry has no ⌘Enter binding to defer to. The
+             chord is swallowed only when the composer actually
+             commits; anywhere else ⌘Enter passes through. */
+          if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && ev.key === 'Enter') {
+            var calloutPopEl2 = document.getElementById('calloutPop');
+            if (calloutPopEl2 && !calloutPopEl2.hidden &&
+                typeof calloutPopCommit === 'function' && calloutPopCommit()) {
+              ev.preventDefault();
+              ev.stopPropagation();
               return;
             }
           }
