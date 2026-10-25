@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261025-35" />
+    <meta name="folio-build" content="20261025-37" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -547,6 +547,23 @@
         min-height: 65dvh;
       }
       .editor-mount { outline: none; }
+
+      /* ---------------- Spellcheck ----------------
+         The app's own squiggles, drawn by the spellcheck
+         module as an overlay inside the paper (never in the
+         document, never in exports, never in print). The
+         layer is click-transparent; each strip is one word,
+         positioned from the word's own text rect. */
+      .spell-layer {
+        position: absolute; inset: 0; overflow: hidden;
+        pointer-events: none; z-index: 3;
+      }
+      .spell-sq {
+        position: absolute; height: 4px; pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='4' viewBox='0 0 6 4'%3E%3Cpath d='M0 2.6 Q1.5 0.6 3 2.6 T6 2.6' fill='none' stroke='%23d64545' stroke-width='1.3'/%3E%3C/svg%3E");
+        background-repeat: repeat-x; background-size: 6px 4px;
+      }
+      @media print { .spell-layer { display: none !important; } }
 
       /* ---------------- Prose ---------------- */
       .folio-prose {
@@ -6463,6 +6480,7 @@
           fitTitlePhone();
           if (editorHandle) {
             editorHandle.setContent(doc.content);
+            scheduleSpellScan();
             editorScroll.scrollTop = 0;
             if (focusEditor && window.innerWidth > 900) editorHandle.focus();
           }
@@ -8210,6 +8228,7 @@
             doc.content = json;
             doc.updated = Date.now();
             schedulePersist();
+            scheduleSpellScan();
             renderOutline(json);
             wordCount(json);
             renderTagsSection();
@@ -8306,6 +8325,15 @@
             if (window.innerWidth <= 900) document.body.classList.add('nav-open');
           },
         });
+
+        /* The editor renders with the platform spellcheck
+           presentation OFF: the app's own spellchecker draws
+           the one squiggle system (its module lives with the
+           editor menu builders). Autocorrect is a separate
+           behavior and is deliberately left untouched. */
+        if (editorHandle && editorHandle.editor && editorHandle.editor.view && editorHandle.editor.view.dom) {
+          editorHandle.editor.view.dom.setAttribute('spellcheck', 'false');
+        }
 
         attachCodeCopy(document.getElementById('editorMount'), editorHandle.editor);
         /* Inline code's in-editor fallback, kept on the same
@@ -9788,6 +9816,503 @@
           }));
           return frag;
         }
+        /* ================= spellcheck =================
+           The app suppresses the platform's edit menu, which
+           took iPadOS's spelling remedies with it — so the app
+           carries its own checker for the one job left over:
+           truly unrecognized words. (Autocorrect is untouched
+           and keeps working; this only restores the squiggle,
+           the suggestions, and a way to teach the app a word.)
+
+           The engine is a bundled English wordlist
+           (base lemmas in rough frequency order, embedded
+           in this file as the inert #folio-words-data text
+           block — the app ships as one self-contained HTML
+           file, so there is no companion asset to fetch),
+           parsed lazily off the startup path and expanded
+           at parse with the regular
+           inflections (plurals, -ed/-ing, -ly, comparatives,
+           -ness). Checking is a set lookup per token, debounced
+           off the typing path; squiggles are decoration-only
+           overlay strips inside the paper — they are never in
+           the document, so they never reach Markdown export,
+           sharing, or print.
+
+           Never checked: code blocks, inline code, link text,
+           URLs, e-mail addresses, @mentions, #tags, numbers,
+           acronyms, and camelCase names. Contractions and
+           possessives resolve through their stems ("don't",
+           "era's" pass). "Add to Dictionary" persists in
+           localStorage beside the app's other per-device
+           settings (folio-dictionary); "Ignore" lasts for the
+           current document and session only. */
+        var SPELL_DICT_KEY = 'folio-dictionary';
+        var spellLoadStarted = false;
+        var spellReady = false;
+        var spellKnownMap = Object.create(null);
+        var spellForms = []; /* { w, r } — every known form, r = rank (lower = commoner) */
+        var spellPersonal = Object.create(null);
+        var spellIgnoredByDoc = Object.create(null);
+        var spellFlagged = [];
+        var spellDirty = true;
+        var spellScanTimer = null;
+        var spellLayer = null;
+        var spellRepaintQueued = false;
+        try {
+          (JSON.parse(localStorage.getItem(SPELL_DICT_KEY) || '[]') || []).forEach(function (w) {
+            if (typeof w === 'string' && w) spellPersonal[w.toLowerCase()] = 1;
+          });
+        } catch (e) {}
+        function spellSavePersonal() {
+          try { localStorage.setItem(SPELL_DICT_KEY, JSON.stringify(Object.keys(spellPersonal))); } catch (e) {}
+        }
+        function spellEnsureWords() {
+          if (spellReady || spellLoadStarted) return;
+          spellLoadStarted = true;
+          if (window.FOLIO_WORDS) { spellBuildDict(); return; }
+          var el = document.getElementById('folio-words-data');
+          var raw = el ? el.textContent.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '') : '';
+          if (raw) { window.FOLIO_WORDS = raw; spellBuildDict(); return; }
+          spellLoadStarted = false;
+        }
+        function spellAddForm(w, rank, tier) {
+          if (!w || spellKnownMap[w]) return;
+          spellKnownMap[w] = 1;
+          spellForms.push({ w: w, r: rank, t: tier == null ? 1 : tier });
+        }
+        /* Function words take no derivations at all: "with"
+           must never yield "withing", nor "have" a regular
+           past. */
+        var SPELL_NODERIVE = {};
+        'the of and a an to in is you that it he was for on are as with his they at be this have from or had by not what all were we when your can said there use each which she do how their will up other about out many then them these our ours your yours'.split(' ').forEach(function (w) { SPELL_NODERIVE[w] = 1; });
+        /* Verbs whose past tense is irregular: their real
+           forms live in the wordlist as words of their own,
+           and the regular -ed of the stem ("writed",
+           "speaked", "rided") is a classic misspelling that
+           must stay unknown. For these stems the -ed family
+           is not generated at all. */
+        var SPELL_IRREG = {};
+        'arise awake bear beat become bend bet bid bind bite bleed blow break breed bring build burst buy catch choose cling come cost creep cut deal dig draw drink drive eat fall feed feel fight find flee fling fly forbid forget forgive freeze get give go grind grow hang hear hide hit hold hurt keep kneel knit know lay lead leave lend let lie lose make mean meet mistake misunderstand overcome overdo overtake pay prove put quit read ride ring rise run say see seek sell send set shake shine shoot shrink shut sing sink sit sleep slide speak speed spend spin spit split spread spring stand steal stick sting stink stride strike string swear sweep swell swim swing take teach tear tell think thrive throw thrust understand undertake upset wake wear weave weep win wind withdraw withstand wring write'.split(' ').forEach(function (w) { SPELL_IRREG[w] = 1; });
+        /* The irregular forms themselves, which the list
+           carries as their own words: they take no regular
+           -ed either ("wroted", "spokest" are not words),
+           and neither do s-final tokens, which are plurals
+           or third-person forms already ("stopsed"). */
+        var SPELL_IRREGFORM = {};
+        'wrote rode drove sang rang drank swam sank began broke spoke stole woke froze chose took shook stood understood bore wore tore swore dug hung swung clung flung stung wrung struck stuck spun shone written hidden bitten beaten eaten fallen forgotten driven ridden risen shaken taken mistaken woven chosen frozen been gone done seen'.split(' ').forEach(function (w) { SPELL_IRREGFORM[w] = 1; });
+        /* Two-syllable verbs that double their final
+           consonant like monosyllables do (stress on the
+           last syllable): occur→occurred, begin→beginning,
+           equip→equipped. */
+        var SPELL_DBL2 = {};
+        'begin occur recur incur admit commit permit submit omit prefer refer infer defer transfer confer control patrol equip regret compel expel propel rebel dispel excel impel annul enroll fulfil distil instil'.split(' ').forEach(function (w) { SPELL_DBL2[w] = 1; });
+        function spellDerive(w, rank) {
+          /* Regular inflections of a base lemma, each ranked
+             just below the lemma itself. The rules generate
+             the CORRECT form wherever English offers a
+             tempting wrong twin — doubling, silent-e, -able
+             after c/g — because a generated misspelling
+             would never be flagged. For doubling stems
+             (one vowel group, or the stress-final list
+             above) ONLY the doubled forms exist here:
+             "stoped" and "occured" stay unknown. */
+          var R = rank + 0.5;
+          function sForm() { /* plurals / 3rd-person singular */
+            if (/(s|x|z|ch|sh)$/.test(w)) return w + 'es';
+            if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + 'ies';
+            return w + 's';
+          }
+          var stemY = /[^aeiou]y$/.test(w) ? w.slice(0, -1) + 'i' : null;
+          var stemE = /[^e]e$/.test(w) ? w.slice(0, -1) : null;
+          var vowelGroups = (w.match(/[aeiou]+/g) || []).length;
+          var dblStem = null;
+          var wq = w.replace(/qu/g, 'q'); /* "qu" is one consonant: equip→equipped */
+          if (w.length >= 3 && /[^aeiou][aeiou][bcdfgklmnprstz]$/.test(wq) && !/[aeiou]{2}/.test(wq.slice(-3))) {
+            dblStem = w + w.charAt(w.length - 1);
+          }
+          var dblOnly = !!dblStem && (vowelGroups <= 1 || !!SPELL_DBL2[w]);
+          if (!dblOnly) dblStem = null;
+          spellAddForm(sForm(), R);
+          /* f/fe plurals in -ves: leaf→leaves, knife→knives */
+          if (/fe$/.test(w)) spellAddForm(w.slice(0, -2) + 'ves', R);
+          else if (/[^aeiou]f$/.test(w)) spellAddForm(w.slice(0, -1) + 'ves', R);
+          /* past tense (not generated for irregular stems,
+             their own irregular forms, or s-final tokens —
+             plurals and third-person forms already, which
+             take no -ed; ss/us/is endings are true stems:
+             class→classed, bus→bused) */
+          var sFinalToken = /s$/.test(w) && !/(ss|us|is)$/.test(w);
+          if (!SPELL_IRREG[w] && !SPELL_IRREGFORM[w] && !sFinalToken) {
+            if (/e$/.test(w)) spellAddForm(w + 'd', R);
+            else if (stemY) spellAddForm(stemY + 'ed', R);
+            else if (dblOnly) spellAddForm(dblStem + 'ed', R);
+            else spellAddForm(w + 'ed', R);
+          }
+          /* -ing, plus its noun plural (meeting→meetings,
+             building→buildings); irregular past forms take
+             no -ing either ("beganing", "wroting") */
+          var ingForm = null;
+          if (!SPELL_IRREGFORM[w]) {
+            if (/ie$/.test(w)) ingForm = w.slice(0, -2) + 'ying';
+            else if (stemE && !/ee$/.test(w)) ingForm = stemE + 'ing';
+            else if (dblOnly) ingForm = dblStem + 'ing';
+            else ingForm = w + 'ing';
+            spellAddForm(ingForm, R);
+            spellAddForm(ingForm + 's', R);
+          }
+          /* British l-doubling rides along at any syllable
+             count: travel→travelled, label→labelled — the
+             single-l American forms come from the ordinary
+             rules above, and both spellings pass. */
+          if (/[aeiou]l$/.test(w) && !/ll$/.test(w)) {
+            spellAddForm(w + 'led', R);
+            spellAddForm(w + 'ling', R);
+          }
+          /* comparative / superlative */
+          if (/e$/.test(w)) { spellAddForm(w + 'r', R); spellAddForm(w + 'st', R); }
+          else if (stemY) { spellAddForm(stemY + 'er', R); spellAddForm(stemY + 'est', R); }
+          else if (dblOnly) { spellAddForm(dblStem + 'er', R); spellAddForm(dblStem + 'est', R); }
+          else { spellAddForm(w + 'er', R); spellAddForm(w + 'est', R); }
+          /* adverb: -ic takes -ally (basic→basically, never
+             "basicly"); -ue drops its e (true→truly) */
+          if (/ic$/.test(w)) spellAddForm(w + 'ally', R);
+          else if (/ue$/.test(w)) spellAddForm(w.slice(0, -1) + 'ly', R);
+          else if (stemY) spellAddForm(stemY + 'ly', R);
+          else spellAddForm(w + 'ly', R);
+          if (stemY) spellAddForm(stemY + 'ness', R); else spellAddForm(w + 'ness', R);
+          /* -ous adjectives: humor→humorous */
+          if (!/ous$/.test(w)) spellAddForm(w + 'ous', R);
+          /* -ment nouns (announce→announcement) and -al
+             nouns (arrive→arrival): speculative, tier 2 —
+             they can let a word pass but never headline
+             its suggestions. After -ue the e drops
+             (argue→argument, never "arguement"). */
+          if (/ue$/.test(w)) spellAddForm(w.slice(0, -1) + 'ment', R, 2);
+          else spellAddForm(w + 'ment', R, 2);
+          if (/(ce|ge)$/.test(w)) spellAddForm(w.slice(0, -1) + 'ment', R, 2); /* judgment, acknowledgment */
+          if (stemE) spellAddForm(stemE + 'al', R, 2); else spellAddForm(w + 'al', R, 2);
+          /* -able adjectives: after c/g the e stays
+             (notice→noticeable, change→changeable); after
+             other letters it drops (love→lovable). The
+             wrong twin is not generated. */
+          if (/(ce|ge)$/.test(w)) { spellAddForm(w + 'able', R); spellAddForm(w + 'ably', R); }
+          else if (stemE) { spellAddForm(stemE + 'able', R); spellAddForm(stemE + 'ably', R); }
+          else { spellAddForm(w + 'able', R); spellAddForm(w + 'ably', R); }
+          if (dblStem) spellAddForm(dblStem + 'able', R);
+          if (w.length >= 5) spellAddForm('un' + w, R, 2);
+        }
+        /* British-spelling twin stems for a base word —
+           flavour for flavor, centre for center, organise
+           for organize — each then inflected like its twin,
+           so "flavoured" and "organised" pass too. Stems
+           that are not real spellings (watre for water) cost
+           nothing: they only ever fail to flag a typo that
+           happens to match them letter for letter. */
+        function spellBritStems(w) {
+          var out = [];
+          if (w.length > 3 && /or$/.test(w)) out.push(w.slice(0, -1) + 'ur');
+          if (w.length > 3 && /er$/.test(w)) out.push(w.slice(0, -2) + 're');
+          if (/ize$/.test(w)) out.push(w.slice(0, -3) + 'ise');
+          if (/ization$/.test(w)) out.push(w.slice(0, -7) + 'isation');
+          if (/yze$/.test(w)) out.push(w.slice(0, -3) + 'yse');
+          if (/og$/.test(w)) out.push(w + 'ue');
+          return out;
+        }
+        function spellBuildDict() {
+          if (spellReady || !window.FOLIO_WORDS) return;
+          var base = String(window.FOLIO_WORDS).split(' ');
+          for (var i = 0; i < base.length; i++) {
+            var w = base[i];
+            if (!w) continue;
+            spellAddForm(w, i, 0);
+            if (w.indexOf("'") === -1 && w.length > 1 && !SPELL_NODERIVE[w]) spellDerive(w, i);
+            var brit = spellBritStems(w);
+            for (var b = 0; b < brit.length; b++) {
+              spellAddForm(brit[b], i + 0.25, 0);
+              if (brit[b].indexOf("'") === -1 && brit[b].length > 1 && !SPELL_NODERIVE[brit[b]]) spellDerive(brit[b], i + 0.25);
+            }
+          }
+          spellReady = true;
+          spellDirty = true;
+          spellScanNow();
+        }
+        function spellBaseKnown(lower) {
+          return !!(spellKnownMap[lower] || spellPersonal[lower]);
+        }
+        function spellKnown(lower) {
+          if (spellBaseKnown(lower)) return true;
+          if (lower.indexOf("'") === -1) return false;
+          if (/'s$/.test(lower) && spellBaseKnown(lower.slice(0, -2))) return true;
+          if (/s'$/.test(lower) && (spellBaseKnown(lower.slice(0, -1)) || spellBaseKnown(lower.slice(0, -2)))) return true;
+          var m = /^(.*)'(re|ve|ll|d|m|em)$/.exec(lower);
+          if (m && spellBaseKnown(m[1])) return true;
+          var n = /^(.*)n't$/.exec(lower);
+          if (n && (spellBaseKnown(n[1]) || n[1] === 'wo' || n[1] === 'ca' || n[1] === 'sha')) return true;
+          if (/'$/.test(lower) && spellBaseKnown(lower.slice(0, -1))) return true;
+          return false;
+        }
+        function spellIgnoredSet() {
+          var doc = (typeof currentDoc === 'function') ? currentDoc() : null;
+          var id = doc && doc.id ? doc.id : '_';
+          return spellIgnoredByDoc[id] || (spellIgnoredByDoc[id] = Object.create(null));
+        }
+        function spellScanText(text, basePos, ignored) {
+          /* Blank out the spans that never hold checkable
+             words — URLs, domains, e-mail addresses,
+             @mentions, #tags — keeping every offset. */
+          var masked = text.replace(/https?:\/\/\S+|www\.\S+|\S+@\S+|@[A-Za-z0-9_]+|#[A-Za-z0-9_]+|\b[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+([/?#]\S*)?/g, function (m) {
+            return m.replace(/./g, ' ');
+          });
+          var re = /[A-Za-z]+(?:['\u2019][A-Za-z]+)*/g, m;
+          while ((m = re.exec(masked)) !== null) {
+            var raw = m[0], at = m.index;
+            if (raw.length < 2) continue;
+            if (at > 0 && /[0-9]/.test(masked.charAt(at - 1))) continue;
+            if (/[0-9]/.test(masked.charAt(at + raw.length))) continue;
+            var word = raw.replace(/\u2019/g, "'");
+            if (/^[A-Z]+$/.test(word)) continue;              /* acronym */
+            if (/[A-Z]/.test(word.slice(1)) && /[a-z]/.test(word)) continue; /* camelCase / brands */
+            var lower = word.toLowerCase();
+            if (ignored[lower]) continue;
+            if (spellKnown(lower)) continue;
+            spellFlagged.push({ from: basePos + at, to: basePos + at + raw.length, word: raw, lower: lower });
+          }
+        }
+        function spellScanNow() {
+          spellDirty = false;
+          spellFlagged = [];
+          if (!spellReady || !editorHandle || !editorHandle.editor || editorHandle.editor.isEditable === false) {
+            spellRender();
+            return;
+          }
+          var ed = editorHandle.editor, doc = ed.state.doc, ignored = spellIgnoredSet();
+          doc.descendants(function (node, pos) {
+            if (!node.isText) return true;
+            var skip = false;
+            (node.marks || []).forEach(function (mk) {
+              if (mk.type.name === 'code' || mk.type.name === 'link') skip = true;
+            });
+            if (!skip) {
+              var $p = null;
+              try { $p = doc.resolve(Math.min(pos + 1, pos + node.nodeSize - 1)); } catch (e) { $p = null; }
+              if ($p) {
+                for (var d = 1; d <= $p.depth; d++) {
+                  if ($p.node(d).type.name === 'codeBlock') { skip = true; break; }
+                }
+              }
+            }
+            if (!skip) spellScanText(node.text || '', pos, ignored);
+            return true;
+          });
+          spellRender();
+        }
+        function scheduleSpellScan() {
+          spellDirty = true;
+          if (spellScanTimer) clearTimeout(spellScanTimer);
+          spellScanTimer = setTimeout(function () { spellScanTimer = null; spellScanNow(); }, 350);
+        }
+        function spellLayerEl() {
+          if (spellLayer && spellLayer.parentNode) return spellLayer;
+          var mount = document.getElementById('editorMount');
+          var paper = mount && mount.closest ? mount.closest('.paper') : null;
+          if (!paper) return null;
+          spellLayer = document.createElement('div');
+          spellLayer.className = 'spell-layer';
+          spellLayer.setAttribute('aria-hidden', 'true');
+          paper.appendChild(spellLayer);
+          return spellLayer;
+        }
+        function spellRender() {
+          var layer = spellLayerEl();
+          if (!layer) return;
+          layer.innerHTML = '';
+          if (!spellFlagged.length || !editorHandle || !editorHandle.editor) return;
+          var ed = editorHandle.editor, paper = layer.parentNode;
+          var pr = paper.getBoundingClientRect();
+          var cl = paper.clientLeft || 0, ct = paper.clientTop || 0;
+          spellFlagged.forEach(function (f) {
+            var a = null, b = null;
+            try { a = ed.view.domAtPos(f.from); b = ed.view.domAtPos(f.to); } catch (e) { return; }
+            if (!a || !b) return;
+            var range = document.createRange();
+            try { range.setStart(a.node, a.offset); range.setEnd(b.node, b.offset); } catch (e) { return; }
+            var rects = range.getClientRects();
+            for (var i = 0; i < rects.length; i++) {
+              var r = rects[i];
+              if (!r.width) continue;
+              var d = document.createElement('div');
+              d.className = 'spell-sq';
+              d.style.left = (r.left - pr.left - cl) + 'px';
+              d.style.top = (r.bottom - pr.top - ct - 3) + 'px';
+              d.style.width = r.width + 'px';
+              layer.appendChild(d);
+            }
+          });
+        }
+        function spellQueueRepaint() {
+          if (spellRepaintQueued) return;
+          spellRepaintQueued = true;
+          requestAnimationFrame(function () { spellRepaintQueued = false; spellRender(); });
+        }
+        /* Damerau distance (optimal string alignment: one
+           adjacent transposition costs one edit — "recieve"
+           is one edit from "receive"), cut off above 2. */
+        function spellDist(a, b) {
+          var la = a.length, lb = b.length;
+          if (Math.abs(la - lb) > 2) return 3;
+          var prev2 = null, prev = [], cur = [], i, j;
+          for (j = 0; j <= lb; j++) prev[j] = j;
+          for (i = 1; i <= la; i++) {
+            cur[0] = i;
+            var rowMin = cur[0];
+            for (j = 1; j <= lb; j++) {
+              var cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+              var v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+              if (i > 1 && j > 1 && prev2 && a.charAt(i - 1) === b.charAt(j - 2) && a.charAt(i - 2) === b.charAt(j - 1)) {
+                v = Math.min(v, prev2[j - 2] + 1);
+              }
+              cur[j] = v;
+              if (v < rowMin) rowMin = v;
+            }
+            if (rowMin > 2) return 3;
+            prev2 = prev; prev = cur; cur = [];
+          }
+          return prev[lb];
+        }
+        function spellSuggest(lowerRaw) {
+          var target = lowerRaw, suffix = '';
+          if (/'s$/.test(target)) { suffix = "'s"; target = target.slice(0, -2); }
+          if (target.length < 2 || target.indexOf("'") !== -1) return [];
+          var scored = [];
+          for (var i = 0; i < spellForms.length; i++) {
+            var cand = spellForms[i].w;
+            if (cand.indexOf("'") !== -1) continue;
+            if (Math.abs(cand.length - target.length) > 2) continue;
+            if (cand.charAt(0) !== target.charAt(0) && cand.charAt(1) !== target.charAt(1)) continue;
+            var d = spellDist(target, cand);
+            if (d <= 2) scored.push({ w: cand, d: d, r: spellForms[i].r, t: spellForms[i].t });
+          }
+          scored.sort(function (a, b) { return (a.d - b.d) || (a.t - b.t) || (a.r - b.r); });
+          /* Suggestions must be real words a person could
+             pick with confidence: at the best distance only
+             attested forms (base words and true inflections)
+             are offered, plus base words one edit further
+             out. Speculative derivations (tier 2) and
+             distance-2 inflections never make the list while
+             anything closer and real exists — otherwise the
+             menu fills with generated non-words ("coverment")
+             a pick would insert into the document. */
+          if (scored.length) {
+            var minD = scored[0].d;
+            var hasRealNear = scored.some(function (c) { return c.d === minD && c.t < 2; });
+            scored = scored.filter(function (c) {
+              if (c.d === minD) return c.t < 2 || !hasRealNear;
+              return c.t <= 1 && c.d <= minD + 1;
+            });
+          }
+          var out = [];
+          for (var k = 0; k < scored.length && out.length < 5; k++) {
+            var s = scored[k].w + suffix;
+            if (out.indexOf(s) === -1) out.push(s);
+          }
+          return out;
+        }
+        function spellMirrorCase(word, sugg) {
+          if (word.length > 1 && /^[A-Z]/.test(word) && /[a-z]/.test(word.charAt(1))) {
+            return sugg.charAt(0).toUpperCase() + sugg.slice(1);
+          }
+          if (word.length > 1 && word === word.toUpperCase() && /[A-Z]/.test(word)) return sugg.toUpperCase();
+          return sugg;
+        }
+        function spellMenuHit() {
+          if (!spellReady || !editorHandle || !editorHandle.editor) return null;
+          spellEnsureWords();
+          if (spellDirty) spellScanNow();
+          var sel = editorHandle.editor.state.selection;
+          if (!sel) return null;
+          for (var i = 0; i < spellFlagged.length; i++) {
+            var f = spellFlagged[i];
+            if (sel.empty) {
+              if (sel.from >= f.from && sel.from <= f.to) return f;
+            } else if ((sel.from >= f.from && sel.to <= f.to) || (f.from >= sel.from && f.to <= sel.to)) {
+              return f;
+            }
+          }
+          return null;
+        }
+        function spellReplaceWord(hit, suggLower) {
+          if (!editorHandle || !editorHandle.editor) return;
+          var ed = editorHandle.editor, st = ed.state;
+          var text = spellMirrorCase(hit.word, suggLower);
+          var marks = null;
+          try { marks = st.doc.resolve(Math.min(hit.from + 1, hit.to)).marks(); } catch (e) { marks = null; }
+          var tr = st.tr.replaceWith(hit.from, hit.to, st.schema.text(text, marks || undefined));
+          ed.view.dispatch(tr);
+          try { ed.chain().focus().setTextSelection(hit.from + text.length).run(); } catch (e) {}
+          scheduleSpellScan();
+        }
+        /* The Spelling section at the top of the editor menu,
+           present only when the caret or selection touches an
+           unrecognized word. Picking a suggestion replaces the
+           word in one transaction — a single ⌘Z brings the
+           original back. */
+        function buildSpellMenuSection(el) {
+          var hit = spellMenuHit();
+          if (!hit) return false;
+          var head = document.createElement('div');
+          head.className = 'menu-head';
+          head.textContent = 'Spelling';
+          el.appendChild(head);
+          var suggs = spellSuggest(hit.lower);
+          if (!suggs.length) {
+            el.appendChild(edMenuItem({ label: 'No suggestions', disabled: true }));
+          }
+          suggs.forEach(function (sg) {
+            el.appendChild(edMenuItem({
+              label: spellMirrorCase(hit.word, sg),
+              run: function () { spellReplaceWord(hit, sg); }
+            }));
+          });
+          var wordNow = hit.word, lowerNow = hit.lower;
+          el.appendChild(edMenuItem({
+            label: 'Add to Dictionary', dataSc: 'spell-add-dict',
+            run: function () {
+              spellPersonal[lowerNow] = 1;
+              spellSavePersonal();
+              spellScanNow();
+            }
+          }));
+          el.appendChild(edMenuItem({
+            label: 'Ignore', dataSc: 'spell-ignore',
+            run: function () {
+              spellIgnoredSet()[lowerNow] = 1;
+              spellScanNow();
+            }
+          }));
+          el.appendChild(edMenuSep());
+          return true;
+        }
+        /* Lazy engine load + repaint wiring: the wordlist
+           rides in on idle so startup never waits for it, and
+           the overlay re-measures (from the last scan's
+           positions) whenever layout could have moved text —
+           a resize, a sidebar-driven reflow of the paper, or
+           the webfont landing. Scrolling needs no repaint:
+           the strips are paper-relative and scroll with it. */
+        if (window.requestIdleCallback) requestIdleCallback(function () { spellEnsureWords(); }, { timeout: 2500 });
+        else setTimeout(spellEnsureWords, 1800);
+        window.addEventListener('resize', spellQueueRepaint);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(spellQueueRepaint);
+        if (window.ResizeObserver) {
+          var spellRO = new ResizeObserver(function () { spellQueueRepaint(); });
+          var spellPaperWatch = setInterval(function () {
+            var mount = document.getElementById('editorMount');
+            var paper = mount && mount.closest ? mount.closest('.paper') : null;
+            if (paper) { spellRO.observe(paper); clearInterval(spellPaperWatch); }
+          }, 500);
+          setTimeout(function () { clearInterval(spellPaperWatch); }, 10000);
+        }
+
         function buildEditorMenu(ctx) {
           var el = editorMenuEl;
           function barBtn(sel) { return tableBar ? tableBar.querySelector(sel) : null; }
@@ -9799,6 +10324,10 @@
             var it = edMenuCmdItem(id, icon);
             if (it) el.appendChild(it);
           }
+          /* Spelling leads the menu whenever the caret or
+             the press that opened it touched an unrecognized
+             word; every other context follows below it. */
+          buildSpellMenuSection(el);
           if (ctx.kind === 'callout') {
             var hit = ctx.hit;
             var dom = null;
@@ -14853,7 +15382,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261025-35';
+        var FOLIO_BUILD = '20261025-37';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -16840,5 +17369,12 @@
         initBackend();
       })();
     </script>
+    <!-- FolioDocs spellcheck wordlist: base English lemmas in
+         rough frequency order (suggestion ranking reads position
+         as a prior). Inflected forms (plurals, -ed/-ing, -ly,
+         comparatives) are expanded by the checker when it parses
+         this block — lazily, on idle, off the startup path. The
+         block is inert text, never executed as script. -->
+    <script type="text/plain" id="folio-words-data">the of and a an to in is you that it he was for on are as with his they i at be this have from or one had by word but not what all were we when your can said there use each which she do how their if will up other about out many then them these so some her would make like him into time has look two more write go see number no way could people my than first water been call who oil its now find long down day did get come made may part over new sound take only little work know place year live me back give most very after thing our just name good sentence man think say great where help through much before line right too mean old any same tell boy follow came want show also around form three small set put end does another well large must big even such because turn here why ask went men read need land different home us move try kind hand picture again change off play spell air away animal house point page letter mother answer found study still learn should world high every near add food between own below country plant last school father keep tree never start city earth eye light thought head under story saw left few while might close something seem next hard open example begin life always those both paper together got group often run being am done makes takes took taken sees seen knows knew known gets gotten gives gave given finds things thinks ways days woman women child children tells told become became asks asked works worked calls called tries tried needs needed feel feels felt leave leaves means meant puts keeps kept let lets began seems seemed helps helped talk talks talked turns turned starts started shows showed hear hears heard plays played runs ran moves moved lives lived bring brings brought happen happens happened writes wrote written sit sits sat stand stands stood lose loses lost pay pays paid meet meets met include includes included continue continues continued sets learns learned changes changed lead leads led understand understands understood watch watches watched follows followed stop stops stopped create creates created speak speaks spoke spoken allow allows allowed adds added spend spends spent grow grows grew grown opens opened walk walks walked win wins won teach teaches taught offer offers offered remember remembers remembered love loves loved consider considers considered appear appears appeared buy buys bought wait waits waited serve serves served die dies died send sends sent expect expects expected build builds built stay stays stayed fall falls fell reach reaches reached kill kills killed remain remains remained family state student problem case week company system program question government night room area money fact month lot book job though business issue side four listen sun solution minute plus lie realize sense second nice ladder chaos discuss rich opinion railroad dimension vote meanwhile atmosphere folk dispute anger suit soap signature symptom incredible hunter reception dilemma convincing productive antibiotic electron bulk compound slack momentum hammer taxi probe immunity broad gesture horror utilize emergence outlet equation arbitrary collectible organ hazard era transient dispatch transcript traitor clown orbit salvage grief saline panic formulate abusive dominance son bird fish rock roll king queen prince song music color voice language list map science rule govern pull cold notice wonder laugh thousand ago check game shape yes hot miss heat snow bed perhaps fill east weight among unit power fly dog horse apple garden bear table box rain wood train window summer less bright winter during present shoulder crowd compare poem string narrow ocean note direct produce stream planet whole measure sing common numeral difficult gold possible plane stead dry test leg general energy subject region wall century chief west church laid content count current observe certain travel low morning ten main south war history wind space covered fast order hold training street easy unknown behind size product special ground finish hour complete person coast clean wild simple sea against pattern slow busy depend drawn hundred cash course green island machine base round boat force warm explain deep thousands gray suffix filled full object noun cannot able six dark ball material heavy fine pair circle colleg third forth safe british yellow brown strange trade melody race reason five resistance aside event origin trip skin value matter corner fear hope pretty choose everything presence odd dead worry loss except ego star mouth valley mine ice liaison traffic primrose ginger pollution voyage punt operator blackout dryer accept achieve acquire act admit adopt advance advise agree aim announce appreciate approach argue arise arrange arrive assign assist assume assure attach attempt attend attract avoid awake award aware art ashamed asleep awful background backward bad bag bake band bank bar bare bargain barrier basic basket bath battle beach beat beautiful bee beer behave believe bell belong belt bench bend benefit berry beside best bet better beyond bible bill birth bit bite black blade blame blank blanket blast bleed bless blind block blood blow blue board body boil bold bolt bomb bond bone boost boot border born borrow boss bother bottle bottom bounce bound bowl brain branch brave bread break breakfast breath breeze brick bridge brief broken brother brow brush bubble bucket budget bunch burn burst bury bus bush butter button buyer cable cage cake calculate calm camera camp cancel cancer candidate cap capital captain car card care career careful carpet carry cart cast cat catch cattle cause cease celebrate cell center central chain chair chalk chance channel chapter character charge chart chase cheap cheese chef chemical chest chicken choice cigarette citizen civil claim class clear clearly client climate climb clock cloth cloud club coach coat code coffee coin collect college colony column combat comfort command comment commercial community compete complain complex concern concert condition conference congress consist constant construct consult consume contact contain contemporary contest context contract contrast control conversation convert cook cool cope copy core correct cost council county couple court cousin cover coverage crack craft crash crazy cream credit crew crime crisis criteria critic criticism crop cross crucial cry cultural culture cup cure curve custom customer cut cycle dad damage dance danger dare date daughter deal death debate debt decade decide declare decline deer defeat defend defendant define degree delay deliver demand democracy democratic demonstrate dental deny department deposit describe design desk despite detail detect determine develop device diagram dialog diet differ dig digital dinner dirt dirty discover disease dish disk dismiss disorder display distance distant distinct distribute district dive divide doctor doll domain door double doubt dough download dozen draft drag dramatic draw dream dress drift drill drink drive driver drop duck due dull dump dust duty dying eager ear early earn easily eat economic edge edition editor educate egg eight either elbow elder elect element elementary elephant else embarrass emergency emit emotion empire employ empty enable encounter enemy enforce engage engine english enhance enjoy enormous enough ensure enter entertain entire entrance entry environment equal equipment error escape especially essay essential establish estate estimate ethics evening eventually evidence evil exact examine exceed exchange excuse exercise exhaust exhibit exist exit expensive experience experiment explode explore export express extend extra extreme fabric face factor factory fade fail fair faith false familiar famous fan fancy farm fashion fat fate fault favorite feather feature federal fee feed feeling fellow fence fever fiction field fifth fight figure file film final finance finger fire firm fishing fit fitness fix flag flame flat flavor flee fleet flesh flight flip float flood floor flour flow fluent focus fog fold foot forest forget fork formal former fortune forward frame free freedom freeze frequent fresh friend frog front frost fruit frustrate fuel fun fund funeral funny fur furniture furthermore future gain galaxy gallery gap garage gas gather gay gear gem gender gene gentle gentleman germ ghost giant gift girl glad glance glass global glory glove goal goat god golden golf grab grade grain grand grant grape graph grasp grass grateful greet grid grocery growth guarantee guard guess guest guide guilty gun guy habit habitat hair half hall handle hang happy harm hat hate health healthy heart heel height helicopter hell hello helmet helpful hero hers herself hi hidden hide highlight highway hill himself hint hip hire hit hole holiday hollow holy honest honor hook horizon horn hospital host hotel huge human humor hunt hurry hurt husband icon idea identify identity ignore ill illegal illustrate image imagine immediate immigrant impact implement imply import impose impress improve inch incident income increase index indicate individual industrial industry infant infection inflation influence inform ingredient initial injury inner innocent inquiry insect inside insight insist inspire install instance instead instrument insult insurance intellectual intelligence intend intense interact interest internal international internet interpret interval interview introduce invent invest investigate invitation invite involve iron item itself jacket jeans jet jewel join joint joke journal journey joy judge juice jump jungle junior jury justice key kick kid kiss knee knife knock label labor lack lady lake lamp lane lap largely laser late later launch laundry law lawn lawsuit lawyer lay layer lazy leader leaf league lean leather lecture legal legend legislation leisure lemon lend length lens lesson level liability liberal library license lid lifetime lift likely limb limit link lion lip liquid literally literature load loan local locate lock log loose loud lower luck luggage lunch luxury mad magazine magic mail maintain major male mall manage manner manufacturer margin mark market marriage married marry mask mass master match mate math mayor meal meat mechanism media medicine medium member memory mental mention menu mere merely metal meter middle mile milk mill mind minor miracle mirror mistake mix mode model modern modest mom moment monitor mood moon moral moreover mortgage motion motor mount mouse movie multiple muscle museum musical mutual myself mystery nail naked nation native natural nearly neat necessary neck needle negative neglect negotiate neighbor neither nerve nervous net network nevertheless news nine noble nod noise none nonetheless nor normal north nose nothing notion novel nuclear nurse nut objective obligation obtain obvious occasion occupy occur offense offensive officer official oh ok once ongoing onion online onto operate opponent opportunity oppose option orange ordinary organic organization otherwise ought ourselves outcome outer outfit outline output outside oven overall owe owner pace pack package pad pain paint palace pale palm pan panel pants parade parent park participant participate partner party pass passage passenger past patch path patient pause peace peak peanut peer pen penalty pencil pension pepper per perceive percentage perception perfect perform period permanent permission permit personal personality pet phase phenomenon philosophy phone photo phrase physical piano pick pie piece pig pile pilot pink pioneer pipe pitch plain plan plastic plate platform plea please pleasure plenty plot pocket poet pole police policy poll poor pop popular population porch port portion pose position positive possess possibility post pot potato potential pound pour poverty powder practical praise pray precise predict prefer pregnancy pregnant premise prescription president press pressure pretend prevent previous price pride priest primarily primary prime principal print prior prison private prize probably proceed process profession professor profile profit progress project prominently promise promote prompt proof proper property proposal propose protect proud prove provide psychology public publish punishment purchase pure purple purpose pursue push quality quarter quick quiet quit quite quote racial radio rail raise range rank rapid rare rate rather react ready real realm rear recall receive recent recession recipe recognize record recover red reduce refer reflect reform refuse regard register regular reject relate relation relationship relative release relevant relief rely remarkable remind remote remove render rent repair repeat replace reporter represent republic request require rescue resemble reservation resident resolve resort resource respect respond responsibility rest result resume retain retire return reveal revenue review reward rhythm rice rid ride rifle ring riot rise risk rival river road roast robot role romantic roof root rope rose rough route routine row rub rude rural rush sad sail salad salary sale salt sample sanction sand satellite satisfaction sauce save scale scan scared scenario scene schedule scheme scholar scientific scientist scope score screen script search season seat secret secretary section sector security seed seek segment select sell senator senior sensitive separate sequence series serious seriously session setting settle settlement seven several severe sex sexual shade shadow shake shall shame share sharp sheet shelf shell shift shine ship shirt shock shoe shoot shop shore short shot shout shower shut sick sigh sight sign silence similar since single sink sir sister site situation ski skill skirt sky slave sleep slice slide slightly slim slip slope smart smell smile smoke smooth snake snap soccer social society soft software soil solar soldier solid solve somebody somehow sometimes soon sophisticated sort soul soup source southern spare specialist species specific speech speed sphere spill spin spirit split spokesman sponsor spoon sport spot spread spring square squeeze stability stable staff stage stair stake standard stare statement station status steady steal steel steep steer step stick stir stock stomach stone storage store storm straight strategic strategy strength stress stretch strict strike strip stroke strong structure struggle stuff stupid style submit subsequent substance succeed success sudden suffer sufficient sugar suggest super supply support suppose supreme sure surface surgery surprise surround survey suspect sustain swallow swear sweat sweet swim swing symbol tactic tail tale talent tall tank tap tape target task taste tax taxpayer tea team tear technical technology teen telephone telescope temperature temporary tend tendency tennis tension tent term terms terrible territory terror text thank theater theme themselves theory therapy therefore thick thief thigh thin thirty thorough threat throw thumb thus ticket tide tie tight till tin tip tire title tobacco today toe toilet tomato tomorrow tone tongue tonight tool top topic toss total touch tough tour toward towel tower town toy trace track tradition tragic transfer transform translate treat trend trial tribe trick troop trouble truck true truly trunk trust truth tube tune tunnel twelve twenty twice twin type typic typical ultimately unable uniform union unique university unless unlike until unusual upon upper upset urban urge usual vacation valuable van various vary vast vegetable vehicle venture verbal version vessel veteran via victim victory view village violate violence virtually virus visible vision visit visitor visual vital volume voter vs wage wake wander warn wash waste wave weak wealth weapon wear weather web wedding weekend weekly weird welcome welfare western wet whatever wheat wheel whereas whether whisper white whom whose wide wife wine wing winner wipe wire wisdom wise wish withdraw within without witness wooden worker worth wound wrap wrist writer wrong yard yeah yell yet young yours yourself youth zone ankle arm armpit belly cheek chin eyebrow eyelash eyelid fingernail forehead jaw knuckle skull throat tooth vein waist cough flu headache lung pulse sneeze stomachache toothache heal pill vomit allergy asthma diabetes surgeon vaccine vitamin apartment attic balcony basement bathroom bedroom ceiling closet couch curtain gate kitchen pillow refrigerator rug sofa stairs driveway mailbox patio banana candy chocolate cookie corn ham honey jam lettuce mushroom pasta peach pear pizza pork sandwich sausage strawberry watermelon yogurt almond apricot avocado bacon bagel basil bean beef biscuit broccoli cabbage carrot celery cereal cherry chili cinnamon coconut cod crab cucumber curry dessert dill fig garlic herb lamb lime lobster mango maple mint muffin noodle oatmeal olive omelet parsley pastry pea pecan peppermint pickle pineapple plum popcorn pumpkin raisin raspberry rosemary salmon savory snack spinach squash steak stew syrup thyme toast tofu tuna turkey vanilla waffle walnut yeast zucchini brunch supper tasty sour bitter salty spicy delicious frozen raw ripe rotten hungry thirsty cow sheep rabbit fox wolf turtle spider ant butterfly beetle giraffe hippo kangaroo koala monkey panda penguin raccoon skunk squirrel tiger whale zebra donkey goose hen ox pony rooster bat beaver camel cheetah coyote crow dolphin eagle falcon flamingo gorilla hamster hedgehog heron jaguar jellyfish ladybug leopard lizard moose octopus ostrich otter owl oyster parrot peacock pelican pigeon platypus porcupine possum puffin quail rat raven rhinoceros robin scorpion seahorse shark shrimp snail squid starfish stingray swan termite toad vulture walrus weasel woodpecker worm flower tulip daisy sunflower oak pine birch willow cedar elm ivy moss fern vine blossom bloom petal pollen mud pebble clay mountain desert meadow cliff cave glacier volcano waterfall pond creek bay harbor thunder lightning rainbow sunshine autumn hurricane tornado drought earthquake silver beige crimson scarlet turquoise violet magenta lavender maroon navy teal coral ivory tan amber bronze copper ruby sapphire emerald jade pearl opal angry afraid tired excited bored shy silly careless closed tiny shallow crooked dangerous sorry pleased worried relaxed lonely homesick jealous embarrassed confused surprised amazed disappointed satisfied curious polite friendly selfish generous impatient humble foolish clever clumsy graceful awkward outgoing talkative cheerful grumpy grouchy sleepy wealthy lucky unlucky opposite pronounce disagree prepare sew abolish abroad absence absolute absorb abstract absurd abuse academic accent access accident accompany accomplish accord account accuse acknowledge across action active activity actor actress actual adapt addiction address adjust administration admire admission adult advantage adventure advertise advice affair affect afford agency agent agreement ahead aid airport alarm album alcohol alert alike alive alley almost alone alpha already alter alternative although amaze ambitious amount amuse analysis ancient ancestor angle anxious apart apology apparent appeal appearance application apply appointment appropriate approval approve april architect argument armed army arrest arrow artist aspect assault assert assess asset associate athlete attack attention attitude attorney audience author authority auto available average bacteria badge baggage balance ban basis battery beam beauty belief bid billion biology birthday bishop bonus brand breach broadcast buck bug bullet bundle burden campaign canadian candle capable capture carbon casino castle casual catalog category cemetery ceremony chairman champion championship charity chip circumstance classic classroom clinic clothes clothing clue colleague collection combination comedy comfortable commerce commission commit committee communicate competition competitor complaint completely complicated component compose computer concentrate concept conclude confidence confirm conflict confuse connect conscious consequence conservative consulting consumer continent convenient convinced cooking cooperate cotton courage creation creative daily damp database dawn dealer decorate decrease defense deficit definitely dense dependent depression depth deputy derive developing development dialogue dining direction director disabled disaster discount discrimination distribution diverse document dose downtown dragon drama drug dusk dvd easel ease eastern economy education effective effort electric electronic eliminate elite elsewhere email embrace emerge encourage enforcement engineer enterprise entertainment episode evaluation evolution examination excellent exciting executive expand expense expert explosion expo faint fame far farmer favor february female festival fetch fiber fierce financial flash fluid flush fond fool foreign forever forum fossil foster foundation founder framework frequency friction friendship function fundamental further gadget garment generate genius genuinely girlfriend glimpse gorgeous grace greatest halt hardly harvest haunt haven headquarters hearing heavily hence heritage historic hobby hockey homemade household hull hut icy ideal identification illness imagination implication impossible impression incentive incom indeed initially input inspector instruction intended interested interesting interrupt intervention inviting invol isolated japanese jim july june keen kernel kilometer kingdom kit knowledge lab landscape latin leading lego liberty licensing lifestyle liter location lovely lover ma management manufacturing march marine maximum meaning medal medical membership merchant metabol method military milit minimum mission mixture mobile modify mort murder mut narrative nasty national nature necessarily neighborhood newspaper nomination noon northern november numerous nutrition observation observer obviously occupation october ohio olympic opera oriented origins ours outstanding overcome oxygen pact parking parks particular particularly passion patience pave pavement peasant percent performance perspective persuade pest petition photographer photograph physics picnic pierce pin planning player political politics pool por prayed preference preferred premises premium preoccupation preparation presidential presume principle prisoner privacy probable procedure professional proportion province publication publicly pupil pursuit puzzle qualify quota radar railing ranking ration ratio reader rebel receipt recommend recovery recruit refugee regret rehabilitate related relax reliable religi remark remedy replaced reply report representation representative reputation research researcher reside resilience resolution response restaurant restore restriction retail ribbon righteous rigor rim ripple roar roaring disclose robust rocket rode rook roost roughly royalty sacrifice saddle sag salute saving scandal scare scratch scream scroll seal seize sensation server service sever shaft shan shed sheer shelter shiny shred shrewd shrinkage shutters signal significant silicon sincer sip siren sist skim slam slap slick slid slight slimy slit slogan slumber slump slur slush sly smack smarts smash smear smiley smith smoking smother smudge smuggle snag snakebite snare snarl snatch snazzy sneak sneaker sneaky sneer sniff snip snipe snooker snoop snooze snore snorkel snort snot soar sob sock sodium soda sole someone sonnet soot sore sorrow spacecraft spark spear spectacle speedy spices spied spies spigot spiky spillage spiral splash splatter splay spleen splendor splendorous splices splendid splinter spoil sponge spoof spooky spool sporadic sports spouse spout sprawl spray sprinkle sprout spruce sprung spry spud spuds spume spur spy squad squally squander squat squeak squeal squeamish squirrels squib squick squidge squiffy squiggle squiggly squilgee squill squinch squinches squinny squins squint squints squire squirm squirt squirting squish squishes squished stadium stagger stale stalk stall stamp standby standings staple staples starch stark starless starlet starlight starling starlit starry starvation starved starves starving stash stated states statistics statue steeple stem stereo stereotype sterilize stern sticker stiff stifle stigma stilt stimulus sting stinging stinger stink stinking stinks stinky technique temper temple tempo tense terrace theft thread tilt timid tint token ton toxic trail trait trap trash tray tread treasure trigger trim trio trophy tumble tutor ugly ultimate umbrella uncle unite universal universe update upgrade usage used useful user utility utmost vacant valve vanish vapor variety velvet vendor verdict veto video vigor vintage violent violin virtual virtue vocal void volunteer voucher vulnerable wagon ward warning warrant weave weed weep weigh whim whip whistle wicked widow width wilderness wildlife willing wink wit witch witty wobble wool workshop worn wow wreck yarn yesterday yield yoga zeal zero zigzag zinc zip zoo zoom monday tuesday wednesday thursday friday saturday sunday january august september december weekday christmas halloween thanksgiving easter valentine anniversary america american united england britain scotland scottish wales welsh ireland irish france french germany german italy italian spain spanish portugal portuguese netherlands dutch switzerland swiss austria austrian belgium belgian denmark danish sweden swedish norway norwegian finland finnish poland polish russia russian ukraine ukrainian greece greek turkish israel israeli palestinian egypt egyptian africa african asia asian europe european china chinese japan korea korean india indian pakistan pakistani mexico mexican canada brazil brazilian argentina chile peru colombia venezuela australia australian zealand london paris rome berlin madrid vienna amsterdam brussels stockholm oslo copenhagen dublin lisbon athens warsaw prague budapest moscow beijing tokyo seoul delhi mumbai bangkok singapore sydney melbourne toronto vancouver montreal ottawa washington california texas florida illinois pennsylvania georgia michigan arizona massachusetts tennessee indiana missouri maryland wisconsin colorado minnesota alabama louisiana kentucky oregon oklahoma connecticut utah iowa nevada arkansas mississippi kansas nebraska idaho virginia hawaii alaska maine montana delaware dakota wyoming vermont hampshire jersey york hamas hezbollah jerusalem tel aviv gaza ramallah beirut damascus tehran baghdad riyadh doha dubai cairo nairobi lagos accra johannesburg nyc manhattan brooklyn queens bronx staten nassau suffolk westchester rockland putnam dutchess babylon hempstead mineola huntington islip smithtown brookhaven massapequa elmont alden hicksville levittown freeport baldwin merrick bellmore wantagh seaford plainview syosset jericho bethpage farmingdale amityville lindenhurst patchogue sayville riverhead aaron abigail adam adrian aidan alan albert alberto alejandro alex alexander alexandra alexis alfonso alfred alfredo alice alicia alina alisa alison alissa andrew scott tilles michelle karen seymour lori peter jonathan david erica ebony matt dennis taylor martha stephen plato ichiro fumitake anil seth wells clarke kristin hannah alastair reynolds jay kristoff abercrombie lynch rothfuss weir susanna gopnik hrdy siegel hartzell gottman bryson oster nagel harris kishimi koga dinniman ain't aren't can't couldn't didn't doesn't don't hadn't hasn't haven't he'd he'll he's here's i'd i'll i'm i've isn't it's let's mightn't mustn't needn't oughtn't shan't she'd she'll she's shouldn't that's there's they'd they'll they've wasn't we'd we'll we're we've weren't what's where's who'd who'll who's who've won't wouldn't you'd you'll you're you've o'clock ma'am y'all gonna wanna gotta kinda sorta yep nope uh huh okay bye thanks hey app apps blog blogger blogging bluetooth broadband browser cache click clickable computing cursor cyber desktop ebook emoji emoticon ethernet firewall folder gigabyte hacker hardware homepage hotspot html hyperlink inbox keyboard laptop login malware megabyte modem notebook offline password pdf pixel plugin podcast printer provider ram reboot router screenshot smartphone spam spreadsheet startup tablet tag terabyte texting touchscreen tweet twitter upload url usb username viral webcam website wifi wikipedia wikilink wiki markdown hashtag timeline newsfeed livestream autoplay headphone earbuds charger charging stylus trackpad facetime imessage iphone ipad macbook ios android windows linux chrome safari firefox gmail google youtube facebook instagram tiktok netflix spotify amazon kindle alexa siri whatsapp telegram discord reddit pinterest linkedin snapchat twitch hulu disney paramount showtime hbo cbs nbc abc cnn bbc npr pbs espn nfl nba mlb nhl fifa olympics covid coronavirus pandemic quarantine lockdown sanitizer sourdough starter levain autolyse bassinage coil ferment proofing retarding scoring lame banneton couche crumb crust crumbshot hearth loaf boule batard enriched brioche challah babka rugelach hamantaschen sufganiyot latkes matzah matzo focaccia ciabatta baguette croissant laminated lamination puff sticky buns rolls scones biscuits shortbread snickerdoodle blondie brownie whoopie molasses gingerbread spice angel chiffon genoise meringue pavlova dacquoise macaron macaroon madeleine financier canele kouign amann baklava kataifi halva tahini silan pomegranate sumac zaatar dukkah harissa schug zhug labneh halloumi feta mozzarella burrata mascarpone ricotta creme fraiche clotted custard ganache curd buttercream fondant marzipan praline nougat caramel salted dulce de leche condensed evaporated buttermilk kefir skyr quark viola cello bass violinist violist cellist bassist orchestra orchestral symphony philharmonic conductor conduct conducting rehearsal rehearse recital solo soloist ensemble quartet quintet duo duet chamber parts bow bowing pizzicato arco legato staccato spiccato martele detache colle tremolo vibrato glissando harmonics shifting intonation tuning tuned tuner metronome allegro andante adagio moderato presto vivace largo lento grave accelerando ritardando fermata rubato dynamics forte mezzo crescendo decrescendo diminuendo sforzando articulation phrasing slurred tied notes rests measures bars beats rhythmic accidental scales arpeggio arpeggios chromatic diatonic pentatonic octave octaves intervals unison fourth sixth seventh chord chords triad triads dominant tonic subdominant supertonic mediant submediant cadence plagal deceptive modulation modulate transposition transpose clef treble alto tenor staves ledger lines fingering fingerings strings crossing crossings bariolage sounding rosin peg pegs fingerboard tailpiece chinrest endpin mute practice practicing sightread sightreading audition auditions seating nyssma allstate allcounty adjudication adjudicator rubric teacher students superintendent curriculum lessons plans units assessment assessments rubrics grading grades homework assignment assignments projects presentation presentations worksheet worksheets textbook textbooks notebooks folders binder binders pencils pens marker markers crayon crayons glue scissors ruler rulers calculator calculators backpack backpacks lunchbox lunchboxes snacks cafeteria gymnasium gym auditorium librarian counselor custodian janitor buses drivers recess playground parents guardian guardians conferences meeting meetings schedules calendar calendars bulletin whiteboard smartboard projector chromebook chromebooks ipads desks chairs tables groups partners teams collaboration discussion discussions questions answers examples practices reviews quiz quizzes tests exam exams midterm midterms finals semester semesters quarters trimester trimesters attendance absent tardy dismissal dismisses dismissing substitute sub duties passes fountain locker lockers hallway hallways stairwell stairwells entrances exits drills evacuation safety safely rules respectful responsible responsibilities kindness kindly bullying bully bullies friends shares sharing shared listens listening listened raises raising hands caboose quietly voices indoor outdoor balls ropes hula hoop hoops bubbles wands wand sandbox sandboxes slides swings seesaw seesaws climber climbers merry mats mat baskets nets cones cone bags parachute parachutes scooter scooters tricycle tricycles bicycle bicycles wagons jewish jew jews judaism torah talmud tanakh mishnah midrash rabbi rabbis rabbinic synagogue shul minyan shabbat sabbath kosher kashrut candles candlelighting kiddush havdalah passover pesach seder seders haggadah afikoman rosh hashanah yom kippur sukkot sukkah simchat shemini atzeret shavuot purim hanukkah chanukah menorah dreidel gelt latke sufganiyah megillah esther mordechai haman tefillin tallit tallis tallitot tallises kippah kippot yarmulke tzitzit mezuzah mezuzot shofar lulav etrog arba minim bris brit milah pidyon haben mitzvah mitzvahs chuppah ketubah ketubot sheva brachos bracha brachot blessing blessings prayer prayers praying shacharit mincha maariv musaf amidah shema shmoneh esrei kaddish aleinu adon olam ein keloheinu yigdal lecha dodi kabbalat zemirot benching birkat hamazon bentsching bentsch aliyah aliyot aliyahs gabbai gabbaim chazan chazanim chazanus chazzan cantor cantors baal koreh tefillah baalei teshuvah mashgiach mashgichim hechsher hechshers hechsherim kashrus shomer shabbos frum frummer dati datim datiim chiloni chilonim charedi charedim charediim hasidic hasidim hasid chasid chasidim chasidic chabad lubavitch litvak litvaks litvish litvishe misnaged misnagdim misnagdic misnagdishe yeshiva yeshivas yeshivot yeshivos kollel kollelim beis medrash beit bais shtiebel shtieblach shtetl shtetlach eretz yisrael yisroel moshiach mashiach geulah geula exile galut galus diaspora assimilation shoah antisemitism occurrence accommodate conscience independent visibility vigilance assumption sameness failure survival hatred grieve grieving grieved grieves mourning mourn mourned mourner trauma traumatic healing healed heals ancestors ancestry generations generation homeland exiles exiled refugees persecution persecuted persecute pogroms naan tortilla discard recipes pancakes crackers flatbread muffins waffles tortillas quesadilla enchilada burrito taco tacos salsa guacamole hummus pita pitas falafel shawarma kebab kebabs kebob kabob gyro gyros souvlaki tzatziki spanakopita shakshuka shakshouka couscous tagine tagines harira msemen msemmen sfinge sfinges sfenj sfenjes sfenjim mufleta mufletas mimouna mimounas mimounah mimounahs terua teruas teruah teruahs teru teruim teruims teruahim accommodates accommodated accommodating accommodation accommodations occurrences consciences conscientious conscientiously conscientiousness independence independently visibilities visibly vigilant vigilantly assumptions assumes assumed assuming anywhere somewhere everywhere nowhere anyone everyone anybody everybody nobody anything anyhow anyway anymore somewhat wherever whenever whoever whichever besides however whomever whilst amongst amid amidst towards backwards forwards upward upwards downward downwards inward outward onwards shortcut filter heading subheading headline header footer toolbar sidebar statusbar menubar checkbox dropdown tooltip keypad mousepad screensaver wallpaper screenshotted screenshotting screensavers wallpapers wallpapering wallpapered rename renames renamed renaming organize organizer organizers organizations reorganize reorganized reorganizes reorganizing disorganized unorganized organized organizing organizes jot jots jotted jotting jotter jotters notepad notepads stickies midnight sepia monochrome grayscale greyscale toned tints tinted tinting shades shaded shading hue hues saturation saturate saturated desaturate vignette vignettes vignetted vignetting william zinsser james john robert michael richard charles joseph thomas donald ronald kenneth paul ryan kevin jason matthew gary timothy jose larry jeffrey frank eric raymond gregory joshua jerry walter patrick harold douglas henry carl arthur bobby johnny billy bruce gabriel julian tobias logan juan willie philip lawrence nicholas roy eugene randy vincent russell elijah louis ernest george lonnie mitchell joel dean mary patricia jennifer linda elizabeth barbara susan jessica sarah nancy lisa betty margaret sandra ashley kimberly emily donna dorothy amanda deborah stephanie rebecca sharon laura cynthia kathleen amy angela shirley anna brenda pamela emma nicole helen samantha katherine christine debra rachel carolyn janet ruth maria olivia heather diane julie joyce victoria kelly lauren christina joan evelyn judith andrea janice jacqueline judy theresa madison teresa gloria sara ann kathryn sophia frances jean doris danielle marilyn cohen goldstein goldberg silverstein silverman goldman katz kaplan cohan kahan kagan kaganer kaganers switch toggle widget webpage logout signup signin usernames passwords reload restart shutdown touchpad trackball scrollbar scrollbars scrollable scrolling scrolled scrolls zooms zoomed zooming pinch pinches pinched pinching swipe swipes swiped swiping taps tapped tapping doubleclick rightclick hover hovers hovered hovering drags dragged dragging drops dropped dropping clipboard clipboards clipboarded paste pastes pasted pasting undo redo undone redone shortcuts keystroke keystrokes hotkey hotkeys autofill autocomplete autosave autosaved autosaving backup backups restored restores restoring sync syncs synced syncing hotspots routers modems bluetooths hdmi adapter adapters adaptor adaptors chargers charged charges cables cord cords outlets plug plugs plugged plugging unplug unplugged batteries recharger rechargers recharging recharged recharges association associations beneath banner banners classical commute commuter commuters courtyard silverware fundraising fundraise fundraiser fundraisers generosity renovation renovations announcement announcements applause grill grilled grilling grills marinate marinated marinating marinade marinades pleasant pleasantly tangy seam seams seamed overnight preheat preheated preheating mahogany intimidate intimidated intimidates intimidating fermentation fermented fermenting ferments favorable favourite favorites flavors flavored flavoring programme programmes neighbourhood neighborhoods colourful colorful mr mrs ms dr prof fed sang rang drank swam sank shrank sprang stank bore wore tore swore froze chose drove broke stole woke wove shook mistook dug hung swung clung flung stung wrung struck stuck spun shone bitten beaten eaten forgotten ridden shaken mistaken woken woven blown thrown flown shown cutlery crockery cookware bakeware glassware tableware flatware kitchenware earthenware stoneware ovenware microwavable dishwasher dishwashers detergent detergents dishsoap dishcloth dishcloths dishtowel dishtowels dishpan dishpans dishrack dishracks dishwater dishwaters courtyards bannered bannering banneret bannerets bannerol bannerols bannerfish bannerfishes bannerfishs dear parcel parcels snowstorm snowstorms woollen woolen fort forts cottage cottages ferry ferries chutney chutneys jar jars fortnight fortnights affection affections scarf scarfs practise practises practised practising goes melt melts melted melting saucepan saucepans whisk whisks whisked whisking roux gradually gradual simmer simmers simmered simmering thicken thickens thickened thickening nutmeg nutmegs mustard mustards cayenne grate grates grated grating grater graters cheddar cheddars chop chops chopped chopping chive chives casserole casseroles batter batters frosting frostings glaze glazes icing icings topping toppings crusts crumble crumbled crumbles sift sifts sifted sifting scoop scoops scooped scooping spatula spatulas ladle ladles griddle griddles skillet skillets stockpot stockpots colander colanders strainer strainers zester zesters masher mashers baster basters trivet trivets eleanor alvarez rodriguez fernandez gonzalez hernandez martinez sanchez ramirez torres flores vasquez reyes guerrero herrera jimenez moreno munoz rojas delgado castro ortiz rubio marquez envelope envelopes stamps postcard postcards letters mailboxes postman postmen mailman mailmen delivery deliveries delivers delivered delivering packages wrapping wrapped wraps greetings greeting salutation salutations sincerely affectionately fondly regards warmly cordially faithfully signatures postscript postscripts pal pals correspondent correspondents correspondence correspondences corresponded corresponding corresponds correspond seaside seashore lakeshore riverside mountainside countryside hillside bedside fireside books reading lights grammar harass harassment hierarchy idiosyncrasy curiosity existence importance difference differences reference references preferences assistance circumstances consequences essence appliance compliance defiance reliance alliance ambulance fragrance ignorance arrogance elegance relevance tolerance noticeable knowledgeable manageable preferable comparable inevitable substantial residential confidential influential sequential consequential existential preferential referential differential torrential pestilential providential prudential credential credentials reverential experiential inconsequential equip equips equipped equipping baby babies niece nieces nephew nephews possession possessions privilege privileges privileged questionnaire questionnaires supersede supersedes superseded superseding tattoo tattoos tattooed tattooing threshold thresholds vacuum vacuums vacuumed vacuuming fulfil fulfils fulfilled fulfilling fulfill fulfills judgment judgments acknowledgment acknowledgments</script>
   </body>
 </html>
