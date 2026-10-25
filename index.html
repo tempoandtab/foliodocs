@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261025-32" />
+    <meta name="folio-build" content="20261025-33" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1276,17 +1276,30 @@
         margin-top: 10px; padding: 0 2px;
         font-size: 13.5px; font-weight: 600; color: var(--ink-2);
       }
+      /* Off is a state, not an absence: the off track is a
+         solid mid-tone (--ink-3) with a clearly readable
+         knob, so an enabled-but-off switch looks tappable
+         in every theme. The genuinely disabled switch (a
+         wiki-link in the Link field, where preview does not
+         apply) falls back to the faint --line track AND
+         dims — two cues apart from enabled-off. */
       .wiki-toggle {
         width: 40px; height: 24px; border-radius: 999px; flex: 0 0 auto;
-        background: var(--line); position: relative; cursor: pointer;
+        background: var(--ink-3); position: relative; cursor: pointer;
+        transition: background 0.15s ease;
       }
       .wiki-toggle .wt-knob {
         position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
-        border-radius: 50%; background: var(--surface); box-shadow: var(--shadow);
+        border-radius: 50%; background: var(--surface);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+        transition: left 0.15s ease;
       }
       .wiki-toggle[aria-checked="true"] { background: var(--accent); }
       .wiki-toggle[aria-checked="true"] .wt-knob { left: 19px; }
-      .wiki-toggle:disabled { opacity: 0.38; cursor: default; }
+      .wiki-toggle:disabled { background: var(--line); opacity: 0.45; cursor: default; }
+      @media (prefers-reduced-motion: reduce) {
+        .wiki-toggle, .wiki-toggle .wt-knob { transition: none; }
+      }
 
       /* ---------------- Link preview cards ----------------
          A linkPreview block: the Notion-style bookmark card.
@@ -7560,20 +7573,17 @@
               }
             });
           }
-          /* Web links inside the editor open in a new tab instead
-             of navigating the app away (wiki-links and tags keep
-             their own handlers). */
-          var mountEl = document.getElementById('editorMount');
-          if (mountEl) {
-            mountEl.addEventListener('click', function (ev) {
-              var a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
-              if (!a || a.hasAttribute('data-wiki-link') || a.hasAttribute('data-folio-tag')) return;
-              var href = a.getAttribute('href');
-              if (!href) return;
-              ev.preventDefault();
-              window.open(href, '_blank', 'noopener');
-            });
-          }
+          /* External links are REAL anchors: the editor renders
+             them (and the preview card's shell) with href +
+             target="_blank" + rel="noopener noreferrer", and
+             nothing in the app intercepts their clicks — no
+             preventDefault, no window.open reroute. In the
+             home-screen app a genuine _blank anchor hands off
+             to Safari; window.open stays inside the app, which
+             is why the old interception handler was removed
+             rather than retargeted. Wiki-links and tags are
+             spans/chips with their own handlers, never these
+             anchors. */
         })();
 
         /* ---------------- highlight & text color ---------------- */
@@ -9480,6 +9490,24 @@
           d.className = 'menu-sep';
           return d;
         }
+        /* Open an external href the way a real anchor does:
+           build an actual <a href target="_blank"
+           rel="noopener">, click it, and drop it. window.open
+           is NOT used anywhere for external links — in the
+           home-screen app it opens inside the app, while a
+           genuine _blank anchor hands off to Safari. This is
+           the same path the rendered links themselves take. */
+        function openExternalHref(href) {
+          if (!href) return;
+          var a = document.createElement('a');
+          a.href = href;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }
         /* One menu item in the app's standard construction —
            check slot, optional icon, label, optional hint —
            whose pick closes this menu and runs. */
@@ -9707,7 +9735,7 @@
             var xhit = ctx.hit;
             el.appendChild(edMenuItem({
               icon: EXT_LINK_SVG, label: 'Open link',
-              run: function () { window.open(xhit.href, '_blank', 'noopener'); }
+              run: function () { openExternalHref(xhit.href); }
             }));
             el.appendChild(edMenuItem({
               icon: PENCIL_SVG, label: 'Edit link…', hint: hintFor('link-composer'), dataSc: 'link-composer',
@@ -14250,7 +14278,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261025-32';
+        var FOLIO_BUILD = '20261025-33';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
