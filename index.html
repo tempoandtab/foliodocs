@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261024-28" />
+    <meta name="folio-build" content="20261025-29" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1192,6 +1192,20 @@
         border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
       }
 
+      /* ---------------- Wiki-link display text prompt ----------------
+         The chip menu's one-field popover: an app-styled text
+         field on the format popover's shell. */
+      .wiki-pop { width: 264px; padding: 10px; }
+      .wiki-pop .pop-label { padding: 0 2px 7px; }
+      .wiki-pop-input {
+        width: 100%; box-sizing: border-box;
+        border: 1px solid var(--line); border-radius: 8px;
+        background: var(--bg); color: var(--ink);
+        font: inherit; font-size: 14.5px; padding: 7px 9px; outline: none;
+      }
+      .wiki-pop-input:focus { border-color: var(--accent); }
+      .wiki-pop-note { margin-top: 7px; padding: 0 2px; font-size: 12px; line-height: 1.4; color: var(--ink-3); }
+
       /* ---------------- Callout options popover ----------------
          One popover, two modes: editing an existing callout
          (opened from its icon) and composing a new one
@@ -1572,6 +1586,10 @@
          set), so it scrolls internally; the open handler caps
          its height to the visible region it is placed in. */
       #ctxToolsMenu { overflow-y: auto; }
+      /* The editor right-click menu scrolls internally too:
+         its table context carries the full table tool set,
+         and its open handler caps the height to the screen. */
+      #editorMenu { overflow-y: auto; }
       .menu-head {
         font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
         color: var(--ink-3); padding: 7px 10px 4px;
@@ -1686,6 +1704,17 @@
       }
       .ab-item.danger { color: var(--danger); }
       .ab-item.kb-focus { background: var(--hover); }
+      /* The leading icon slot: every row carries one — the
+         action's own glyph where it has one (see abIconHtml),
+         an empty box where it does not — so all labels start
+         on the same line, in Recent and results alike. */
+      .ab-item .ab-item-icon {
+        flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--ink-3);
+      }
+      .ab-item.danger .ab-item-icon { color: var(--danger); }
+      .ab-item .ab-item-icon svg { max-width: 18px; max-height: 18px; }
       .ab-empty { padding: 12px 10px; font-size: 14px; color: var(--ink-3); }
 
       /* ---------------- Omnisearch (⌥Space) ----------------
@@ -2482,7 +2511,7 @@
             <button class="tb-btn tb-txt" type="button" id="selStrikeBtn" data-sel="strike" data-sc="strike" aria-label="Strikethrough" data-tip="Strikethrough"><s style="font-size:15px">S</s><span class="tb-label">Strikethrough</span></button>
             <button class="tb-btn tb-txt" type="button" id="selCodeBtn" data-sel="code" data-sc="code" aria-label="Inline code" data-tip="Inline code (⌘E)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span class="tb-label">Inline code</span></button>
             <button class="tb-btn tb-txt" type="button" id="selQuoteBtn" data-sel="quote" data-sc="quote" aria-label="Block quote" data-tip="Blockquote — or start a line with &gt;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 8H6a4 4 0 0 0-4 4v6h7v-7H6.5A2.5 2.5 0 0 1 9 8.6V8h1zm12 0h-4a4 4 0 0 0-4 4v6h7v-7h-2.5A2.5 2.5 0 0 1 21 8.6V8h1z"/></svg><span class="tb-label">Block quote</span></button>
-            <button class="tb-btn tb-txt" type="button" id="selCalloutBtn" data-sel="callout" data-sc="insert-callout" aria-label="Insert callout" data-tip="Insert callout — the selection becomes the callout's body. Right-click to compose a custom callout."><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01" stroke-width="2.6"/></svg><span class="tb-label">Callout</span></button>
+            <button class="tb-btn tb-txt" type="button" id="selCalloutBtn" data-sel="callout" data-sc="insert-callout" aria-label="Insert callout" data-tip="Insert callout — the selection becomes the callout's body. Right-click to compose a custom callout."><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-4.5 4v-4H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M12 9.3v3.4"/><path d="M12 6.8h.01" stroke-width="2.6"/></svg><span class="tb-label">Callout</span></button>
             <button class="tb-btn tb-txt" type="button" data-sel="wikilink" data-sc="wikilink" aria-label="Make wikilink" data-tip="Turn the selection into a [[wikilink]]"><span class="tb-wiki">[[ ]]</span><span class="tb-label">Make wikilink</span></button>
             <button class="tb-btn tb-txt" type="button" data-sel="copy" data-sc="copy-sel" aria-label="Copy selection" data-tip="Copy the selected text"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="tb-label">Copy</span></button>
             <button class="tb-btn tb-txt" type="button" data-sel="clearfmt" data-sc="clearfmt" aria-label="Clear formatting" data-tip="Strip the selection's formatting back to plain body text"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span class="tb-label">Clear formatting</span></button>
@@ -2493,7 +2522,7 @@
           </span>
           <span class="ctx-group" id="ctxInsertTools">
             <button class="tb-btn tb-txt" type="button" id="insTableBtn" data-ins="table" data-sc="table-insert" aria-label="Insert table" aria-haspopup="true" data-tip="Insert table"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 16h18M9.5 4v16M15.5 4v16"/></svg><span class="tb-label">Insert table</span></button>
-            <button class="tb-btn tb-txt" type="button" id="insCalloutBtn" data-ins="callout" data-sc="insert-callout" aria-label="Insert callout" data-tip="Insert callout — an Info callout. Right-click to compose a custom callout."><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01" stroke-width="2.6"/></svg><span class="tb-label">Insert callout</span></button>
+            <button class="tb-btn tb-txt" type="button" id="insCalloutBtn" data-ins="callout" data-sc="insert-callout" aria-label="Insert callout" data-tip="Insert callout — an Info callout. Right-click to compose a custom callout."><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-4.5 4v-4H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M12 9.3v3.4"/><path d="M12 6.8h.01" stroke-width="2.6"/></svg><span class="tb-label">Insert callout</span></button>
             <button class="tb-btn tb-txt" type="button" data-ins="codeblock" data-sc="codeblock" aria-label="Code block" data-tip="Insert a code block"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m9.8 9.8-2.6 2.2 2.6 2.2M14.2 9.8l2.6 2.2-2.6 2.2"/></svg><span class="tb-label">Code block</span></button>
             <button class="tb-btn tb-txt" type="button" data-ins="divider" data-sc="divider" aria-label="Divider" data-tip="Insert a horizontal rule"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h6.5M14.5 12H21"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg><span class="tb-label">Divider</span></button>
             <button class="tb-btn tb-txt" type="button" data-ins="datestamp" data-sc="datestamp" aria-label="Date stamp" data-tip="Insert today's date"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg><span class="tb-label">Date stamp</span></button>
@@ -2575,6 +2604,11 @@
     <div class="menu" id="ctxMenu" role="menu" aria-label="More options"></div>
     <div class="menu" id="editorMenu" role="menu" aria-label="Editor actions"></div>
     <div class="fmt-pop callout-pop" id="calloutPop" hidden role="dialog" aria-label="Callout options"></div>
+    <div class="fmt-pop wiki-pop" id="wikiDisplayPop" hidden role="dialog" aria-label="Edit display text">
+      <div class="pop-label">Display text</div>
+      <input class="wiki-pop-input" id="wikiDisplayInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Display text" />
+      <div class="wiki-pop-note">The text the chip shows. Clear it to show the document's title again.</div>
+    </div>
     <div class="menu" id="ctxToolsMenu" role="menu" aria-label="Context tools"></div>
     <div class="menu" id="settingsMenu" role="menu" aria-label="Settings"></div>
     <div class="fmt-pop" id="fmtPop" hidden role="dialog" aria-label="Color choices">
@@ -3122,7 +3156,7 @@
           var tmp = document.createElement('span');
           tmp.innerHTML = btn.innerHTML;
           tmp.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
-          tmp.querySelectorAll('.tb-label, .tb-chev').forEach(function (n) { n.remove(); });
+          tmp.querySelectorAll('.tb-label, .tb-chev, .share-label, .share-badge').forEach(function (n) { n.remove(); });
           if (tmp.querySelector('svg')) {
             Array.prototype.slice.call(tmp.childNodes).forEach(function (n) {
               if (n.nodeType === 3) tmp.removeChild(n);
@@ -8672,7 +8706,12 @@
         var CALLOUT_LABELS = (window.FolioKit && FolioKit.FOLIO_CALLOUT_LABELS) || { note: 'Note', tip: 'Tip', info: 'Info', important: 'Important', warning: 'Warning', caution: 'Caution' };
         var CALLOUT_TPL_COLORS = (window.FolioKit && FolioKit.FOLIO_CALLOUT_COLORS) || { note: '#2f6bd8', tip: '#1e7d3c', info: '#0284c7', important: '#7c4dbc', warning: '#8a5f00', caution: '#c62f3b' };
         var CALLOUT_SWATCHES = ['#e03131', '#e8590c', '#f08c00', '#2f9e44', '#0ca678', '#1971c2', '#6741d9', '#d6336c', '#868e96'];
-        var CALLOUT_ICON_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01" stroke-width="2.6"/></svg>';
+        /* The Insert callout glyph: a callout box — a rounded
+           speech bubble with the generic Info mark inside —
+           not the bare ⓘ it shipped with, so every door
+           (toolbar buttons, the editor menu, the action bar)
+           reads as "insert a callout." */
+        var CALLOUT_ICON_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-4.5 4v-4H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M12 9.3v3.4"/><path d="M12 6.8h.01" stroke-width="2.6"/></svg>';
         var editorMenuEl = document.getElementById('editorMenu');
         var calloutPopEl = document.getElementById('calloutPop');
         var editorMenuOpen = false;
@@ -8911,20 +8950,36 @@
           });
           /* Icon — the glyph grid. The first tile is the
              template's own icon (clears the override); every
-             other tile sets the override. */
+             other tile sets the override. Tiles are deduped
+             by glyph identity (an SVG's path, an emoji's
+             char): the template's tile leads, and any glyph
+             that draws identically to one already in the grid
+             is shown exactly once — the template itself in
+             the full set, and Note / Info, which share a
+             single ⓘ path in the glyph table. */
           el.appendChild(calloutPopLabel('Icon'));
           var grid = document.createElement('div');
           grid.className = 'callout-glyph-grid';
           var glyphs = (window.FolioKit && FolioKit.FOLIO_CALLOUT_GLYPHS) || {};
+          function glyphKey(g) {
+            if (!g) return '';
+            return g.kind === 'emoji' ? 'e:' + g.char : 's:' + (g.rule ? 'r:' : '') + g.path;
+          }
+          var seenGlyphs = {};
           var tplGlyph = glyphs[st.template];
           if (tplGlyph) {
-            var tplTile = calloutGlyphTile(st.template, tplGlyph, !st.icon);
+            seenGlyphs[glyphKey(tplGlyph)] = true;
+            var tplOn = !st.icon || glyphKey(glyphs[st.icon]) === glyphKey(tplGlyph);
+            var tplTile = calloutGlyphTile(st.template, tplGlyph, tplOn);
             tplTile.setAttribute('aria-label', 'Template icon (' + CALLOUT_LABELS[st.template] + ')');
             tplTile.setAttribute('data-tip', 'Template icon');
             tplTile.addEventListener('click', function () { calloutPopPick({ kind: 'icon', icon: null }); });
             grid.appendChild(tplTile);
           }
           Object.keys(glyphs).forEach(function (id) {
+            var k = glyphKey(glyphs[id]);
+            if (seenGlyphs[k]) return;
+            seenGlyphs[k] = true;
             var tile = calloutGlyphTile(id, glyphs[id], st.icon === id);
             tile.addEventListener('click', function () { calloutPopPick({ kind: 'icon', icon: id }); });
             grid.appendChild(tile);
@@ -9092,6 +9147,19 @@
           openCalloutPop({ mode: 'insert', pos: -1, template: 'info', icon: null, color: null },
             r ? { left: r.left, bottom: r.bottom, top: r.top } : null);
         }
+        /* The Open Callout Composer action's run, shared by
+           the shortcut registry entry (the ⌥/ action bar) and
+           the editor right-click menu's composer door: the
+           composer anchors at the Insert callout toolbar
+           button — the selection row's twin when the Insert
+           row is not on screen, no anchor at all when neither
+           is — exactly as the button's own right-click opens
+           it. */
+        function runCalloutComposerAction() {
+          var b = document.getElementById('insCalloutBtn');
+          if (!b || !b.getClientRects().length) b = document.getElementById('selCalloutBtn');
+          openCalloutComposer(b && b.getClientRects().length ? b : null);
+        }
         /* The bundle's icon button announces itself here; only
            the main editor's own view gets a menu (print and
            shared-view editors announce too and are ignored). */
@@ -9167,18 +9235,409 @@
 
         /* ---------------- editor right-click menu ----------------
            The document area's own right-click menu (mouse only,
-           like the table menu it sits beside): a minimal menu in
-           the app's menu styling carrying Insert callout, gated
-           inside an existing callout. A right-click in a table
-           cell keeps the full table menu (see the handler below);
-           this menu is for everywhere else in the document. */
+           like the table menu it grew out of), context-aware:
+           its contents resolve from what the right-click landed
+           on, mirroring the command sets of the app's existing
+           context surfaces — the same precedence the secondary
+           toolbar uses, with the callout first. A click inside
+           a callout offers that callout's own actions (and
+           never Insert callout — no nesting, now by absence
+           rather than disablement); a table cell carries the
+           full table set, a row/column handle (or a painted
+           band) its row/column subset; a wiki-link chip leads
+           with opening its document; a live text selection
+           leads with the two callout doors over the selection
+           formatting set; a bare caret gets just the doors.
+           Every item is a registered command or a proxy for a
+           real toolbar button — nothing here invents one. */
+        var wikiDisplayPopEl = document.getElementById('wikiDisplayPop');
+        var wikiDisplayInput = document.getElementById('wikiDisplayInput');
+        var wikiDisplayPending = null;
+        var ED_MOVE_ICONS = {
+          up: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
+          down: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+          left: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>',
+          right: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
+          fold: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
+        };
         function closeEditorMenu() {
           if (!editorMenuEl) return;
           editorMenuEl.className = 'menu';
           editorMenuEl.innerHTML = '';
+          editorMenuEl.style.width = '';
+          editorMenuEl.style.maxHeight = '';
           editorMenuOpen = false;
         }
-        function openEditorMenu(x, y) {
+        function edMenuSep() {
+          var d = document.createElement('div');
+          d.className = 'menu-sep';
+          return d;
+        }
+        /* One menu item in the app's standard construction —
+           check slot, optional icon, label, optional hint —
+           whose pick closes this menu and runs. */
+        function edMenuItem(opts) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-item' + (opts.danger ? ' danger' : '') + (opts.on ? ' on' : '');
+          b.setAttribute('role', 'menuitem');
+          if (opts.disabled) b.disabled = true;
+          if (opts.dataSc) b.setAttribute('data-sc', opts.dataSc);
+          var lead = document.createElement('span');
+          lead.className = 'check';
+          if (opts.on) lead.innerHTML = CHECK_SVG;
+          b.appendChild(lead);
+          if (opts.icon != null) {
+            var ic = document.createElement('span');
+            ic.className = 'm-icon';
+            ic.innerHTML = opts.icon;
+            b.appendChild(ic);
+          }
+          var s = document.createElement('span');
+          s.className = 'm-label';
+          s.textContent = opts.label;
+          b.appendChild(s);
+          if (opts.hint) {
+            var h = document.createElement('span');
+            h.className = 'm-hint';
+            h.textContent = opts.hint;
+            b.appendChild(h);
+          }
+          if (opts.run) b.addEventListener('click', function () { closeEditorMenu(); opts.run(); });
+          return b;
+        }
+        /* An item proxying a real toolbar / table-bar button,
+           built like the table menu's proxies: the button's
+           own icon and state, its label, its shortcut hint —
+           and a pick clicks the real button. */
+        function edMenuProxyItem(realBtn, danger) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-item' + (realBtn.classList.contains('on') ? ' on' : '') + (danger ? ' danger' : '');
+          b.setAttribute('role', 'menuitem');
+          if (realBtn.disabled) b.disabled = true;
+          var lead = document.createElement('span');
+          lead.className = 'check';
+          lead.innerHTML = CHECK_SVG;
+          b.appendChild(lead);
+          b.appendChild(menuIconFromBtn(realBtn));
+          var s = document.createElement('span');
+          s.className = 'm-label';
+          var label = realBtn.getAttribute('aria-label') || realBtn.textContent.trim();
+          if (danger) label = label.replace(/^✕\s*/, '');
+          s.textContent = label;
+          b.appendChild(s);
+          addMenuHint(b, realBtn);
+          b.addEventListener('click', function () {
+            closeEditorMenu();
+            realBtn.click();
+          });
+          return b;
+        }
+        /* An item proxying a selection-row button: same
+           construction, but the pick runs the row's own
+           command dispatcher (the row's buttons have no click
+           handlers of their own), with this menu's rect as the
+           popover anchor for Highlight / Text color — read
+           before the menu closes, like the table menu's
+           popover items snapshot theirs. */
+        function edMenuSelItem(realBtn) {
+          var b = edMenuProxyItem(realBtn, false);
+          var fresh = b.cloneNode(false);
+          fresh.className = b.className;
+          fresh.setAttribute('role', 'menuitem');
+          if (realBtn.disabled) fresh.disabled = true;
+          Array.prototype.slice.call(b.childNodes).forEach(function (n) { fresh.appendChild(n); });
+          fresh.addEventListener('click', function () {
+            var rect = editorMenuEl.getBoundingClientRect();
+            var anchor = { getBoundingClientRect: function () { return rect; } };
+            closeEditorMenu();
+            runSelCmd(realBtn, anchor);
+          });
+          return fresh;
+        }
+        /* An item running a registered command by id — the
+           label and hint are the registry's own. */
+        function edMenuCmdItem(id, icon) {
+          var sc = null;
+          SHORTCUTS.forEach(function (s) { if (s.id === id) sc = s; });
+          if (!sc || !sc.run) return null;
+          return edMenuItem({
+            label: sc.label, hint: sc.hint || '', icon: icon != null ? icon : null, dataSc: id,
+            run: function () { sc.run(); }
+          });
+        }
+        /* The two callout doors, shared by the selection and
+           bare-caret contexts: Insert callout itself (which
+           wraps a live selection as the body), then the
+           composer. */
+        function edMenuCalloutDoors() {
+          var frag = document.createDocumentFragment();
+          frag.appendChild(edMenuItem({
+            icon: CALLOUT_ICON_SVG, label: 'Insert callout', dataSc: 'insert-callout',
+            run: function () { insertCallout(); }
+          }));
+          frag.appendChild(edMenuItem({
+            icon: CALLOUT_ICON_SVG, label: 'Open Callout Composer', dataSc: 'callout-composer',
+            run: function () { runCalloutComposerAction(); }
+          }));
+          return frag;
+        }
+        function buildEditorMenu(ctx) {
+          var el = editorMenuEl;
+          function barBtn(sel) { return tableBar ? tableBar.querySelector(sel) : null; }
+          function addProxy(sel, danger) {
+            var real = barBtn(sel);
+            if (real) el.appendChild(edMenuProxyItem(real, danger));
+          }
+          function addCmd(id, icon) {
+            var it = edMenuCmdItem(id, icon);
+            if (it) el.appendChild(it);
+          }
+          if (ctx.kind === 'callout') {
+            var hit = ctx.hit;
+            var dom = null;
+            try { dom = editorHandle.editor.view.nodeDOM(hit.pos); } catch (e) { dom = null; }
+            var rect = dom && dom.getBoundingClientRect ? dom.getBoundingClientRect() : null;
+            el.appendChild(edMenuItem({
+              icon: CALLOUT_ICON_SVG, label: 'Customize callout…',
+              run: function () {
+                openCalloutEditMenu(hit.pos, rect ? { left: rect.left, top: rect.top, bottom: rect.bottom, right: rect.right } : null);
+              }
+            }));
+            if (hit.info.fold) {
+              var folded = !!(dom && dom.classList && dom.classList.contains('callout-folded'));
+              el.appendChild(edMenuItem({
+                icon: ED_MOVE_ICONS.fold, label: folded ? 'Unfold callout' : 'Fold callout',
+                run: function () {
+                  var d2 = null;
+                  try { d2 = editorHandle.editor.view.nodeDOM(hit.pos); } catch (e) { d2 = null; }
+                  var fb = d2 && d2.querySelector ? d2.querySelector('.callout-fold-btn') : null;
+                  if (fb) fb.click();
+                }
+              }));
+            }
+            el.appendChild(edMenuSep());
+            el.appendChild(edMenuItem({
+              icon: TRASH_SVG, label: 'Delete callout', danger: true,
+              run: function () { calloutDelete(hit.pos); }
+            }));
+            return;
+          }
+          if (ctx.kind === 'table-cell') {
+            /* The full table set, item for item the table
+               menu's — built from its own builders, so the
+               swatch rows and the alignment popover ride
+               along identical. */
+            function addTbl(sel, danger) {
+              var real = barBtn(sel);
+              if (real) el.appendChild(tblMenuProxyItem(real, danger));
+            }
+            addTbl('[data-tact="row-above"]');
+            addTbl('[data-tact="row-below"]');
+            addTbl('[data-tact="col-left"]');
+            addTbl('[data-tact="col-right"]');
+            addTbl('[data-tact="merge"]');
+            addTbl('[data-tact="split"]');
+            addTbl('[data-thdr="row"]');
+            addTbl('[data-thdr="col"]');
+            addTbl('[data-tact="reset-widths"]');
+            addTbl('[data-tact="dist-rows"]');
+            addTbl('[data-tact="dist-cols"]');
+            el.appendChild(tblMenuSep());
+            el.appendChild(tblMenuHead('Cell fill'));
+            el.appendChild(tblMenuSwatchRow(Array.prototype.slice.call(tblBgSwatches.querySelectorAll('[data-tbg]'))));
+            el.appendChild(tblMenuHead('Border width'));
+            tblBorderSizeMenu.querySelectorAll('[data-tbw]').forEach(function (real) {
+              el.appendChild(tblMenuProxyItem(real, false));
+            });
+            el.appendChild(tblMenuHead('Border color'));
+            el.appendChild(tblMenuSwatchRow(Array.prototype.slice.call(tblBorderColors.querySelectorAll('[data-tbc]'))));
+            el.appendChild(tblMenuPopItem('align', 'Cell alignment', editorMenuEl));
+            el.appendChild(tblMenuSep());
+            addTbl('[data-tact="del-row"]', true);
+            addTbl('[data-tact="del-col"]', true);
+            addTbl('[data-tact="del-table"]', true);
+            return;
+          }
+          if (ctx.kind === 'table-row') {
+            addProxy('[data-tact="row-above"]');
+            addProxy('[data-tact="row-below"]');
+            addCmd('tbl-move-row-up', ED_MOVE_ICONS.up);
+            addCmd('tbl-move-row-down', ED_MOVE_ICONS.down);
+            el.appendChild(edMenuSep());
+            addProxy('[data-tact="dist-rows"]');
+            addProxy('[data-tact="del-row"]', true);
+            return;
+          }
+          if (ctx.kind === 'table-col') {
+            addProxy('[data-tact="col-left"]');
+            addProxy('[data-tact="col-right"]');
+            addCmd('tbl-move-col-left', ED_MOVE_ICONS.left);
+            addCmd('tbl-move-col-right', ED_MOVE_ICONS.right);
+            el.appendChild(edMenuSep());
+            addProxy('[data-tact="dist-cols"]');
+            addProxy('[data-tact="del-col"]', true);
+            return;
+          }
+          if (ctx.kind === 'wikilink') {
+            var title = ctx.hit.node.attrs.title || '';
+            el.appendChild(edMenuItem({
+              icon: DOC_SVG, label: 'Open “' + title + '”',
+              run: function () { navigateToTitle(title); }
+            }));
+            el.appendChild(edMenuItem({
+              icon: PENCIL_SVG, label: 'Edit display text…',
+              run: function () { openWikiDisplayPop(ctx.hit); }
+            }));
+            return;
+          }
+          if (ctx.kind === 'selection') {
+            el.appendChild(edMenuCalloutDoors());
+            el.appendChild(edMenuSep());
+            /* The selection context's formatting set, in the
+               context tools menu's order: the main toolbar's
+               Bold and Italic lead, then the selection row's
+               own commands. (The row's Callout button sits
+               out — the doors above are that command, with
+               the composer beside it.) Highlight and Text
+               color follow the row's dedupe rule, as there. */
+            if (toolbarBtns.bold) el.appendChild(edMenuProxyItem(toolbarBtns.bold, false));
+            if (toolbarBtns.italic) el.appendChild(edMenuProxyItem(toolbarBtns.italic, false));
+            function addSel(btn) { if (btn) el.appendChild(edMenuSelItem(btn)); }
+            addSel(selStrikeBtn);
+            addSel(selCodeBtn);
+            if (!mainCmdVisible('highlight')) addSel(selHlBtn);
+            if (!mainCmdVisible('textcolor')) addSel(selTcBtn);
+            addSel(ctxSelTools.querySelector('[data-sel="wikilink"]'));
+            addSel(ctxSelTools.querySelector('[data-sel="copy"]'));
+            addSel(ctxSelTools.querySelector('[data-sel="clearfmt"]'));
+            addSel(selQuoteBtn);
+            return;
+          }
+          /* Bare caret: just the two callout doors. */
+          el.appendChild(edMenuCalloutDoors());
+        }
+        /* What a right-click landed on, resolved in the
+           spec's precedence — Callout, Table, Wikilink,
+           Selection, Caret. Runs after the handler has moved
+           the caret (or painted the handle's band), so it
+           reads the live selection the way refreshContextBar
+           does. */
+        function calloutAncestorAt(state, pos) {
+          try {
+            var $p = state.doc.resolve(pos);
+            for (var d = $p.depth; d > 0; d--) {
+              var n = $p.node(d);
+              if (n.type.name === 'blockquote') {
+                var co = calloutOfNode(n);
+                if (co) return { pos: $p.before(d), node: n, info: co };
+              }
+            }
+          } catch (e) {}
+          return null;
+        }
+        function wikiLinkHitAt(chipEl) {
+          if (!editorHandle || !editorHandle.editor || !chipEl) return null;
+          var ed = editorHandle.editor, st = ed.state;
+          var pos = null;
+          try { pos = ed.view.posAtDOM(chipEl, 0); } catch (e) { pos = null; }
+          var found = null;
+          function consider(p) {
+            if (found || p == null || p < 0) return;
+            var n = null;
+            try { n = st.doc.nodeAt(p); } catch (e) { n = null; }
+            if (n && n.type.name === 'wikiLink') found = { pos: p, node: n };
+          }
+          consider(pos);
+          consider(pos != null ? pos - 1 : null);
+          if (!found && pos != null) {
+            st.doc.descendants(function (node, p) {
+              if (found) return false;
+              if (node.type.name === 'wikiLink' && p <= pos && pos <= p + node.nodeSize) {
+                found = { pos: p, node: node };
+                return false;
+              }
+              return true;
+            });
+          }
+          return found;
+        }
+        /* Keyboard invocation carries no chip element: resolve a chip the
+           caret sits in, directly after, or one separator space after
+           (accepting a chip inserts a trailing space after it). */
+        function wikiLinkNearCaret() {
+          if (!editorHandle || !editorHandle.editor) return null;
+          var st = editorHandle.editor.state, sel = st.selection;
+          if (!sel || !sel.empty) return null;
+          var at = sel.from, found = null;
+          st.doc.descendants(function (node, p) {
+            if (found) return false;
+            if (node.type.name === 'wikiLink') {
+              var end = p + node.nodeSize;
+              if (at >= p && at <= end + 1) {
+                var gap = '';
+                if (at > end) { try { gap = st.doc.textBetween(end, at, ''); } catch (e) { gap = 'x'; } }
+                if (/^\s*$/.test(gap)) { found = { pos: p, node: node }; return false; }
+              }
+            }
+            return true;
+          });
+          return found;
+        }
+        function resolveEditorMenuCtx(segEl, chipEl, cellEl) {
+          var ed = editorHandle.editor, st = ed.state, sel = st.selection;
+          var hit = null;
+          if (sel) hit = findCalloutIntersecting(st, sel.from, sel.to) || calloutAncestorAt(st, sel.from);
+          if (hit) return { kind: 'callout', hit: hit };
+          if (segEl) return { kind: segEl.getAttribute('data-axis') === 'col' ? 'table-col' : 'table-row' };
+          var band = (typeof folioPaintedBandKind === 'function') ? folioPaintedBandKind() : null;
+          if (band === 'rows') return { kind: 'table-row' };
+          if (band === 'cols') return { kind: 'table-col' };
+          if (cellEl || ed.isActive('table')) return { kind: 'table-cell' };
+          if (chipEl) {
+            var w = wikiLinkHitAt(chipEl);
+            if (w) return { kind: 'wikilink', hit: w };
+          } else {
+            var wNear = wikiLinkNearCaret();
+            if (wNear) return { kind: 'wikilink', hit: wNear };
+          }
+          if (sel && !sel.empty && st.doc.textBetween(sel.from, sel.to, '\n').trim()) return { kind: 'selection' };
+          return { kind: 'caret' };
+        }
+        /* A right-click on a handle segment selects that
+           row / column first — the caret lands in the band's
+           first cell and the band paints, exactly as a
+           left-click on the segment selects it — so the
+           row / column commands in the menu act on the band
+           the user pointed at. */
+        function paintBandForSeg(segEl) {
+          var ed = editorHandle && editorHandle.editor;
+          if (!ed || !segEl) return;
+          var axis = segEl.getAttribute('data-axis');
+          var idx = parseInt(segEl.getAttribute('data-index'), 10) || 0;
+          var wrap = segEl.closest ? segEl.closest('.folio-table-wrap') : null;
+          if (!wrap) return;
+          var rows = wrap.querySelectorAll('tbody > tr');
+          var cell = null;
+          if (axis === 'row') {
+            if (rows[idx]) cell = rows[idx].querySelector('td, th');
+          } else if (rows[0]) {
+            cell = rows[0].querySelectorAll('td, th')[idx] || null;
+          }
+          if (!cell) return;
+          var r = cell.getBoundingClientRect();
+          try {
+            var cp = ed.view.posAtCoords({ left: r.left + 6, top: r.top + 6 });
+            if (!cp) return;
+            ed.chain().focus().setTextSelection(cp.pos).run();
+            var scId = axis === 'row' ? 'tbl-select-row' : 'tbl-select-col';
+            var sc = null;
+            SHORTCUTS.forEach(function (s) { if (s.id === scId) sc = s; });
+            if (sc && sc.run) sc.run();
+          } catch (e) {}
+        }
+        function openEditorMenu(x, y, ctx) {
           if (!editorHandle || !editorMenuEl) return;
           closeMoveMenu();
           closeFolderMenu();
@@ -9192,38 +9651,118 @@
           closeTblPop();
           closeTblStylePops();
           closeCalloutPop();
+          closeWikiDisplayPop();
           editorMenuEl.innerHTML = '';
-          var b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'menu-item';
-          b.setAttribute('role', 'menuitem');
-          b.setAttribute('data-sc', 'insert-callout');
-          if (calloutGateActive()) b.disabled = true;
-          var lead = document.createElement('span');
-          lead.className = 'check';
-          b.appendChild(lead);
-          var ic = document.createElement('span');
-          ic.className = 'm-icon';
-          ic.innerHTML = CALLOUT_ICON_SVG;
-          b.appendChild(ic);
-          var s = document.createElement('span');
-          s.className = 'm-label';
-          s.textContent = 'Insert callout';
-          b.appendChild(s);
-          b.addEventListener('click', function () {
-            closeEditorMenu();
-            insertCallout();
-          });
-          editorMenuEl.appendChild(b);
+          buildEditorMenu(ctx || { kind: 'caret' });
+          var tableCtx = ctx && (ctx.kind === 'table-cell' || ctx.kind === 'table-row' || ctx.kind === 'table-col');
+          /* Wider in the table contexts, like the table menu:
+             the longest labels ("Add column to the right")
+             would otherwise wrap at the standard width. The
+             height cap keeps a phone's menu on screen, the
+             full table set being the tall one. */
+          editorMenuEl.style.width = tableCtx ? '264px' : '';
+          editorMenuEl.style.maxHeight = Math.max(160, window.innerHeight - 16) + 'px';
           editorMenuEl.className = 'menu open';
           editorMenuOpen = true;
           dismissNativeEditMenu();
-          var w = 224, h = editorMenuEl.offsetHeight;
+          var w = editorMenuEl.offsetWidth || 224, h = editorMenuEl.offsetHeight;
           editorMenuEl.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
           var top = y + 6;
           if (top + h > window.innerHeight - 8) top = Math.max(8, y - h - 6);
           editorMenuEl.style.top = top + 'px';
           kbFocusFirst(editorMenuEl);
+        }
+        /* ----- wiki-link display text prompt -----
+           A small app-styled popover with one text field,
+           opened from the chip's right-click menu. The field
+           starts from the chip's current display text — the
+           target's title for a plain chip — and confirming
+           writes the alias form [[Target|text]]; clearing the
+           field (or saving the title itself) stores a plain
+           link again. Only the node's display attribute is
+           ever touched: the target, and so every backlink,
+           is exactly as it was. */
+        function closeWikiDisplayPop() {
+          if (wikiDisplayPopEl) wikiDisplayPopEl.hidden = true;
+          wikiDisplayPending = null;
+        }
+        function openWikiDisplayPop(hit) {
+          if (!wikiDisplayPopEl || !wikiDisplayInput || !hit || !editorHandle) return;
+          closeEditorMenu();
+          closeCalloutPop();
+          closeFmtPop();
+          closeTblPop();
+          closeTblStylePops();
+          closeCtxMenu();
+          closeCtxToolsMenu();
+          wikiDisplayPending = { pos: hit.pos, title: hit.node.attrs.title || '' };
+          wikiDisplayInput.value = hit.node.attrs.display || hit.node.attrs.title || '';
+          wikiDisplayPopEl.hidden = false;
+          var rect = null;
+          try {
+            var dom = editorHandle.editor.view.nodeDOM(hit.pos);
+            if (dom && dom.getBoundingClientRect) rect = dom.getBoundingClientRect();
+          } catch (e) { rect = null; }
+          var w = 264, h = wikiDisplayPopEl.offsetHeight || 120;
+          var left = rect ? rect.left : 16;
+          var topEdge = rect ? rect.top : 16;
+          var bottom = rect ? rect.bottom : 16;
+          wikiDisplayPopEl.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
+          var top = bottom + 6;
+          if (top + h > window.innerHeight - 8) top = Math.max(8, topEdge - h - 6);
+          wikiDisplayPopEl.style.top = top + 'px';
+          /* Post-pass clamp on the measured box: whatever the
+             offset parent does to the computed top, the field
+             the user must type into ends up on screen. */
+          var pr = wikiDisplayPopEl.getBoundingClientRect();
+          if (pr.bottom > window.innerHeight - 8 || pr.top < 8) {
+            var curTop = parseFloat(wikiDisplayPopEl.style.top) || 0;
+            if (pr.bottom > window.innerHeight - 8) curTop -= (pr.bottom - (window.innerHeight - 8));
+            if (pr.top < 8) curTop += (8 - pr.top);
+            wikiDisplayPopEl.style.top = Math.max(8, curTop) + 'px';
+          }
+          if (pr.right > window.innerWidth - 8) {
+            var curLeft = parseFloat(wikiDisplayPopEl.style.left) || 0;
+            wikiDisplayPopEl.style.left = Math.max(8, curLeft - (pr.right - (window.innerWidth - 8))) + 'px';
+          }
+          wikiDisplayInput.focus();
+          try { wikiDisplayInput.select(); } catch (e) {}
+        }
+        function confirmWikiDisplayPop() {
+          var p = wikiDisplayPending;
+          if (!p || !editorHandle || !editorHandle.editor) { closeWikiDisplayPop(); return; }
+          var text = (wikiDisplayInput.value || '').trim();
+          closeWikiDisplayPop();
+          var ed = editorHandle.editor, st = ed.state;
+          var node = null;
+          try { node = st.doc.nodeAt(p.pos); } catch (e) { node = null; }
+          if (!node || node.type.name !== 'wikiLink') return;
+          var display = (!text || text === p.title) ? null : text;
+          if ((node.attrs.display || null) === display) {
+            try { ed.chain().focus().run(); } catch (e) {}
+            return;
+          }
+          var nn = st.schema.nodes.wikiLink.create({
+            title: p.title,
+            exists: !!findDocByTitle(p.title),
+            display: display
+          });
+          ed.view.dispatch(st.tr.replaceWith(p.pos, p.pos + node.nodeSize, nn));
+          try { ed.chain().focus().run(); } catch (e) {}
+          refreshToolbar();
+        }
+        if (wikiDisplayInput) {
+          wikiDisplayInput.addEventListener('keydown', function (ev) {
+            ev.stopPropagation();
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              confirmWikiDisplayPop();
+            } else if (ev.key === 'Escape') {
+              ev.preventDefault();
+              closeWikiDisplayPop();
+              if (editorHandle) { try { editorHandle.editor.chain().focus().run(); } catch (e) {} }
+            }
+          });
         }
         /* Click-away dismissal for the two new surfaces (the
            app's main pointerdown handler folds the older menus;
@@ -9237,6 +9776,9 @@
           }
           if (editorMenuOpen && editorMenuEl) {
             if (!editorMenuEl.contains(t)) closeEditorMenu();
+          }
+          if (wikiDisplayPopEl && !wikiDisplayPopEl.hidden) {
+            if (!wikiDisplayPopEl.contains(t)) closeWikiDisplayPop();
           }
         });
 
@@ -9292,9 +9834,10 @@
         /* ---------------- table options menu ------------------
            One menu, two callers. The context bar's ⋯ button opens
            it with just the items the overflow manager folded out
-           of the row; a right-click on a table cell (see the
-           editor contextmenu handler below) opens it with the
-           full set of table actions at the click point. Items are
+           of the row; the editor right-click menu's table-cell
+           context builds the full set from these same builders
+           into its own element (see the editor menu block).
+           Items are
            rebuilt on open from the real buttons in the bar, carry
            their current .on / disabled state, and picking one
            clicks the real button — the bar's delegated click
@@ -9337,6 +9880,7 @@
           b.addEventListener('click', function () {
             closeTblMenu();
             closeCtxToolsMenu();
+            closeEditorMenu();
             realBtn.click();
           });
           return b;
@@ -9356,6 +9900,7 @@
             c.addEventListener('click', function () {
               closeTblMenu();
               closeCtxToolsMenu();
+              closeEditorMenu();
               real.click();
             });
             row.appendChild(c);
@@ -9390,6 +9935,7 @@
             var rect = anchorEl ? anchorEl.getBoundingClientRect() : null;
             closeTblMenu();
             closeCtxToolsMenu();
+            closeEditorMenu();
             openTblStylePop(kind, anchorEl ? null : tblMoreBtn, rect);
           });
           return b;
@@ -9765,15 +10311,18 @@
           else { abRecord('toggle-ctxbar'); setCtxBarHidden(!ctxBarHidden); }
         });
 
-        /* ---------------- right-click table menu -------------------
-           A mouse right-click on a table cell opens the full table
-           options menu at the click point — the same commands as
-           the table tools in the context bar. A right-click on a
-           border never gets here: the editor bundle claims it for
-           the border options menu and preventDefaults the event.
-           Touch long-press also fires contextmenu on iPadOS, but
-           that gesture is text selection, so only a press whose
-           last pointer was a mouse counts. */
+        /* ---------------- right-click editor menu -------------------
+           A mouse right-click anywhere in the document opens the
+           context-aware editor menu at the click point (see the
+           editor menu block): what it offers resolves from what
+           the click landed on — callout, table cell, table
+           handle, wiki-link chip, selection, or bare caret. A
+           right-click on a table border never gets here: the
+           editor bundle claims it for the border options menu
+           and preventDefaults the event. Touch long-press also
+           fires contextmenu on iPadOS, but that gesture is text
+           selection, so only a press whose last pointer was a
+           mouse counts. */
         var editorMountEl = document.getElementById('editorMount');
         var lastEditorPointerType = null;
         editorMountEl.addEventListener('pointerdown', function (ev) {
@@ -9782,44 +10331,35 @@
         editorMountEl.addEventListener('contextmenu', function (ev) {
           if (ev.defaultPrevented) return;
           if (lastEditorPointerType && lastEditorPointerType !== 'mouse') return;
-          if (!editorHandle || !ev.target.closest) return;
+          if (!editorHandle || !editorHandle.editor || !ev.target.closest) return;
+          ev.preventDefault();
+          var ed = editorHandle.editor;
+          var segEl = ev.target.closest('.folio-handle-seg');
+          var chipEl = ev.target.closest('a[data-wiki-link]');
           var cellEl = ev.target.closest('td, th');
-          if (!cellEl) {
-            /* Outside a table: the document's own minimal
-               right-click menu (Insert callout). The caret follows
-               the click unless the click lands inside the live
-               selection, mirroring the table path below — a
-               right-click with a selection active must not throw
-               the selection away before the menu acts on it. */
-            if (!editorHandle.editor) return;
-            ev.preventDefault();
+          if (segEl) {
+            /* A handle segment: paint its band first, so the
+               menu's row / column commands act on it. */
+            paintBandForSeg(segEl);
+          } else {
+            /* The caret follows the click unless the click
+               lands inside the live selection — a right-click
+               with a selection active must not throw the
+               selection away before the menu acts on it. */
             try {
-              var cpos = editorHandle.editor.view.posAtCoords({ left: ev.clientX, top: ev.clientY });
+              var cpos = ed.view.posAtCoords({ left: ev.clientX, top: ev.clientY });
               if (cpos && typeof cpos.pos === 'number') {
-                var csel = editorHandle.editor.state.selection;
+                var csel = ed.state.selection;
                 if (!(csel && !csel.empty && cpos.pos >= csel.from && cpos.pos <= csel.to)) {
-                  editorHandle.editor.chain().focus().setTextSelection(cpos.pos).run();
+                  ed.chain().focus().setTextSelection(cpos.pos).run();
                 } else {
-                  editorHandle.editor.chain().focus().run();
+                  ed.chain().focus().run();
                 }
               }
             } catch (e) {}
-            refreshContextBar();
-            openEditorMenu(ev.clientX, ev.clientY);
-            return;
           }
-          ev.preventDefault();
-          var ed = editorHandle.editor;
-          try {
-            var pos = ed.view.posAtCoords({ left: ev.clientX, top: ev.clientY });
-            var sel = ed.state.selection;
-            if (pos && (pos.pos < sel.from || pos.pos > sel.to)) {
-              ed.chain().focus().setTextSelection(pos.pos).run();
-            }
-          } catch (e) {}
           refreshContextBar();
-          if (tblMenuOpen) closeTblMenu();
-          openTblMenu({ x: ev.clientX, y: ev.clientY }, true);
+          openEditorMenu(ev.clientX, ev.clientY, resolveEditorMenuCtx(segEl, chipEl, cellEl));
         });
 
         /* ---------------- title editing ---------------- */
@@ -12107,7 +12647,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261024-28';
+        var FOLIO_BUILD = '20261025-29';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -12462,6 +13002,17 @@
             run: function () { scRunWikilink(); } },
           { id: 'insert-callout', combo: '', hint: '', group: 'Formatting', label: 'Insert callout',
             run: function () { insertCallout(); } },
+          /* The composer's own action-bar door: opens the same
+             popover the Insert callout button's right-click
+             opens, anchored at that button (the selection
+             row's twin when the Insert row is not on screen),
+             keyboard-primed by openCalloutPop like every
+             composer opening — ring persistence and ⌘Enter
+             included. Gated exactly like Insert callout: the
+             action-bar catalog hides it inside a callout, and
+             openCalloutComposer stands down there too. */
+          { id: 'callout-composer', combo: '', hint: '', group: 'Formatting', label: 'Open Callout Composer',
+            run: function () { runCalloutComposerAction(); } },
           { id: 'datestamp', combo: 'mod+alt+d', hint: '⌘⌥D', group: 'Formatting', label: 'Date stamp',
             run: function () {
               var s = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -13400,7 +13951,7 @@
               if (sc.id === 'delete-doc' && lib.docs.length <= 1) return;
               if (sc.id === 'tbl-del-band' && !folioPaintedBandKind()) return;
               if (sc.id === 'toggle-ctxbar' && toolbarsHidden) return;
-              if (sc.id === 'insert-callout' && (typeof calloutGateActive === 'function') && calloutGateActive()) return;
+              if ((sc.id === 'insert-callout' || sc.id === 'callout-composer') && (typeof calloutGateActive === 'function') && calloutGateActive()) return;
               push(sc.id, sc.label, sc.hint, sc.group, sc.run, sc.id === 'delete-doc');
             });
           }
@@ -13451,6 +14002,73 @@
           push('check-updates', 'Check for updates', '', 'App', function () { checkForUpdates(true); });
           push('reload-app', 'Reload app', '', 'App', function () { reloadAppFresh(); });
           return list;
+        }
+        /* The icon a result row carries: the glyph the action
+           already wears on its own surface, never a new one
+           invented for the palette. Menu-only actions take the
+           exact SVG their menu rows carry (AB_ICONS); a few
+           buttons are found by id (AB_ICON_EL); everything
+           else is harvested live from the button keyed by the
+           same data-sc / data-tact / data-thdr identity the
+           recents recorder uses, through the menus' own
+           menuIconFromBtn. An action with no glyph anywhere
+           returns '' and keeps the empty slot, so every label
+           still starts on the same line. */
+        var AB_ICONS = {
+          'view-documents': DOC_SVG,
+          'view-favorites': STAR_SVG,
+          'favorite': STAR_SVG,
+          'move-doc': FOLDER_SVG,
+          'export-md': DOWNLOAD_SVG,
+          'export-pdf': PRINT_SVG,
+          'save-now': SYNC_NOW_SVG,
+          'shortcuts-help': KEYBOARD_SVG,
+          'omnisearch': DOC_SVG,
+          'focus-mode': FOCUS_SVG,
+          'toggle-documents-section': DOC_SVG,
+          'toggle-current-folder': FOLDER_SVG,
+          'select-documents': CHECKLIST_SVG,
+          'button-labels': LABEL_ICONS_TEXT_SVG,
+          'theme': PALETTE_SVG,
+          'sync-now': SYNC_NOW_SVG,
+          'sync-details': SYNC_DETAILS_SVG,
+          'check-updates': UPDATE_CHECK_SVG,
+          'reload-app': RELOAD_APP_SVG,
+          'delete-doc': TRASH_SVG,
+          'callout-composer': CALLOUT_ICON_SVG,
+          'h4': '<span style="font-weight:700">H<small>4</small></span>',
+          'nav-prev-doc': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 6-6 6 6"/></svg>',
+          'nav-next-doc': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 10 6 6 6-6"/></svg>'
+        };
+        var AB_ICON_EL = {
+          'print': 'printBtn',
+          'library': 'libraryToggle',
+          'toggle-toolbars': 'toolbarsBtn',
+          'toggle-ctxbar': 'ctxToolsBtn',
+          'tbl-fill': 'tblFillBtn',
+          'tbl-border-color': 'tblBorderColorBtn',
+          'tbl-border-size': 'tblBorderSizeBtn',
+          'tbl-align': 'tblAlignBtn'
+        };
+        var AB_ICON_ALIAS = { 'textcolor-last': 'textcolor' };
+        function abIconInto(slot, id) {
+          if (AB_ICONS[id]) { slot.innerHTML = AB_ICONS[id]; return; }
+          var src = null;
+          if (AB_ICON_EL[id]) src = document.getElementById(AB_ICON_EL[id]);
+          if (!src) src = document.querySelector('[data-sc="' + (AB_ICON_ALIAS[id] || id) + '"]');
+          if (!src && id.indexOf('tbl-') === 0) {
+            var key = id.slice(4);
+            src = document.querySelector('[data-tact="' + key + '"], [data-thdr="' + key.replace(/^header-/, '') + '"]');
+          }
+          if (!src) return;
+          var ic = menuIconFromBtn(src);
+          if (!ic) return;
+          slot.innerHTML = ic.innerHTML;
+          /* The heading buttons' serif bold and the wiki-link
+             button's monospace ride on the harvested span's own
+             class / inline style — carry both onto the slot. */
+          if (ic.classList.contains('tb-h')) slot.classList.add('tb-h');
+          if (ic.style && ic.style.cssText) slot.style.cssText = ic.style.cssText;
         }
         function abRender() {
           var q = (actionInput.value || '').trim().toLowerCase();
@@ -13507,6 +14125,11 @@
               b.type = 'button';
               b.className = 'ab-item' + (a.danger ? ' danger' : '');
               b.setAttribute('role', 'option');
+              var ic = document.createElement('span');
+              ic.className = 'ab-item-icon';
+              ic.setAttribute('aria-hidden', 'true');
+              abIconInto(ic, a.id);
+              b.appendChild(ic);
               var s = document.createElement('span');
               s.className = 'm-label';
               s.textContent = a.label;
