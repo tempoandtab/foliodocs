@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261025-33" />
+    <meta name="folio-build" content="20261025-34" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1259,6 +1259,18 @@
       }
       .wiki-pop-input:focus { border-color: var(--accent); }
       .wiki-pop-note { margin-top: 7px; padding: 0 2px; font-size: 12px; line-height: 1.4; color: var(--ink-3); }
+      /* The composer's footer commit, mirroring the callout
+         composer's: one full-width button that applies the
+         fields and closes, so committing never depends on
+         where focus happens to sit. */
+      .wiki-pop-foot { padding: 8px 2px 2px; margin-top: 8px; border-top: 1px solid var(--line-soft); }
+      .wiki-commit-btn {
+        width: 100%; min-height: 42px; border-radius: 9px;
+        background: var(--accent); color: var(--accent-ink);
+        font-size: 14.5px; font-weight: 700;
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .wiki-commit-btn:hover { filter: brightness(1.07); }
       .wiki-field-wrap { position: relative; }
       .wiki-suggest {
         position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5;
@@ -2749,6 +2761,9 @@
         <button type="button" class="wiki-toggle" id="wikiPreviewToggle" role="switch" aria-checked="false" aria-label="Show as preview card"><span class="wt-knob"></span></button>
       </div>
       <div class="wiki-pop-note">A document title makes a [[wiki-link]]; a web address makes an external link. Clear the display text to show the target itself.</div>
+      <div class="wiki-pop-foot">
+        <button type="button" class="wiki-commit-btn" id="wikiCommitBtn">Save link</button>
+      </div>
     </div>
     <div class="menu" id="ctxToolsMenu" role="menu" aria-label="Context tools"></div>
     <div class="menu" id="settingsMenu" role="menu" aria-label="Settings"></div>
@@ -6884,9 +6899,41 @@
             }
             items.push(mdListItemContent(itemLines, contentIndent, refs));
           }
-          var node = { type: ordered ? 'orderedList' : 'bulletList', content: items };
-          if (ordered) node.attrs = { start: startNum, type: null };
-          return { node: node, next: i };
+          /* A list item must lead with a paragraph — the
+             editor's schema requires it, and an item leading
+             with anything else (a heading above all: the
+             "- ### Section" shape) loads as a zombie: it
+             renders at list depth, and once its marker is
+             backspaced away no editing exit can move it,
+             because the stock exits all key on the item's
+             leading paragraph. Hoist an item's leading
+             non-paragraph blocks out of the list instead —
+             the list closes ahead of them and resumes after —
+             so the import carries the structure the text
+             reads as: the heading at the margin, its list
+             intact below it. */
+          var nodes = [];
+          var curItems = [];
+          var placedItems = 0;
+          function flushList() {
+            if (!curItems.length) return;
+            var node = { type: ordered ? 'orderedList' : 'bulletList', content: curItems };
+            if (ordered) node.attrs = { start: startNum + placedItems - curItems.length, type: null };
+            nodes.push(node);
+            curItems = [];
+          }
+          items.forEach(function (item) {
+            var content = item.content || [];
+            var lead = 0;
+            while (lead < content.length && content[lead].type !== 'paragraph') lead++;
+            if (lead === 0) { curItems.push(item); placedItems++; return; }
+            flushList();
+            for (var k = 0; k < lead; k++) nodes.push(content[k]);
+            var rest = content.slice(lead);
+            if (rest.length) { curItems.push({ type: 'listItem', content: rest }); placedItems++; }
+          });
+          flushList();
+          return { nodes: nodes, next: i };
         }
         function mdParseBlocks(lines, refs) {
           var blocks = [];
@@ -6951,7 +6998,7 @@
             }
             if (mdListItemMatch(line)) {
               var parsedList = mdParseList(lines, i, refs);
-              blocks.push(parsedList.node);
+              parsedList.nodes.forEach(function (n) { blocks.push(n); });
               i = parsedList.next;
               continue;
             }
@@ -9465,6 +9512,7 @@
         var wikiLinkInput = document.getElementById('wikiLinkInput');
         var wikiSuggestEl = document.getElementById('wikiSuggest');
         var wikiPreviewToggle = document.getElementById('wikiPreviewToggle');
+        var wikiCommitBtn = document.getElementById('wikiCommitBtn');
         var linkPopState = null;
         var editorMenuAnchorRect = null;
         var ED_MOVE_ICONS = {
@@ -10254,6 +10302,67 @@
           if (pv) return { kind: 'ext', hit: pv };
           return null;
         }
+        /* The ⋯ menus' link test — linkHitAtSelection, widened
+           for a menu door: a selection that merely OVERLAPS an
+           external run (not just one spanning it exactly) or
+           contains a whole chip also counts as touching a link,
+           since the composer edits the whole run or chip either
+           way. This is the gesture-free door to Edit link…: no
+           long-press, no keyboard — select or place the caret,
+           open the ⋯ menu. */
+        function linkHitForCtxMenu() {
+          var exact = linkHitAtSelection();
+          if (exact) return exact;
+          if (!editorHandle || !editorHandle.editor) return null;
+          var st = editorHandle.editor.state, sel = st.selection;
+          if (!sel || sel.empty) return null;
+          var x = extLinkHitAtPos(st, sel.from) || extLinkHitAtPos(st, Math.max(sel.from, sel.to - 1));
+          if (x) return { kind: 'ext', hit: x };
+          var chip = null;
+          st.doc.nodesBetween(sel.from, sel.to, function (node, p) {
+            if (chip) return false;
+            if (node.type.name === 'wikiLink') { chip = { pos: p, node: node }; return false; }
+            return true;
+          });
+          if (chip) return { kind: 'chip', hit: chip };
+          return null;
+        }
+        /* One Edit link… item for the ⋯ menus, in their own
+           construction: a pick closes the host menu and opens
+           the one link composer for the touched link. */
+        function linkMenuItem(found, closeFn) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-item';
+          b.setAttribute('role', 'menuitem');
+          b.setAttribute('data-sc', 'link-composer');
+          var lead = document.createElement('span');
+          lead.className = 'check';
+          lead.innerHTML = CHECK_SVG;
+          b.appendChild(lead);
+          var ic = document.createElement('span');
+          ic.className = 'm-icon';
+          ic.setAttribute('aria-hidden', 'true');
+          ic.innerHTML = PENCIL_SVG;
+          b.appendChild(ic);
+          var s = document.createElement('span');
+          s.className = 'm-label';
+          s.textContent = 'Edit link…';
+          b.appendChild(s);
+          var hint = hintFor('link-composer');
+          if (hint) {
+            var h = document.createElement('span');
+            h.className = 'm-hint';
+            h.textContent = hint;
+            b.appendChild(h);
+          }
+          b.addEventListener('click', function () {
+            closeFn();
+            if (found.kind === 'chip') openLinkComposerForChip(found.hit);
+            else openLinkComposerForExt(found.hit);
+          });
+          return b;
+        }
         /* A preview card touching the caret — the chip rule
            one level up: the caret at the end of the block
            before the card, or at the start of the block
@@ -10283,27 +10392,40 @@
           return found;
         }
         function positionLinkPop(rect) {
-          var w = 300, h = wikiDisplayPopEl.offsetHeight || 190;
+          /* Clamp against the VISUAL viewport: on a phone the
+             on-screen keyboard shrinks and pans what is visible
+             without shrinking the layout viewport these fixed
+             coordinates resolve against, and the composer —
+             fields and preview switch alike — must land inside
+             the region the user can actually see and tap. The
+             width also caps to the visible width, so the fields
+             stay full-size touch targets on the narrowest
+             phones instead of sliding off the edge. */
+          var vv = window.visualViewport;
+          var vw = vv ? vv.width : window.innerWidth;
+          var vh = vv ? vv.height : window.innerHeight;
+          var w = Math.min(300, Math.max(240, vw - 16)), h = wikiDisplayPopEl.offsetHeight || 190;
+          wikiDisplayPopEl.style.width = w + 'px';
           var left = rect ? rect.left : 16;
           var topEdge = rect ? rect.top : 16;
           var bottom = rect ? rect.bottom : 16;
-          wikiDisplayPopEl.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
+          wikiDisplayPopEl.style.left = Math.max(8, Math.min(left, vw - w - 8)) + 'px';
           var top = bottom + 6;
-          if (top + h > window.innerHeight - 8) top = Math.max(8, topEdge - h - 6);
+          if (top + h > vh - 8) top = Math.max(8, topEdge - h - 6);
           wikiDisplayPopEl.style.top = top + 'px';
           /* Post-pass clamp on the measured box: whatever the
              offset parent does to the computed top, the field
              the user must type into ends up on screen. */
           var pr = wikiDisplayPopEl.getBoundingClientRect();
-          if (pr.bottom > window.innerHeight - 8 || pr.top < 8) {
+          if (pr.bottom > vh - 8 || pr.top < 8) {
             var curTop = parseFloat(wikiDisplayPopEl.style.top) || 0;
-            if (pr.bottom > window.innerHeight - 8) curTop -= (pr.bottom - (window.innerHeight - 8));
+            if (pr.bottom > vh - 8) curTop -= (pr.bottom - (vh - 8));
             if (pr.top < 8) curTop += (8 - pr.top);
             wikiDisplayPopEl.style.top = Math.max(8, curTop) + 'px';
           }
-          if (pr.right > window.innerWidth - 8) {
+          if (pr.right > vw - 8) {
             var curLeft = parseFloat(wikiDisplayPopEl.style.left) || 0;
-            wikiDisplayPopEl.style.left = Math.max(8, curLeft - (pr.right - (window.innerWidth - 8))) + 'px';
+            wikiDisplayPopEl.style.left = Math.max(8, curLeft - (pr.right - (vw - 8))) + 'px';
           }
         }
         function openLinkComposer(state) {
@@ -10321,6 +10443,7 @@
           wikiLinkInput.value = state.link || '';
           wikiDisplayInput.value = state.display || '';
           linkPopPreview = !!state.preview;
+          if (wikiCommitBtn) wikiCommitBtn.textContent = state.mode === 'create' ? 'Insert link' : 'Save link';
           if (wikiPreviewToggle) wikiPreviewToggle.setAttribute('aria-checked', linkPopPreview ? 'true' : 'false');
           refreshWikiToggle();
           wikiDisplayPopEl.hidden = false;
@@ -10468,14 +10591,39 @@
             if (wikiPreviewToggle.disabled) return;
             linkPopPreview = !linkPopPreview;
             wikiPreviewToggle.setAttribute('aria-checked', linkPopPreview ? 'true' : 'false');
+            /* Edit mode applies the flip at once (see
+               applyPreviewFlipNow); create mode leaves it
+               staged for the commit paths. */
+            applyPreviewFlipNow();
           });
           /* A mouse click parks focus on the switch; Enter
              there must mean what it means in the fields —
              confirm — not re-toggling the switch it just
-             set. Esc cancels, as in the fields. */
+             set. ⌘Enter is the same commit. Esc cancels, as
+             in the fields. */
           wikiPreviewToggle.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); e.stopPropagation(); confirmLinkComposer(); }
+            if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); confirmLinkComposer(); }
             else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancelLinkComposer(); }
+          });
+        }
+        if (wikiCommitBtn) {
+          wikiCommitBtn.addEventListener('click', function () { confirmLinkComposer(); });
+        }
+        /* ⌘Enter commits from anywhere in the composer —
+           the callout composer's grammar — and a plain Enter
+           landing on the composer itself (not in a field, not
+           on a control, whose own handlers claim theirs)
+           commits too, so no focus position in the popover
+           is a dead end for the keyboard. */
+        if (wikiDisplayPopEl) {
+          wikiDisplayPopEl.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Enter') return;
+            if (ev.metaKey || ev.ctrlKey) { ev.preventDefault(); confirmLinkComposer(); return; }
+            var t = ev.target;
+            if (t === wikiDisplayPopEl || !(t.closest && t.closest('input, button'))) {
+              ev.preventDefault();
+              confirmLinkComposer();
+            }
           });
         }
         if (wikiLinkInput) {
@@ -10538,6 +10686,79 @@
           ed.view.dispatch(state.tr.replaceWith(pos, pos + node.nodeSize, para));
           focusCaretAfter(ed, pos + 1 + displayText.length);
           return true;
+        }
+        /* Where a preview card sits after a conversion:
+           the linkPreview with this href nearest the point
+           the conversion started from. */
+        function previewPosNear(ed, fromPos, href) {
+          var best = null, bestDist = Infinity;
+          ed.state.doc.descendants(function (node, p) {
+            if (node.type.name === 'linkPreview' && node.attrs && node.attrs.href === href) {
+              var d = Math.abs(p - fromPos);
+              if (d < bestDist) { bestDist = d; best = p; }
+            }
+            return true;
+          });
+          return best;
+        }
+        /* The composer's Preview switch in EDIT mode is a
+           display-mode switch, not staged text: a flip applies
+           to the document at once, under the open composer —
+           the menu toggle's conversions — so click-away and
+           Esc afterwards cannot lose it (they never held it),
+           and ⌘Z is the way back. The conversion uses the link
+           as it stands in the document (its own href and
+           display); a retarget typed but not yet committed
+           stays staged in the fields. After a conversion the
+           staged state is re-based on the link's new form, so
+           a later commit acts on what is there now. In CREATE
+           mode nothing exists yet: this stands down and the
+           switch stays staged for the commit paths. A flip the
+           document refuses (a card cannot live in a heading or
+           code block) flips the switch back. */
+        function applyPreviewFlipNow() {
+          var st = linkPopState;
+          if (!st || st.mode !== 'edit' || !editorHandle || !editorHandle.editor) return;
+          var ed = editorHandle.editor;
+          var active = document.activeElement;
+          var restoreFocus = active && wikiDisplayPopEl && wikiDisplayPopEl.contains(active) ? active : null;
+          function revert() {
+            linkPopPreview = !linkPopPreview;
+            if (wikiPreviewToggle) wikiPreviewToggle.setAttribute('aria-checked', linkPopPreview ? 'true' : 'false');
+          }
+          if (linkPopPreview) {
+            if (st.kind === 'preview') return;
+            var range = null, href = null, disp = null;
+            if (st.kind === 'ext') {
+              range = { from: st.from, to: st.to }; href = st.href; disp = st.origText;
+            } else if (st.kind === 'chip') {
+              var cn = null;
+              try { cn = ed.state.doc.nodeAt(st.pos); } catch (e) { cn = null; }
+              href = parseLinkUrl(wikiLinkInput.value || '');
+              if (!cn || cn.type.name !== 'wikiLink' || !href) { revert(); return; }
+              range = { from: st.pos, to: st.pos + cn.nodeSize };
+              var dv = (wikiDisplayInput.value || '').trim();
+              disp = (!dv || dv === href) ? href : dv;
+            }
+            if (!range || !insertPreviewAt(ed, range.from, range.to, { href: href, display: disp })) { revert(); return; }
+            fetchLinkMeta(href, function (meta) { cachePreviewMeta(href, meta); });
+            var cardPos = previewPosNear(ed, range.from, href);
+            if (cardPos == null) { revert(); return; }
+            linkPopState = { mode: 'edit', kind: 'preview', pos: cardPos, href: href,
+              link: st.link, display: st.display, preview: true, focus: st.focus, rect: st.rect };
+          } else {
+            if (st.kind !== 'preview') return;
+            var node = null;
+            try { node = ed.state.doc.nodeAt(st.pos); } catch (e) { node = null; }
+            if (!node || node.type.name !== 'linkPreview') { revert(); return; }
+            var href2 = node.attrs.href || st.href;
+            var dispText = node.attrs.display || href2;
+            if (!previewCardToText(ed, st.pos, dispText, href2)) { revert(); return; }
+            linkPopState = { mode: 'edit', kind: 'ext', from: st.pos + 1, to: st.pos + 1 + dispText.length,
+              href: href2, origText: dispText, link: st.link, display: st.display, preview: false, focus: st.focus, rect: st.rect };
+          }
+          if (restoreFocus) { try { restoreFocus.focus(); } catch (e) {} }
+          refreshToolbar();
         }
         /* The right-click menu's presentation toggle: the
            same conversions the composer's Preview switch
@@ -10720,6 +10941,9 @@
               }
             } else if (ev.key === 'Enter') {
               ev.preventDefault();
+              /* ⌘Enter commits outright — never a suggestion
+                 pick — from either field. */
+              if (ev.metaKey || ev.ctrlKey) { confirmLinkComposer(); return; }
               if (which === 'link' && wikiSuggestEl && !wikiSuggestEl.hidden && wikiSuggestState.items.length) {
                 pickWikiSuggest(wikiSuggestState.selected);
                 return;
@@ -10792,6 +11016,91 @@
             ev.preventDefault();
             ev.stopPropagation();
             refreshToolbar();
+          }, true);
+          /* ----- zombie list exits -----
+             A block can sit inside a list without the shape the
+             stock exits understand: a heading leading a list
+             item (the item's first block is not a paragraph), or
+             a block that is a direct child of a list. Loaded
+             from an imported document, such a block renders at
+             list depth — and once a backspace takes its marker,
+             nothing moves it: ⇧Tab's lift keys on listItems,
+             backspace's join keys on the leading paragraph, and
+             Enter's empty-exit likewise. (The Markdown importer
+             no longer creates the shape; this is the repair for
+             documents already carrying it.) For those shapes
+             only, claim Backspace at the block's start, ⇧Tab,
+             and Enter on the empty block, and splice the item's
+             content (or the block itself) out of the list by
+             hand — leaving it structurally identical to
+             toggling the list off. Every normal item keeps the
+             stock paths untouched: nested backspace outdents,
+             first-item backspace exits, ⇧Tab lifts, all through
+             the editor's own keymap, never reaching this code. */
+          function zombieListBlock() {
+            var ed = editorHandle && editorHandle.editor;
+            if (!ed) return null;
+            var sel = ed.state.selection;
+            if (!sel || !sel.empty || !sel.$from) return null;
+            var $from = sel.$from;
+            var tbDepth = $from.depth;
+            if (tbDepth < 1) return null;
+            function isList(n) { return !!n && (n.type.name === 'bulletList' || n.type.name === 'orderedList'); }
+            var parent = $from.node(tbDepth - 1);
+            var blockPos = $from.before(tbDepth);
+            if (isList(parent)) {
+              var listPos1 = $from.before(tbDepth - 1);
+              return { listDepth: tbDepth - 1, targetOffset: blockPos - (listPos1 + 1), expandItem: false };
+            }
+            if (parent.type.name === 'listItem' && tbDepth >= 2 && isList($from.node(tbDepth - 2))) {
+              var itemPos = $from.before(tbDepth - 1);
+              if (blockPos === itemPos + 1 && $from.parent.type.name !== 'paragraph') {
+                var listPos2 = $from.before(tbDepth - 2);
+                return { listDepth: tbDepth - 2, targetOffset: itemPos - (listPos2 + 1), expandItem: true };
+              }
+            }
+            return null;
+          }
+          function spliceListChildOut(z) {
+            var ed = editorHandle.editor;
+            var st = ed.state, $from = st.selection.$from;
+            var listNode = $from.node(z.listDepth);
+            var listPos = $from.before(z.listDepth);
+            var child = null;
+            listNode.content.forEach(function (n, off) { if (off === z.targetOffset) child = n; });
+            if (!child) return false;
+            var beforeFrag = listNode.content.cut(0, z.targetOffset);
+            var afterFrag = listNode.content.cut(z.targetOffset + child.nodeSize);
+            var lifted = [];
+            if (z.expandItem) child.content.forEach(function (n) { lifted.push(n); });
+            else lifted.push(child);
+            var nodes = [];
+            var beforeNode = null;
+            if (beforeFrag.size) { beforeNode = listNode.copy(beforeFrag); nodes.push(beforeNode); }
+            lifted.forEach(function (n) { nodes.push(n); });
+            if (afterFrag.size) nodes.push(listNode.copy(afterFrag));
+            ed.view.dispatch(st.tr.replaceWith(listPos, listPos + listNode.nodeSize, nodes));
+            var caret = listPos + (beforeNode ? beforeNode.nodeSize : 0);
+            if (lifted.length) caret += 1;
+            focusCaretAfter(ed, caret);
+            refreshContextBar();
+            return true;
+          }
+          editorMountForLinks.addEventListener('keydown', function (ev) {
+            if (suggestState.active || tagSuggestState.active || linkPopState) return;
+            var isBack = ev.key === 'Backspace' && !ev.metaKey && !ev.ctrlKey && !ev.altKey;
+            var isOutdent = ev.key === 'Tab' && ev.shiftKey && !ev.metaKey && !ev.ctrlKey && !ev.altKey;
+            var isEnter = ev.key === 'Enter' && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey;
+            if (!isBack && !isOutdent && !isEnter) return;
+            if (!editorHandle || !editorHandle.editor) return;
+            var z = zombieListBlock();
+            if (!z) return;
+            var $from = editorHandle.editor.state.selection.$from;
+            if (isBack && $from.parentOffset !== 0) return;
+            if (isEnter && ($from.parent.content.size !== 0 || $from.parentOffset !== 0)) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            spliceListChildOut(z);
           }, true);
         }
         /* Click-away dismissal for the two new surfaces (the
@@ -11381,6 +11690,17 @@
           fitCtxGroup(ctxTableTools, document.getElementById('tblMoreBtn'));
           fitCtxGroup(ctxSelTools, selMoreBtn);
           fitCtxGroup(ctxInsertTools, insMoreBtn);
+          /* The ⋯ button normally exists only while the row
+             overflows — but while the selection or caret touches
+             a link, the active group's ⋯ menu carries Edit
+             link… (the touch door to the composer, no gesture
+             needed), so the button shows for the link's sake
+             even when nothing folded. openCtxGroupMenu builds
+             the item from the same hit test. */
+          if (typeof linkHitForCtxMenu === 'function' && linkHitForCtxMenu()) {
+            if (ctxToolsMode === 'selection' && selMoreBtn) selMoreBtn.style.display = 'inline-flex';
+            else if (ctxToolsMode === 'insert' && insMoreBtn) insMoreBtn.style.display = 'inline-flex';
+          }
         }
         function fitCtxGroup(groupEl, moreBtn) {
           if (!groupEl || !moreBtn || groupEl.classList.contains('off')) return;
@@ -11637,9 +11957,17 @@
           var folded = (groupEl._folded || []).filter(function (el) {
             return !el.classList.contains('ctx-dup');
           });
-          if (!folded.length) { closeCtxMenu(); return; }
+          /* The selection row's ⋯ also carries Edit link…
+             whenever the selection or caret touches a link —
+             the gesture-free door to the composer — and that
+             item alone is reason enough for the menu to open,
+             even when nothing in the row has folded. */
+          var linkFound = (groupEl === ctxSelTools || groupEl === ctxInsertTools) && typeof linkHitForCtxMenu === 'function'
+            ? linkHitForCtxMenu() : null;
+          if (!folded.length && !linkFound) { closeCtxMenu(); return; }
           closeCtxMenu();
           ctxMenuMoreBtn = moreBtn;
+          if (linkFound) ctxMenuEl.appendChild(linkMenuItem(linkFound, closeCtxMenu));
           folded.slice().sort(function (a, b) {
             return Array.prototype.indexOf.call(groupEl.children, a) - Array.prototype.indexOf.call(groupEl.children, b);
           }).forEach(function (el) {
@@ -11766,9 +12094,19 @@
           });
           return b;
         }
+        /* Edit link… for this menu, whenever the selection or
+           caret touches a link — present in every context the
+           menu opens for, so the door is findable wherever the
+           link was touched from. */
+        function ctxToolsLinkItem() {
+          var found = (typeof linkHitForCtxMenu === 'function') ? linkHitForCtxMenu() : null;
+          return found ? linkMenuItem(found, closeCtxToolsMenu) : null;
+        }
         function buildCtxToolsMenu() {
           ctxToolsMenuEl.innerHTML = '';
           if (ctxToolsMode === 'table') {
+            var tblLinkItem = ctxToolsLinkItem();
+            if (tblLinkItem) ctxToolsMenuEl.appendChild(tblLinkItem);
             function barBtn(sel) { return tableBar.querySelector(sel); }
             function addItem(sel, danger) {
               var real = barBtn(sel);
@@ -11815,6 +12153,8 @@
             if (boldItem) ctxToolsMenuEl.appendChild(boldItem);
             var italicItem = ctxToolsMainItem('italic');
             if (italicItem) ctxToolsMenuEl.appendChild(italicItem);
+            var selLinkItem = ctxToolsLinkItem();
+            if (selLinkItem) ctxToolsMenuEl.appendChild(selLinkItem);
             function selItem(el) {
               if (el) ctxToolsMenuEl.appendChild(ctxToolsProxyItem(el, ctxSelTools));
             }
@@ -11828,6 +12168,11 @@
             selItem(selQuoteBtn);
             selItem(ctxSelTools.querySelector('[data-sel="callout"]'));
           } else {
+            /* A chip the caret touches (or a node-selected
+               chip) lands in this insert context, not the
+               selection one — its Edit link… door rides here. */
+            var insLinkItem = ctxToolsLinkItem();
+            if (insLinkItem) ctxToolsMenuEl.appendChild(insLinkItem);
             Array.prototype.slice.call(ctxInsertTools.children).forEach(function (el) {
               if (el.tagName !== 'BUTTON') return;
               if (el === insMoreBtn) return;
@@ -11900,10 +12245,10 @@
            handle, wiki-link chip, selection, or bare caret. A
            right-click on a table border never gets here: the
            editor bundle claims it for the border options menu
-           and preventDefaults the event. Touch long-press also
-           fires contextmenu on iPadOS, but that gesture is text
-           selection, so only a press whose last pointer was a
-           mouse counts. */
+           and preventDefaults the event. A touch press never
+           counts here: iOS delivers no contextmenu for a touch
+           long-press at all, so the touch door is the long-press
+           watcher below, which feeds the same resolution. */
         var editorMountEl = document.getElementById('editorMount');
         var lastEditorPointerType = null;
         editorMountEl.addEventListener('pointerdown', function (ev) {
@@ -11914,13 +12259,22 @@
           if (lastEditorPointerType && lastEditorPointerType !== 'mouse') return;
           if (!editorHandle || !editorHandle.editor || !ev.target.closest) return;
           ev.preventDefault();
+          editorContextAt(ev.clientX, ev.clientY, ev.target);
+        });
+        /* The one context resolution every pointer door
+           shares: a mouse right-click and a touch long-press
+           both land here with a point and the element under
+           it, and what opens — the menu, or the divider
+           composer on a rule — resolves from that point
+           exactly the same way. */
+        function editorContextAt(x, y, targetEl) {
           var ed = editorHandle.editor;
-          var segEl = ev.target.closest('.folio-handle-seg');
-          var chipEl = ev.target.closest('a[data-wiki-link]');
-          var extEl = ev.target.closest('a[href]:not([data-wiki-link]):not([data-folio-tag])');
-          var prevEl = ev.target.closest('[data-link-preview]');
-          var cellEl = ev.target.closest('td, th');
-          var hrEl = ev.target.closest('hr');
+          var segEl = targetEl.closest('.folio-handle-seg');
+          var chipEl = targetEl.closest('a[data-wiki-link]');
+          var extEl = targetEl.closest('a[href]:not([data-wiki-link]):not([data-folio-tag])');
+          var prevEl = targetEl.closest('[data-link-preview]');
+          var cellEl = targetEl.closest('td, th');
+          var hrEl = targetEl.closest('hr');
           if (hrEl) {
             /* A divider gets its own surface, not the menu:
                the divider palette opens as a composer on the
@@ -11932,7 +12286,7 @@
               try { ed.chain().focus().setNodeSelection(hrPos).run(); } catch (e) {}
               refreshContextBar();
               openDivPop({ mode: 'edit', pos: hrPos, style: hrNode.attrs.divStyle || 'line', color: hrNode.attrs.divColor || null },
-                { left: ev.clientX, top: ev.clientY, bottom: ev.clientY });
+                { left: x, top: y, bottom: y });
               return;
             }
           }
@@ -11945,9 +12299,9 @@
                above did not claim. A pointer press somewhere
                else entirely falls through to the caret menu. */
             var onIt = true;
-            if (ev.clientX || ev.clientY) {
+            if (x || y) {
               try {
-                var cp = ed.view.posAtCoords({ left: ev.clientX, top: ev.clientY });
+                var cp = ed.view.posAtCoords({ left: x, top: y });
                 onIt = !!(cp && cp.pos >= selNow.from - 1 && cp.pos <= selNow.to + 1);
               } catch (e) { onIt = true; }
             }
@@ -11956,7 +12310,7 @@
               try { kc = ed.view.coordsAtPos(kp); } catch (e) { kc = null; }
               refreshContextBar();
               openDivPop({ mode: 'edit', pos: kp, style: kn.attrs.divStyle || 'line', color: kn.attrs.divColor || null },
-                kc ? { left: kc.left, top: kc.top, bottom: kc.bottom } : { left: ev.clientX, top: ev.clientY, bottom: ev.clientY });
+                kc ? { left: kc.left, top: kc.top, bottom: kc.bottom } : { left: x, top: y, bottom: y });
               return;
             }
           }
@@ -11970,7 +12324,7 @@
                with a selection active must not throw the
                selection away before the menu acts on it. */
             try {
-              var cpos = ed.view.posAtCoords({ left: ev.clientX, top: ev.clientY });
+              var cpos = ed.view.posAtCoords({ left: x, top: y });
               if (cpos && typeof cpos.pos === 'number') {
                 var csel = ed.state.selection;
                 if (!(csel && !csel.empty && cpos.pos >= csel.from && cpos.pos <= csel.to)) {
@@ -11982,8 +12336,97 @@
             } catch (e) {}
           }
           refreshContextBar();
-          openEditorMenu(ev.clientX, ev.clientY, resolveEditorMenuCtx(segEl, chipEl, cellEl, extEl, prevEl));
-        });
+          openEditorMenu(x, y, resolveEditorMenuCtx(segEl, chipEl, cellEl, extEl, prevEl));
+        }
+
+        /* ---------------- touch long-press: the context menu's touch door ----------------
+           iOS delivers no contextmenu for a touch long-press,
+           and the native callout that gesture would raise is
+           suppressed by the standing native-menu rule — so on a
+           phone the context menu (and with it Edit link…, whose
+           other doors are a keyboard's Enter and ⌘K) had no way
+           in at all. A stationary touch hold of ~500ms now opens
+           the SAME menu a right-click opens at that point,
+           through the shared resolution above — but only where
+           the gesture cannot fight text selection: on the
+           discrete objects (wiki-link chips, external-link text,
+           preview cards, dividers, callout icons, table handle
+           segments) and on non-text spots (blank lines, caret
+           positions in empty blocks, an empty cell). On plain
+           text the press stays a selection gesture: drift past
+           a small threshold cancels the hold outright (scrolling
+           and drag-selection win), and if a text selection has
+           formed by the time the timer fires, no menu opens.
+           The hold that opens the menu leaves the caret at the
+           press point (the shared resolution moves it, like a
+           right-click), and the press's trailing synthesized
+           click is swallowed once, so it cannot also activate
+           whatever the finger lifts over. */
+        var lpPress = null;
+        var lpSwallowClick = false;
+        function lpCancelPress() {
+          if (lpPress) { clearTimeout(lpPress.timer); lpPress = null; }
+        }
+        document.addEventListener('pointerdown', function () { lpSwallowClick = false; }, true);
+        editorMountEl.addEventListener('pointerdown', function (ev) {
+          lpCancelPress();
+          if (ev.pointerType !== 'touch' && ev.pointerType !== 'pen') return;
+          if (!editorHandle || !editorHandle.editor || !ev.target.closest) return;
+          if (ev.target.closest('input, textarea')) return;
+          var press = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, target: ev.target, timer: null };
+          press.timer = setTimeout(function () {
+            if (lpPress !== press) return;
+            lpPress = null;
+            fireEditorLongPress(press);
+          }, 500);
+          lpPress = press;
+        }, true);
+        document.addEventListener('pointermove', function (ev) {
+          if (lpPress && ev.pointerId === lpPress.id &&
+              (Math.abs(ev.clientX - lpPress.x) > 10 || Math.abs(ev.clientY - lpPress.y) > 10)) lpCancelPress();
+        }, true);
+        document.addEventListener('pointerup', function (ev) {
+          if (lpPress && ev.pointerId === lpPress.id) lpCancelPress();
+        }, true);
+        document.addEventListener('pointercancel', function (ev) {
+          if (lpPress && ev.pointerId === lpPress.id) lpCancelPress();
+        }, true);
+        document.addEventListener('click', function (ev) {
+          if (!lpSwallowClick) return;
+          lpSwallowClick = false;
+          ev.preventDefault();
+          ev.stopPropagation();
+        }, true);
+        function fireEditorLongPress(press) {
+          var ed = editorHandle && editorHandle.editor;
+          if (!ed || !press.target || !press.target.closest) return;
+          var t = press.target;
+          var discrete = !!(t.closest('.folio-handle-seg') || t.closest('a[data-wiki-link]') ||
+            t.closest('a[href]:not([data-wiki-link]):not([data-folio-tag])') ||
+            t.closest('[data-link-preview]') || t.closest('hr') || t.closest('.callout-icon-btn'));
+          /* Text selection wins: if the hold grew a selection
+             of real text, the gesture was a selection, not a
+             menu request. A node selection of the pressed
+             object itself (a chip, a card, a rule) is the
+             discrete case, not a text selection. */
+          var sel = ed.state.selection;
+          if (sel && !sel.empty && !sel.node) return;
+          var domSel = window.getSelection ? window.getSelection() : null;
+          if (domSel && domSel.rangeCount && !domSel.isCollapsed && String(domSel).length) return;
+          if (!discrete) {
+            /* A non-text spot only: the block at the press
+               point must be empty, so a hold on words always
+               stays a selection gesture. */
+            var cp = null;
+            try { cp = ed.view.posAtCoords({ left: press.x, top: press.y }); } catch (e) { cp = null; }
+            if (!cp || typeof cp.pos !== 'number') return;
+            var $p = null;
+            try { $p = ed.state.doc.resolve(cp.pos); } catch (e) { $p = null; }
+            if (!$p || !$p.parent || $p.parent.content.size !== 0) return;
+          }
+          lpSwallowClick = true;
+          editorContextAt(press.x, press.y, t);
+        }
 
         /* ---------------- title editing ---------------- */
         var titleInput = document.getElementById('titleInput');
@@ -14278,7 +14721,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261025-33';
+        var FOLIO_BUILD = '20261025-34';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
