@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261025-34" />
+    <meta name="folio-build" content="20261025-35" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3182,6 +3182,20 @@
             cur = cur.parentId ? folderById(cur.parentId) : null;
           }
         }
+        // Collapse / expand the WHOLE folder tree at once, at
+        // every nesting depth: the all-folders counterparts of
+        // the per-folder chevrons. They write through the same
+        // setFolderExpanded the chevrons write, so the state —
+        // and its persistence — is exactly the manual toggles'
+        // state, and a later chevron press behaves as it always
+        // has. The current view is left alone: invoked from
+        // Favorites, the Documents tree's states are set and are
+        // simply there when the user switches back.
+        function setAllFoldersExpanded(expanded) {
+          lib.folders.forEach(function (f) { setFolderExpanded(f.id, expanded); });
+          persist(false);
+          renderDocList();
+        }
         if (!lib.collapsedSections || typeof lib.collapsedSections !== 'object') lib.collapsedSections = {};
         lib.docs.forEach(function (d) {
           if (d.folderId === undefined) d.folderId = null;
@@ -3271,6 +3285,8 @@
         var TRASH_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6"/></svg>';
         var FOLDER_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
         var FOLDER_PLUS_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/></svg>';
+        var COLLAPSE_ALL_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 10 6-6 6 6"/><path d="m6 17 6-6 6 6"/></svg>';
+        var EXPAND_ALL_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 7 6 6 6-6"/><path d="m6 14 6 6 6-6"/></svg>';
         var PALETTE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3-4 3h-2.18a2.4 2.4 0 0 0-1.87 4c.57.6.53 1.47-.12 2.05A2.42 2.42 0 0 1 12 22Z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/></svg>';
         var CHECK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
         var MORE_V_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>';
@@ -3852,6 +3868,51 @@
           }
           item('Documents', DOC_SVG, 'documents');
           item('Favorites', STAR_SVG, 'favorites');
+          /* The whole-tree folder commands ride under the view
+             switch: this menu is the Documents section header's
+             one menu, so it is where a user hunting for them
+             looks — no separate sidebar button was added for
+             them. Hints come from the shortcut registry, like
+             the view rows' above, and the rows act on the
+             Documents tree whatever view is showing (they set
+             folder states; they never switch the view). */
+          var treeSep = document.createElement('div');
+          treeSep.className = 'menu-sep';
+          viewMenuEl.appendChild(treeSep);
+          function treeItem(icon, label, scId, expanded) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'menu-item';
+            b.setAttribute('role', 'menuitem');
+            /* One lead slot, the view rows' own geometry: the
+               icon sits in it the way an unselected view's icon
+               does, so the label gets the full row width the
+               view rows get and stays on one line beside its
+               hint. */
+            var lead = document.createElement('span');
+            lead.className = 'check lead-icon';
+            lead.innerHTML = icon;
+            b.appendChild(lead);
+            var s = document.createElement('span');
+            s.className = 'm-label';
+            s.textContent = label;
+            b.appendChild(s);
+            var hint = hintFor(scId);
+            if (hint) {
+              var h = document.createElement('span');
+              h.className = 'm-hint';
+              h.textContent = hint;
+              b.appendChild(h);
+            }
+            b.addEventListener('click', function () {
+              abRecord(scId);
+              closeViewMenu();
+              setAllFoldersExpanded(expanded);
+            });
+            viewMenuEl.appendChild(b);
+          }
+          treeItem(COLLAPSE_ALL_SVG, 'Collapse all folders', 'collapse-all-folders', false);
+          treeItem(EXPAND_ALL_SVG, 'Expand all folders', 'expand-all-folders', true);
           viewMenuEl.className = 'menu open';
           viewMenuOpen = true;
           document.getElementById('docsViewBtn').setAttribute('aria-expanded', 'true');
@@ -3896,6 +3957,22 @@
           try { localStorage.setItem(LABELS_KEY, labelMode); } catch (e) {}
           applyLabelMode();
           refreshContextBar();
+        }
+        /* Where a general New document lands: "current" (the
+           default — the folder of the document currently open,
+           nested subfolders included; the top level when the
+           open document sits at the top level) or "root"
+           (always the top level). A per-device preference like
+           the label mode above, kept in localStorage. Explicit
+           per-folder creation — a folder menu's "New note in
+           folder" — never consults it: that route names its
+           folder and always lands there. */
+        var NEWDOC_KEY = 'folio-new-doc-location';
+        var newDocLocation = 'current';
+        try { if (localStorage.getItem(NEWDOC_KEY) === 'root') newDocLocation = 'root'; } catch (e) {}
+        function setNewDocLocation(loc) {
+          newDocLocation = loc === 'root' ? 'root' : 'current';
+          try { localStorage.setItem(NEWDOC_KEY, newDocLocation); } catch (e) {}
         }
         function closeSettingsMenu() {
           if (!settingsMenuEl) return;
@@ -3959,6 +4036,36 @@
           }
           item('icons', LABEL_ICONS_ONLY_SVG, 'Icons only in toolbars');
           item('text', LABEL_ICONS_TEXT_SVG, 'Icons + text everywhere');
+          var ndHead = document.createElement('div');
+          ndHead.className = 'menu-head';
+          ndHead.textContent = 'New documents go to';
+          settingsMenuEl.appendChild(ndHead);
+          function ndItem(loc, icon, label) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'menu-item' + (newDocLocation === loc ? ' on' : '');
+            b.setAttribute('role', 'menuitem');
+            var check = document.createElement('span');
+            check.className = 'check';
+            check.innerHTML = CHECK_SVG;
+            b.appendChild(check);
+            var ic = document.createElement('span');
+            ic.className = 'm-icon';
+            ic.innerHTML = icon;
+            b.appendChild(ic);
+            var s = document.createElement('span');
+            s.className = 'm-label';
+            s.textContent = label;
+            b.appendChild(s);
+            b.addEventListener('click', function () {
+              abRecord('new-doc-location');
+              setNewDocLocation(loc);
+              closeSettingsMenu();
+            });
+            settingsMenuEl.appendChild(b);
+          }
+          ndItem('current', FOLDER_SVG, 'Current folder');
+          ndItem('root', DOC_SVG, 'Top level');
           var sep = document.createElement('div');
           sep.className = 'menu-sep';
           settingsMenuEl.appendChild(sep);
@@ -6391,6 +6498,21 @@
           openDoc(doc.id, false);
           titleInput.focus();
           titleInput.select();
+        }
+
+        // Where a general New document lands, per the "New
+        // documents go to" setting: the current folder is the
+        // folder holding the open document (the deepest one,
+        // for a doc in a subfolder); the top level when the
+        // setting says so, when the open document sits at the
+        // top level, or when no document is open. Returns a
+        // folder id, or null for the top level. Explicit
+        // per-folder creation (createDocInFolder, called by a
+        // folder's own menu) never consults this.
+        function newDocTargetFolderId() {
+          if (newDocLocation === 'root') return null;
+          var d = currentDoc();
+          return d && d.folderId ? d.folderId : null;
         }
 
         function navigateToTitle(title) {
@@ -12568,8 +12690,18 @@
         });
 
         /* ---------------- chrome events ---------------- */
+        /* The one general New: the sidebar button, the
+           registry's New document command (⌘⌥N, the action
+           bar) — which clicks this button — all land here, so
+           the "New documents go to" setting applies to every
+           one of them at once. A folder target goes through
+           createDocInFolder, which also opens the folder
+           chain so the new document is visible where it
+           landed; the top level keeps the plain path. */
         document.getElementById('newDocBtn').addEventListener('click', function () {
           if (tagFilter) setTagFilter(null);
+          var targetFolderId = newDocTargetFolderId();
+          if (targetFolderId) { createDocInFolder(targetFolderId); return; }
           var doc = createDoc('Untitled');
           openDoc(doc.id, false);
           titleInput.focus();
@@ -14721,7 +14853,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261025-34';
+        var FOLIO_BUILD = '20261025-35';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -15025,6 +15157,37 @@
               persist(false);
               renderDocList();
             } },
+          /* The all-folders pair: the two toggles above, widened
+             to the whole tree at every depth. Their runs write
+             the same persisted expansion state through
+             setAllFoldersExpanded, and like the pair above they
+             are field-safe (SC_SAFE_IN_FIELD) and view-agnostic:
+             fired from Favorites they set the Documents tree's
+             states without switching the view.
+             Chord record — read before reassigning either:
+             ⌘⌥⇧C was the first pick for Collapse all (C for
+             Collapse), but that chord already belongs to Apply
+             last text color (textcolor-last, in Formatting
+             below) and the combo index holds ONE entry per
+             chord, so C cannot serve both; Collapse all takes
+             ⌘⌥⇧A instead (A for All). Do not move textcolor-last
+             off C or Collapse all onto it without retiring the
+             other. Expand all takes ⌘⌥⇧E (E for Expand):
+             Option+E is the macOS dead key for the acute
+             accent, but the press still reaches the page in
+             shapes the dispatcher already resolves — code
+             'KeyE' where the platform fills it, the glyph '´'
+             through SC_OPTION_CHARS, and key 'Dead' through
+             the keyCode recovery — the same three rescues the
+             ∂ (D) and © (G) chords above rely on. If a real
+             device ever proves ⌘⌥⇧E unreachable, Expand all
+             falls back to ⌘⌥⇧X (unclaimed; its glyph ≈ also
+             resolves through the Option table) and this note
+             must be updated to say so. */
+          { id: 'collapse-all-folders', combo: 'mod+alt+shift+a', hint: '⌘⌥⇧A', group: 'General', label: 'Collapse all folders',
+            run: function () { setAllFoldersExpanded(false); } },
+          { id: 'expand-all-folders', combo: 'mod+alt+shift+e', hint: '⌘⌥⇧E', group: 'General', label: 'Expand all folders',
+            run: function () { setAllFoldersExpanded(true); } },
           /* Formatting */
           { id: 'bold', combo: 'mod+b', hint: '⌘B', group: 'Formatting', label: 'Bold',
             run: function () { scClickBtn(toolbarBtns.bold); } },
@@ -15428,7 +15591,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true };
+        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
@@ -16085,6 +16248,8 @@
              check the current one. */
           push('button-labels', labelMode === 'icons' ? 'Button labels: icons + text' : 'Button labels: icons only', '', 'App',
             function () { setLabelMode(labelMode === 'icons' ? 'text' : 'icons'); });
+          push('new-doc-location', newDocLocation === 'current' ? 'New documents go to: top level' : 'New documents go to: current folder', '', 'App',
+            function () { setNewDocLocation(newDocLocation === 'current' ? 'root' : 'current'); });
           var themeBtnEl = document.getElementById('themeBtn');
           if (themeBtnEl && themeBtnEl.getClientRects().length) {
             push('theme', 'Theme & accent colors', '', 'App', function () { themeBtnEl.click(); });
@@ -16119,6 +16284,8 @@
           'focus-mode': FOCUS_SVG,
           'toggle-documents-section': DOC_SVG,
           'toggle-current-folder': FOLDER_SVG,
+          'collapse-all-folders': COLLAPSE_ALL_SVG,
+          'expand-all-folders': EXPAND_ALL_SVG,
           'select-documents': CHECKLIST_SVG,
           'button-labels': LABEL_ICONS_TEXT_SVG,
           'theme': PALETTE_SVG,
