@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261026-46" />
+    <meta name="folio-build" content="20261026-47" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16615,7 +16615,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261026-46';
+        var FOLIO_BUILD = '20261026-47';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -17911,6 +17911,36 @@
             });
             list.appendChild(wrap);
           });
+          /* Touch gestures are not chords, so they live outside
+             the registry — but they belong in this reference
+             beside the palettes they open, as plain rows in
+             their own group, worded the way they are performed:
+             gesture on the left, what it opens on the right.
+             The recognizer itself is wired beside the
+             omnisearch block below. */
+          var touchWrap = document.createElement('div');
+          touchWrap.className = 'sc-group';
+          var touchHead = document.createElement('div');
+          touchHead.className = 'pop-label';
+          touchHead.textContent = 'Touch gestures';
+          touchWrap.appendChild(touchHead);
+          [
+            ['Swipe down on the title', 'Open Omnisearch'],
+            ['Two-finger swipe down on the title', 'Open action bar']
+          ].forEach(function (pair) {
+            var row = document.createElement('div');
+            row.className = 'sc-row';
+            var name = document.createElement('span');
+            name.className = 'sc-name';
+            name.textContent = pair[0];
+            row.appendChild(name);
+            var key = document.createElement('span');
+            key.className = 'sc-key';
+            key.textContent = pair[1];
+            row.appendChild(key);
+            touchWrap.appendChild(row);
+          });
+          list.appendChild(touchWrap);
           shortcutsModalEl.hidden = false;
           var closeBtn = document.getElementById('shortcutsClose');
           if (closeBtn) closeBtn.focus();
@@ -18671,6 +18701,122 @@
           if (!omniOpen) return;
           if (omniBarEl.contains(ev.target)) return;
           closeOmni(true);
+        }, true);
+
+        /* ---------------- title-bar swipe gestures (touch) ----
+           Two touch shortcuts start on the document title /
+           topbar region — the single .topbar element, which
+           carries the title on its own second row at phone
+           widths and in one row everywhere else, and stays on
+           screen in Zen mode:
+             · one finger swiping down  → Omnisearch
+             · two fingers swiping down → the action bar
+           Each is a new door to the registry entry's own run —
+           openOmni() (⌥Space) and openActionBar() (⌥/) — never
+           a second implementation, and both openers bring
+           their usual guards and ready-to-type focus.
+
+           Recognition: a gesture counts only touches that
+           BEGIN inside the topbar; touches that begin in the
+           editor are never tracked, so document scrolling is
+           untouched. Nothing is claimed while the fingers are
+           down — no preventDefault, no capture — so below the
+           threshold every press in the bar (the hamburger,
+           Back / Forward, the focus button, the ⋮, the title
+           field itself) lands exactly as it always has. On
+           the release of the last tracked finger, the tracked
+           fingers' centroid displacement decides: ≥48px of
+           downward travel with vertical dominance
+           (dy > 2·|dx|) fires, anything less is a no-op.
+
+           The two recognizers are mutually exclusive, decided
+           by touch count: the moment a second touch lands —
+           even mid-pull, even outside the bar — the gesture
+           can only ever be a candidate for the action bar,
+           never for Omnisearch; and the action bar itself
+           requires two tracked in-bar fingers, so a second
+           finger landing outside the bar turns the whole
+           gesture into a no-op rather than a misfire.
+
+           When a swipe fires, the click the release would
+           otherwise deliver to a button under the finger is
+           swallowed (capture phase, 500ms window), the same
+           discipline the sidebar edge swipe keeps. A pointer
+           the system cancels (scroll takeover, interruption)
+           simply voids the gesture. */
+        var topbarEl = document.querySelector('.topbar');
+        var tbSwipe = null;
+        var tbSwipeFiredAt = 0;
+        document.addEventListener('pointerdown', function (ev) {
+          if (ev.pointerType !== 'touch') return;
+          if (tbSwipe) {
+            /* A further touch while one is tracked: the
+               gesture is two-finger from here on, wherever
+               this touch landed; it joins the tracked set
+               only if it too began in the bar. */
+            tbSwipe.sawTwo = true;
+            if (topbarEl && topbarEl.contains(ev.target)) {
+              tbSwipe.pointers[ev.pointerId] = {
+                sx: ev.clientX, sy: ev.clientY, x: ev.clientX, y: ev.clientY, active: true
+              };
+              tbSwipe.twoInside = true;
+            }
+            return;
+          }
+          if (!topbarEl || !topbarEl.contains(ev.target)) return;
+          tbSwipe = { pointers: {}, sawTwo: false, twoInside: false };
+          tbSwipe.pointers[ev.pointerId] = {
+            sx: ev.clientX, sy: ev.clientY, x: ev.clientX, y: ev.clientY, active: true
+          };
+        }, true);
+        document.addEventListener('pointermove', function (ev) {
+          if (!tbSwipe) return;
+          var p = tbSwipe.pointers[ev.pointerId];
+          if (!p || !p.active) return;
+          p.x = ev.clientX;
+          p.y = ev.clientY;
+        }, true);
+        function tbSwipeFinish(ev, cancelled) {
+          if (!tbSwipe) return;
+          var p = tbSwipe.pointers[ev.pointerId];
+          if (!p || !p.active) return;
+          p.x = ev.clientX;
+          p.y = ev.clientY;
+          p.active = false;
+          var ids = Object.keys(tbSwipe.pointers);
+          for (var i = 0; i < ids.length; i++) {
+            if (tbSwipe.pointers[ids[i]].active) return; /* fingers still down */
+          }
+          var g = tbSwipe;
+          tbSwipe = null;
+          if (cancelled) return;
+          var n = ids.length;
+          if (!n) return;
+          var sx = 0, sy = 0, ex = 0, ey = 0;
+          ids.forEach(function (id) {
+            var q = g.pointers[id];
+            sx += q.sx; sy += q.sy; ex += q.x; ey += q.y;
+          });
+          var dx = ex / n - sx / n;
+          var dy = ey / n - sy / n;
+          if (dy < 48 || dy <= 2 * Math.abs(dx)) return;
+          if (g.sawTwo) {
+            if (!g.twoInside) return;
+            tbSwipeFiredAt = Date.now();
+            openActionBar();
+          } else {
+            tbSwipeFiredAt = Date.now();
+            openOmni();
+          }
+        }
+        document.addEventListener('pointerup', function (ev) { tbSwipeFinish(ev, false); }, true);
+        document.addEventListener('pointercancel', function (ev) { tbSwipeFinish(ev, true); }, true);
+        document.addEventListener('click', function (ev) {
+          if (tbSwipeFiredAt && Date.now() - tbSwipeFiredAt < 500) {
+            tbSwipeFiredAt = 0;
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
         }, true);
 
         /* ---------------- init ---------------- */
