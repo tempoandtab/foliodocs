@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261025-39" />
+    <meta name="folio-build" content="20261025-40" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -8392,6 +8392,132 @@
           if (SURROUND_PAIRS[ev.data] && trySurround(ev.data)) ev.preventDefault();
         });
 
+        /* ---------------- double-space period ---------------- */
+        // The iOS "." shortcut (two spaces after a word become
+        // ". ") does not survive the editor's input pipeline, so
+        // the app implements it by watching inserted text: when
+        // a space is typed and the text right before the caret
+        // is <letter-or-digit><space>, that space is rewritten
+        // to ". " in a single transaction — exactly one undo
+        // step — and sentence capitalization is armed for the
+        // next letter typed at the caret, matching the platform
+        // end to end. Watching the inserted text is what makes
+        // this coexist with the platform: if iOS ever delivers
+        // its own conversion, the two-space pattern never
+        // appears here and nothing double-applies. Guards: the
+        // pattern needs a real word character, so it never
+        // fires at a block's start and never after punctuation
+        // ("end. " and ellipses gain nothing); code blocks and
+        // inline code are excluded; typing otherwise — fast
+        // typing, autocorrect replacements (longer insertText
+        // payloads) — passes through untouched.
+        var dsPendingCap = null; // {pos}: caret position whose next typed letter capitalizes
+        var lastDsConv = null;   // dedupe: keydown and beforeinput of one space keystroke
+        var lastDsCap = null;    // dedupe: keydown and beforeinput of one letter keystroke
+        function dsIsLowerLetter(ch) {
+          return ch.length === 1 && ch.toLowerCase() === ch && ch.toUpperCase() !== ch;
+        }
+        function tryDoubleSpace() {
+          if (!editorHandle) return false;
+          var ed = editorHandle.editor;
+          if (!ed || ed.isEditable === false) return false;
+          if (suggestState.active || tagSuggestState.active) return false;
+          var sel = ed.state.selection;
+          if (!sel || !sel.empty || sel.node) return false;
+          var pos = sel.from;
+          var now = Date.now();
+          if (lastDsConv && now - lastDsConv.at < 80 &&
+              (pos === lastDsConv.prePos || pos === lastDsConv.afterPos)) {
+            return true; // the other event of a keystroke that already converted
+          }
+          var doc = ed.state.doc;
+          var $pos = doc.resolve(pos);
+          if (!$pos.parent || !$pos.parent.isTextblock) return false;
+          if ($pos.parent.type && $pos.parent.type.name === 'codeBlock') return false;
+          if (pos - $pos.start($pos.depth) < 2) return false;
+          // Both characters must be single real text characters:
+          // textBetween over an inline atom (tag, wiki link)
+          // returns its leaf text or nothing, never one space /
+          // one word char, so a chip before the caret can't fake
+          // the pattern.
+          if (doc.textBetween(pos - 1, pos, '') !== ' ') return false;
+          var prevCh = doc.textBetween(pos - 2, pos - 1, '');
+          if (prevCh.length !== 1 || !/[\p{L}\p{N}]/u.test(prevCh)) return false;
+          var codeMark = ed.state.schema && ed.state.schema.marks ? ed.state.schema.marks.code : null;
+          if (codeMark && doc.rangeHasMark(pos - 2, pos, codeMark)) return false;
+          var tr = ed.state.tr;
+          tr.insertText('. ', pos - 1, pos);
+          // Exactly one undo step for the swap: the history
+          // plugin's closeHistory meta key (registered in the
+          // editor bundle as "closeHistory$") makes this
+          // transaction open a fresh history event instead of
+          // merging into the typing burst that produced the
+          // trailing space, so one ⌘Z restores "word " as it was.
+          tr.setMeta('closeHistory$', true);
+          ed.view.dispatch(tr);
+          ed.chain().setTextSelection({ from: pos + 1, to: pos + 1 }).run();
+          lastDsConv = { prePos: pos, afterPos: pos + 1, at: now };
+          dsPendingCap = { pos: pos + 1 };
+          return true;
+        }
+        function tryDsCapitalize(ch) {
+          var ed = editorHandle.editor;
+          var sel = ed.state.selection;
+          if (!sel || !sel.empty || sel.node || sel.from !== dsPendingCap.pos) {
+            dsPendingCap = null;
+            return false;
+          }
+          var pos = sel.from;
+          var tr = ed.state.tr;
+          tr.insertText(ch.toUpperCase(), pos, pos);
+          ed.view.dispatch(tr);
+          ed.chain().setTextSelection({ from: pos + 1, to: pos + 1 }).run();
+          lastDsCap = { ch: ch, after: pos + 1, at: Date.now() };
+          dsPendingCap = null;
+          return true;
+        }
+        function dsHandleTypedChar(ch) {
+          // Returns true when the keystroke is consumed.
+          if (lastDsCap && lastDsCap.ch === ch && Date.now() - lastDsCap.at < 80 &&
+              editorHandle && editorHandle.editor &&
+              editorHandle.editor.state.selection.from === lastDsCap.after) {
+            return true; // the other event of a letter already capitalized
+          }
+          if (!dsPendingCap) return false;
+          if (!editorHandle || !editorHandle.editor || editorHandle.editor.isEditable === false) {
+            dsPendingCap = null;
+            return false;
+          }
+          if (!dsIsLowerLetter(ch)) { dsPendingCap = null; return false; }
+          return tryDsCapitalize(ch);
+        }
+        document.getElementById('editorMount').addEventListener('keydown', function (ev) {
+          if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.isComposing) return;
+          if (ev.key === ' ') {
+            if (tryDoubleSpace()) ev.preventDefault();
+            else dsPendingCap = null;
+          } else if (ev.key && ev.key.length === 1) {
+            if (dsHandleTypedChar(ev.key)) ev.preventDefault();
+          } else if (ev.key && /^(Arrow|Backspace|Delete|Enter|Tab|Escape|Home|End|Page)/.test(ev.key)) {
+            dsPendingCap = null;
+          }
+        });
+        document.getElementById('editorMount').addEventListener('beforeinput', function (ev) {
+          if (ev.isComposing) return;
+          if (ev.inputType !== 'insertText' || !ev.data) return;
+          if (ev.data === ' ') {
+            if (tryDoubleSpace()) ev.preventDefault();
+            else dsPendingCap = null;
+          } else if (ev.data.length === 1) {
+            if (dsHandleTypedChar(ev.data)) ev.preventDefault();
+          } else if (dsPendingCap) {
+            dsPendingCap = null; // a paste-like or autocorrect payload ends the wait
+          }
+        });
+        document.getElementById('editorMount').addEventListener('pointerdown', function () {
+          dsPendingCap = null;
+        });
+
         /* ---------------- tables UI ---------------- */
         var CELL_BG_PRESETS = [
           { id: 'yellow', name: 'Yellow', css: '#fff3bf' },
@@ -15491,7 +15617,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261025-39';
+        var FOLIO_BUILD = '20261025-40';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
