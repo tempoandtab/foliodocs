@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261026-45" />
+    <meta name="folio-build" content="20261026-46" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -437,15 +437,23 @@
          One gutter slot at the caret's line whose buttons
          follow the caret's block context — selection styles,
          list moves, heading steppers, the callout's door, or
-         a plain block handle. Non-editable chrome: its press
-         claims pointerdown, so the keyboard, focus, caret and
-         selection stay exactly where they were. A list item
-         with no legal move still shows the rail, greyed and
-         inert, so the feature stays discoverable; the inert
-         rail never intercepts taps. */
+         a plain block handle. The buttons stack VERTICALLY,
+         one button wide: the gutter only ever fits a single
+         button across, so a horizontal pill spilled onto the
+         text it serves. The script anchors the stack's left
+         edge to the measured text column on every update, so
+         its right edge never crosses into the text; the
+         stack may grow up or down the gutter beside
+         neighbouring lines, never across them. Non-editable
+         chrome: its press claims pointerdown, so the
+         keyboard, focus, caret and selection stay exactly
+         where they were. A list item with no legal move
+         still shows the rail, greyed and inert, so the
+         feature stays discoverable; the inert rail never
+         intercepts taps. */
       .context-rail {
         position: absolute; left: 3px; z-index: 25;
-        display: flex; align-items: center; gap: 1px;
+        display: flex; flex-direction: column; align-items: center; gap: 1px;
         padding: 3px; border-radius: 999px;
         background: var(--surface); border: 1px solid var(--line);
         box-shadow: var(--shadow);
@@ -2432,6 +2440,15 @@
         .paper { margin: 12px 8px 60px; padding: 30px 22px 52px; }
         .folio-prose { font-size: 18.5px; }
         .save-state { display: none; }
+      }
+      /* Rail-capable presentations — the same condition the
+         script's railTouchOK() tests — always keep a gutter
+         at least 48px wide, so the one-button-wide context
+         rail fits inside it at every width and never has to
+         reach across the text column to be seen. Wider
+         layouts already pad past this and are untouched. */
+      @media (max-width: 1100px) and (pointer: coarse), (max-width: 860px) {
+        .paper { padding-left: 48px; }
       }
       /* Wide screens: the sidebar is a pane in the flex row that
          can slide away — the topbar library button and the edge
@@ -10018,18 +10035,22 @@
         });
         /* ---------------- margin context rail ----------------
            The touch presentation's one left-gutter slot: a
-           small pill riding at the caret line's height whose
-           buttons follow the caret's block context, resolved
-           innermost first — a live text selection gets Bold /
-           Italic; a list item gets indent / outdent and move
-           up / down; a heading gets its fold chevron and the
-           promote / demote steppers; a callout gets its icon
-           as a door to the Callout Style sheet; any other
-           block gets a grip that opens the block menu. A long
-           press on any of them opens that same block menu for
-           the caret's block. Tables keep their handle bars —
-           the rail never shows there — and Zen keeps it: the
-           rail is editor chrome, not a toolbar.
+           one-button-wide vertical stack riding centered on
+           the caret line, whose buttons follow the caret's
+           block context, resolved innermost first — a live
+           text selection gets Bold / Italic; a list item gets
+           indent / outdent and move up / down; a heading gets
+           its fold chevron and the promote / demote steppers;
+           a callout gets its icon as a door to the Callout
+           Style sheet; any other block gets a grip that opens
+           the block menu. A long press on any of them — or a
+           right-click, the mouse/trackpad door — opens that
+           same block menu for the caret's block. The stack
+           lives entirely in the gutter: its right edge is
+           anchored short of the text column on every update,
+           so it is never painted over text. Tables keep their
+           handle bars — the rail never shows there — and Zen
+           keeps it: the rail is editor chrome, not a toolbar.
            The press claims pointerdown with preventDefault —
            the app's non-editable-chrome pattern — so a tap
            never dismisses the keyboard, steals focus, or
@@ -10320,7 +10341,6 @@
           var paper = railEl.parentElement;
           if (!coords || !paper) { railEl.hidden = true; return; }
           var pr = paper.getBoundingClientRect();
-          railEl.style.top = Math.max(4, coords.top - pr.top + (coords.bottom - coords.top - 36) / 2) + 'px';
           Object.keys(railBtns).forEach(function (k) { railBtns[k].hidden = true; railBtns[k].disabled = false; });
           railEl.classList.remove('is-inert');
           if (rc.kind === 'selection') {
@@ -10385,6 +10405,27 @@
             railBtns.grip.hidden = false;
           }
           railEl.hidden = false;
+          /* Position last, from the stack's real size, now
+             that its buttons are set: the stack is centered
+             on the caret's line, growing up and down the
+             gutter from there, and its left is derived from
+             the measured text column — the prose element's
+             own left edge — so the stack's right edge stops
+             a few pixels short of the text at any viewport
+             width, in every context, however tall the stack
+             stands. (The paper's gutter is guaranteed at
+             least 48px wide wherever the rail can appear —
+             see the stylesheet — so the clamp below is a
+             backstop, not the mechanism.) */
+          var railH = railEl.offsetHeight || 38, railW = railEl.offsetWidth || 38;
+          var railTop = coords.top - pr.top + (coords.bottom - coords.top - railH) / 2;
+          railTop = Math.max(4, Math.min(railTop, Math.max(4, pr.height - railH - 4)));
+          railEl.style.top = Math.round(railTop) + 'px';
+          var textLeft = null;
+          try { textLeft = ed.view.dom.getBoundingClientRect().left - pr.left - (paper.clientLeft || 0); } catch (e) { textLeft = null; }
+          if (textLeft != null && isFinite(textLeft)) {
+            railEl.style.left = Math.max(2, Math.round(textLeft - railW - 5)) + 'px';
+          }
         }
         (function buildContextRail() {
           var paper = document.querySelector('.paper');
@@ -10440,6 +10481,12 @@
             if (!b || b.disabled || railEl.classList.contains('is-inert')) return;
             ev.preventDefault();
             ev.stopPropagation();
+            /* A secondary-button press is claimed the same
+               way — focus, caret and selection stay put —
+               but it starts no tap and no long-press: the
+               contextmenu event that follows it is the
+               desktop door to the block menu (below). */
+            if (ev.button !== 0) return;
             railCancelPress();
             var press = { act: b.getAttribute('data-act'), x: ev.clientX, y: ev.clientY, fired: false, timer: null };
             press.timer = setTimeout(function () {
@@ -10457,11 +10504,31 @@
             var press = railPress;
             railCancelPress();
             if (press.fired) return;
+            /* Only the primary button's release is a tap —
+               a secondary release belongs to the right-click
+               that opens the block menu, never to the
+               button's own action. */
+            if (ev.button !== 0) return;
             if (ev.target && railEl.contains(ev.target)) railTapAction(press.act);
           }, true);
           document.addEventListener('pointercancel', function () { railCancelPress(); }, true);
           railEl.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
-          railEl.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+          /* Right-click on any pill — list, heading, callout,
+             selection, grip — is the mouse/trackpad door to
+             the same block menu a long-press opens: the
+             native menu stays suppressed, no tap action
+             fires (the press handlers above ignore the
+             secondary button), and the caret and selection
+             are never touched. The inert no-move pill keeps
+             pointer-events: none, so a right-click there
+             lands on the text beneath, as its taps do. */
+          railEl.addEventListener('contextmenu', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            railCancelPress();
+            if (railEl.hidden || railEl.classList.contains('is-inert')) return;
+            railOpenBlockMenu();
+          });
           var scroller = document.getElementById('editorScroll');
           if (scroller) {
             scroller.addEventListener('scroll', function () {
@@ -16548,7 +16615,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261026-45';
+        var FOLIO_BUILD = '20261026-46';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
