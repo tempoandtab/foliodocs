@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261025-40" />
+    <meta name="folio-build" content="20261025-41" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -9862,7 +9862,7 @@
             h.textContent = opts.hint;
             b.appendChild(h);
           }
-          if (opts.run) b.addEventListener('click', function () { closeEditorMenu(); opts.run(); });
+          if (opts.run) b.addEventListener('click', function () { (opts.close || closeEditorMenu)(); opts.run(); });
           return b;
         }
         /* An item proxying a real toolbar / table-bar button,
@@ -10475,6 +10475,26 @@
           }
           return null;
         }
+        /* The flagged word at a document position, if any —
+           the press-point form of spellMenuHit, for the touch
+           long-press claim: a hold that lands on a squiggled
+           word belongs to the menu, not to text selection.
+           Same boundary rule as the caret test (a position
+           at either edge of the word counts). Unlike
+           spellMenuHit this ensures the wordlist first, so
+           the claim can be judged even when the idle load
+           has not run yet. */
+        function spellHitAtPos(pos) {
+          if (!editorHandle || !editorHandle.editor) return null;
+          spellEnsureWords();
+          if (!spellReady) return null;
+          if (spellDirty) spellScanNow();
+          for (var i = 0; i < spellFlagged.length; i++) {
+            var f = spellFlagged[i];
+            if (pos >= f.from && pos <= f.to) return f;
+          }
+          return null;
+        }
         function spellReplaceWord(hit, suggLower) {
           if (!editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor, st = ed.state;
@@ -10490,8 +10510,12 @@
            present only when the caret or selection touches an
            unrecognized word. Picking a suggestion replaces the
            word in one transaction — a single ⌘Z brings the
-           original back. */
-        function buildSpellMenuSection(el) {
+           original back. The same section also leads the
+           selection/caret ⋯ menus on the same hit test (the
+           touch door: double-tap selects the word, then ⋯);
+           those hosts pass their own close as closeFn, since
+           an item's pick must shut the menu it sits in. */
+        function buildSpellMenuSection(el, closeFn) {
           var hit = spellMenuHit();
           if (!hit) return false;
           var head = document.createElement('div');
@@ -10504,13 +10528,13 @@
           }
           suggs.forEach(function (sg) {
             el.appendChild(edMenuItem({
-              label: spellMirrorCase(hit.word, sg),
+              label: spellMirrorCase(hit.word, sg), close: closeFn,
               run: function () { spellReplaceWord(hit, sg); }
             }));
           });
           var wordNow = hit.word, lowerNow = hit.lower;
           el.appendChild(edMenuItem({
-            label: 'Add to Dictionary', dataSc: 'spell-add-dict',
+            label: 'Add to Dictionary', dataSc: 'spell-add-dict', close: closeFn,
             run: function () {
               spellPersonal[lowerNow] = 1;
               spellSavePersonal();
@@ -10518,7 +10542,7 @@
             }
           }));
           el.appendChild(edMenuItem({
-            label: 'Ignore', dataSc: 'spell-ignore',
+            label: 'Ignore', dataSc: 'spell-ignore', close: closeFn,
             run: function () {
               spellIgnoredSet()[lowerNow] = 1;
               spellScanNow();
@@ -12581,9 +12605,13 @@
              a link, the active group's ⋯ menu carries Edit
              link… (the touch door to the composer, no gesture
              needed), so the button shows for the link's sake
-             even when nothing folded. openCtxGroupMenu builds
-             the item from the same hit test. */
-          if (typeof linkHitForCtxMenu === 'function' && linkHitForCtxMenu()) {
+             even when nothing folded. An unrecognized word
+             under the selection or caret earns the button the
+             same way, for its Spelling section.
+             openCtxGroupMenu builds both from the same hit
+             tests. */
+          if ((typeof linkHitForCtxMenu === 'function' && linkHitForCtxMenu()) ||
+              (typeof spellMenuHit === 'function' && spellMenuHit())) {
             if (ctxToolsMode === 'selection' && selMoreBtn) selMoreBtn.style.display = 'inline-flex';
             else if (ctxToolsMode === 'insert' && insMoreBtn) insMoreBtn.style.display = 'inline-flex';
           }
@@ -12847,12 +12875,20 @@
              whenever the selection or caret touches a link —
              the gesture-free door to the composer — and that
              item alone is reason enough for the menu to open,
-             even when nothing in the row has folded. */
+             even when nothing in the row has folded. The
+             Spelling section rides on the same terms: a
+             selection that is an unrecognized word (a
+             double-tap selects exactly that) or a caret
+             inside one is reason enough too, and the section
+             leads the menu, as it leads the editor menu. */
           var linkFound = (groupEl === ctxSelTools || groupEl === ctxInsertTools) && typeof linkHitForCtxMenu === 'function'
             ? linkHitForCtxMenu() : null;
-          if (!folded.length && !linkFound) { closeCtxMenu(); return; }
+          var spellFound = (groupEl === ctxSelTools || groupEl === ctxInsertTools) && typeof spellMenuHit === 'function'
+            ? spellMenuHit() : null;
+          if (!folded.length && !linkFound && !spellFound) { closeCtxMenu(); return; }
           closeCtxMenu();
           ctxMenuMoreBtn = moreBtn;
+          if (spellFound) buildSpellMenuSection(ctxMenuEl, closeCtxMenu);
           if (linkFound) ctxMenuEl.appendChild(linkMenuItem(linkFound, closeCtxMenu));
           folded.slice().sort(function (a, b) {
             return Array.prototype.indexOf.call(groupEl.children, a) - Array.prototype.indexOf.call(groupEl.children, b);
@@ -13034,7 +13070,10 @@
                rule: they sit out only while the same command is
                actually visible in the main toolbar — and this
                menu opens only while the toolbars are hidden, so
-               in practice both are always here. */
+               in practice both are always here. A selection
+               that is an unrecognized word leads with the
+               Spelling section, ahead of everything. */
+            buildSpellMenuSection(ctxToolsMenuEl, closeCtxToolsMenu);
             var boldItem = ctxToolsMainItem('bold');
             if (boldItem) ctxToolsMenuEl.appendChild(boldItem);
             var italicItem = ctxToolsMainItem('italic');
@@ -13056,7 +13095,10 @@
           } else {
             /* A chip the caret touches (or a node-selected
                chip) lands in this insert context, not the
-               selection one — its Edit link… door rides here. */
+               selection one — its Edit link… door rides here.
+               A caret inside an unrecognized word likewise
+               leads with the Spelling section. */
+            buildSpellMenuSection(ctxToolsMenuEl, closeCtxToolsMenu);
             var insLinkItem = ctxToolsLinkItem();
             if (insLinkItem) ctxToolsMenuEl.appendChild(insLinkItem);
             Array.prototype.slice.call(ctxInsertTools.children).forEach(function (el) {
@@ -13238,8 +13280,13 @@
            discrete objects (wiki-link chips, external-link text,
            preview cards, dividers, callout icons, table handle
            segments) and on non-text spots (blank lines, caret
-           positions in empty blocks, an empty cell). On plain
-           text the press stays a selection gesture: drift past
+           positions in empty blocks, an empty cell). One
+           plain-text target also claims the press: a
+           spell-flagged (squiggled) word, whose remedy — the
+           menu's Spelling section — has no other touch door
+           (see the claim in fireEditorLongPress). On any
+           other plain text the press stays a selection
+           gesture: drift past
            a small threshold cancels the hold outright (scrolling
            and drag-selection win), and if a text selection has
            formed by the time the timer fires, no menu opens.
@@ -13290,24 +13337,50 @@
           var discrete = !!(t.closest('.folio-handle-seg') || t.closest('a[data-wiki-link]') ||
             t.closest('a[href]:not([data-wiki-link]):not([data-folio-tag])') ||
             t.closest('[data-link-preview]') || t.closest('hr') || t.closest('.callout-icon-btn'));
-          /* Text selection wins: if the hold grew a selection
-             of real text, the gesture was a selection, not a
-             menu request. A node selection of the pressed
-             object itself (a chip, a card, a rule) is the
-             discrete case, not a text selection. */
-          var sel = ed.state.selection;
-          if (sel && !sel.empty && !sel.node) return;
-          var domSel = window.getSelection ? window.getSelection() : null;
-          if (domSel && domSel.rangeCount && !domSel.isCollapsed && String(domSel).length) return;
+          /* A spell-flagged word claims the press ahead of
+             the plain-text yield below. The word sits in
+             plain text, but its squiggle marks it as a
+             discrete target: the Spelling section — the
+             word's only remedy — lives in the menu this
+             press opens, and with the native callout
+             suppressed the press otherwise lands in a dead
+             zone (the hold selects nothing actionable and
+             no menu answers). The claim is judged from the
+             press point alone, before the selection guards:
+             a hold iOS grew into a selection of that very
+             word is still this claim — the shared
+             resolution keeps a selection it lands inside,
+             and the menu's hit test then finds the word
+             from it. Flagged words inside a discrete target
+             cannot occur (links are never spell-scanned),
+             so the claim only needs judging off them. */
+          var pressPos = null;
           if (!discrete) {
+            try {
+              var pcp = ed.view.posAtCoords({ left: press.x, top: press.y });
+              pressPos = pcp && typeof pcp.pos === 'number' ? pcp.pos : null;
+            } catch (e) { pressPos = null; }
+          }
+          var spellClaim = pressPos !== null && typeof spellHitAtPos === 'function'
+            ? spellHitAtPos(pressPos) : null;
+          if (!spellClaim) {
+            /* Text selection wins: if the hold grew a selection
+               of real text, the gesture was a selection, not a
+               menu request. A node selection of the pressed
+               object itself (a chip, a card, a rule) is the
+               discrete case, not a text selection. */
+            var sel = ed.state.selection;
+            if (sel && !sel.empty && !sel.node) return;
+            var domSel = window.getSelection ? window.getSelection() : null;
+            if (domSel && domSel.rangeCount && !domSel.isCollapsed && String(domSel).length) return;
+          }
+          if (!discrete && !spellClaim) {
             /* A non-text spot only: the block at the press
                point must be empty, so a hold on words always
                stays a selection gesture. */
-            var cp = null;
-            try { cp = ed.view.posAtCoords({ left: press.x, top: press.y }); } catch (e) { cp = null; }
-            if (!cp || typeof cp.pos !== 'number') return;
+            if (pressPos === null) return;
             var $p = null;
-            try { $p = ed.state.doc.resolve(cp.pos); } catch (e) { $p = null; }
+            try { $p = ed.state.doc.resolve(pressPos); } catch (e) { $p = null; }
             if (!$p || !$p.parent || $p.parent.content.size !== 0) return;
           }
           lpSwallowClick = true;
@@ -15617,7 +15690,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261025-40';
+        var FOLIO_BUILD = '20261025-41';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
