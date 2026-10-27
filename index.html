@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261026-50" />
+    <meta name="folio-build" content="20261026-51" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1737,6 +1737,12 @@
       .doc-item, .folder-head { touch-action: pan-y; }
       .doc-item.drag-src, .folder.drag-src { opacity: 0.35; }
       .folder.drop-target > .folder-head { background: var(--active); box-shadow: inset 0 0 0 2px var(--accent); border-radius: 9px; }
+      /* Folder reorder drags (build -51): the insertion boundary
+         paints as an accent rule in the gap before / after the
+         sibling it will land beside — never on a folder body,
+         which stays the nest target above. */
+      .folder.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
+      .folder.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
       #docList.drop-root { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 10px; }
       .drag-ghost {
         position: fixed; z-index: 300; pointer-events: none;
@@ -3328,7 +3334,50 @@
           return lib.folders.find(function (f) { return f.id === id; }) || null;
         }
         function childFolders(parentId) {
-          return lib.folders.filter(function (f) { return (f.parentId || null) === (parentId || null); });
+          // Sibling order is the manual order (build -51): each
+          // folder carries a numeric sortOrder within its sibling
+          // group, and every render of the tree — the sidebar, the
+          // Move menu, the sync walk — reads the group through
+          // here, so this sort IS the displayed order. Array
+          // position breaks ties (duplicate values can arrive
+          // from a merge) so the order is always deterministic.
+          var key = parentId || null;
+          return lib.folders
+            .map(function (f, i) { return { f: f, i: i }; })
+            .filter(function (x) { return (x.f.parentId || null) === key; })
+            .sort(function (a, b) {
+              var av = typeof a.f.sortOrder === 'number' && isFinite(a.f.sortOrder) ? a.f.sortOrder : null;
+              var bv = typeof b.f.sortOrder === 'number' && isFinite(b.f.sortOrder) ? b.f.sortOrder : null;
+              if (av !== null && bv !== null && av !== bv) return av - bv;
+              if (av !== null && bv === null) return -1;
+              if (av === null && bv !== null) return 1;
+              return a.i - b.i;
+            })
+            .map(function (x) { return x.f; });
+        }
+        // Upgrade path for the manual order: a folder with no
+        // sortOrder yet (a library saved before build -51, or a
+        // folder adopted from a server whose folders table has
+        // no sort_order column) is appended to its sibling group
+        // in array order, after the group's largest stamped
+        // value. On a pre--51 library every folder is unstamped,
+        // so the current render order becomes the initial manual
+        // order exactly — nothing moves until the user reorders.
+        function normalizeFolderSortOrders() {
+          var groups = {};
+          lib.folders.forEach(function (f) {
+            if (typeof f.sortOrder !== 'number' || !isFinite(f.sortOrder)) f.sortOrder = null;
+            var key = f.parentId || '';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(f);
+          });
+          Object.keys(groups).forEach(function (key) {
+            var max = -10;
+            groups[key].forEach(function (f) { if (f.sortOrder !== null && f.sortOrder > max) max = f.sortOrder; });
+            groups[key].forEach(function (f) {
+              if (f.sortOrder === null) { max += 10; f.sortOrder = max; }
+            });
+          });
         }
         // Every folder id inside a folder, itself included — the
         // cycle guard for nesting and drag & drop.
@@ -3360,6 +3409,7 @@
           });
         }
         sanitizeFolderParents();
+        normalizeFolderSortOrders();
         function setFolderExpanded(id, expanded) {
           if (!id) return;
           if (expanded) lib.expandedFolders[id] = true;
@@ -3511,6 +3561,8 @@
         var STAR_O_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
         var PLUS_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
         var CHECKLIST_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 7 2 2L8 5"/><path d="m2.5 16 2 2L8 14"/><path d="M12 7h9M12 16h9"/></svg>';
+        var MOVE_UP_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
+        var MOVE_DOWN_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>';
         var PENCIL_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>';
         var DOC_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
         var TAG_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8Z"/><circle cx="7" cy="7" r="1.3" fill="currentColor" stroke="none"/></svg>';
@@ -4222,6 +4274,23 @@
             confirmDeleteFolderId = null;
             renderDocList();
           });
+          // Reorder within the sibling group (build -51): the
+          // impossible direction at either end of the group is
+          // omitted outright — hide, don't grey.
+          var sibsForMove = childFolders(f.parentId || null);
+          var moveIdx = sibsForMove.indexOf(f);
+          if (moveIdx > 0) {
+            item(MOVE_UP_SVG, 'Move folder up', '', function () {
+              closeFolderMenu();
+              moveFolderBy(f.id, -1);
+            });
+          }
+          if (moveIdx !== -1 && moveIdx < sibsForMove.length - 1) {
+            item(MOVE_DOWN_SVG, 'Move folder down', '', function () {
+              closeFolderMenu();
+              moveFolderBy(f.id, 1);
+            });
+          }
           var sep = document.createElement('div');
           sep.className = 'menu-sep';
           folderMenuEl.appendChild(sep);
@@ -5776,23 +5845,21 @@
            null) and each folder row's + folder button / menu item
            (that folder's id): the new folder starts collapsed
            like every folder, its parent chain expands so it is
-           on screen, and it opens in rename mode. A SUBfolder is
-           spliced ahead of its first existing sibling, so it
-           lands at the TOP of its parent's children — sibling
-           order everywhere (the tree render, the Move menu, the
-           sync walk) follows array order within a sibling group,
-           so position in lib.folders is the whole mechanism.
-           Top-level creation keeps appending, as before. */
+           on screen, and it opens in rename mode. A new folder
+           lands at the TOP of its sibling group at every level
+           (build -51): its sortOrder undercuts the group's
+           current first value, and it is spliced ahead of its
+           first sibling in the array too, so the stored order
+           and the array order agree. */
         function createFolder(parentId) {
           if (tagFilter) setTagFilter(null);
           if (docViewMode !== 'documents') setDocViewMode('documents');
-          var f = { id: uid(), name: 'New folder', icon: null, color: null, parentId: parentId || null, created: Date.now() };
-          if (parentId) {
-            var sib = lib.folders.findIndex(function (x) { return (x.parentId || null) === parentId; });
-            if (sib === -1) lib.folders.push(f); else lib.folders.splice(sib, 0, f);
-          } else {
-            lib.folders.push(f);
-          }
+          var sibs = childFolders(parentId || null);
+          var firstSort = sibs.length && typeof sibs[0].sortOrder === 'number' ? sibs[0].sortOrder : 0;
+          var now = Date.now();
+          var f = { id: uid(), name: 'New folder', icon: null, color: null, parentId: parentId || null, created: now, updated: now, sortOrder: sibs.length ? firstSort - 10 : 0 };
+          var sib = lib.folders.findIndex(function (x) { return (x.parentId || null) === (parentId || null); });
+          if (sib === -1) lib.folders.push(f); else lib.folders.splice(sib, 0, f);
           if (parentId) expandFolderChain(parentId);
           renamingFolderId = f.id;
           persist(false);
@@ -5934,7 +6001,11 @@
            Drop targets: any folder row (its whole band) moves the
            dragged doc into it, or nests the dragged folder inside
            it — never into itself or its own subtree; the list
-           area outside any folder means the root. */
+           area outside any folder means the root. A dragged
+           FOLDER dropped on a sibling boundary (the edge strips
+           of a sibling's head, or its own group's in-between
+           space) reorders within that sibling group instead —
+           see the folder branch of the hit-test below. */
         var lastDragEndAt = 0;
         var rowDrag = null;
         function moveDocToFolder(docId, folderId) {
@@ -5954,13 +6025,87 @@
           if ((f.parentId || null) === parentId) return;
           if (parentId && folderSubtreeIds(folderId).indexOf(parentId) !== -1) return; // into itself or a descendant
           f.parentId = parentId;
+          f.updated = Date.now();
           expandFolderChain(folderId);
           persist(true);
           renderDocList();
         }
+        /* ---------------- folder reordering (build -51) ----------------
+           Order lives within a sibling group only: a folder can
+           move among the folders that share its parent, never
+           across the group boundary (subfolders stay above their
+           parent's documents, top-level folders above the loose
+           documents — those groupings are render rules, not
+           order). Both doors write the same state: each folder's
+           sortOrder within its group, plus an `updated` stamp on
+           every folder whose position changed. */
+        function moveFolderBy(folderId, delta) {
+          var f = folderById(folderId);
+          if (!f) return;
+          var sibs = childFolders(f.parentId || null);
+          var i = sibs.indexOf(f);
+          var j = i + delta;
+          if (i === -1 || j < 0 || j >= sibs.length) return;
+          var other = sibs[j];
+          var now = Date.now();
+          var tmp = f.sortOrder;
+          f.sortOrder = other.sortOrder;
+          other.sortOrder = tmp;
+          f.updated = now;
+          other.updated = now;
+          // Keep the array order in step with the stamped order:
+          // the sort in childFolders breaks sortOrder ties by
+          // array position, so swapping both guarantees the flip
+          // even if two values arrived identical from a merge.
+          var ia = lib.folders.indexOf(f);
+          var ib = lib.folders.indexOf(other);
+          if (ia !== -1 && ib !== -1) { lib.folders[ia] = other; lib.folders[ib] = f; }
+          persist(true);
+          renderDocList();
+        }
+        // Drop-side door: place folderId at insertIndex within
+        // its sibling group (the index counts the group WITHOUT
+        // the dragged folder, as the drag hit-test computes it),
+        // then renumber the group 0, 10, 20… in its new order.
+        function reorderFolderTo(folderId, insertIndex) {
+          var f = folderById(folderId);
+          if (!f) return;
+          var parentId = f.parentId || null;
+          var sibs = childFolders(parentId);
+          var rest = sibs.filter(function (x) { return x.id !== folderId; });
+          var idx = Math.max(0, Math.min(insertIndex, rest.length));
+          var next = rest.slice();
+          next.splice(idx, 0, f);
+          var unchanged = next.length === sibs.length && next.every(function (x, i) { return x === sibs[i]; });
+          if (unchanged) return;
+          var now = Date.now();
+          var slots = [];
+          lib.folders.forEach(function (x, i) { if ((x.parentId || null) === parentId) slots.push(i); });
+          slots.forEach(function (slot, i) { lib.folders[slot] = next[i]; });
+          next.forEach(function (x, i) {
+            var v = i * 10;
+            if (x.sortOrder !== v) { x.sortOrder = v; x.updated = now; }
+          });
+          f.updated = now;
+          persist(true);
+          renderDocList();
+        }
         function clearDropHighlights() {
-          docListEl.querySelectorAll('.folder.drop-target').forEach(function (el) { el.classList.remove('drop-target'); });
+          docListEl.querySelectorAll('.folder.drop-target, .folder.drop-before, .folder.drop-after').forEach(function (el) { el.classList.remove('drop-target', 'drop-before', 'drop-after'); });
           docListEl.classList.remove('drop-root');
+        }
+        function folderWrapHead(wrap) {
+          for (var i = 0; i < wrap.children.length; i++) {
+            if (wrap.children[i].classList.contains('folder-head')) return wrap.children[i];
+          }
+          return null;
+        }
+        function folderWrapById(id) {
+          var wraps = docListEl.querySelectorAll('.folder');
+          for (var i = 0; i < wraps.length; i++) {
+            if (wraps[i].getAttribute('data-folder-id') === id) return wraps[i];
+          }
+          return null;
         }
         function endRowDrag(commit) {
           var drag = rowDrag;
@@ -5981,6 +6126,7 @@
                 if (drag.ids && drag.ids.length > 1) moveDocsToFolder(drag.ids, drag.targetId);
                 else moveDocToFolder(drag.id, drag.targetId);
               }
+              else if (drag.dropMode === 'reorder') reorderFolderTo(drag.id, drag.reorderIndex);
               else nestFolder(drag.id, drag.targetId);
             }
           }
@@ -6049,6 +6195,78 @@
           var targetId = null;
           var valid = false;
           var rootZone = false;
+          drag.dropMode = 'nest';
+          drag.hasTarget = false;
+          drag.reorderIndex = 0;
+          drag.reorderMarkEl = null;
+          drag.reorderMarkCls = '';
+          if (drag.kind === 'folder') {
+            // Folder drags carry two drop meanings (build -51).
+            // A drop on a folder's BODY — the middle of its head,
+            // or anywhere in its expanded contents — nests into
+            // that folder, exactly as before. A drop on a
+            // BOUNDARY reorders within the dragged folder's own
+            // sibling group instead: the top / bottom strips of
+            // a sibling's head, and the group's in-between space
+            // (the gaps between siblings, the parent's document
+            // area below them, and — at the top level — anywhere
+            // in the section below the last folder). A boundary
+            // in a DIFFERENT group is not a reorder: the drop
+            // keeps its old nest meaning there.
+            var df = folderById(drag.id);
+            var dParent = df ? (df.parentId || null) : null;
+            var sibs = childFolders(dParent).filter(function (x) { return x.id !== drag.id; });
+            var sibIndex = {};
+            sibs.forEach(function (s, i) { sibIndex[s.id] = i; });
+            var insertIndexForY = function (y) {
+              var idx = 0;
+              sibs.forEach(function (s) {
+                var w = folderWrapById(s.id);
+                if (!w) return;
+                var h = folderWrapHead(w);
+                var r = (h || w).getBoundingClientRect();
+                if (y > r.top + r.height / 2) idx++;
+              });
+              return idx;
+            };
+            var setReorder = function (idx) {
+              if (!sibs.length) return;
+              drag.dropMode = 'reorder';
+              drag.reorderIndex = idx;
+              drag.hasTarget = true;
+              drag.targetId = null;
+              if (idx < sibs.length) { drag.reorderMarkEl = folderWrapById(sibs[idx].id); drag.reorderMarkCls = 'drop-before'; }
+              else { drag.reorderMarkEl = folderWrapById(sibs[sibs.length - 1].id); drag.reorderMarkCls = 'drop-after'; }
+            };
+            if (folderWrap && docListEl.contains(folderWrap)) {
+              targetId = folderWrap.getAttribute('data-folder-id');
+              var headEl = folderWrapHead(folderWrap);
+              var overHead = !!(headEl && under && under.closest && under.closest('.folder-head') === headEl);
+              if (targetId !== drag.id && sibIndex[targetId] !== undefined && overHead) {
+                var hr = headEl.getBoundingClientRect();
+                if (ev.clientY <= hr.top + 12) setReorder(sibIndex[targetId]);
+                else if (ev.clientY >= hr.bottom - 12) setReorder(sibIndex[targetId] + 1);
+              }
+              if (drag.dropMode !== 'reorder') {
+                if (targetId === dParent && dParent !== null && !overHead) {
+                  setReorder(insertIndexForY(ev.clientY));
+                } else {
+                  valid = folderSubtreeIds(drag.id).indexOf(targetId) === -1;
+                  drag.hasTarget = valid;
+                  drag.targetId = valid ? targetId : null;
+                }
+              }
+            } else if (under && under.closest && under.closest('#docsSection')) {
+              if (dParent === null) setReorder(insertIndexForY(ev.clientY));
+              else { drag.hasTarget = true; drag.targetId = null; rootZone = true; }
+            }
+            clearDropHighlights();
+            if (drag.dropMode === 'reorder') {
+              if (drag.reorderMarkEl && drag.reorderMarkCls) drag.reorderMarkEl.classList.add(drag.reorderMarkCls);
+            } else if (drag.hasTarget && folderWrap && drag.targetId) folderWrap.classList.add('drop-target');
+            else if (drag.hasTarget && rootZone) docListEl.classList.add('drop-root');
+            return;
+          }
           if (folderWrap && docListEl.contains(folderWrap)) {
             targetId = folderWrap.getAttribute('data-folder-id');
             valid = drag.kind === 'doc' || folderSubtreeIds(drag.id).indexOf(targetId) === -1;
@@ -15579,7 +15797,7 @@
             return JSON.stringify([d.title || 'Untitled', d.folderId ? (idmap.folders[d.folderId] || '') : '', !!d.favorite, d.updated || 0, d.content]);
           }
           function folderSig(f) {
-            return JSON.stringify([f.name, f.icon || null, f.color || null, f.parentId ? (idmap.folders[f.parentId] || '') : '']);
+            return JSON.stringify([f.name, f.icon || null, f.color || null, f.parentId ? (idmap.folders[f.parentId] || '') : '', typeof f.sortOrder === 'number' ? f.sortOrder : null]);
           }
           // Folder rows ride parents-before-children (the tree
           // walked depth-first from the roots), so a subfolder's
@@ -15615,6 +15833,20 @@
           });
           var folderRowsBasic = changedFolders.map(function (p) {
             return { id: p.rid, owner_id: sbUser.id, name: p.f.name };
+          });
+          // sort_order rides the widest variant (build -51), on
+          // the same optional-column footing as parent_id and
+          // icon/color before it: while the folders table has no
+          // sort_order column the upsert below retries narrower
+          // and the order simply stays per-device — folder sync
+          // itself never breaks over the missing column.
+          var folderRowsSorted = changedFolders.map(function (p) {
+            var f = p.f;
+            return { id: p.rid, owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null, parent_id: f.parentId ? (idmap.folders[f.parentId] || null) : null, sort_order: typeof f.sortOrder === 'number' ? f.sortOrder : null };
+          });
+          var folderRowsColorSorted = changedFolders.map(function (p) {
+            var f = p.f;
+            return { id: p.rid, owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null, sort_order: typeof f.sortOrder === 'number' ? f.sortOrder : null };
           });
           var docPlan = lib.docs.map(function (d) {
             return { d: d, rid: ensureRemoteId('docs', d.id), sig: docSig(d) };
@@ -15675,10 +15907,17 @@
             // then icon/color alone, then name-only — a folders table
             // missing a newer column retries narrower so folder sync
             // itself never breaks (the missing piece stays local-only).
-            jobs.push(sb.from('folders').upsert(folderRowsNested, { onConflict: 'id' }).then(function (r) {
-              if (r && r.error) return sb.from('folders').upsert(folderRows, { onConflict: 'id' }).then(function (r2) {
-                if (r2 && r2.error) return sb.from('folders').upsert(folderRowsBasic, { onConflict: 'id' });
-                return r2;
+            jobs.push(sb.from('folders').upsert(folderRowsSorted, { onConflict: 'id' }).then(function (r) {
+              if (r && r.error) return sb.from('folders').upsert(folderRowsNested, { onConflict: 'id' }).then(function (rn) {
+                if (rn && rn.error) return sb.from('folders').upsert(folderRowsColorSorted, { onConflict: 'id' }).then(function (rc) {
+                  if (rc && rc.error) return sb.from('folders').upsert(folderRows, { onConflict: 'id' }).then(function (r2) {
+                    if (r2 && r2.error) return sb.from('folders').upsert(folderRowsBasic, { onConflict: 'id' });
+                    return r2;
+                  });
+                  return rc;
+                });
+                nestedOk = true;
+                return rn;
               });
               nestedOk = true;
               folderFullOk = true;
@@ -15990,15 +16229,16 @@
             var lid = localIdFor('folders', rf.id);
             if (!lid) {
               idmap.folders[rf.id] = rf.id;
-              lib.folders.push({ id: rf.id, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0 });
+              lib.folders.push({ id: rf.id, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0, sortOrder: typeof rf.sort_order === 'number' ? rf.sort_order : null });
             } else {
               var lf = lib.folders.find(function (f) { return f.id === lid; });
               if (lf) {
                 lf.name = rf.name;
                 if ('icon' in rf) lf.icon = rf.icon || null;
                 if ('color' in rf) lf.color = rf.color || null;
+                if (typeof rf.sort_order === 'number') lf.sortOrder = rf.sort_order;
               }
-              else lib.folders.push({ id: lid, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0 });
+              else lib.folders.push({ id: lid, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0, sortOrder: typeof rf.sort_order === 'number' ? rf.sort_order : null });
             }
           });
           // Folder parents resolve in a second pass, once every
@@ -16025,6 +16265,7 @@
             lf2.parentId = lp && lp !== lid2 ? lp : null;
           });
           sanitizeFolderParents();
+          normalizeFolderSortOrders();
           var seenDocs = {};
           remoteDocs.forEach(function (rd) {
             if (tombstones.docs.indexOf(rd.id) !== -1) return; // deleted locally, delete pending
@@ -16322,10 +16563,13 @@
         function pullMerge() {
           if (!sb || !sbUser) return Promise.resolve(false);
           setSyncState('Syncing\u2026');
-          var foldersReq = sb.from('folders').select('id, name, icon, color, parent_id').then(function (r) {
-            if (r && r.error) return sb.from('folders').select('id, name, icon, color').then(function (r2) {
-              if (r2 && r2.error) return sb.from('folders').select('id, name');
-              return r2;
+          var foldersReq = sb.from('folders').select('id, name, icon, color, parent_id, sort_order').then(function (r) {
+            if (r && r.error) return sb.from('folders').select('id, name, icon, color, parent_id').then(function (r1) {
+              if (r1 && r1.error) return sb.from('folders').select('id, name, icon, color').then(function (r2) {
+                if (r2 && r2.error) return sb.from('folders').select('id, name');
+                return r2;
+              });
+              return r1;
             });
             return r;
           });
@@ -17223,7 +17467,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261026-50';
+        var FOLIO_BUILD = '20261026-51';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
