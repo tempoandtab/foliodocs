@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261026-49" />
+    <meta name="folio-build" content="20261026-50" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1628,6 +1628,26 @@
       :root[data-theme="midnight"] .side-tag:hover { filter: brightness(1.12); }
       .side-tag.on { box-shadow: inset 0 0 0 2px var(--tag-ink); }
       .side-tag-count { font-size: 11px; font-weight: 700; opacity: 0.7; }
+      /* Tag favorites: a starred tag's chip carries a small
+         star; a colored tag (starred or not) wears its one
+         color as a tint mixed from the default chip colors, so
+         every palette color stays readable in every theme.
+         The starred group sits above a full-width separator
+         rule inside the wrapping chip row. */
+      .side-tag-star { display: inline-flex; align-items: center; flex: 0 0 auto; }
+      .side-tag-star svg { width: 11px; height: 11px; }
+      .side-tag.has-color {
+        background: color-mix(in srgb, var(--tc) 24%, var(--tag-bg));
+        color: color-mix(in srgb, var(--tc) 58%, var(--ink));
+      }
+      .side-tag.has-color.on { box-shadow: inset 0 0 0 2px currentColor; }
+      .tag-group-sep { flex: 1 1 100%; height: 0; border-top: 1px solid var(--line); margin: 5px 2px 1px; }
+      .tag-swatch-dot {
+        width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto;
+        border: 1px solid rgba(128, 128, 128, 0.35);
+      }
+      .tag-modal-error { color: var(--danger); font-size: 13.5px; font-weight: 600; margin-top: 10px; }
+      .tag-modal-error[hidden] { display: none; }
       .tag-filter-bar {
         display: flex; align-items: center; justify-content: space-between; gap: 8px;
         margin: 2px 4px 8px; padding: 5px 5px 5px 12px;
@@ -2891,6 +2911,7 @@
     <div class="menu" id="moveMenu" role="menu" aria-label="Move document to a folder"></div>
     <div class="menu" id="folderMenu" role="menu" aria-label="Folder actions"></div>
     <div class="menu" id="docMenu" role="menu" aria-label="Document actions"></div>
+    <div class="menu" id="tagMenu" role="menu" aria-label="Tag actions"></div>
     <div class="menu" id="docBarMenu" role="menu" aria-label="Document settings"></div>
     <div class="menu" id="topMenu" role="menu" aria-label="More actions"></div>
     <div class="menu" id="viewMenu" role="menu" aria-label="Switch document list view"></div>
@@ -2985,6 +3006,26 @@
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
           <button class="btn-ghost" id="deleteCancel" type="button">Cancel</button>
           <button class="btn-danger" id="deleteConfirm" type="button">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="tagModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="tagModalTitle" style="max-width:440px">
+        <div class="panel-head">
+          <h2 id="tagModalTitle">Tag</h2>
+          <button class="icon-btn" id="tagModalClose" type="button" aria-label="Cancel" data-tip="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note" id="tagModalText"></p>
+        <div id="tagModalInputWrap" hidden style="margin-top:14px">
+          <input class="text-input" id="tagModalInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Tag name" style="width:100%" />
+        </div>
+        <p class="tag-modal-error" id="tagModalError" hidden></p>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+          <button class="btn-ghost" id="tagModalCancel" type="button">Cancel</button>
+          <button class="btn-primary" id="tagModalConfirm" type="button">Save</button>
         </div>
       </div>
     </div>
@@ -3350,6 +3391,28 @@
           renderDocList();
         }
         if (!lib.collapsedSections || typeof lib.collapsedSections !== 'object') lib.collapsedSections = {};
+        // Tag favorites & colors (build -50): per-tag metadata
+        // keyed by the tag's lowercase name — { starred, color,
+        // updated }. The `updated` stamp (ms) is the merge
+        // currency for the synced tag_meta table (see the sync
+        // section): rows merge newer-wins on updated_at, exactly
+        // like document state rides updated_at. Until that table
+        // exists the map simply persists with the library on
+        // this device and uploads whole once the table appears —
+        // local-first, no lost stars. Entries are normalized
+        // here and pruned lazily as tags vanish; keys whose meta
+        // was deleted outright (merge source, removed tag) queue
+        // in tagMetaDeletes so the remote row is deleted too.
+        if (!lib.tagMeta || typeof lib.tagMeta !== 'object') lib.tagMeta = {};
+        if (!Array.isArray(lib.tagMetaDeletes)) lib.tagMetaDeletes = [];
+        Object.keys(lib.tagMeta).forEach(function (k) {
+          var m = lib.tagMeta[k];
+          if (!m || typeof m !== 'object') { delete lib.tagMeta[k]; return; }
+          m.starred = !!m.starred;
+          if (typeof m.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(m.color)) m.color = null;
+          if (typeof m.updated !== 'number' || !(m.updated >= 0)) m.updated = 0;
+          if (!m.starred && !m.color) delete lib.tagMeta[k];
+        });
         lib.docs.forEach(function (d) {
           if (d.folderId === undefined) d.folderId = null;
           if (d.folderId && !lib.folders.some(function (f) { return f.id === d.folderId; })) d.folderId = null;
@@ -3429,6 +3492,7 @@
         var docMenuDocId = null;
         var docMenuAnchor = null;
         var docLongPressAt = 0;
+        var tagLongPressAt = 0;
         var secTapAt = 0; // last time watchSecondaryTap opened a menu itself
         var viewMenuEl = document.getElementById('viewMenu');
         var viewMenuOpen = false;
@@ -3530,6 +3594,83 @@
           });
           return found || key;
         }
+        /* ---------------- tag favorites & colors ----------------
+           lib.tagMeta[key] = { starred, color, updated } — the
+           `updated` stamp is the merge currency for sync (the
+           tag_meta table, newer-wins on updated_at; see the sync
+           section). The palette is the app's existing one — the
+           folder colors, in palette order. */
+        function tagPalette() { return FOLDER_COLORS; }
+        function tagMetaFor(key, create) {
+          if (!lib.tagMeta || typeof lib.tagMeta !== 'object') lib.tagMeta = {};
+          var m = lib.tagMeta[key];
+          if (!m && create) { m = { starred: false, color: null, updated: 0 }; lib.tagMeta[key] = m; }
+          return m || null;
+        }
+        function isStarredTag(key) { var m = tagMetaFor(key, false); return !!(m && m.starred); }
+        function tagColorFor(key) { var m = tagMetaFor(key, false); return m && m.color ? m.color : null; }
+        function touchTagMeta(key) { var m = tagMetaFor(key, true); m.updated = Date.now(); return m; }
+        function dropTagMeta(key) {
+          if (lib.tagMeta && lib.tagMeta[key]) delete lib.tagMeta[key];
+          if (!Array.isArray(lib.tagMetaDeletes)) lib.tagMetaDeletes = [];
+          if (lib.tagMetaDeletes.indexOf(key) === -1) lib.tagMetaDeletes.push(key);
+        }
+        /* In-document hashtag chips are rendered by the editor
+           bundle from the tag name alone, so a tag's color reaches
+           them through one generated stylesheet keyed on the
+           chip's data-name (matched case-insensitively — the key
+           is the lowercase name). Rebuilt whenever tags render. */
+        var tagColorStyleEl = null;
+        function refreshTagColorCSS() {
+          var rules = [];
+          Object.keys(lib.tagMeta || {}).forEach(function (key) {
+            var m = lib.tagMeta[key];
+            if (!m || !m.color) return;
+            var name = canonicalTagName(key).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            rules.push('.tag-chip[data-name="' + name + '" i] { background: color-mix(in srgb, ' + m.color + ' 22%, var(--tag-bg)); color: color-mix(in srgb, ' + m.color + ' 62%, var(--ink)); }');
+          });
+          if (!tagColorStyleEl) {
+            tagColorStyleEl = document.createElement('style');
+            tagColorStyleEl.id = 'tagColorStyle';
+            document.head.appendChild(tagColorStyleEl);
+          }
+          var css = rules.join('\n');
+          if (tagColorStyleEl.textContent !== css) tagColorStyleEl.textContent = css;
+        }
+        /* The color a star assigns: the tag keeps its own color
+           when no other starred tag uses it; otherwise the first
+           palette color (in palette order) unused among starred
+           tags. When starred tags outnumber the palette, colors
+           reuse from the top. Uniqueness is a star-time promise
+           only — a later manual Set color overrides freely. */
+        function pickStarColor(key) {
+          var used = {};
+          Object.keys(lib.tagMeta || {}).forEach(function (k) {
+            if (k === key) return;
+            var m = lib.tagMeta[k];
+            if (m && m.starred && m.color) used[String(m.color).toLowerCase()] = true;
+          });
+          var own = tagColorFor(key);
+          if (own && !used[own.toLowerCase()]) return own;
+          var pal = tagPalette();
+          for (var i = 0; i < pal.length; i++) { if (!used[pal[i].toLowerCase()]) return pal[i]; }
+          return own || pal[0];
+        }
+        function toggleTagStar(key) {
+          var m = touchTagMeta(key);
+          if (m.starred) { m.starred = false; }
+          else { m.starred = true; m.color = pickStarColor(key); }
+          if (!m.starred && !m.color) dropTagMeta(key);
+          persist(true);
+          renderTagsSection();
+        }
+        function setTagColor(key, color) {
+          var m = touchTagMeta(key);
+          m.color = color || null;
+          if (!m.starred && !m.color) dropTagMeta(key);
+          persist(true);
+          renderTagsSection();
+        }
         function setTagFilter(key) {
           if (selectMode) exitSelectMode();
           tagFilter = key;
@@ -3560,13 +3701,30 @@
           var list = document.getElementById('tagList');
           var tags = allTagCounts();
           list.innerHTML = '';
+          refreshTagColorCSS();
           if (!tags.length) { section.hidden = true; return; }
           section.hidden = false;
-          tags.forEach(function (t) {
+          /* Starred tags pin to the top of the section, above a
+             separator; within each group the list keeps its
+             existing order (count, then name). */
+          var starred = tags.filter(function (t) { return isStarredTag(t.key); });
+          var rest = tags.filter(function (t) { return !isStarredTag(t.key); });
+          function chipFor(t) {
             var chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'side-tag' + (tagFilter === t.key ? ' on' : '');
+            chip.setAttribute('data-tag-key', t.key);
+            chip.setAttribute('aria-haspopup', 'menu');
             chip.setAttribute('data-tip', 'Show documents tagged #' + t.name);
+            var color = tagColorFor(t.key);
+            if (color) { chip.classList.add('has-color'); chip.style.setProperty('--tc', color); }
+            if (isStarredTag(t.key)) {
+              var star = document.createElement('span');
+              star.className = 'side-tag-star';
+              star.setAttribute('aria-label', 'Starred tag');
+              star.innerHTML = STAR_SVG;
+              chip.appendChild(star);
+            }
             var label = document.createElement('span');
             label.textContent = '#' + t.name;
             chip.appendChild(label);
@@ -3575,9 +3733,350 @@
             count.textContent = t.count;
             chip.appendChild(count);
             chip.addEventListener('click', function () {
+              if (Date.now() - tagLongPressAt < 400) return; // the long-press already opened the menu
               setTagFilter(tagFilter === t.key ? null : t.key);
             });
-            list.appendChild(chip);
+            /* The tag menu's two doors, the app's standing
+               grammar: right-click, and long-press (with the
+               two-finger secondary tap watched alongside, as on
+               document and folder rows). */
+            chip.addEventListener('contextmenu', function (ev) {
+              ev.preventDefault();
+              if (Date.now() - secTapAt < 600) return; // the secondary tap already opened this menu
+              openTagMenu(t.key, chip, ev.clientX, ev.clientY);
+            });
+            var tagLpTimer = null;
+            chip.addEventListener('pointerdown', function (ev) {
+              if (!ev.isPrimary) return; // a second finger is a secondary tap, not a long-press
+              var sx = ev.clientX, sy = ev.clientY;
+              tagLpTimer = setTimeout(function () {
+                tagLpTimer = null;
+                tagLongPressAt = Date.now();
+                openTagMenu(t.key, chip, sx, sy);
+              }, 550);
+            });
+            ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ty) {
+              chip.addEventListener(ty, function () {
+                if (tagLpTimer) { clearTimeout(tagLpTimer); tagLpTimer = null; }
+              });
+            });
+            watchSecondaryTap(chip, function (x, y) {
+              tagLongPressAt = Date.now(); // swallow the tap's trailing click
+              openTagMenu(t.key, chip, x, y);
+            });
+            return chip;
+          }
+          starred.forEach(function (t) { list.appendChild(chipFor(t)); });
+          if (starred.length && rest.length) {
+            var sep = document.createElement('div');
+            sep.className = 'tag-group-sep';
+            sep.setAttribute('aria-hidden', 'true');
+            list.appendChild(sep);
+          }
+          rest.forEach(function (t) { list.appendChild(chipFor(t)); });
+        }
+
+        /* ---------------- tag menu ----------------
+           One menu behind both doors (right-click and
+           long-press on a sidebar tag chip). Three views share
+           the shell: the action list, the Merge-into picker, and
+           the Set-color palette. Rename and Remove speak through
+           the tag modal below — Remove's confirm names the
+           document count, and renaming onto an existing tag
+           confirms the merge before it happens. */
+        var tagMenuEl = document.getElementById('tagMenu');
+        var tagMenuKey = null;
+        var tagMenuAnchor = null;
+        var MERGE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a4 4 0 0 0 4 4h8"/><path d="m12 8 4 4-4 4"/><path d="M4 21v-5a4 4 0 0 1 4-4"/></svg>';
+        function closeTagMenu() {
+          if (!tagMenuEl) return;
+          tagMenuEl.className = 'menu';
+          tagMenuEl.innerHTML = '';
+          tagMenuKey = null;
+          tagMenuAnchor = null;
+        }
+        function tagMenuItem(icon, label, cls, hint, fn) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-item' + (cls ? ' ' + cls : '');
+          b.setAttribute('role', 'menuitem');
+          var ic = document.createElement('span');
+          ic.className = 'm-icon';
+          ic.innerHTML = icon;
+          b.appendChild(ic);
+          var s = document.createElement('span');
+          s.className = 'm-label';
+          s.textContent = label;
+          b.appendChild(s);
+          if (hint) {
+            var h = document.createElement('span');
+            h.className = 'm-hint';
+            h.textContent = hint;
+            b.appendChild(h);
+          }
+          b.addEventListener('click', fn);
+          tagMenuEl.appendChild(b);
+          return b;
+        }
+        function tagMenuHead(text) {
+          var head = document.createElement('div');
+          head.className = 'menu-head';
+          head.textContent = text;
+          tagMenuEl.appendChild(head);
+        }
+        function tagMenuSep() {
+          var s = document.createElement('div');
+          s.className = 'menu-sep';
+          tagMenuEl.appendChild(s);
+        }
+        function buildTagMenu(key, view) {
+          var name = canonicalTagName(key);
+          var count = 0;
+          lib.docs.forEach(function (d) { if (docTags(d).some(function (t) { return t.key === key; })) count++; });
+          tagMenuEl.innerHTML = '';
+          if (view === 'merge') {
+            tagMenuHead('Merge #' + name + ' into');
+            tagMenuItem('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>', 'Back', '', '', function () { buildTagMenu(key, 'main'); });
+            allTagCounts().filter(function (t) { return t.key !== key; }).forEach(function (t) {
+              tagMenuItem(TAG_SVG, '#' + t.name, '', t.count + (t.count === 1 ? ' doc' : ' docs'), function () {
+                closeTagMenu();
+                mergeTagInto(key, t.key);
+              });
+            });
+            return;
+          }
+          if (view === 'color') {
+            tagMenuHead('Color for #' + name);
+            tagMenuItem('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>', 'Back', '', '', function () { buildTagMenu(key, 'main'); });
+            var cur = tagColorFor(key);
+            var def = tagMenuItem(FMT_X_SVG, 'Default', !cur ? 'on' : '', '', function () {
+              closeTagMenu();
+              setTagColor(key, null);
+            });
+            if (!cur) { var dc = document.createElement('span'); dc.className = 'check'; dc.innerHTML = CHECK_SVG; def.insertBefore(dc, def.firstChild); }
+            tagPalette().forEach(function (hex) {
+              var b = tagMenuItem('', hex, cur === hex ? 'on' : '', '', function () {
+                closeTagMenu();
+                setTagColor(key, hex);
+              });
+              var dot = document.createElement('span');
+              dot.className = 'tag-swatch-dot';
+              dot.style.background = hex;
+              b.querySelector('.m-icon').appendChild(dot);
+              if (cur === hex) { var ck = document.createElement('span'); ck.className = 'check'; ck.innerHTML = CHECK_SVG; b.insertBefore(ck, b.firstChild); }
+            });
+            return;
+          }
+          var starred = isStarredTag(key);
+          tagMenuItem(starred ? STAR_SVG : STAR_O_SVG, starred ? 'Unstar tag' : 'Star tag', '', '', function () {
+            closeTagMenu();
+            toggleTagStar(key);
+          });
+          tagMenuItem(PENCIL_SVG, 'Rename tag…', '', '', function () {
+            closeTagMenu();
+            openTagRename(key);
+          });
+          if (allTagCounts().length > 1) {
+            tagMenuItem(MERGE_SVG, 'Merge into…', '', '', function () { buildTagMenu(key, 'merge'); });
+          }
+          tagMenuItem(PALETTE_SVG, 'Set color…', '', '', function () { buildTagMenu(key, 'color'); });
+          tagMenuSep();
+          tagMenuItem(TRASH_SVG, 'Remove tag from all documents', 'danger', '', function () {
+            closeTagMenu();
+            openTagRemoveConfirm(key, count);
+          });
+        }
+        function openTagMenu(key, anchor, x, y) {
+          if (!allTagCounts().some(function (t) { return t.key === key; })) return;
+          if (anchor && typeof x !== 'number' && tagMenuKey === key && tagMenuEl.classList.contains('open')) { closeTagMenu(); return; }
+          closeMoveMenu();
+          closeFolderMenu();
+          closeDocMenu();
+          closeViewMenu();
+          tagMenuKey = key;
+          tagMenuAnchor = anchor || null;
+          buildTagMenu(key, 'main');
+          tagMenuEl.className = 'menu open';
+          var w = 224, h = tagMenuEl.offsetHeight;
+          var left, top;
+          if (typeof x === 'number' && typeof y === 'number') { left = x; top = y; }
+          else if (anchor) {
+            var r = anchor.getBoundingClientRect();
+            left = r.right - w; top = r.bottom + 6;
+            if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+          } else { left = 8; top = 8; }
+          tagMenuEl.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
+          tagMenuEl.style.top = Math.max(8, Math.min(top, window.innerHeight - h - 8)) + 'px';
+        }
+
+        /* ---------------- tag modal (rename / confirms) ---------------- */
+        var tagModalState = null;
+        function openTagModal(opts) {
+          tagModalState = opts;
+          document.getElementById('tagModalTitle').textContent = opts.title;
+          document.getElementById('tagModalText').textContent = opts.text || '';
+          var wrap = document.getElementById('tagModalInputWrap');
+          var input = document.getElementById('tagModalInput');
+          wrap.hidden = !opts.input;
+          input.value = opts.input ? (opts.initial || '') : '';
+          var err = document.getElementById('tagModalError');
+          err.hidden = true;
+          err.textContent = '';
+          var confirmBtn = document.getElementById('tagModalConfirm');
+          confirmBtn.textContent = opts.confirmLabel || 'Save';
+          confirmBtn.className = opts.danger ? 'btn-danger' : 'btn-primary';
+          document.getElementById('tagModal').hidden = false;
+          if (opts.input) { try { input.focus(); input.select(); } catch (e) {} }
+          else { try { confirmBtn.focus(); } catch (e) {} }
+        }
+        function closeTagModal() {
+          document.getElementById('tagModal').hidden = true;
+          tagModalState = null;
+        }
+        function tagModalShowError(msg) {
+          var err = document.getElementById('tagModalError');
+          err.textContent = msg;
+          err.hidden = false;
+        }
+        document.getElementById('tagModalConfirm').addEventListener('click', function () {
+          if (!tagModalState) return;
+          var st = tagModalState;
+          var value = st.input ? document.getElementById('tagModalInput').value : undefined;
+          var err = st.onConfirm ? st.onConfirm(value) : null;
+          if (err) { tagModalShowError(err); return; }
+          /* The rename flow swaps in the merge-confirm modal
+             from inside its onConfirm: only close when the same
+             modal is still the live one. */
+          if (tagModalState === st) closeTagModal();
+        });
+        document.getElementById('tagModalCancel').addEventListener('click', closeTagModal);
+        document.getElementById('tagModalClose').addEventListener('click', closeTagModal);
+        document.getElementById('tagModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeTagModal();
+        });
+        document.getElementById('tagModalInput').addEventListener('keydown', function (ev) {
+          ev.stopPropagation();
+          if (ev.key === 'Enter') { ev.preventDefault(); document.getElementById('tagModalConfirm').click(); }
+          if (ev.key === 'Escape') { ev.preventDefault(); closeTagModal(); }
+        });
+
+        /* ---------------- library-wide tag edits ----------------
+           Each walks every document's content tree, rewrites the
+           tag nodes, and stamps each document it changed, so the
+           edit syncs like any other edit. If the open document
+           was touched it is reopened, the pull-merge pattern. */
+        function rewriteTagInDoc(doc, fn) {
+          var changed = false;
+          (function walkList(list) {
+            if (!Array.isArray(list)) return;
+            for (var i = list.length - 1; i >= 0; i--) {
+              var n = list[i];
+              if (!n || typeof n !== 'object') continue;
+              if (n.type === 'tag' && n.attrs && typeof n.attrs.name === 'string') {
+                var r = fn(n);
+                if (r === 'drop') { list.splice(i, 1); changed = true; continue; }
+                if (r) changed = true;
+              }
+              if (n.content) walkList(n.content);
+            }
+          })(doc.content && doc.content.content);
+          return changed;
+        }
+        function finishTagEdit(changedIds) {
+          persist(true);
+          renderTagFilterBar();
+          renderTagsSection();
+          renderDocList();
+          if (changedIds.indexOf(lib.currentId) !== -1) openDoc(lib.currentId, false);
+        }
+        function applyTagRename(fromKey, newName) {
+          var changed = [];
+          lib.docs.forEach(function (d) {
+            if (rewriteTagInDoc(d, function (n) {
+              if (String(n.attrs.name).toLowerCase() !== fromKey) return false;
+              n.attrs.name = newName;
+              return true;
+            })) { d.updated = Date.now(); changed.push(d.id); }
+          });
+          var newKey = newName.toLowerCase();
+          if (newKey !== fromKey) {
+            var m = tagMetaFor(fromKey, false);
+            if (m) { delete lib.tagMeta[fromKey]; m.updated = Date.now(); lib.tagMeta[newKey] = m; }
+            if (lib.tagMetaDeletes && lib.tagMetaDeletes.indexOf(newKey) !== -1) {
+              lib.tagMetaDeletes = lib.tagMetaDeletes.filter(function (k) { return k !== newKey; });
+            }
+            if (tagFilter === fromKey) tagFilter = newKey;
+          }
+          finishTagEdit(changed);
+        }
+        function mergeTagInto(fromKey, toKey) {
+          var targetName = canonicalTagName(toKey);
+          var changed = [];
+          lib.docs.forEach(function (d) {
+            if (rewriteTagInDoc(d, function (n) {
+              if (String(n.attrs.name).toLowerCase() !== fromKey) return false;
+              n.attrs.name = targetName;
+              return true;
+            })) { d.updated = Date.now(); changed.push(d.id); }
+          });
+          /* The star does not transfer: the source's meta goes,
+             the target keeps its own star and color. */
+          dropTagMeta(fromKey);
+          if (tagFilter === fromKey) tagFilter = toKey;
+          finishTagEdit(changed);
+        }
+        function removeTagEverywhere(key) {
+          var changed = [];
+          lib.docs.forEach(function (d) {
+            if (rewriteTagInDoc(d, function (n) {
+              return String(n.attrs.name).toLowerCase() === key ? 'drop' : false;
+            })) { d.updated = Date.now(); changed.push(d.id); }
+          });
+          dropTagMeta(key);
+          if (tagFilter === key) tagFilter = null;
+          finishTagEdit(changed);
+        }
+        function openTagRename(key) {
+          var name = canonicalTagName(key);
+          openTagModal({
+            title: 'Rename tag',
+            text: 'New name for #' + name + ' — applied in every document that uses it.',
+            input: true,
+            initial: name,
+            confirmLabel: 'Rename',
+            onConfirm: function (value) {
+              var raw = String(value || '').trim().replace(/^#+/, '').trim();
+              if (!raw) return 'Type a tag name.';
+              if (!/^\p{L}[\p{L}\p{N}_-]*$/u.test(raw)) return 'Tags start with a letter and use only letters, numbers, _ and -.';
+              var newKey = raw.toLowerCase();
+              if (newKey === key) {
+                if (raw !== name) applyTagRename(key, raw); // casing-only rename
+                return null;
+              }
+              if (allTagCounts().some(function (t) { return t.key === newKey; })) {
+                var targetName = canonicalTagName(newKey);
+                closeTagModal();
+                openTagModal({
+                  title: 'Merge tags?',
+                  text: '#' + targetName + ' already exists — merge #' + name + ' into it? Documents will carry #' + targetName + ' only.',
+                  confirmLabel: 'Merge',
+                  onConfirm: function () { mergeTagInto(key, newKey); return null; }
+                });
+                return null;
+              }
+              applyTagRename(key, raw);
+              return null;
+            }
+          });
+        }
+        function openTagRemoveConfirm(key, count) {
+          var name = canonicalTagName(key);
+          openTagModal({
+            title: 'Remove tag?',
+            text: 'Remove #' + name + ' from all ' + count + (count === 1 ? ' document' : ' documents') + '? The hashtag is deleted from each one. This can’t be undone.',
+            confirmLabel: 'Remove tag',
+            danger: true,
+            onConfirm: function () { removeTagEverywhere(key); return null; }
           });
         }
 
@@ -3750,6 +4249,7 @@
           closeFolderPop();
           closeFmtPop();
           closeDocMenu();
+          closeTagMenu();
           closeViewMenu();
           folderMenuId = folderId;
           folderMenuConfirmId = null;
@@ -3865,6 +4365,7 @@
           closeFolderPop();
           closeFmtPop();
           closeViewMenu();
+          closeTagMenu();
           closeDocBarMenu();
           closeTopMenu();
           docMenuDocId = docId;
@@ -14556,6 +15057,9 @@
           if (docMenuDocId && !docMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('.doc-menu-btn'))) {
             closeDocMenu();
           }
+          if (tagMenuKey && !tagMenuEl.contains(ev.target)) {
+            closeTagMenu();
+          }
           if (viewMenuOpen && !viewMenuEl.contains(ev.target) && !(ev.target.closest && ev.target.closest('#docsViewBtn'))) {
             closeViewMenu();
           }
@@ -14607,6 +15111,7 @@
           if (moveMenuDocId) closeMoveMenu();
           if (folderMenuId) closeFolderMenu();
           if (docMenuDocId) closeDocMenu();
+          if (tagMenuKey) closeTagMenu();
           if (viewMenuOpen) closeViewMenu();
           if (!folderPopEl.hidden) closeFolderPop();
         }, { passive: true });
@@ -14615,6 +15120,8 @@
             if (moveMenuDocId) closeMoveMenu();
             if (folderMenuId) closeFolderMenu();
             if (docMenuDocId) closeDocMenu();
+            if (tagMenuKey) closeTagMenu();
+            if (!document.getElementById('tagModal').hidden) closeTagModal();
             if (selectMode) exitSelectMode();
             if (docBarMenuOpen) closeDocBarMenu();
             if (topMenuOpen) closeTopMenu();
@@ -14907,6 +15414,86 @@
           syncTimer = setTimeout(function () { pushAll(); }, 1200);
         }
 
+        /* ---------------- tag_meta sync ----------------
+           Tag stars and colors ride their own table — tag_meta
+           (tag text primary key, starred boolean, color text
+           nullable, updated_at timestamptz) — under the same
+           publishable-key/RLS pattern as documents and folders.
+           The table is an add-on the account owner creates in
+           the Supabase dashboard; until it exists, every call
+           here fails soft: the feature keeps working locally
+           (local-first), the sync status is never failed over
+           tags, and the first cycle after the table appears
+           uploads and merges everything — no lost stars.
+           Merging is newer-wins on updated_at, and deletes are
+           explicit (lib.tagMetaDeletes), never absence-based:
+           a device that has never pushed must not read a
+           missing row as a remote un-star. */
+        var tagTableOk = null;
+        function mergeTagMetaRemote(rows) {
+          if (!Array.isArray(rows)) return false;
+          var changed = false;
+          var pendingDel = lib.tagMetaDeletes || [];
+          rows.forEach(function (r) {
+            if (!r || typeof r.tag !== 'string' || !r.tag) return;
+            var key = r.tag.toLowerCase();
+            if (pendingDel.indexOf(key) !== -1) return; // a local delete is still in flight
+            var rUpd = Date.parse(r.updated_at) || 0;
+            var m = tagMetaFor(key, false);
+            if (!m) {
+              if (!r.starred && !r.color) return;
+              if (!lib.tagMeta || typeof lib.tagMeta !== 'object') lib.tagMeta = {};
+              lib.tagMeta[key] = { starred: !!r.starred, color: r.color || null, updated: rUpd };
+              changed = true;
+              return;
+            }
+            if (rUpd > (m.updated || 0)) {
+              m.starred = !!r.starred;
+              m.color = r.color || null;
+              m.updated = rUpd;
+              changed = true;
+            }
+          });
+          return changed;
+        }
+        function pushTagMeta(meta0) {
+          if (!sb || !sbUser) return Promise.resolve(false);
+          var old = (meta0 && meta0.tagSigs) || {};
+          var rows = [];
+          var pushedSigs = {};
+          var stamped = false;
+          Object.keys(lib.tagMeta || {}).forEach(function (key) {
+            var m = lib.tagMeta[key];
+            if (!m.updated) { m.updated = Date.now(); stamped = true; }
+            var sig = JSON.stringify([!!m.starred, m.color || null, m.updated || 0]);
+            if (old[key] === sig) return;
+            pushedSigs[key] = sig;
+            rows.push({ tag: key, starred: !!m.starred, color: m.color || null, updated_at: new Date(m.updated).toISOString() });
+          });
+          if (stamped) persist(false);
+          var dels = (lib.tagMetaDeletes || []).slice();
+          if (!rows.length && !dels.length) return Promise.resolve(true);
+          var jobs = [];
+          if (rows.length) jobs.push(sb.from('tag_meta').upsert(rows, { onConflict: 'tag' }));
+          dels.forEach(function (key) { jobs.push(sb.from('tag_meta').delete().eq('tag', key)); });
+          return Promise.all(jobs.map(function (p) {
+            return Promise.resolve(p).then(function (r) { return r; }, function (e) { return { error: e || true }; });
+          })).then(function (res) {
+            var failed = res.some(function (r) { return !!(r && r.error); });
+            tagTableOk = !failed;
+            if (failed) return false; // table missing or unreachable: stay local, retry next cycle
+            var mergedSigs = {};
+            Object.keys(old).forEach(function (k) { if (lib.tagMeta && lib.tagMeta[k]) mergedSigs[k] = old[k]; });
+            Object.keys(pushedSigs).forEach(function (k) { mergedSigs[k] = pushedSigs[k]; });
+            saveSyncMeta({ tagSigs: mergedSigs, tagMetaOk: true });
+            if (dels.length) {
+              lib.tagMetaDeletes = (lib.tagMetaDeletes || []).filter(function (k) { return dels.indexOf(k) === -1; });
+              persist(false);
+            }
+            return true;
+          }).catch(function () { tagTableOk = false; return false; });
+        }
+
         function pushAll() {
           if (!sb || !sbUser) return Promise.resolve(false);
           setSyncState('Syncing\u2026');
@@ -15189,6 +15776,12 @@
             // this flag before trusting a null parent.
             if (nestedOk) metaPatch.nestedFolders = true;
             saveSyncMeta(metaPatch);
+            // Tag stars/colors push alongside, fire-and-forget:
+            // their table is an add-on that may not exist yet,
+            // and its absence must never fail the library's own
+            // push — the helper records its own signatures and
+            // retries on the next cycle.
+            pushTagMeta(meta0);
             noteSyncSuccess();
             return true;
           }).catch(function () {
@@ -15740,9 +16333,19 @@
             if (r && r.error) return sb.from('documents').select('id, folder_id, title, content, updated_at');
             return r;
           });
+          /* Tag stars/colors pull beside the library. A table
+             that does not exist yet resolves to null, never an
+             error: the pull must not fail over an add-on table,
+             and local tag state simply stands until the table
+             appears (the push side uploads it whole then). */
+          var tagReq = sb.from('tag_meta').select('tag, starred, color, updated_at').then(function (r) {
+            if (r && r.error) return null;
+            return r;
+          }, function () { return null; });
           return Promise.all([
             foldersReq,
             docsReq,
+            tagReq,
           ]).then(function (res) {
             if (res[0].error || res[1].error) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
             // The before-signature is taken HERE — with the fetch
@@ -15775,6 +16378,7 @@
             // rows) is a failed sync, not a silent success — the
             // status must say so and offer the retry.
             if (mergeRemote(res[0].data || [], res[1].data || [], keepOpenLive) === false) { setSyncState('Couldn\u2019t sync \u2014 saved here'); return false; }
+            if (res[2]) { tagTableOk = true; mergeTagMetaRemote(res[2].data || []); }
             if (!lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs[0].id;
             var curAfter = lib.docs.find(function (d) { return d.id === lib.currentId; });
             var curSigAfter = curAfter ? (curAfter.title || '') + '\n' + JSON.stringify(curAfter.content) : '';
@@ -15963,6 +16567,10 @@
           row('Last pull', meta.lastPullAt ? sdFmtTime(meta.lastPullAt) : 'never');
           row('Documents', 'This device ' + lib.docs.length + (haveInventory ? ' · Server (last pull) ' + serverDocCount : ''));
           row('Folders', 'This device ' + lib.folders.length + (haveInventory ? ' · Server (last pull) ' + serverFolderCount : ''));
+          row('Tag favorites', !sbUser ? 'This device only (not signed in)'
+            : tagTableOk === true ? 'Syncing (tag_meta table)'
+            : tagTableOk === false ? 'This device only — tag_meta table not reachable yet'
+            : (meta.tagMetaOk ? 'Syncing (tag_meta table)' : 'This device only — tag_meta table not seen yet'));
           listHead('Deletes in flight');
           var pending = [];
           tombstones.docs.forEach(function (rid) { pending.push(deleteInfo.titles[rid] || ('Document ' + rid.slice(0, 8) + '\u2026')); });
@@ -16615,7 +17223,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261026-49';
+        var FOLIO_BUILD = '20261026-50';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -18472,6 +19080,7 @@
             label: '#' + t.name,
             sub: '',
             hint: t.count + (t.count === 1 ? ' document' : ' documents'),
+            tagColor: tagColorFor(t.key),
             run: function () { omniPickTag(t); }
           };
         }
@@ -18535,12 +19144,14 @@
               ic.className = 'om-icon';
               ic.setAttribute('aria-hidden', 'true');
               ic.innerHTML = e.icon;
+              if (e.tagColor) ic.style.color = e.tagColor;
               b.appendChild(ic);
               var main = document.createElement('span');
               main.className = 'ab-main';
               var s = document.createElement('span');
               s.className = 'm-label';
               s.textContent = e.label;
+              if (e.tagColor) s.style.color = e.tagColor;
               main.appendChild(s);
               if (e.sub) {
                 var sub = document.createElement('span');
