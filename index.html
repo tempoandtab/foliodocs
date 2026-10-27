@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261026-47" />
+    <meta name="folio-build" content="20261026-48" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16615,7 +16615,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261026-47';
+        var FOLIO_BUILD = '20261026-48';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
@@ -18719,15 +18719,31 @@
            Recognition: a gesture counts only touches that
            BEGIN inside the topbar; touches that begin in the
            editor are never tracked, so document scrolling is
-           untouched. Nothing is claimed while the fingers are
-           down — no preventDefault, no capture — so below the
-           threshold every press in the bar (the hamburger,
-           Back / Forward, the focus button, the ⋮, the title
-           field itself) lands exactly as it always has. On
-           the release of the last tracked finger, the tracked
-           fingers' centroid displacement decides: ≥48px of
-           downward travel with vertical dominance
-           (dy > 2·|dx|) fires, anything less is a no-op.
+           untouched. Below a small claim threshold nothing is
+           claimed — no preventDefault, no capture — so every
+           press in the bar (the hamburger, Back / Forward,
+           the focus button, the ⋮, the title field itself)
+           lands exactly as it always has. Once the tracked
+           fingers' centroid shows a clear downward pull
+           (≥12px, the same vertical dominance), the gesture
+           IS claimed: a non-passive touchmove listener on
+           the bar itself preventDefaults every further move,
+           so the browser can never convert the pull into a
+           scroll / pan of the app view. That conversion is
+           what broke the gestures with the on-screen
+           keyboard up: iOS shrinks the visual viewport, the
+           unclaimed pull panned the app opposite the swipe,
+           and the scroll takeover stole the touch stream
+           (pointercancel) before the release decision could
+           ever fire. (The listener sits on the bar, not the
+           document — document-level touchmove listeners are
+           forced passive and cannot preventDefault at all,
+           the library drag's scroll lock learned that
+           first.) The decision itself is still made on the
+           release of the last tracked finger, from the same
+           tracked positions: ≥48px of downward travel with
+           vertical dominance (dy > 2·|dx|) fires, anything
+           less is a no-op.
 
            The two recognizers are mutually exclusive, decided
            by touch count: the moment a second touch lands —
@@ -18764,7 +18780,7 @@
             return;
           }
           if (!topbarEl || !topbarEl.contains(ev.target)) return;
-          tbSwipe = { pointers: {}, sawTwo: false, twoInside: false };
+          tbSwipe = { pointers: {}, sawTwo: false, twoInside: false, claimed: false };
           tbSwipe.pointers[ev.pointerId] = {
             sx: ev.clientX, sy: ev.clientY, x: ev.clientX, y: ev.clientY, active: true
           };
@@ -18775,7 +18791,44 @@
           if (!p || !p.active) return;
           p.x = ev.clientX;
           p.y = ev.clientY;
+          tbSwipeClaimCheck();
         }, true);
+        /* The claim: once the tracked fingers' centroid has
+           travelled ≥12px downward with vertical dominance,
+           the pull is unmistakably this gesture and not a
+           tap, so every further touchmove is preventDefaulted
+           and the browser never gets to convert the drag
+           into a scroll / pan — keyboard up or down. The
+           listener hangs on the bar element itself: moves of
+           a touch that began in the bar target the bar's
+           subtree, and a document-level touchmove listener
+           would be forced passive and could not
+           preventDefault at all. The check runs here too, on
+           the positions the pointermove handler has just
+           recorded, so the claim lands on the very move that
+           crosses the threshold whichever of touchmove /
+           pointermove the browser delivers second. Moves
+           before the claim are left untouched, so an
+           ordinary press in the bar is exactly what it was. */
+        function tbSwipeClaimCheck() {
+          if (!tbSwipe || tbSwipe.claimed) return;
+          var ids = Object.keys(tbSwipe.pointers);
+          var n = 0, sx = 0, sy = 0, ex = 0, ey = 0;
+          ids.forEach(function (id) {
+            var q = tbSwipe.pointers[id];
+            if (!q.active) return;
+            n++; sx += q.sx; sy += q.sy; ex += q.x; ey += q.y;
+          });
+          if (!n) return;
+          var dx = ex / n - sx / n;
+          var dy = ey / n - sy / n;
+          if (dy >= 12 && dy > 2 * Math.abs(dx)) tbSwipe.claimed = true;
+        }
+        if (topbarEl) topbarEl.addEventListener('touchmove', function (ev) {
+          if (!tbSwipe) return;
+          tbSwipeClaimCheck();
+          if (tbSwipe.claimed) ev.preventDefault();
+        }, { passive: false });
         function tbSwipeFinish(ev, cancelled) {
           if (!tbSwipe) return;
           var p = tbSwipe.pointers[ev.pointerId];
