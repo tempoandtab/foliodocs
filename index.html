@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261028-52" />
+    <meta name="folio-build" content="20261028-53" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2163,6 +2163,68 @@
       }
       .theme-ctl-unit { font-size: 13px; color: var(--ink-3); font-weight: 600; }
       .theme-ctl-hex { font-size: 13px; color: var(--ink-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+      /* Color picker (build -53): an in-page picker replaces
+         the native color input in this modal. The native
+         popover closed mid-drag; this one is claimed by the
+         picker for the whole drag and dismisses only on its
+         Done button or a pointerdown truly outside it and
+         its anchor swatch. The Accents row rides on top,
+         above the spectrum and sliders. */
+      .ts-swatch-btn {
+        width: 52px; height: 40px; padding: 2px; cursor: pointer; flex: 0 0 auto;
+        border: 1px solid var(--line); border-radius: 9px; background: var(--surface);
+      }
+      .ts-picker {
+        margin-top: 10px; padding: 12px; max-width: 340px;
+        border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+      }
+      .ts-picker[hidden] { display: none; }
+      .ts-picker-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 7px; }
+      .ts-accents { display: flex; gap: 9px; flex-wrap: wrap; margin-bottom: 13px; }
+      .ts-accent-swatch {
+        width: 40px; height: 40px; border-radius: 10px; cursor: pointer; padding: 0;
+        border: 1px solid var(--line); flex: 0 0 auto;
+      }
+      .ts-accent-swatch:hover { filter: brightness(1.08); }
+      .ts-sv {
+        position: relative; height: 148px; border-radius: 10px; cursor: crosshair;
+        border: 1px solid var(--line); touch-action: none; margin-bottom: 11px;
+      }
+      .ts-sv-thumb, .ts-hue-thumb {
+        position: absolute; width: 16px; height: 16px; border-radius: 50%;
+        border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
+        transform: translate(-50%, -50%); pointer-events: none;
+      }
+      .ts-hue {
+        position: relative; height: 18px; border-radius: 9px; cursor: pointer; touch-action: none;
+        border: 1px solid var(--line); margin-bottom: 12px;
+        background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+      }
+      .ts-hue-thumb { top: 50%; }
+      .ts-rgb-row { display: flex; align-items: center; gap: 9px; margin: 5px 0; font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
+      .ts-rgb-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+      .ts-rgb-val { flex: 0 0 30px; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+      .ts-picker-foot { display: flex; align-items: center; gap: 9px; margin-top: 11px; }
+      .ts-picker-hex {
+        flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--ink);
+        background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; outline: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .ts-picker-hex:focus { border-color: var(--accent); }
+      /* Presets tab (build -53): heading-family preset cards
+         with live previews on the active theme's ground. */
+      .ts-presets-note { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin: 0 0 13px; }
+      .ts-preset-card {
+        display: block; width: 100%; text-align: left; cursor: pointer;
+        border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+        padding: 13px 15px; margin: 0 0 12px; color: var(--ink);
+      }
+      .ts-preset-card:hover { border-color: var(--accent); }
+      .ts-preset-name { display: block; font-size: 15.5px; font-weight: 700; margin: 0 0 2px; }
+      .ts-preset-blurb { display: block; font-size: 13px; font-weight: 500; color: var(--ink-2); line-height: 1.45; margin: 0 0 11px; }
+      .ts-preset-preview { display: block; border-radius: 9px; padding: 13px 15px; overflow: hidden; }
+      .ts-preset-preview .pv { display: block; line-height: 1.22; letter-spacing: -0.005em; }
+      .ts-preset-preview .pv-sub { display: block; line-height: 1.35; font-style: italic; }
       .theme-check {
         display: flex; gap: 10px; align-items: flex-start;
         padding: 10px 0 2px; cursor: pointer;
@@ -3887,6 +3949,65 @@
           if (def && def.palette) return { color: def.palette.shipped[tid] || def.palette.shipped.paper };
           return {};
         }
+        /* The FULL shipped defaults (build -53): tsShipped
+           above carries only the levers the resolver needed
+           before placeholders existed; the stylesheet's var()
+           fallbacks carry the rest (relative sizes and
+           spacings in em, `inherit` fonts and colors). Here
+           they are expanded to the concrete values a setting
+           renders with untouched, in the modal's own units:
+           sizes and spacings in px at the shipped paragraph
+           size (19.5px), colors as the active theme's
+           shipped palette hexes, `inherit` fonts as the
+           shipped base family (Newsreader). */
+        function tsExpandedShipped(tid, key) {
+          var def = tsDef(key);
+          if (def && def.palette) return { color: def.palette.shipped[tid] || def.palette.shipped.paper };
+          var ink = tsShipped(tid, 'pal-ink').color;
+          var ink2 = tsShipped(tid, 'pal-ink2').color;
+          var accent = tsShipped(tid, 'pal-accent').color;
+          function hs(size) {
+            return { font: 'newsreader', size: size, color: ink, weight: 600, before: Math.round(size * 135) / 100, after: Math.round(size * 50) / 100 };
+          }
+          switch (key) {
+            case 'h1': return hs(34);
+            case 'h2': return hs(27);
+            case 'h3': return hs(22);
+            case 'h4': return hs(19);
+            case 'h5': return hs(17);
+            case 'h6': return hs(15);
+            case 'subtitle': return { font: 'newsreader', size: 19.5, color: ink2, weight: 400, before: 0, after: 17.55 };
+            case 'paragraph': return { font: 'newsreader', size: 19.5, color: ink, weight: 400, before: 0, after: 17.55 };
+            case 'bullet': return { font: 'newsreader', size: 19.5, color: ink, before: 0, after: 17.55 };
+            case 'ordered': return { font: 'newsreader', size: 19.5, color: ink, before: 0, after: 17.55 };
+            case 'quote': return { font: 'newsreader', size: 19.5, color: ink2, weight: 400, before: 21.45, after: 21.45 };
+            case 'bold': return { color: ink, weight: 700 };
+            case 'italic': return { color: ink, weight: 400 };
+            case 'code': return { font: 'mono', size: 15.99, color: ink };
+            case 'link': return { color: accent, weight: 400 };
+            case 'highlight': return { color: tsShipped(tid, 'highlight').color };
+            case 'iconSet': return { icon: 'folio' };
+            default: return tsShipped(tid, key);
+          }
+        }
+        /* The value a field falls back to when it is empty —
+           what placeholders and default labels show (build
+           -53). For a Global-checked setting whose shared
+           value has been written, the shared value IS the
+           fallback; otherwise it is the active theme's
+           shipped default above. A theme's own local overlay
+           never counts: it is the value, not the default. */
+        function tsDefaultResolved(tid, key) {
+          var out = {};
+          var base = tsExpandedShipped(tid, key);
+          Object.keys(base).forEach(function (k) { out[k] = base[k]; });
+          if (tsIsGlobal(tid, key)) {
+            var g = tsStore().global[key];
+            if (g) Object.keys(g).forEach(function (k) { out[k] = g[k]; });
+          }
+          return out;
+        }
+        function tsFmtNum(n) { return String(Math.round(Number(n) * 100) / 100); }
         /* Print has its own shipped sizes (pt) — the base the
            print scope resolves over. */
         function tsPrintShipped(key) {
@@ -4078,6 +4199,18 @@
         }
         function tsResetActiveTheme() {
           var st = tsStore();
+          /* Heading family (build -53): when the active theme
+             shares a heading setting globally, the shared value
+             is part of this theme's heading look, so resetting
+             the theme drops its stake in the shared slot for
+             headings too — shipped headings come back even
+             after a preset wrote them globally. Every other
+             setting keeps the build -52 rule: Reset clears
+             only this theme's local edits and leaves shared
+             values and other themes alone. */
+          if (typeof TS_PRESET_KEYS !== 'undefined' && TS_PRESET_KEYS) {
+            TS_PRESET_KEYS.forEach(function (k) { if (tsIsGlobal(themeId, k)) delete st.global[k]; });
+          }
           delete st.themes[themeId];
           tsTouchAndPersist();
         }
@@ -4118,6 +4251,24 @@
             b.appendChild(lab);
             b.addEventListener('click', function () { themeModalKey = def.id; buildThemeNav(); buildThemeDetail(); });
             themeNavEl.appendChild(b);
+            if (def.id === 'subtitle') {
+              /* The Presets tab (build -53) rides with the
+                 heading family it restyles, inside its nav
+                 group, right after Subtitle. */
+              var pb = document.createElement('button');
+              pb.type = 'button';
+              pb.className = 'theme-nav-item' + (themeModalKey === 'presets' ? ' on' : '');
+              pb.setAttribute('role', 'option');
+              pb.setAttribute('aria-selected', themeModalKey === 'presets' ? 'true' : 'false');
+              var pdot = document.createElement('span');
+              pdot.className = 'tn-dot';
+              pb.appendChild(pdot);
+              var plab = document.createElement('span');
+              plab.textContent = 'Presets';
+              pb.appendChild(plab);
+              pb.addEventListener('click', function () { themeModalKey = 'presets'; buildThemeNav(); buildThemeDetail(); });
+              themeNavEl.appendChild(pb);
+            }
           });
         }
         function tsExampleHtml(key) {
@@ -4171,8 +4322,159 @@
             else prose.style.setProperty(varName, 'initial');
           });
         }
+        /* ---------------- color helpers & picker state (build -53) ---------------- */
+        function tsClamp255(n) { return Math.max(0, Math.min(255, Math.round(n))); }
+        function tsHexToRgb(hex) {
+          var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+          if (!m) return { r: 34, g: 38, b: 31 };
+          var n = parseInt(m[1], 16);
+          return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+        }
+        function tsRgbToHex(r, g, b) {
+          function h(x) { var s = tsClamp255(x).toString(16); return s.length === 1 ? '0' + s : s; }
+          return '#' + h(r) + h(g) + h(b);
+        }
+        function tsRgbToHsv(r, g, b) {
+          r /= 255; g /= 255; b /= 255;
+          var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+          var h = 0;
+          if (d) {
+            if (max === r) h = ((g - b) / d) % 6;
+            else if (max === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+            h *= 60; if (h < 0) h += 360;
+          }
+          return { h: h, s: max ? d / max : 0, v: max };
+        }
+        function tsHsvToRgb(h, s, v) {
+          var c = v * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v - c;
+          var r = 0, g = 0, b = 0;
+          if (h < 60) { r = c; g = x; }
+          else if (h < 120) { r = x; g = c; }
+          else if (h < 180) { g = c; b = x; }
+          else if (h < 240) { g = x; b = c; }
+          else if (h < 300) { r = x; b = c; }
+          else { r = c; b = x; }
+          return { r: Math.round((r + m) * 255), g: Math.round((g + m) * 255), b: Math.round((b + m) * 255) };
+        }
+        /* Set while a color picker is open; buildThemeDetail
+           and closeThemeModal run it so a rebuilt or closed
+           modal never leaves a live dismissal listener. */
+        var tsPickerTeardown = null;
+
+        /* ---------------- heading presets (build -53) ----------------
+           Shipped content, not user data: complete value sets
+           for the heading family (H1-H6 + Subtitle) covering
+           family, sizes, weights and spacing ONLY — never
+           color, so a preset composes with every theme's own
+           colors. Applying writes each lever through
+           tsSetLever, so Global-checked headings land in the
+           shared slot exactly as manual edits do, and Reset
+           to Theme defaults undoes a preset the same way it
+           undoes manual edits. Sizes in px; spacing derived
+           from each size by the preset's before/after
+           factors, Subtitle's space-before always 0. */
+        var TS_PRESET_KEYS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'subtitle'];
+        function tsPreset(id, name, blurb, font, sizes, weights, beforeF, afterF, subAfter) {
+          var values = {};
+          TS_PRESET_KEYS.forEach(function (k, i) {
+            values[k] = {
+              font: font, size: sizes[i], weight: weights[i],
+              before: k === 'subtitle' ? 0 : Math.round(sizes[i] * beforeF * 100) / 100,
+              after: k === 'subtitle' ? subAfter : Math.round(sizes[i] * afterF * 100) / 100,
+            };
+          });
+          return { id: id, name: name, blurb: blurb, values: values };
+        }
+        var TS_PRESETS = [
+          tsPreset('classic-serif', 'Classic Serif', 'Newsreader serif on the traditional descending scale, with the shipped comfortable spacing.', 'newsreader', [34, 27, 22, 19, 17, 15, 19.5], [600, 600, 600, 600, 600, 600, 400], 1.35, 0.5, 17.55),
+          tsPreset('modern-sans', 'Modern Sans', 'Public Sans on a tighter scale, heavier weights, and tighter spacing throughout.', 'public', [30, 25, 21, 18, 16, 14.5, 18], [700, 700, 700, 700, 700, 700, 500], 0.9, 0.35, 12.6),
+          tsPreset('compact', 'Compact', 'The shipped serif at smaller sizes with tight spacing before and after — for dense documents.', 'newsreader', [26, 21, 18, 16, 14.5, 13, 16.5], [600, 600, 600, 600, 600, 600, 400], 0.6, 0.25, 8),
+          tsPreset('large-print', 'Large Print', 'Public Sans markedly larger at every level, with generous spacing — easy reading at arm\u2019s length.', 'public', [44, 36, 29, 24, 21, 19, 24], [700, 700, 700, 600, 600, 600, 400], 1.5, 0.6, 21.6),
+          tsPreset('dramatic', 'Dramatic', 'An oversized H1 and H2 in Newsreader with a steep drop-off and wide space above every heading.', 'newsreader', [56, 40, 28, 21, 18, 15.5, 21], [800, 800, 700, 600, 600, 600, 400], 1.8, 0.5, 16),
+        ];
+        function tsApplyPreset(preset) {
+          TS_PRESET_KEYS.forEach(function (k) {
+            var v = preset.values[k];
+            if (!v) return;
+            tsSetLever(k, 'font', v.font);
+            tsSetLever(k, 'size', v.size);
+            tsSetLever(k, 'weight', v.weight);
+            tsSetLever(k, 'before', v.before);
+            tsSetLever(k, 'after', v.after);
+          });
+          buildThemeNav();
+          if (typeof folioToast === 'function') folioToast(preset.name + ' preset applied to the ' + currentTheme().name + ' theme — heading colors were left as they are.', 3400);
+        }
+        function buildPresetsDetail() {
+          if (!themeDetailEl) return;
+          var tid = themeId;
+          var sub = document.getElementById('themeModalSub');
+          if (sub) sub.textContent = 'Editing the ' + currentTheme().name + ' theme. Styles apply to every document.';
+          themeDetailEl.innerHTML = '';
+          var note = document.createElement('p');
+          note.className = 'ts-presets-note';
+          note.textContent = 'One tap applies a whole heading family to the ' + currentTheme().name + ' theme. Presets set family, sizes, weights and spacing only — never color, so they compose with every theme\u2019s own colors.';
+          themeDetailEl.appendChild(note);
+          var bg = tsResolved(tid, 'pal-bg', {}).color || 'var(--bg)';
+          var ink = tsResolved(tid, 'pal-ink', {}).color || 'var(--ink)';
+          var ink2 = tsResolved(tid, 'pal-ink2', {}).color || 'var(--ink-2)';
+          TS_PRESETS.forEach(function (preset) {
+            /* A div, not a <button>: WebKit/Chromium paint
+               scroll-thumb artifacts inside buttons whose
+               block content outgrows them, which landed dark
+               pills on the preview's corners. role=button +
+               tabindex + Enter/Space keep it a real control. */
+            var card = document.createElement('div');
+            card.className = 'ts-preset-card';
+            card.setAttribute('role', 'button');
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('aria-label', 'Apply the ' + preset.name + ' heading preset');
+            var nm = document.createElement('span');
+            nm.className = 'ts-preset-name';
+            nm.textContent = preset.name;
+            card.appendChild(nm);
+            var bl = document.createElement('span');
+            bl.className = 'ts-preset-blurb';
+            bl.textContent = preset.blurb;
+            card.appendChild(bl);
+            var pv = document.createElement('span');
+            pv.className = 'ts-preset-preview';
+            pv.style.background = bg;
+            pv.style.color = ink;
+            [['h1', 'The quick brown fox'], ['h2', 'Jumps over the lazy dog'], ['h3', 'Pack my box with five dozen jugs']].forEach(function (pair, idx) {
+              var v = preset.values[pair[0]];
+              var line = document.createElement('span');
+              line.className = 'pv';
+              line.style.fontFamily = TS_FONT_STACKS[v.font] || 'inherit';
+              line.style.fontSize = v.size + 'px';
+              line.style.fontWeight = String(v.weight);
+              line.style.marginTop = (idx === 0 ? 0 : Math.min(v.before, 36)) + 'px';
+              line.style.marginBottom = Math.min(v.after, 24) + 'px';
+              line.textContent = pair[1];
+              pv.appendChild(line);
+            });
+            var sv = preset.values.subtitle;
+            var sline = document.createElement('span');
+            sline.className = 'pv-sub';
+            sline.style.fontFamily = TS_FONT_STACKS[sv.font] || 'inherit';
+            sline.style.fontSize = sv.size + 'px';
+            sline.style.fontWeight = String(sv.weight);
+            sline.style.color = ink2;
+            sline.textContent = 'For the attribution line under a document\u2019s tags';
+            pv.appendChild(sline);
+            card.appendChild(pv);
+            card.addEventListener('click', function () { tsApplyPreset(preset); });
+            card.addEventListener('keydown', function (ev) {
+              if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); tsApplyPreset(preset); }
+            });
+            themeDetailEl.appendChild(card);
+          });
+        }
         function buildThemeDetail() {
           if (!themeDetailEl) return;
+          if (tsPickerTeardown) { tsPickerTeardown(); tsPickerTeardown = null; }
+          if (themeModalKey === 'presets') { buildPresetsDetail(); return; }
           var def = tsDef(themeModalKey);
           if (!def) return;
           var st = tsStore();
@@ -4205,7 +4507,7 @@
             var b = document.createElement('button');
             b.type = 'button';
             b.className = 'btn-ghost';
-            b.textContent = 'Theme default';
+            b.textContent = 'Reset';
             b.addEventListener('click', function () { tsSetLever(def.id, lever, null); buildThemeNav(); buildThemeDetail(); });
             return b;
           }
@@ -4225,14 +4527,14 @@
             themeDetailEl.appendChild(inote);
           } else {
             (def.levers || []).forEach(function (lever) {
-              var shipped = tsShipped(tid, def.id);
+              var shipped = tsDefaultResolved(tid, def.id);
               if (lever === 'font') {
                 var row = ctl('Font');
                 var sel = document.createElement('select');
                 sel.setAttribute('aria-label', def.label + ' font');
                 var optD = document.createElement('option');
                 optD.value = '';
-                optD.textContent = 'Theme default';
+                optD.textContent = shipped.font ? ({ newsreader: 'Newsreader (serif)', public: 'Public Sans', georgia: 'Georgia (serif)', mono: 'Monospace' }[shipped.font] || shipped.font) : 'Newsreader (serif)';
                 sel.appendChild(optD);
                 Object.keys(TS_FONT_STACKS).forEach(function (fk) {
                   var o = document.createElement('option');
@@ -4253,7 +4555,7 @@
                 inp.step = lever === 'size' ? '0.5' : '1';
                 inp.setAttribute('aria-label', def.label + ' ' + names[lever].toLowerCase());
                 if (ov[lever] !== undefined && ov[lever] !== null) inp.value = String(ov[lever]);
-                inp.placeholder = shipped[lever] !== undefined ? String(shipped[lever]) : 'default';
+                inp.placeholder = shipped[lever] !== undefined && shipped[lever] !== null ? tsFmtNum(shipped[lever]) : '';
                 inp.addEventListener('input', function () {
                   var v = inp.value === '' ? null : Number(inp.value);
                   tsSetLever(def.id, lever, v === null || isFinite(v) ? v : null);
@@ -4267,27 +4569,221 @@
                 row2.appendChild(unit);
                 if (ov[lever] !== undefined && ov[lever] !== null) row2.appendChild(defaultBtn(lever));
               } else if (lever === 'color') {
-                var row3 = ctl(def.id === 'highlight' ? 'Highlight color' : def.palette ? 'Color' : 'Color');
-                var cin = document.createElement('input');
-                cin.type = 'color';
-                cin.setAttribute('aria-label', def.label + ' color');
-                var eff = ov.color || (def.palette ? def.palette.shipped[tid] : (tsShipped(tid, def.id).color || tsShipped(tid, 'pal-ink').color));
-                cin.value = eff;
-                cin.addEventListener('input', function () { tsSetLever(def.id, 'color', cin.value); paintThemeExample(); hexEl.textContent = cin.value; });
-                cin.addEventListener('change', function () { buildThemeNav(); buildThemeDetail(); });
-                row3.appendChild(cin);
+                var row3 = ctl(def.id === 'highlight' ? 'Highlight color' : 'Color');
+                var wrap3 = row3.parentNode;
+                /* In-page color picker (build -53), replacing
+                   the native color input: the native popover
+                   closed mid-drag. This picker is claimed for
+                   the whole drag — pointer capture on the drag
+                   surfaces, no re-render on input — and it
+                   dismisses only on its Done button or a
+                   pointerdown truly outside picker and anchor.
+                   Accents ride on top; a swatch tap applies
+                   through the same tsSetLever path as any
+                   pick and the picker stays open. */
+                var startColor = ov.color || shipped.color || '#22261f';
+                var pkRgb = tsHexToRgb(startColor);
+                var pkHsv = tsRgbToHsv(pkRgb.r, pkRgb.g, pkRgb.b);
+                var swBtn = document.createElement('button');
+                swBtn.type = 'button';
+                swBtn.className = 'ts-swatch-btn';
+                swBtn.style.background = startColor;
+                swBtn.setAttribute('aria-label', def.label + ' color \u2014 open the color picker');
+                swBtn.setAttribute('aria-haspopup', 'true');
+                swBtn.setAttribute('aria-expanded', 'false');
+                row3.appendChild(swBtn);
                 var hexEl = document.createElement('span');
                 hexEl.className = 'theme-ctl-hex';
-                hexEl.textContent = ov.color || '(theme default)';
+                hexEl.textContent = startColor;
                 row3.appendChild(hexEl);
-                if (ov.color) row3.appendChild(defaultBtn('color'));
+                var resetBtn3 = defaultBtn('color');
+                resetBtn3.style.display = ov.color ? '' : 'none';
+                row3.appendChild(resetBtn3);
+                var picker = document.createElement('div');
+                picker.className = 'ts-picker';
+                picker.hidden = true;
+                picker.setAttribute('role', 'dialog');
+                picker.setAttribute('aria-label', def.label + ' color picker');
+                var accLabel = document.createElement('div');
+                accLabel.className = 'ts-picker-label';
+                accLabel.textContent = 'Accents';
+                picker.appendChild(accLabel);
+                var accRow = document.createElement('div');
+                accRow.className = 'ts-accents';
+                picker.appendChild(accRow);
+                var sv = document.createElement('div');
+                sv.className = 'ts-sv';
+                sv.setAttribute('aria-label', 'Saturation and brightness spectrum');
+                var svThumb = document.createElement('span');
+                svThumb.className = 'ts-sv-thumb';
+                sv.appendChild(svThumb);
+                picker.appendChild(sv);
+                var hue = document.createElement('div');
+                hue.className = 'ts-hue';
+                hue.setAttribute('aria-label', 'Hue slider');
+                var hueThumb = document.createElement('span');
+                hueThumb.className = 'ts-hue-thumb';
+                hue.appendChild(hueThumb);
+                picker.appendChild(hue);
+                var rgbRanges = {};
+                var rgbVals = {};
+                ['r', 'g', 'b'].forEach(function (ch) {
+                  var rr = document.createElement('div');
+                  rr.className = 'ts-rgb-row';
+                  var rl = document.createElement('span');
+                  rl.textContent = ch.toUpperCase();
+                  rr.appendChild(rl);
+                  var range = document.createElement('input');
+                  range.type = 'range';
+                  range.min = '0';
+                  range.max = '255';
+                  range.step = '1';
+                  range.setAttribute('aria-label', def.label + ' color ' + ({ r: 'red', g: 'green', b: 'blue' })[ch] + ' slider');
+                  rr.appendChild(range);
+                  var rv = document.createElement('span');
+                  rv.className = 'ts-rgb-val';
+                  rr.appendChild(rv);
+                  picker.appendChild(rr);
+                  rgbRanges[ch] = range;
+                  rgbVals[ch] = rv;
+                  range.addEventListener('input', function () {
+                    pkRgb[ch] = Number(range.value);
+                    pkHsv = tsRgbToHsv(pkRgb.r, pkRgb.g, pkRgb.b);
+                    pkCommit();
+                  });
+                });
+                var foot = document.createElement('div');
+                foot.className = 'ts-picker-foot';
+                var hexInput = document.createElement('input');
+                hexInput.className = 'ts-picker-hex';
+                hexInput.type = 'text';
+                hexInput.setAttribute('aria-label', def.label + ' color hex value');
+                hexInput.setAttribute('spellcheck', 'false');
+                hexInput.setAttribute('autocapitalize', 'off');
+                foot.appendChild(hexInput);
+                var doneBtn = document.createElement('button');
+                doneBtn.type = 'button';
+                doneBtn.className = 'btn-primary';
+                doneBtn.textContent = 'Done';
+                foot.appendChild(doneBtn);
+                picker.appendChild(foot);
+                wrap3.appendChild(picker);
+                function pkRender() {
+                  var hex = tsRgbToHex(pkRgb.r, pkRgb.g, pkRgb.b);
+                  sv.style.background = 'linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, rgba(255,255,255,0)), hsl(' + Math.round(pkHsv.h) + ', 100%, 50%)';
+                  svThumb.style.left = (pkHsv.s * 100) + '%';
+                  svThumb.style.top = ((1 - pkHsv.v) * 100) + '%';
+                  svThumb.style.background = hex;
+                  hueThumb.style.left = (pkHsv.h / 360 * 100) + '%';
+                  hueThumb.style.background = 'hsl(' + Math.round(pkHsv.h) + ', 100%, 50%)';
+                  ['r', 'g', 'b'].forEach(function (ch) {
+                    rgbRanges[ch].value = String(pkRgb[ch]);
+                    rgbVals[ch].textContent = String(pkRgb[ch]);
+                  });
+                  if (document.activeElement !== hexInput) hexInput.value = hex;
+                }
+                function pkCommit() {
+                  var hex = tsRgbToHex(pkRgb.r, pkRgb.g, pkRgb.b);
+                  tsSetLever(def.id, 'color', hex);
+                  paintThemeExample();
+                  hexEl.textContent = hex;
+                  swBtn.style.background = hex;
+                  resetBtn3.style.display = '';
+                  pkRender();
+                }
+                ACCENTS.forEach(function (a) {
+                  var sw = document.createElement('button');
+                  sw.type = 'button';
+                  sw.className = 'ts-accent-swatch';
+                  sw.style.background = a.color;
+                  sw.title = a.name + ' accent \u00b7 ' + a.color;
+                  sw.setAttribute('aria-label', a.name + ' accent ' + a.color);
+                  sw.addEventListener('click', function () {
+                    pkRgb = tsHexToRgb(a.color);
+                    pkHsv = tsRgbToHsv(pkRgb.r, pkRgb.g, pkRgb.b);
+                    pkCommit();
+                    buildThemeNav();
+                  });
+                  accRow.appendChild(sw);
+                });
+                function pkDragSurface(el, onPos) {
+                  el.addEventListener('pointerdown', function (ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+                    onPos(ev);
+                    function mv(e2) { onPos(e2); }
+                    function up() {
+                      el.removeEventListener('pointermove', mv);
+                      el.removeEventListener('pointerup', up);
+                      el.removeEventListener('pointercancel', up);
+                      buildThemeNav();
+                    }
+                    el.addEventListener('pointermove', mv);
+                    el.addEventListener('pointerup', up);
+                    el.addEventListener('pointercancel', up);
+                  });
+                }
+                pkDragSurface(sv, function (ev) {
+                  var r = sv.getBoundingClientRect();
+                  if (!r.width || !r.height) return;
+                  pkHsv.s = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+                  pkHsv.v = Math.max(0, Math.min(1, 1 - (ev.clientY - r.top) / r.height));
+                  pkRgb = tsHsvToRgb(pkHsv.h, pkHsv.s, pkHsv.v);
+                  pkCommit();
+                });
+                pkDragSurface(hue, function (ev) {
+                  var r = hue.getBoundingClientRect();
+                  if (!r.width) return;
+                  pkHsv.h = Math.max(0, Math.min(359.9, (ev.clientX - r.left) / r.width * 360));
+                  pkRgb = tsHsvToRgb(pkHsv.h, pkHsv.s, pkHsv.v);
+                  pkCommit();
+                });
+                hexInput.addEventListener('change', function () {
+                  var v = hexInput.value.trim();
+                  if (/^#?[0-9a-f]{6}$/i.test(v)) {
+                    pkRgb = tsHexToRgb(v);
+                    pkHsv = tsRgbToHsv(pkRgb.r, pkRgb.g, pkRgb.b);
+                    pkCommit();
+                    buildThemeNav();
+                  } else {
+                    pkRender();
+                  }
+                });
+                hexInput.addEventListener('keydown', function (ev) { ev.stopPropagation(); });
+                function pkDocDown(ev) {
+                  if (picker.hidden) return;
+                  var t = ev.target;
+                  if (t && (picker.contains(t) || swBtn.contains(t))) return;
+                  /* Close on the pointerdown, but defer the nav
+                     refresh past this tap's own click: rebuilding
+                     the nav now would replace the very button
+                     being tapped and swallow its click. */
+                  pkClose(true);
+                }
+                function pkClose(deferNav) {
+                  picker.hidden = true;
+                  swBtn.setAttribute('aria-expanded', 'false');
+                  document.removeEventListener('pointerdown', pkDocDown, true);
+                  if (deferNav) setTimeout(function () { buildThemeNav(); }, 0);
+                  else buildThemeNav();
+                }
+                tsPickerTeardown = function () { document.removeEventListener('pointerdown', pkDocDown, true); };
+                swBtn.addEventListener('click', function () {
+                  if (!picker.hidden) return;
+                  picker.hidden = false;
+                  swBtn.setAttribute('aria-expanded', 'true');
+                  document.addEventListener('pointerdown', pkDocDown, true);
+                  pkRender();
+                });
+                doneBtn.addEventListener('click', function () { pkClose(); buildThemeDetail(); });
               } else if (lever === 'weight') {
                 var row4 = ctl('Weight');
                 var wsel = document.createElement('select');
                 wsel.setAttribute('aria-label', def.label + ' weight');
                 var woptD = document.createElement('option');
                 woptD.value = '';
-                woptD.textContent = 'Theme default' + (shipped.weight ? ' (' + shipped.weight + ')' : '');
+                woptD.textContent = shipped.weight ? String(shipped.weight) + (shipped.weight === 400 ? ' \u00b7 Regular' : shipped.weight === 700 ? ' \u00b7 Bold' : '') : '';
                 wsel.appendChild(woptD);
                 [400, 500, 600, 700, 800].forEach(function (w) {
                   var o = document.createElement('option');
@@ -4354,6 +4850,7 @@
           if (closeBtn) closeBtn.focus();
         }
         function closeThemeModal() {
+          if (tsPickerTeardown) { tsPickerTeardown(); tsPickerTeardown = null; }
           if (themeModalEl) themeModalEl.hidden = true;
         }
         /* Second door to this same modal: "Customize
@@ -18330,7 +18827,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261028-52';
+        var FOLIO_BUILD = '20261028-53';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
