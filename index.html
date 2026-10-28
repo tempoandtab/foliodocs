@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261028-56" />
+    <meta name="folio-build" content="20261028-57" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2332,6 +2332,37 @@
           font-size: 16.5px; font-weight: 700; color: var(--ink);
           min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
+        /* Color picker on phone (build -57): in flow, the
+           picker lives inside the detail pane's scroll
+           region, and the whole picker (~465px) is taller
+           than the pane's visible slice of the frame — the
+           -54 nudge aligned its bottom with the pane's, so
+           its top (the Accents row) sat above the visible
+           area and the pane's overflow clipped it; scroll
+           up for Accents and the hex field and Done fell
+           off the bottom instead. It now leaves the flow
+           entirely: a fixed sheet pinned to the bottom of
+           the viewport, inside the modal frame, sized to
+           fit whole — Accents, spectrum, hue, R/G/B, hex,
+           Done — no matter which setting opened it or how
+           the detail behind it is scrolled. No ancestor of
+           the modal carries a transform or filter, so
+           fixed positioning is viewport-true and escapes
+           the pane's clipping. The spectrum shrinks a
+           little so the sheet fits even short viewports;
+           max-height + internal scroll is the safety net
+           for landscape phones. Wide screens keep the
+           in-flow picker and the -54 pane nudge. */
+        .ts-picker {
+          position: fixed; left: 50%; transform: translateX(-50%);
+          bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+          width: min(356px, calc(100vw - 20px)); max-width: none;
+          margin-top: 0; z-index: 80;
+          box-shadow: var(--shadow);
+          max-height: calc(100dvh - 24px); overflow-y: auto;
+          overscroll-behavior: contain;
+        }
+        .ts-picker .ts-sv { height: 118px; }
       }
 
       /* ---------------- Theme popover ---------------- */
@@ -5080,11 +5111,18 @@
                      inside the detail pane's scroll region, so
                      for a setting near the pane's bottom edge,
                      nudge ONLY the pane until the whole picker
-                     is inside the modal frame. */
-                  var pr = picker.getBoundingClientRect();
-                  var dr = themeDetailEl.getBoundingClientRect();
-                  if (pr.bottom > dr.bottom) themeDetailEl.scrollTop += (pr.bottom - dr.bottom) + 10;
-                  else if (pr.top < dr.top) themeDetailEl.scrollTop -= (dr.top - pr.top) + 10;
+                     is inside the modal frame. Skipped when
+                     the picker is taken out of flow as a fixed
+                     sheet (phone, build -57): it is already
+                     fully inside the frame, and scrolling the
+                     detail behind it would only move the
+                     setting it opened from. */
+                  if (getComputedStyle(picker).position !== 'fixed') {
+                    var pr = picker.getBoundingClientRect();
+                    var dr = themeDetailEl.getBoundingClientRect();
+                    if (pr.bottom > dr.bottom) themeDetailEl.scrollTop += (pr.bottom - dr.bottom) + 10;
+                    else if (pr.top < dr.top) themeDetailEl.scrollTop -= (dr.top - pr.top) + 10;
+                  }
                 });
                 doneBtn.addEventListener('click', function () { pkClose(); buildThemeDetail(); });
               } else if (lever === 'weight') {
@@ -19157,7 +19195,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261028-56';
+        var FOLIO_BUILD = '20261028-57';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
