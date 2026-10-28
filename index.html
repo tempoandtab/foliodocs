@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261028-54" />
+    <meta name="folio-build" content="20261028-55" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2122,14 +2122,20 @@
          Build -54: the modal is a fixed frame that never
          exceeds the viewport — the overlay itself never
          scrolls, the header and footer stay put, and the nav
-         and the detail pane are INDEPENDENT scroll regions. */
+         and the detail pane are INDEPENDENT scroll regions.
+         Build -55: the panel is WIDER — roughly a third
+         again. The two-class selector is load-bearing: the
+         generic .panel rule later in this sheet caps
+         max-width at 560px, and a lone .theme-panel class
+         lost that fight, so -54 never actually rendered at
+         its declared 880px. */
       #themeModal { overflow: hidden; overscroll-behavior: contain; }
-      .theme-panel {
-        max-width: 880px; display: flex; flex-direction: column;
+      .panel.theme-panel {
+        max-width: min(920px, 92vw); display: flex; flex-direction: column;
         max-height: calc(95dvh - 20px); overflow: hidden;
       }
       .theme-edit {
-        display: grid; grid-template-columns: 196px minmax(0, 1fr);
+        display: grid; grid-template-columns: 236px minmax(0, 1fr);
         gap: 16px; margin-top: 8px; align-items: stretch;
         flex: 1 1 auto; min-height: 0;
       }
@@ -2148,6 +2154,17 @@
       }
       .theme-nav-item:hover { background: var(--hover); color: var(--ink); }
       .theme-nav-item.on { background: var(--active); color: var(--ink); }
+      /* Preset sub-labels in the nav (build -55): TYPE
+         PRESETS and COLOR SCHEMES sit under the TEXT
+         PRESETS head, one nav entry per preset. Color
+         scheme entries carry a three-dot swatch strip in
+         their scheme's own H1 / H3 / H5 colors. */
+      .theme-nav-sub {
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--ink-3); padding: 7px 10px 2px; opacity: 0.85;
+      }
+      .theme-nav-item .tn-swatches { display: inline-flex; gap: 3px; margin-left: auto; flex: 0 0 auto; padding-left: 8px; }
+      .theme-nav-item .tn-swatches i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(128, 128, 128, 0.35); }
       .theme-nav-item .tn-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--ink-3); visibility: hidden; }
       .theme-nav-item.modified .tn-dot { visibility: visible; background: var(--accent); }
       .theme-detail { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -2242,6 +2259,15 @@
       .ts-preset-card:hover { border-color: var(--accent); }
       .ts-preset-name { display: block; font-size: 15.5px; font-weight: 700; margin: 0 0 2px; }
       .ts-preset-blurb { display: block; font-size: 13px; font-weight: 500; color: var(--ink-2); line-height: 1.45; margin: 0 0 11px; }
+      /* The Apply pill inside a single-preset card
+         (build -55): the whole card is the control; the
+         pill is its visible affordance. */
+      .ts-preset-apply {
+        display: inline-block; margin-top: 12px;
+        font-size: 13.5px; font-weight: 700; color: var(--accent-ink); background: var(--accent);
+        padding: 8px 14px; border-radius: 8px; min-height: 36px; line-height: 20px;
+      }
+      .ts-preset-card:hover .ts-preset-apply { filter: brightness(1.07); }
       .ts-preset-preview { display: block; border-radius: 9px; padding: 13px 15px; overflow: hidden; }
       .ts-preset-preview .pv { display: block; line-height: 1.22; letter-spacing: -0.005em; }
       .ts-preset-preview .pv-sub { display: block; line-height: 1.35; font-style: italic; }
@@ -4287,28 +4313,57 @@
             b.addEventListener('click', function () { themeModalKey = def.id; buildThemeNav(); buildThemeDetail(); });
             themeNavEl.appendChild(b);
             if (def.id === 'quote') {
-              /* TEXT PRESETS (build -54): the preset cards
-                 live in their own nav section directly under
-                 the Text styles group — a group head of its
-                 own (rendered uppercase by the head style)
-                 with a single Presets entry beneath it. */
+              /* TEXT PRESETS (build -55): EVERY preset is
+                 its own nav entry, directly under the Text
+                 styles group — the type presets under a
+                 TYPE PRESETS sub-label, the color schemes
+                 under COLOR SCHEMES, each scheme entry
+                 wearing a swatch strip in its own colors
+                 for the ACTIVE theme. Selecting an entry
+                 shows just that preset's card in the detail
+                 pane. The single "Presets" row from -54 is
+                 gone. TS_PRESETS / TS_COLOR_SCHEMES are
+                 declared below this function but are fully
+                 initialized before the modal ever opens. */
               var ph = document.createElement('div');
               ph.className = 'theme-nav-head';
               ph.textContent = 'Text presets';
               themeNavEl.appendChild(ph);
-              var pb = document.createElement('button');
-              pb.type = 'button';
-              pb.className = 'theme-nav-item' + (themeModalKey === 'presets' ? ' on' : '');
-              pb.setAttribute('role', 'option');
-              pb.setAttribute('aria-selected', themeModalKey === 'presets' ? 'true' : 'false');
-              var pdot = document.createElement('span');
-              pdot.className = 'tn-dot';
-              pb.appendChild(pdot);
-              var plab = document.createElement('span');
-              plab.textContent = 'Presets';
-              pb.appendChild(plab);
-              pb.addEventListener('click', function () { themeModalKey = 'presets'; buildThemeNav(); buildThemeDetail(); });
-              themeNavEl.appendChild(pb);
+              function presetNavSub(text) {
+                var sh = document.createElement('div');
+                sh.className = 'theme-nav-sub';
+                sh.textContent = text;
+                themeNavEl.appendChild(sh);
+              }
+              function presetNavItem(key, name, scheme) {
+                var pb = document.createElement('button');
+                pb.type = 'button';
+                pb.className = 'theme-nav-item' + (themeModalKey === key ? ' on' : '');
+                pb.setAttribute('role', 'option');
+                pb.setAttribute('aria-selected', themeModalKey === key ? 'true' : 'false');
+                pb.setAttribute('data-preset-key', key);
+                var plab = document.createElement('span');
+                plab.textContent = name;
+                pb.appendChild(plab);
+                if (scheme) {
+                  var cols = tsSchemeColors(scheme, themeId);
+                  var sw = document.createElement('span');
+                  sw.className = 'tn-swatches';
+                  sw.setAttribute('aria-hidden', 'true');
+                  ['h1', 'h3', 'h5'].forEach(function (hk) {
+                    var dot = document.createElement('i');
+                    dot.style.background = cols[hk] || 'transparent';
+                    sw.appendChild(dot);
+                  });
+                  pb.appendChild(sw);
+                }
+                pb.addEventListener('click', function () { themeModalKey = key; buildThemeNav(); buildThemeDetail(); });
+                themeNavEl.appendChild(pb);
+              }
+              presetNavSub('Type presets');
+              TS_PRESETS.forEach(function (preset) { presetNavItem('preset:' + preset.id, preset.name, null); });
+              presetNavSub('Color schemes');
+              TS_COLOR_SCHEMES.forEach(function (scheme) { presetNavItem('scheme:' + scheme.id, scheme.name, scheme); });
             }
           });
           themeNavEl.scrollTop = navScroll0;
@@ -4469,69 +4524,134 @@
             colors: { h1: '#93381b', h2: '#a4431f', h3: '#b04e26', h4: '#ba5930', h5: '#c3643c', h6: '#cb714c', subtitle: '#a06a4e' } },
           { id: 'plum', name: 'Plum', blurb: 'Purples from a deep plum lead through violet steps to a soft subtitle.',
             colors: { h1: '#552f7d', h2: '#61388c', h3: '#6c419a', h4: '#774aa6', h5: '#8254b0', h6: '#8f61ba', subtitle: '#7d679a' } },
+          /* Multi-hue schemes (build -55): the levels carry
+             genuinely different hues in a smooth walk, not
+             graded steps of one hue. Each ships TWO value
+             sets — colorsLight for Paper/Sepia, colorsDark
+             for Midnight — because matte tones tuned for
+             paper vanish on the dark ground. tsSchemeColors
+             picks the set for the theme being edited; the
+             four original schemes above keep their single
+             set on every theme, exactly as shipped in -54. */
+          { id: 'autumn-matte', name: 'Autumn Matte', blurb: 'Matte red, orange, ochre yellow, green and tan across the levels — after a muted Obsidian theme, kept soft rather than bright.',
+            colorsLight: { h1: '#a63d2f', h2: '#b85c1e', h3: '#8f6b1c', h4: '#4f7038', h5: '#8a6a42', h6: '#7d6a4a', subtitle: '#7a6f5d' },
+            colorsDark: { h1: '#d98a7a', h2: '#d99a5f', h3: '#d9bc6a', h4: '#9db37e', h5: '#c9ad7f', h6: '#b8a88e', subtitle: '#a89a83' } },
+          { id: 'dusk', name: 'Dusk', blurb: 'A smooth sunset walk — plum through rose and coral to amber as the levels descend.',
+            colorsLight: { h1: '#64366b', h2: '#833a63', h3: '#a0404f', h4: '#b85436', h5: '#96650f', h6: '#8a6a35', subtitle: '#7d5f6e' },
+            colorsDark: { h1: '#c99ac9', h2: '#d18aa8', h3: '#e08a8a', h4: '#eda07a', h5: '#eebd7d', h6: '#e3cfa0', subtitle: '#bfa0b3' } },
+          { id: 'meadow', name: 'Meadow', blurb: 'A varied green walk — deep forest green through leaf and moss to olive, the hue travelling as the levels descend.',
+            colorsLight: { h1: '#20502f', h2: '#2e6034', h3: '#3f6d2f', h4: '#5d7434', h5: '#6f7030', h6: '#7d7440', subtitle: '#61705a' },
+            colorsDark: { h1: '#7ab07f', h2: '#93bd7f', h3: '#a3c172', h4: '#b3bd6d', h5: '#c2ba62', h6: '#cfc084', subtitle: '#a8b39a' } },
         ];
+        /* The color set a scheme wears on a given theme:
+           the dual-set schemes pick light or Midnight;
+           single-set schemes wear theirs everywhere. */
+        function tsSchemeColors(scheme, tid) {
+          if (scheme.colorsLight && scheme.colorsDark) return tid === 'midnight' ? scheme.colorsDark : scheme.colorsLight;
+          return scheme.colors;
+        }
         function tsApplyColorScheme(scheme) {
+          var cols = tsSchemeColors(scheme, themeId);
           TS_PRESET_KEYS.forEach(function (k) {
-            var c = scheme.colors[k];
+            var c = cols[k];
             if (c) tsSetLever(k, 'color', c);
           });
           buildThemeNav();
           if (typeof folioToast === 'function') folioToast(scheme.name + ' color scheme applied to the ' + currentTheme().name + ' theme — heading fonts, sizes and spacing were left as they are.', 3400);
         }
-        function buildPresetsDetail() {
+        /* Single-preset detail (build -55): the detail
+           pane for one nav-selected preset — its name,
+           description, a live preview on the ACTIVE
+           theme's background, and an Apply affordance.
+           The whole card is the apply control, as in -54.
+           Type presets preview their own family / sizes /
+           weights; color schemes preview the headings as
+           they are NOW with only the scheme's colors for
+           the active theme swapped in — for schemes, the
+           preview walks ALL SIX levels so the per-level
+           hues are visible before applying. */
+        function buildPresetDetail() {
           if (!themeDetailEl) return;
           var tid = themeId;
           var sub = document.getElementById('themeModalSub');
           if (sub) sub.textContent = 'Editing the ' + currentTheme().name + ' theme. Styles apply to every document.';
           themeDetailEl.innerHTML = '';
+          var isScheme = themeModalKey.indexOf('scheme:') === 0;
+          var selId = themeModalKey.slice(themeModalKey.indexOf(':') + 1);
+          var preset = null, scheme = null;
+          if (isScheme) TS_COLOR_SCHEMES.forEach(function (s) { if (s.id === selId) scheme = s; });
+          else TS_PRESETS.forEach(function (pr) { if (pr.id === selId) preset = pr; });
+          if (!preset && !scheme) { preset = TS_PRESETS[0]; }
           var note = document.createElement('p');
           note.className = 'ts-presets-note';
-          note.textContent = 'Two independent halves for the ' + currentTheme().name + ' theme\u2019s headings: type presets set family, sizes, weights and spacing; color schemes set heading colors only. Apply one of each — they compose.';
+          note.textContent = isScheme
+            ? 'A color scheme sets heading colors only — family, sizes, weights and spacing are left as they are, so it composes with any type preset.'
+            : 'A type preset sets family, sizes, weights and spacing for the headings — colors are left as they are, so it composes with any color scheme.';
           themeDetailEl.appendChild(note);
           var bg = tsResolved(tid, 'pal-bg', {}).color || 'var(--bg)';
           var ink = tsResolved(tid, 'pal-ink', {}).color || 'var(--ink)';
           var ink2 = tsResolved(tid, 'pal-ink2', {}).color || 'var(--ink-2)';
-          function presetSubhead(text, first) {
-            var h = document.createElement('div');
-            h.className = 'ts-presets-subhead' + (first ? ' first' : '');
-            h.textContent = text;
-            themeDetailEl.appendChild(h);
-          }
-          function presetCard(name, blurb, ariaLabel, onApply) {
-            /* A div, not a <button>: WebKit/Chromium paint
-               scroll-thumb artifacts inside buttons whose
-               block content outgrows them, which landed dark
-               pills on the preview's corners. role=button +
-               tabindex + Enter/Space keep it a real control. */
-            var card = document.createElement('div');
-            card.className = 'ts-preset-card';
-            card.setAttribute('role', 'button');
-            card.setAttribute('tabindex', '0');
-            card.setAttribute('aria-label', ariaLabel);
-            var nm = document.createElement('span');
-            nm.className = 'ts-preset-name';
-            nm.textContent = name;
-            card.appendChild(nm);
-            var bl = document.createElement('span');
-            bl.className = 'ts-preset-blurb';
-            bl.textContent = blurb;
-            card.appendChild(bl);
-            var pv = document.createElement('span');
-            pv.className = 'ts-preset-preview';
-            pv.style.background = bg;
-            card.appendChild(pv);
-            card.addEventListener('click', onApply);
-            card.addEventListener('keydown', function (ev) {
-              if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onApply(); }
+          var name = isScheme ? scheme.name : preset.name;
+          var blurb = isScheme ? scheme.blurb : preset.blurb;
+          var onApply = isScheme
+            ? function () { tsApplyColorScheme(scheme); }
+            : function () { tsApplyPreset(preset); };
+          var card = document.createElement('div');
+          card.className = 'ts-preset-card';
+          card.setAttribute('role', 'button');
+          card.setAttribute('tabindex', '0');
+          card.setAttribute('aria-label', 'Apply the ' + name + (isScheme ? ' heading color scheme' : ' heading preset'));
+          var nm = document.createElement('span');
+          nm.className = 'ts-preset-name';
+          nm.textContent = name;
+          card.appendChild(nm);
+          var bl = document.createElement('span');
+          bl.className = 'ts-preset-blurb';
+          bl.textContent = blurb;
+          card.appendChild(bl);
+          var pv = document.createElement('span');
+          pv.className = 'ts-preset-preview';
+          pv.style.background = bg;
+          card.appendChild(pv);
+          var ap = document.createElement('span');
+          ap.className = 'ts-preset-apply';
+          ap.textContent = 'Apply to ' + currentTheme().name;
+          card.appendChild(ap);
+          card.addEventListener('click', onApply);
+          card.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onApply(); }
+          });
+          themeDetailEl.appendChild(card);
+          var samples = [['h1', 'The quick brown fox'], ['h2', 'Jumps over the lazy dog'], ['h3', 'Pack my box with five dozen jugs'], ['h4', 'Heading four in place'], ['h5', 'Heading five in place'], ['h6', 'Heading six in place']];
+          if (isScheme) {
+            var cols = tsSchemeColors(scheme, tid);
+            samples.forEach(function (pair, idx) {
+              var cur = tsResolved(tid, pair[0]);
+              var base = tsExpandedShipped(tid, pair[0]);
+              var line = document.createElement('span');
+              line.className = 'pv';
+              line.style.fontFamily = TS_FONT_STACKS[cur.font || base.font] || 'inherit';
+              line.style.fontSize = (cur.size || base.size) + 'px';
+              line.style.fontWeight = String(cur.weight || base.weight || 600);
+              line.style.color = cols[pair[0]];
+              line.style.marginTop = (idx === 0 ? 0 : Math.min(cur.before || base.before || 0, 36)) + 'px';
+              line.style.marginBottom = Math.min(cur.after || base.after || 0, 24) + 'px';
+              line.textContent = pair[1];
+              pv.appendChild(line);
             });
-            themeDetailEl.appendChild(card);
-            return pv;
-          }
-          presetSubhead('Type presets', true);
-          TS_PRESETS.forEach(function (preset) {
-            var pv = presetCard(preset.name, preset.blurb, 'Apply the ' + preset.name + ' heading preset', function () { tsApplyPreset(preset); });
+            var sline = document.createElement('span');
+            sline.className = 'pv-sub';
+            var scur = tsResolved(tid, 'subtitle');
+            var sbase = tsExpandedShipped(tid, 'subtitle');
+            sline.style.fontFamily = TS_FONT_STACKS[scur.font || sbase.font] || 'inherit';
+            sline.style.fontSize = (scur.size || sbase.size) + 'px';
+            sline.style.fontWeight = String(scur.weight || sbase.weight || 400);
+            sline.style.color = cols.subtitle;
+            sline.textContent = 'For the attribution line under a document\u2019s tags';
+            pv.appendChild(sline);
+          } else {
             pv.style.color = ink;
-            [['h1', 'The quick brown fox'], ['h2', 'Jumps over the lazy dog'], ['h3', 'Pack my box with five dozen jugs']].forEach(function (pair, idx) {
+            samples.slice(0, 3).forEach(function (pair, idx) {
               var v = preset.values[pair[0]];
               var line = document.createElement('span');
               line.className = 'pv';
@@ -4544,56 +4664,27 @@
               pv.appendChild(line);
             });
             var sv = preset.values.subtitle;
-            var sline = document.createElement('span');
-            sline.className = 'pv-sub';
-            sline.style.fontFamily = TS_FONT_STACKS[sv.font] || 'inherit';
-            sline.style.fontSize = sv.size + 'px';
-            sline.style.fontWeight = String(sv.weight);
-            sline.style.color = ink2;
-            sline.textContent = 'For the attribution line under a document\u2019s tags';
-            pv.appendChild(sline);
-          });
-          presetSubhead('Color schemes — headings', false);
-          TS_COLOR_SCHEMES.forEach(function (scheme) {
-            var pv = presetCard(scheme.name, scheme.blurb, 'Apply the ' + scheme.name + ' heading color scheme', function () { tsApplyColorScheme(scheme); });
-            /* The preview wears the headings as they are NOW
-               (family, sizes, weights as currently resolved)
-               with only the scheme's colors swapped in — on
-               the active theme's own background, so what you
-               see is what applying would do here. */
-            [['h1', 'The quick brown fox'], ['h2', 'Jumps over the lazy dog'], ['h3', 'Pack my box with five dozen jugs']].forEach(function (pair, idx) {
-              var cur = tsResolved(tid, pair[0]);
-              var base = tsExpandedShipped(tid, pair[0]);
-              var line = document.createElement('span');
-              line.className = 'pv';
-              line.style.fontFamily = TS_FONT_STACKS[cur.font || base.font] || 'inherit';
-              line.style.fontSize = (cur.size || base.size) + 'px';
-              line.style.fontWeight = String(cur.weight || base.weight || 600);
-              line.style.color = scheme.colors[pair[0]];
-              line.style.marginTop = (idx === 0 ? 0 : Math.min(cur.before || base.before || 0, 36)) + 'px';
-              line.style.marginBottom = Math.min(cur.after || base.after || 0, 24) + 'px';
-              line.textContent = pair[1];
-              pv.appendChild(line);
-            });
-            var scur = tsResolved(tid, 'subtitle');
-            var sbase = tsExpandedShipped(tid, 'subtitle');
-            var sline = document.createElement('span');
-            sline.className = 'pv-sub';
-            sline.style.fontFamily = TS_FONT_STACKS[scur.font || sbase.font] || 'inherit';
-            sline.style.fontSize = (scur.size || sbase.size) + 'px';
-            sline.style.fontWeight = String(scur.weight || sbase.weight || 400);
-            sline.style.color = scheme.colors.subtitle;
-            sline.textContent = 'For the attribution line under a document\u2019s tags';
-            pv.appendChild(sline);
-          });
-          tsLastDetailKey = 'presets';
+            var sline2 = document.createElement('span');
+            sline2.className = 'pv-sub';
+            sline2.style.fontFamily = TS_FONT_STACKS[sv.font] || 'inherit';
+            sline2.style.fontSize = sv.size + 'px';
+            sline2.style.fontWeight = String(sv.weight);
+            sline2.style.color = ink2;
+            sline2.textContent = 'For the attribution line under a document\u2019s tags';
+            pv.appendChild(sline2);
+          }
+          tsLastDetailKey = themeModalKey;
         }
         function buildThemeDetail() {
           if (!themeDetailEl) return;
           if (tsPickerTeardown) { tsPickerTeardown(); tsPickerTeardown = null; }
           var detailScroll0 = themeDetailEl.scrollTop;
           var detailSameKey = tsLastDetailKey === themeModalKey;
-          if (themeModalKey === 'presets') { buildPresetsDetail(); if (detailSameKey) themeDetailEl.scrollTop = detailScroll0; return; }
+          if (themeModalKey.indexOf('preset:') === 0 || themeModalKey.indexOf('scheme:') === 0 || themeModalKey === 'presets') {
+            /* A stale 'presets' key (the -54 single row) lands on the first type preset. */
+            if (themeModalKey === 'presets') themeModalKey = 'preset:classic-serif';
+            buildPresetDetail(); if (detailSameKey) themeDetailEl.scrollTop = detailScroll0; return;
+          }
           var def = tsDef(themeModalKey);
           if (!def) return;
           var st = tsStore();
@@ -18974,7 +19065,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261028-54';
+        var FOLIO_BUILD = '20261028-55';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
