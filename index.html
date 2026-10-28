@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261028-55" />
+    <meta name="folio-build" content="20261028-56" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2168,6 +2168,14 @@
       .theme-nav-item .tn-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--ink-3); visibility: hidden; }
       .theme-nav-item.modified .tn-dot { visibility: visible; background: var(--accent); }
       .theme-detail { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+      /* The detail column wraps the pane so the phone
+         drill-in (below) can put a labelled header — back
+         button + the picked style's name — over it. On
+         wide screens the header never renders and the
+         wrap is a plain flex column. */
+      .theme-detail-wrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+      .theme-detail-wrap .theme-detail { flex: 1 1 auto; }
+      .theme-detail-head { display: none; }
       .theme-example {
         border: 1px solid var(--line); border-radius: 12px;
         background: var(--surface); padding: 16px 18px; margin-bottom: 14px;
@@ -2284,14 +2292,46 @@
       }
       .theme-modal-foot .spacer { flex: 1; }
       @media (max-width: 700px) {
-        /* Stacked, but still contained (build -54): the nav
-           chip row is capped and scrolls on its own; the
-           detail pane takes the rest and scrolls on its own.
-           The sheet as a whole never scrolls. */
-        .theme-edit { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
-        .theme-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; max-height: 30dvh; align-content: flex-start; }
-        .theme-nav-head { flex: 1 1 100%; padding: 6px 2px 1px; }
-        .theme-nav-item { width: auto; flex: 0 1 auto; padding: 7px 10px; min-height: 38px; }
+        /* Phone drill-in (build -56): the old stacked chip
+           cloud — every setting and preset wrapping into
+           one flowing block above the detail, group labels
+           sitting inline in the flow, the selection often
+           scrolled out of sight while its controls showed
+           below with no name on them — read as one
+           confusing jumble. Now the modal shows ONE thing
+           at a time, like phone Settings: first the full
+           style list as full-width rows (group heads and
+           sub-labels back on their own lines), and tapping
+           a row swaps to that style's detail under a
+           header that names it, with a back button to the
+           list. .ts-show-detail on .theme-edit picks the
+           view; wide screens ignore the class entirely and
+           keep the two-pane layout. Each view is still its
+           own scroll region and the sheet never scrolls. */
+        .theme-edit { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 0; }
+        .theme-nav { flex-direction: column; flex-wrap: nowrap; gap: 2px; max-height: none; padding-right: 0; }
+        .theme-nav-head { flex: 0 0 auto; padding: 10px 10px 3px; }
+        .theme-nav-sub { flex: 0 0 auto; }
+        .theme-nav-item { width: 100%; flex: 0 0 auto; padding: 9px 10px; min-height: 44px; }
+        .theme-detail-wrap { display: none; }
+        .theme-edit.ts-show-detail .theme-nav { display: none; }
+        .theme-edit.ts-show-detail .theme-detail-wrap { display: flex; }
+        .theme-detail-head {
+          display: flex; align-items: center; gap: 6px;
+          padding: 0 0 10px; margin-bottom: 12px;
+          border-bottom: 1px solid var(--line-soft);
+        }
+        .theme-back-btn {
+          display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto;
+          font-size: 14px; font-weight: 700; color: var(--accent);
+          padding: 8px 12px 8px 5px; border-radius: 8px; min-height: 40px;
+          margin-left: -5px;
+        }
+        .theme-back-btn:active { background: var(--hover); }
+        .theme-detail-title {
+          font-size: 16.5px; font-weight: 700; color: var(--ink);
+          min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
       }
 
       /* ---------------- Theme popover ---------------- */
@@ -3298,9 +3338,18 @@
           </button>
         </div>
         <p class="form-note" id="themeModalSub" style="margin-top:2px"></p>
-        <div class="theme-edit">
+        <div class="theme-edit" id="themeEdit">
           <div class="theme-nav" id="themeNav" role="listbox" aria-label="Style settings"></div>
-          <div class="theme-detail" id="themeDetail"></div>
+          <div class="theme-detail-wrap">
+            <div class="theme-detail-head">
+              <button class="theme-back-btn" id="themeBackBtn" type="button" aria-label="Back to all styles">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5.5-6 6.5 6 6.5"/></svg>
+                Styles
+              </button>
+              <span class="theme-detail-title" id="themeDetailTitle"></span>
+            </div>
+            <div class="theme-detail" id="themeDetail"></div>
+          </div>
         </div>
         <div class="theme-modal-foot">
           <button class="btn-ghost btn-danger-ghost" id="themeResetBtn" type="button">Reset to Theme defaults</button>
@@ -4271,6 +4320,36 @@
         var themeModalEl = document.getElementById('themeModal');
         var themeNavEl = document.getElementById('themeNav');
         var themeDetailEl = document.getElementById('themeDetail');
+        /* Phone drill-in (build -56): .ts-show-detail on
+           .theme-edit swaps the phone layout between the
+           style list and one style's detail; the detail
+           header names the picked style. Both are inert on
+           wide screens. TS_PRESETS / TS_COLOR_SCHEMES are
+           declared below but initialized before the modal
+           ever opens, as with buildThemeNav's use of them. */
+        var themeEditEl = document.getElementById('themeEdit');
+        var themeDetailTitleEl = document.getElementById('themeDetailTitle');
+        function tsDetailLabel() {
+          if (themeModalKey.indexOf('preset:') === 0) {
+            var pid = themeModalKey.slice('preset:'.length), pnm = 'Preset';
+            TS_PRESETS.forEach(function (pr) { if (pr.id === pid) pnm = pr.name; });
+            return pnm;
+          }
+          if (themeModalKey.indexOf('scheme:') === 0) {
+            var sid = themeModalKey.slice('scheme:'.length), snm = 'Color scheme';
+            TS_COLOR_SCHEMES.forEach(function (sc) { if (sc.id === sid) snm = sc.name; });
+            return snm;
+          }
+          var d = tsDef(themeModalKey);
+          return d ? d.label : '';
+        }
+        function tsSyncDetailHead() {
+          if (themeDetailTitleEl) themeDetailTitleEl.textContent = tsDetailLabel();
+        }
+        function tsShowDetail() {
+          if (themeEditEl) themeEditEl.classList.add('ts-show-detail');
+          tsSyncDetailHead();
+        }
         var themeModalKey = 'h2';
         /* The detail key the pane last rendered (build -54):
            rebuilds for the SAME key (lever edits, picker
@@ -4310,7 +4389,7 @@
             var lab = document.createElement('span');
             lab.textContent = def.label;
             b.appendChild(lab);
-            b.addEventListener('click', function () { themeModalKey = def.id; buildThemeNav(); buildThemeDetail(); });
+            b.addEventListener('click', function () { themeModalKey = def.id; buildThemeNav(); buildThemeDetail(); tsShowDetail(); });
             themeNavEl.appendChild(b);
             if (def.id === 'quote') {
               /* TEXT PRESETS (build -55): EVERY preset is
@@ -4357,7 +4436,7 @@
                   });
                   pb.appendChild(sw);
                 }
-                pb.addEventListener('click', function () { themeModalKey = key; buildThemeNav(); buildThemeDetail(); });
+                pb.addEventListener('click', function () { themeModalKey = key; buildThemeNav(); buildThemeDetail(); tsShowDetail(); });
                 themeNavEl.appendChild(pb);
               }
               presetNavSub('Type presets');
@@ -4572,6 +4651,7 @@
            hues are visible before applying. */
         function buildPresetDetail() {
           if (!themeDetailEl) return;
+          tsSyncDetailHead();
           var tid = themeId;
           var sub = document.getElementById('themeModalSub');
           if (sub) sub.textContent = 'Editing the ' + currentTheme().name + ' theme. Styles apply to every document.';
@@ -4677,6 +4757,7 @@
         }
         function buildThemeDetail() {
           if (!themeDetailEl) return;
+          tsSyncDetailHead();
           if (tsPickerTeardown) { tsPickerTeardown(); tsPickerTeardown = null; }
           var detailScroll0 = themeDetailEl.scrollTop;
           var detailSameKey = tsLastDetailKey === themeModalKey;
@@ -5071,6 +5152,9 @@
         }
         function openThemeModal() {
           if (!themeModalEl) return;
+          /* Phone opens on the style list (build -56): the
+             drill-in starts at the top level every time. */
+          if (themeEditEl) themeEditEl.classList.remove('ts-show-detail');
           themeResetArmed = false;
           var resetBtn = document.getElementById('themeResetBtn');
           if (resetBtn) resetBtn.textContent = 'Reset ' + currentTheme().name + ' to defaults';
@@ -5099,6 +5183,14 @@
            exactly like the Heading palette's item. */
         var themeCustomizeBtn = document.getElementById('themeCustomizeBtn');
         if (themeCustomizeBtn) themeCustomizeBtn.addEventListener('click', function () { closeThemePop(); openThemeModal(); });
+        var themeBackBtn = document.getElementById('themeBackBtn');
+        if (themeBackBtn) themeBackBtn.addEventListener('click', function () {
+          if (themeEditEl) themeEditEl.classList.remove('ts-show-detail');
+          if (themeNavEl) {
+            var on = themeNavEl.querySelector('.theme-nav-item.on');
+            if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+          }
+        });
         var themeModalCloseBtn = document.getElementById('themeModalClose');
         if (themeModalCloseBtn) themeModalCloseBtn.addEventListener('click', closeThemeModal);
         var themeDoneBtn = document.getElementById('themeDoneBtn');
@@ -19065,7 +19157,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261028-55';
+        var FOLIO_BUILD = '20261028-56';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
