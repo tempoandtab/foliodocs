@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-62" />
+    <meta name="folio-build" content="20261029-63" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2653,6 +2653,23 @@
       .bundle-addto-main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
       .bundle-addto-name { font-size: 14.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .bundle-addto-meta { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+
+      /* ---------------- Go to root (build -63) ----------------
+         A non-root member's way back to the set it belongs to:
+         one quiet link-style row per bundle, naming that set's
+         root document. Deliberately minor — accent text on the
+         panel's own row rhythm, never a primary button — and
+         absent entirely when no bundle qualifies, so a document
+         in no set sees no trace of it. */
+      .bundle-gotoroot-link {
+        display: flex; align-items: center; gap: 7px;
+        width: 100%; text-align: left;
+        padding: 8px 2px; min-height: 36px; border-radius: 7px;
+        font-size: 13.5px; font-weight: 600; color: var(--accent);
+      }
+      .bundle-gotoroot-link:hover { background: var(--hover); text-decoration: underline; }
+      .bundle-gotoroot-arrow { flex: 0 0 auto; font-weight: 400; }
+      .bundle-gotoroot-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .bundle-watch { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
       .watch-group-label {
         font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
@@ -3539,6 +3556,7 @@
           </div>
           <div class="pop-label" style="margin-top:14px">Active links</div>
           <div id="shareList"></div>
+          <div id="shareGoToRootPanel"></div>
           <div class="pop-label" style="margin-top:14px" id="shareBundleLabel" hidden>Shared as a set</div>
           <div id="shareBundlePanel"></div>
           <div class="pop-label" style="margin-top:14px" id="shareAddToLabel" hidden>Add to a share bundle</div>
@@ -19347,7 +19365,19 @@
            Bulk paths never call the trigger (tag rename/merge,
            multi-select moves, folder-delete lifts, imports),
            and leaving a folder or losing a tag never prompts
-           and never removes membership. */
+           and never removes membership.
+
+           Build -63 adds GO TO ROOT, same record, no new
+           dashboard step: the Share panel of a document that is
+           a NON-ROOT member of a bundle gains one quiet
+           link-style row per such bundle, labeled with the root
+           document's title. Activating a row opens the root
+           document in the editor and then opens the ROOT's
+           Share panel — the panel where that set is managed.
+           A bundle whose root document is no longer in the
+           library contributes no row, and a root's own panel
+           shows rows only for OTHER bundles it belongs to as a
+           member. */
         function normShareTitle(t) { return String(t || '').trim().toLowerCase(); }
         function shareFolderHint(doc) {
           if (!doc || !doc.folderId) return '';
@@ -19764,6 +19794,54 @@
           var rid = remoteIdFor('docs', doc.id);
           return r.doc === doc.id || (!!rid && r.doc === rid);
         }
+        /* The bundle's root as a library document (build -63):
+           the root member's recorded document id resolved
+           against the library, in either namespace (the drift
+           check's rule — local 'd…' ids and remote UUIDs never
+           collide). A member with no recorded id resolves by
+           title instead. Null when the root is not in the
+           library anymore: callers omit it silently rather
+           than offer a dead link. */
+        function bundleRootDoc(bundle) {
+          var r = bundleRootMember(bundle);
+          if (!r) return null;
+          if (r.doc) {
+            var direct = lib.docs.find(function (d) { return d.id === r.doc; });
+            if (direct) return direct;
+            var byRemote = lib.docs.find(function (d) { return remoteIdFor('docs', d.id) === r.doc; });
+            return byRemote || null;
+          }
+          return r.title ? findDocByTitle(r.title) : null;
+        }
+        /* Go-to-root entries for a document (build -63): one
+           per bundle the document belongs to as a NON-ROOT
+           member whose root still exists in the library,
+           alphabetical by root title like the Add-to section.
+           Pure over the library and the given bundles — the
+           panel path feeds it allOwnerBundles(), the harness
+           feeds it stored manifests. */
+        function goToRootEntriesFor(doc, bundles) {
+          if (!doc) return [];
+          var seen = {};
+          var out = [];
+          (bundles || []).forEach(function (b) {
+            if (!b || !b.members || !b.members.length) return;
+            if (!bundleHasDoc(b, doc)) return;
+            if (bundleIsRootDoc(b, doc)) return;
+            var rootDoc = bundleRootDoc(b);
+            if (!rootDoc || rootDoc.id === doc.id) return;
+            var key = bundleKeyOf(b);
+            if (!key || seen[key]) return;
+            seen[key] = true;
+            out.push({ bundle: b, rootDoc: rootDoc, rootTitle: rootDoc.title || bundleRootTitle(b) });
+          });
+          out.sort(function (a, b) {
+            var ta = a.rootTitle.toLowerCase();
+            var tb = b.rootTitle.toLowerCase();
+            return ta < tb ? -1 : (ta > tb ? 1 : 0);
+          });
+          return out;
+        }
 
         function refreshShareBadge() {
           var badge = document.getElementById('shareBadge');
@@ -19793,6 +19871,12 @@
           document.getElementById('shareSignedOut').hidden = !signedOut;
           document.getElementById('shareMain').hidden = signedOut;
           if (!signedOut) { loadShareList(); loadOwnerComments(); refreshShareStyleSnapshots(); }
+          /* Signed out, the main panel is hidden anyway, but the
+             go-to-root rows (build -63) read only the local
+             bundle copies — refreshing them keeps the panel's
+             state settled on the document it now names, e.g.
+             right after a go-to-root navigation lands here. */
+          else { loadGoToRootPanel(); }
         }
         function closeShareModal() { document.getElementById('shareModal').hidden = true; }
         /* The root share's panel shows the bundle it heads:
@@ -20313,9 +20397,83 @@
             loadShareList();
           }).catch(function () { if (btn) btn.disabled = false; });
         }
+        /* ---------------- go to root (build -63) ----------------
+           The mirror of the root panel's set section, for the
+           members: a document that belongs to a set as a
+           non-root member gets one quiet link row per such set,
+           naming the root document. The set's management (wiki
+           switch, Add documents, watch rules, drift review,
+           revoke) all lives in the ROOT's Share panel, so the
+           row's whole job is the trip there: open the root
+           document in the editor, then open its Share panel.
+           The enumeration is the same one Feature A uses
+           (local copies plus remote manifests), so no backend
+           shape changes; a bundle whose root has left the
+           library is skipped by goToRootEntriesFor, silently. */
+        var shareGoToRootEntries = [];
+        function loadGoToRootPanel() {
+          var wrap = document.getElementById('shareGoToRootPanel');
+          if (!wrap) return;
+          wrap.innerHTML = '';
+          shareGoToRootEntries = [];
+          var forDocId = shareModalDocId;
+          var doc = lib.docs.find(function (d) { return d.id === forDocId; });
+          if (!doc) return;
+          allOwnerBundles().then(function (bundles) {
+            if (shareModalDocId !== forDocId) return;
+            renderGoToRootSection(doc, bundles);
+          }).catch(function () {});
+        }
+        function renderGoToRootSection(doc, bundles) {
+          var wrap = document.getElementById('shareGoToRootPanel');
+          if (!wrap || !doc) return;
+          wrap.innerHTML = '';
+          var entries = goToRootEntriesFor(doc, bundles);
+          shareGoToRootEntries = entries;
+          entries.forEach(function (e) { wrap.appendChild(goToRootRowEl(e)); });
+        }
+        function goToRootRowEl(entry) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'bundle-gotoroot-link';
+          btn.setAttribute('data-gotoroot-bundle', bundleKeyOf(entry.bundle));
+          btn.setAttribute('data-gotoroot-root', entry.rootDoc.id);
+          btn.setAttribute('data-tip', 'Open \u201C' + entry.rootTitle + '\u201D and manage its share set');
+          btn.setAttribute('aria-label', 'Go to root document \u201C' + entry.rootTitle + '\u201D and open its sharing panel');
+          var arrow = document.createElement('span');
+          arrow.className = 'bundle-gotoroot-arrow';
+          arrow.textContent = '\u2192';
+          arrow.setAttribute('aria-hidden', 'true');
+          btn.appendChild(arrow);
+          var label = document.createElement('span');
+          label.className = 'bundle-gotoroot-label';
+          label.appendChild(document.createTextNode('Go to root \u2014 '));
+          var rootName = document.createElement('span');
+          rootName.className = 'bundle-gotoroot-root-title';
+          rootName.textContent = entry.rootTitle;
+          label.appendChild(rootName);
+          btn.appendChild(label);
+          btn.addEventListener('click', function () { goToBundleRoot(entry.bundle); });
+          return btn;
+        }
+        /* The trip itself: the root document becomes the open
+           document, and its Share panel opens over it (the
+           openShareModal path re-reads the current document, so
+           the panel that lands is the root's own). Purely local
+           navigation — no share state is read or written. If
+           the root has left the library since the row rendered,
+           the row simply does nothing. */
+        function goToBundleRoot(bundle) {
+          var rootDoc = bundleRootDoc(bundle);
+          if (!rootDoc) return false;
+          openDoc(rootDoc.id, false);
+          openShareModal();
+          return true;
+        }
         function loadShareList() {
           loadBundlePanel();
           loadAddToBundlePanel();
+          loadGoToRootPanel();
           var listEl = document.getElementById('shareList');
           var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
@@ -22506,6 +22664,73 @@
               rows: rows,
             };
           },
+          /* ---- build -63: go to root ---- */
+          /* The pure half: which bundles a document gets a
+             go-to-root row for, over the given stored bundles
+             (or the local copies when none are given). A
+             bundle qualifies only when the document is a
+             non-root member and its root still exists in the
+             library. */
+          goToRootFor: function (docId, bundlesRaw) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!d) return [];
+            var bundles = bundlesRaw
+              ? (bundlesRaw || []).map(function (r) { return parseShareBundle(r); }).filter(Boolean)
+              : localBundles();
+            return goToRootEntriesFor(d, bundles).map(function (e) {
+              return {
+                key: bundleKeyOf(e.bundle),
+                rootToken: e.bundle.rootToken,
+                rootDocId: e.rootDoc.id,
+                rootTitle: e.rootTitle,
+              };
+            });
+          },
+          /* Renders the real go-to-root rows for a document
+             against stored bundles (the panel path enumerates
+             the owner's sets instead) and reads them back. */
+          goToRootPanelFor: function (docId, bundlesRaw) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!d) return null;
+            shareModalDocId = docId;
+            var bundles = bundlesRaw
+              ? (bundlesRaw || []).map(function (r) { return parseShareBundle(r); }).filter(Boolean)
+              : localBundles();
+            renderGoToRootSection(d, bundles);
+            return window.FolioShareBundle.goToRootDomState();
+          },
+          goToRootDomState: function () {
+            var rows = [];
+            document.querySelectorAll('#shareGoToRootPanel .bundle-gotoroot-link').forEach(function (el) {
+              var name = el.querySelector('.bundle-gotoroot-root-title');
+              rows.push({
+                key: el.getAttribute('data-gotoroot-bundle'),
+                rootDocId: el.getAttribute('data-gotoroot-root'),
+                rootTitle: name ? name.textContent : '',
+                text: el.textContent,
+              });
+            });
+            var modal = document.getElementById('shareModal');
+            var nameEl = document.getElementById('shareDocName');
+            return {
+              rows: rows,
+              currentDocId: lib.currentId,
+              shareModalDocId: shareModalDocId,
+              shareOpen: modal ? !modal.hidden : null,
+              shareDocName: nameEl ? nameEl.textContent : null,
+            };
+          },
+          /* Clicks a rendered go-to-root row (the first, or the
+             one at the given index) and reads back where the
+             app landed: the open document and the Share panel's
+             state, which together are the navigation claim. */
+          activateGoToRoot: function (index) {
+            var rows = document.querySelectorAll('#shareGoToRootPanel .bundle-gotoroot-link');
+            var el = rows[index || 0];
+            if (!el) return null;
+            el.click();
+            return window.FolioShareBundle.goToRootDomState();
+          },
         };
 
         /* ---------------- backend boot ---------------- */
@@ -22602,7 +22827,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-62';
+        var FOLIO_BUILD = '20261029-63';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
