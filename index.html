@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-61" />
+    <meta name="folio-build" content="20261029-62" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2635,6 +2635,48 @@
          modal's does. */
       .adddocs-list { margin-top: 6px; max-height: 46dvh; overflow-y: auto; }
 
+      /* ---------------- Add to a share bundle + watch rules (build -62) ----------------
+         Feature A rows live in the Share panel under their own
+         label: one row per bundle the owner has (root title,
+         member count, wiki badge), an Add button, or — for a
+         set this document already belongs to — a disabled
+         button and the already-in-set badge. The watch editor
+         sits inside the root panel's set section: watched
+         folders and tags as removable chips, each group with a
+         picker over what the library still offers. */
+      .bundle-addto-row {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 0; border-bottom: 1px solid var(--line-soft);
+      }
+      .bundle-addto-row:last-child { border-bottom: 0; }
+      .bundle-addto-row.is-member { opacity: 0.75; }
+      .bundle-addto-main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+      .bundle-addto-name { font-size: 14.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .bundle-addto-meta { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+      .bundle-watch { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+      .watch-group-label {
+        font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+        text-transform: uppercase; color: var(--ink-3); margin-top: 12px;
+      }
+      .watch-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+      .watch-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 13px; font-weight: 600; color: var(--chip-ink);
+        background: var(--chip-bg); padding: 3px 4px 3px 10px; border-radius: 999px;
+      }
+      .watch-chip button {
+        width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto;
+        display: inline-flex; align-items: center; justify-content: center; color: inherit;
+      }
+      .watch-chip button:hover { background: var(--hover); }
+      .watch-picker { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+      .watch-select {
+        flex: 1; min-width: 150px; font: inherit; font-size: 14px; color: var(--ink);
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: 9px; padding: 8px 10px; min-height: 40px;
+      }
+      .watch-empty { font-size: 12.5px; color: var(--ink-3); margin-top: 6px; }
+
       /* ---------------- Public share view ---------------- */
       .share-view { position: fixed; inset: 0; z-index: 120; background: var(--bg); overflow-y: auto; }
       .share-view[hidden] { display: none; }
@@ -3499,6 +3541,8 @@
           <div id="shareList"></div>
           <div class="pop-label" style="margin-top:14px" id="shareBundleLabel" hidden>Shared as a set</div>
           <div id="shareBundlePanel"></div>
+          <div class="pop-label" style="margin-top:14px" id="shareAddToLabel" hidden>Add to a share bundle</div>
+          <div id="shareAddToPanel"></div>
           <div class="pop-label" style="margin-top:14px">Comments</div>
           <div id="ownerComments"></div>
         </div>
@@ -3556,6 +3600,23 @@
         <div class="bundle-foot">
           <button class="btn-ghost" id="shareDriftCancel" type="button">Not now</button>
           <button class="btn-primary" id="shareDriftConfirm" type="button">Add documents</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shareWatchModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareWatchTitle">
+        <div class="panel-head">
+          <h2 id="shareWatchTitle">Share this document as part of the following bundles?</h2>
+          <button class="icon-btn" id="shareWatchClose" type="button" aria-label="Cancel" data-tip="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note">&ldquo;<span id="shareWatchDocName"></span>&rdquo; landed in a folder or gained a tag that these share bundles watch. It gets a link with each bundle&rsquo;s permission and joins that set. Uncheck any bundle you don&rsquo;t want — the choice is for this time only, and you&rsquo;ll be asked again next time.</p>
+        <div class="bundle-list" id="shareWatchList"></div>
+        <div class="bundle-foot">
+          <button class="btn-ghost" id="shareWatchCancel" type="button">Cancel</button>
+          <button class="btn-primary" id="shareWatchConfirm" type="button">Share with 1 bundle</button>
         </div>
       </div>
     </div>
@@ -6150,10 +6211,15 @@
                  timestamp declines the placement (the merge's
                  tie-heal covers rows already stranded that way;
                  the stamp keeps new moves out of the tie). */
+              var movedIn = (doc.folderId || null) !== folderId && !!folderId;
               if ((doc.folderId || null) !== folderId) { doc.folderId = folderId; doc.updated = Date.now(); }
               if (folderId) expandFolderChain(folderId);
               persist(true);
               renderDocList();
+              /* Watch rules (build -62): a single-document
+                 move into a watched folder asks; the multi
+                 branch above returned already and never does. */
+              if (movedIn) maybePromptWatchShare(doc, { folder: folderId });
             });
             moveMenuEl.appendChild(b);
           }
@@ -7970,6 +8036,12 @@
           if (folderId) expandFolderChain(folderId);
           persist(true);
           renderDocList();
+          /* Watch rules (build -62): a single-document move
+             INTO a folder is a trigger; a move out to the root
+             (folderId null) never prompts. The multi-document
+             drag goes through moveDocsToFolder instead and
+             stays silent, like every bulk path. */
+          if (folderId) maybePromptWatchShare(d, { folder: folderId });
         }
         function nestFolder(folderId, parentId) {
           var f = folderById(folderId);
@@ -9376,6 +9448,10 @@
           if (!navTraversing) navRecordVisit(id);
           persist(false);
           lib.currentId = id;
+          /* The watch rules' tag baseline (build -62): what
+             this document already carries when it is opened
+             is never "added through editing". */
+          seedWatchTags(doc);
           document.getElementById('titleInput').value = doc.title;
           fitTitleHeight();
           fitTitlePhone();
@@ -9430,6 +9506,11 @@
           openDoc(doc.id, false);
           titleInput.focus();
           titleInput.select();
+          /* Watch rules (build -62): a document created in a
+             watched folder is a trigger. This is the one
+             creation door that lands in a folder — imports
+             build their documents elsewhere and never prompt. */
+          maybePromptWatchShare(doc, { folder: folderId });
         }
 
         // Where a general New document lands, per the "New
@@ -11177,6 +11258,14 @@
             wordCount(json);
             renderTagsSection();
             if (tagFilter) renderDocList();
+            /* Watch rules (build -62): a tag added through
+               editing THIS document is a trigger. The diff
+               runs against the baseline seeded when the
+               document was opened, so library-wide rewrites
+               (rename / merge / remove — which never pass
+               through onUpdate, and reseed via openDoc) can
+               never prompt. */
+            checkTagTrigger(doc);
           },
           onSelectionChange: function () { refreshToolbar(); },
           onNavigate: function (title) { navigateToTitle(title); },
@@ -19234,7 +19323,31 @@
            views, a member whose token stops resolving is
            omitted from the sidebar, tag lists, and search, and
            links to it render as plain text — view-time only,
-           the owner's manifest is never rewritten. */
+           the owner's manifest is never rewritten.
+
+           Build -62 adds the two bundle gates, same record,
+           no new dashboard step. ADD TO A BUNDLE: every
+           document's Share panel lists all of the owner's
+           bundles (root title, member count, wiki marker) and
+           one tap joins this document to a chosen set through
+           the -60 grow path; sets it already belongs to show
+           disabled, its own set is not offered, and with no
+           bundles at all the section is absent. WATCH RULES:
+           the manifest gains watch: { folders: [folderIds],
+           tags: [tagKeys] }, edited from the root panel's set
+           section as removable chips plus pickers. Three
+           single-document events evaluate the rules in the
+           signed-in app — a document created in a watched
+           folder, a document moved into one, a watched tag
+           added through editing that document — and any match
+           (the document not already a member; a bundle matched
+           by folder and tag alike listed once) opens a prompt
+           whose rows all start checked; confirming grows each
+           checked bundle, and unchecking is per-event only.
+           Bulk paths never call the trigger (tag rename/merge,
+           multi-select moves, folder-delete lifts, imports),
+           and leaving a folder or losing a tag never prompts
+           and never removes membership. */
         function normShareTitle(t) { return String(t || '').trim().toLowerCase(); }
         function shareFolderHint(doc) {
           if (!doc || !doc.folderId) return '';
@@ -19288,6 +19401,33 @@
             return !(rid && memberDocs[rid]);
           });
         }
+        /* Watch rules (build -62): the bundle record's
+           watch: { folders: [folderIds], tags: [tagKeys] }.
+           Folder ids are the library's own ids (matching also
+           accepts a folder's remote id, the drift check's
+           two-namespace rule); tag keys are the lowercase
+           docTags keys. Anything malformed normalizes to
+           empty lists, so a -59/-60/-61 manifest (no watch)
+           parses as a bundle that watches nothing. */
+        function normalizeWatch(w) {
+          var folders = [];
+          var tags = [];
+          if (w && typeof w === 'object') {
+            if (Array.isArray(w.folders)) {
+              w.folders.forEach(function (f) {
+                if (typeof f === 'string' && f && folders.indexOf(f) === -1) folders.push(f);
+              });
+            }
+            if (Array.isArray(w.tags)) {
+              w.tags.forEach(function (t) {
+                if (typeof t !== 'string' || !t) return;
+                var k = t.toLowerCase();
+                if (tags.indexOf(k) === -1) tags.push(k);
+              });
+            }
+          }
+          return { folders: folders, tags: tags };
+        }
         function parseShareBundle(raw) {
           var b = raw;
           if (typeof b === 'string') {
@@ -19309,6 +19449,7 @@
                Anything but a literal true is off, so a -59
                manifest (no flag) parses as a plain bundle. */
             wiki: b.wiki === true,
+            watch: normalizeWatch(b.watch),
             members: members,
             byTitle: byTitle,
           };
@@ -19319,6 +19460,7 @@
             id: bundle.id,
             rootToken: bundle.rootToken,
             wiki: bundle.wiki === true,
+            watch: normalizeWatch(bundle.watch),
             members: bundle.members.map(function (m) {
               var out = { token: m.token, doc: m.doc || null, title: m.title };
               /* Whether the bundle CREATED this member's share
@@ -19552,6 +19694,77 @@
           } catch (e) {}
         }
 
+        /* ---------------- bundle enumeration & membership (build -62) ----------------
+           Feature A ("Add to a share bundle") and the watch
+           rules both need ALL of the owner's bundles, not just
+           the one a given share belongs to. The local store is
+           the synchronous half: it maps every member token to
+           its manifest, so the sets are the distinct manifests
+           in it. The remote half (sets created on another
+           device, whose manifests live only in the bundle
+           column) lists the owner's share tokens and reads
+           each one's manifest back, the per-token fetch falling
+           back to the local copy exactly as everywhere else. */
+        function bundleKeyOf(bundle) { return bundle ? (bundle.id || bundle.rootToken) : null; }
+        function localBundles() {
+          var store = localBundleStore();
+          var seen = {};
+          var out = [];
+          Object.keys(store).forEach(function (tok) {
+            var b = parseShareBundle(store[tok]);
+            if (!b) return;
+            var k = bundleKeyOf(b);
+            if (!k || seen[k]) return;
+            seen[k] = true;
+            out.push(b);
+          });
+          return out;
+        }
+        function allOwnerBundles() {
+          var local = localBundles();
+          if (!sb || !sbUser) return Promise.resolve(local);
+          return sb.from('shares').select('token').then(function (res) {
+            if (!res || res.error || !res.data || !res.data.length) return local;
+            var byKey = {};
+            local.forEach(function (b) { byKey[bundleKeyOf(b)] = b; });
+            var chain = Promise.resolve();
+            res.data.forEach(function (row) {
+              chain = chain.then(function () {
+                return fetchShareBundle(row.token).then(function (b) {
+                  if (b) byKey[bundleKeyOf(b)] = b;
+                });
+              });
+            });
+            return chain.then(function () {
+              return Object.keys(byKey).map(function (k) { return byKey[k]; });
+            });
+          }).catch(function () { return local; });
+        }
+        function bundleRootMember(bundle) {
+          if (!bundle || !bundle.members || !bundle.members.length) return null;
+          return bundle.members.find(function (m) { return m.token === bundle.rootToken; }) || bundle.members[0];
+        }
+        function bundleRootTitle(bundle) {
+          var r = bundleRootMember(bundle);
+          return r ? (r.title || 'Untitled') : 'Untitled';
+        }
+        /* Membership and root-hood, keyed like the drift
+           check: the member's recorded remote document id, or
+           the local id — the two namespaces never collide. */
+        function bundleHasDoc(bundle, doc) {
+          if (!bundle || !doc || !bundle.members) return false;
+          var rid = remoteIdFor('docs', doc.id);
+          return bundle.members.some(function (m) {
+            return !!m.doc && (m.doc === doc.id || (!!rid && m.doc === rid));
+          });
+        }
+        function bundleIsRootDoc(bundle, doc) {
+          var r = bundleRootMember(bundle);
+          if (!r || !doc || !r.doc) return false;
+          var rid = remoteIdFor('docs', doc.id);
+          return r.doc === doc.id || (!!rid && r.doc === rid);
+        }
+
         function refreshShareBadge() {
           var badge = document.getElementById('shareBadge');
           if (!badge) return;
@@ -19714,6 +19927,11 @@
             addBtn.addEventListener('click', function () { openAddDocsModal(bundle); });
             actions.appendChild(addBtn);
             wrap.appendChild(actions);
+            /* Watch rules (build -62): the set's watched
+               folders and tags, edited in place — chips remove,
+               pickers add. Changes persist through the same
+               manifest write as the wiki switch. */
+            wrap.appendChild(bundleWatchEl(bundle));
             /* Drift notice (build -61): the root's current
                closure, recomputed against this set. Anything
                reachable now but not a member is drift; when
@@ -19767,6 +19985,198 @@
             return manifest;
           });
         }
+        /* ---------------- watch rules editor (build -62) ----------------
+           The root panel's editor for the bundle's watch
+           rules: watched folders and tags as removable chips,
+           each group with a picker over what the library still
+           offers (folders in tree order, tags from the tag
+           list). Every change writes a fresh manifest through
+           persistBundleManifest — the wiki switch's own path —
+           so the rules ride the bundle record to every member
+           row and the local copy, and triggers on any device
+           read the same rules. */
+        function folderTreeFlat() {
+          var out = [];
+          (function walk(parentId, depth) {
+            childFolders(parentId).forEach(function (f) {
+              out.push({ folder: f, depth: depth });
+              walk(f.id, depth + 1);
+            });
+          })(null, 0);
+          return out;
+        }
+        function bundleWatchEl(bundle) {
+          var watch = normalizeWatch(bundle && bundle.watch);
+          var wrap = document.createElement('div');
+          wrap.className = 'bundle-watch';
+          wrap.id = 'shareBundleWatch';
+          var name = document.createElement('span');
+          name.className = 'bundle-wiki-name';
+          name.textContent = 'Watch for new documents';
+          wrap.appendChild(name);
+          var desc = document.createElement('span');
+          desc.className = 'bundle-wiki-desc';
+          desc.textContent = 'When a document is created or moved into a watched folder, or a watched tag is added to it, you\u2019ll be asked whether to share it as part of this set. Documents already in the set are never asked about, and nothing is ever added without asking.';
+          wrap.appendChild(desc);
+          /* --- folders --- */
+          var fLabel = document.createElement('div');
+          fLabel.className = 'watch-group-label';
+          fLabel.textContent = 'Folders';
+          wrap.appendChild(fLabel);
+          if (watch.folders.length) {
+            var fChips = document.createElement('div');
+            fChips.className = 'watch-chips';
+            watch.folders.forEach(function (fid) {
+              var f = folderById(fid);
+              var chip = document.createElement('span');
+              chip.className = 'watch-chip';
+              chip.setAttribute('data-watch-folder-chip', fid);
+              var lab = document.createElement('span');
+              lab.textContent = f ? f.name : 'Folder no longer in the library';
+              chip.appendChild(lab);
+              var x = document.createElement('button');
+              x.type = 'button';
+              x.textContent = '\u00D7';
+              x.setAttribute('data-watch-remove-folder', fid);
+              x.setAttribute('aria-label', 'Stop watching ' + (f ? f.name : 'this folder'));
+              x.setAttribute('data-tip', 'Stop watching this folder');
+              x.addEventListener('click', function () {
+                setBundleWatch(bundle, {
+                  folders: watch.folders.filter(function (v) { return v !== fid; }),
+                  tags: watch.tags,
+                });
+              });
+              chip.appendChild(x);
+              fChips.appendChild(chip);
+            });
+            wrap.appendChild(fChips);
+          } else {
+            var fNone = document.createElement('div');
+            fNone.className = 'watch-empty';
+            fNone.textContent = 'No folders watched.';
+            wrap.appendChild(fNone);
+          }
+          var fCandidates = folderTreeFlat().filter(function (e) {
+            return watch.folders.indexOf(e.folder.id) === -1;
+          });
+          if (fCandidates.length) {
+            var fPicker = document.createElement('div');
+            fPicker.className = 'watch-picker';
+            var fSel = document.createElement('select');
+            fSel.className = 'watch-select';
+            fSel.setAttribute('data-watch-folder-select', '');
+            fSel.setAttribute('aria-label', 'Folder to watch');
+            fCandidates.forEach(function (e) {
+              var opt = document.createElement('option');
+              opt.value = e.folder.id;
+              opt.textContent = (e.depth ? '\u00A0\u00A0'.repeat(e.depth) : '') + e.folder.name;
+              fSel.appendChild(opt);
+            });
+            fPicker.appendChild(fSel);
+            var fAdd = document.createElement('button');
+            fAdd.type = 'button';
+            fAdd.className = 'btn-ghost';
+            fAdd.textContent = 'Watch folder';
+            fAdd.setAttribute('data-watch-add-folder', '');
+            fAdd.addEventListener('click', function () {
+              if (!fSel.value) return;
+              setBundleWatch(bundle, { folders: watch.folders.concat([fSel.value]), tags: watch.tags });
+            });
+            fPicker.appendChild(fAdd);
+            wrap.appendChild(fPicker);
+          }
+          /* --- tags --- */
+          var tLabel = document.createElement('div');
+          tLabel.className = 'watch-group-label';
+          tLabel.textContent = 'Tags';
+          wrap.appendChild(tLabel);
+          if (watch.tags.length) {
+            var tChips = document.createElement('div');
+            tChips.className = 'watch-chips';
+            watch.tags.forEach(function (key) {
+              var chip = document.createElement('span');
+              chip.className = 'watch-chip';
+              chip.setAttribute('data-watch-tag-chip', key);
+              var lab = document.createElement('span');
+              lab.textContent = '#' + canonicalTagName(key);
+              chip.appendChild(lab);
+              var x = document.createElement('button');
+              x.type = 'button';
+              x.textContent = '\u00D7';
+              x.setAttribute('data-watch-remove-tag', key);
+              x.setAttribute('aria-label', 'Stop watching #' + canonicalTagName(key));
+              x.setAttribute('data-tip', 'Stop watching this tag');
+              x.addEventListener('click', function () {
+                setBundleWatch(bundle, {
+                  folders: watch.folders,
+                  tags: watch.tags.filter(function (v) { return v !== key; }),
+                });
+              });
+              chip.appendChild(x);
+              tChips.appendChild(chip);
+            });
+            wrap.appendChild(tChips);
+          } else {
+            var tNone = document.createElement('div');
+            tNone.className = 'watch-empty';
+            tNone.textContent = 'No tags watched.';
+            wrap.appendChild(tNone);
+          }
+          var tCandidates = allTagCounts().filter(function (t) {
+            return watch.tags.indexOf(t.key) === -1;
+          });
+          if (tCandidates.length) {
+            var tPicker = document.createElement('div');
+            tPicker.className = 'watch-picker';
+            var tSel = document.createElement('select');
+            tSel.className = 'watch-select';
+            tSel.setAttribute('data-watch-tag-select', '');
+            tSel.setAttribute('aria-label', 'Tag to watch');
+            tCandidates.forEach(function (t) {
+              var opt = document.createElement('option');
+              opt.value = t.key;
+              opt.textContent = '#' + t.name;
+              tSel.appendChild(opt);
+            });
+            tPicker.appendChild(tSel);
+            var tAdd = document.createElement('button');
+            tAdd.type = 'button';
+            tAdd.className = 'btn-ghost';
+            tAdd.textContent = 'Watch tag';
+            tAdd.setAttribute('data-watch-add-tag', '');
+            tAdd.addEventListener('click', function () {
+              if (!tSel.value) return;
+              setBundleWatch(bundle, { folders: watch.folders, tags: watch.tags.concat([tSel.value]) });
+            });
+            tPicker.appendChild(tAdd);
+            wrap.appendChild(tPicker);
+          }
+          return wrap;
+        }
+        /* The watch flip, mirroring setBundleWiki: a new
+           manifest with only the rules changed, persisted to
+           every member's row and the local copy. With the
+           Share modal open the panel reloads (its fetch reads
+           the just-saved local copy back); rendered standalone
+           (the harness preview) the editor re-renders in
+           place instead. */
+        function setBundleWatch(bundle, watch) {
+          if (!bundle) return Promise.resolve(null);
+          var manifest = bundleManifestOf(bundle);
+          manifest.watch = normalizeWatch(watch);
+          sharePanelBundle = parseShareBundle(manifest);
+          return persistBundleManifest(manifest).then(function () {
+            if (!document.getElementById('shareModal').hidden) {
+              loadBundlePanel();
+            } else {
+              var old = document.getElementById('shareBundleWatch');
+              if (old && old.parentNode && sharePanelBundle) {
+                old.parentNode.replaceChild(bundleWatchEl(sharePanelBundle), old);
+              }
+            }
+            return manifest;
+          });
+        }
         /* Removing one member (build -60), per the pure plan:
            revoke a bundle-created share outright; detach a
            pre-existing one (clear its bundle record, keep the
@@ -19796,8 +20206,116 @@
             }
           }).catch(function () { if (btn) btn.disabled = false; });
         }
+        /* ---------------- add to a share bundle (build -62, Feature A) ----------------
+           Every document's Share panel gains a section listing
+           ALL of the owner's bundles — the mirror image of the
+           root panel's Add documents: there the set picks
+           documents, here the document picks a set. Each row
+           names the bundle by its root document's title, with
+           the member count and a wiki badge where the set is
+           presented as a wiki. Choosing one joins THIS document
+           through the standard grow path (its share created at
+           that bundle's permission, or its existing share
+           reused; the grown manifest lands on every member
+           row, so wiki sidebars pick the document up). Bundles
+           this document already belongs to render disabled,
+           marked as already in the set; the document's own
+           bundle (when it is itself a root) is not offered at
+           all; and when the owner has no other bundles the
+           section is absent entirely — label hidden, no rows,
+           no dead UI. */
+        var shareAddToBundles = [];
+        function loadAddToBundlePanel() {
+          var wrap = document.getElementById('shareAddToPanel');
+          var label = document.getElementById('shareAddToLabel');
+          if (!wrap) return;
+          wrap.innerHTML = '';
+          if (label) label.hidden = true;
+          shareAddToBundles = [];
+          var forDocId = shareModalDocId;
+          var doc = lib.docs.find(function (d) { return d.id === forDocId; });
+          if (!doc || !sb || !sbUser) return;
+          allOwnerBundles().then(function (bundles) {
+            if (shareModalDocId !== forDocId) return;
+            renderAddToBundleSection(doc, bundles);
+          }).catch(function () {});
+        }
+        function renderAddToBundleSection(doc, bundles) {
+          var wrap = document.getElementById('shareAddToPanel');
+          var label = document.getElementById('shareAddToLabel');
+          if (!wrap || !doc) return;
+          wrap.innerHTML = '';
+          var offered = (bundles || []).filter(function (b) {
+            return b && b.members && b.members.length && !bundleIsRootDoc(b, doc);
+          }).sort(function (a, b) {
+            var ta = bundleRootTitle(a).toLowerCase();
+            var tb = bundleRootTitle(b).toLowerCase();
+            return ta < tb ? -1 : (ta > tb ? 1 : 0);
+          });
+          shareAddToBundles = offered;
+          if (!offered.length) { if (label) label.hidden = true; return; }
+          if (label) label.hidden = false;
+          offered.forEach(function (b) { wrap.appendChild(addToBundleRowEl(doc, b)); });
+        }
+        function addToBundleRowEl(doc, bundle) {
+          var isMember = bundleHasDoc(bundle, doc);
+          var row = document.createElement('div');
+          row.className = 'bundle-addto-row' + (isMember ? ' is-member' : '');
+          row.setAttribute('data-addto-bundle', bundleKeyOf(bundle));
+          var main = document.createElement('span');
+          main.className = 'bundle-addto-main';
+          var name = document.createElement('span');
+          name.className = 'bundle-addto-name';
+          name.textContent = bundleRootTitle(bundle);
+          main.appendChild(name);
+          var meta = document.createElement('span');
+          meta.className = 'bundle-addto-meta';
+          meta.textContent = bundle.members.length + (bundle.members.length === 1 ? ' document' : ' documents');
+          main.appendChild(meta);
+          row.appendChild(main);
+          if (bundle.wiki) {
+            var wikiBadge = document.createElement('span');
+            wikiBadge.className = 'bundle-badge';
+            wikiBadge.textContent = 'Wiki';
+            row.appendChild(wikiBadge);
+          }
+          if (isMember) {
+            var memberBadge = document.createElement('span');
+            memberBadge.className = 'bundle-badge';
+            memberBadge.textContent = 'Already in this set';
+            row.appendChild(memberBadge);
+          }
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn-ghost';
+          btn.textContent = 'Add';
+          btn.setAttribute('data-addto-add', bundleKeyOf(bundle));
+          btn.setAttribute('data-tip', 'Add this document to the \u201C' + bundleRootTitle(bundle) + '\u201D set');
+          if (isMember) {
+            btn.disabled = true;
+            btn.setAttribute('aria-label', 'Already in the \u201C' + bundleRootTitle(bundle) + '\u201D set');
+          } else {
+            btn.addEventListener('click', function () { addDocToBundle(bundle, doc, btn); });
+          }
+          row.appendChild(btn);
+          return row;
+        }
+        function addDocToBundle(bundle, doc, btn) {
+          if (!bundle || !doc || !sb || !sbUser) return;
+          if (btn) btn.disabled = true;
+          growBundleManifest(bundle, [doc]).then(function (out) {
+            if (btn) btn.disabled = false;
+            if (!out) return;
+            saveLocalBundle(out.manifest);
+            if (typeof folioToast === 'function') {
+              folioToast('Added \u201C' + (doc.title || 'Untitled') + '\u201D to the \u201C' + bundleRootTitle(bundle) + '\u201D set.', 4200);
+            }
+            loadShareList();
+          }).catch(function () { if (btn) btn.disabled = false; });
+        }
         function loadShareList() {
           loadBundlePanel();
+          loadAddToBundlePanel();
           var listEl = document.getElementById('shareList');
           var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
@@ -20054,6 +20572,7 @@
                  mints the share, false when it reuses one) so
                  removal later knows revoke from detach. */
               wiki: !!(wikiCb && wikiCb.checked),
+              watch: { folders: [], tags: [] },
               members: plan.map(function (e) {
                 return { token: e.token, doc: remoteIdFor('docs', e.doc.id), title: e.doc.title || 'Untitled', created: e.isNew };
               }),
@@ -20197,9 +20716,22 @@
             var usable = selected.filter(function (d) { return !!remoteIdFor('docs', d.id); });
             if (!usable.length) return null;
             /* The bundle's permission is its root share's;
-               added shares are created at that permission. */
-            var rootDoc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
-            var rootRid = rootDoc ? remoteIdFor('docs', rootDoc.id) : null;
+               added shares are created at that permission.
+               Build -62: the root is read off the bundle
+               itself, not the Share modal's document — adding
+               a document to ANOTHER set (Feature A, the watch
+               prompt) grows that set, whose root is a different
+               document than the one whose panel is open. The
+               panel document remains the fallback for a
+               manifest whose root names no local document. */
+            var rootMember = bundleRootMember(bundle);
+            var rootDoc = rootMember && rootMember.doc ? lib.docs.find(function (d) {
+              return d.id === rootMember.doc || remoteIdFor('docs', d.id) === rootMember.doc;
+            }) : null;
+            if (!rootDoc && shareModalDocId) {
+              rootDoc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
+            }
+            var rootRid = rootDoc ? remoteIdFor('docs', rootDoc.id) : (rootMember ? rootMember.doc : null);
             var permChain = rootRid
               ? docShares(rootRid).then(function (shares) {
                   var rootShare = shares.find(function (s) { return s.token === bundle.rootToken; });
@@ -20441,6 +20973,233 @@
           if (ev.key === 'Escape' && !document.getElementById('shareDriftModal').hidden) closeDriftModal();
         });
 
+        /* ---------------- sharing: watch rules — matching & prompt (build -62) ----------------
+           The match, pure over a document and a bundle list:
+           a bundle matches when its watch names the document's
+           folder (by local id, or by the folder's remote id —
+           the two-namespace rule) or any tag the document
+           carries, AND the document is not already a member.
+           One entry per bundle, however many of its rules hit:
+           a document in a watched folder carrying a watched
+           tag still lists the bundle once. */
+        function computeWatchMatches(doc, bundles) {
+          if (!doc) return [];
+          var folderRid = doc.folderId ? remoteIdFor('folders', doc.folderId) : null;
+          var tagKeys = docTags(doc).map(function (t) { return t.key; });
+          var out = [];
+          (bundles || []).forEach(function (b) {
+            if (!b || !b.watch) return;
+            if (bundleHasDoc(b, doc)) return;
+            var viaFolder = !!doc.folderId && (
+              b.watch.folders.indexOf(doc.folderId) !== -1 ||
+              (!!folderRid && b.watch.folders.indexOf(folderRid) !== -1)
+            );
+            var viaTags = tagKeys.filter(function (k) { return b.watch.tags.indexOf(k) !== -1; });
+            if (viaFolder || viaTags.length) {
+              out.push({ bundle: b, viaFolder: viaFolder, viaTags: viaTags });
+            }
+          });
+          return out;
+        }
+        /* A trigger only ever proposes what IT caused: a
+           folder event (create / move into) proposes
+           folder-matched bundles, a tag event proposes bundles
+           watching one of the tags just added. That is what
+           makes the rules add-only — leaving a watched folder
+           fires no folder event for the old folder, removing
+           a tag adds nothing, and neither can re-propose a
+           bundle through the document's other state. */
+        function filterWatchMatchesByCause(matches, cause) {
+          if (!cause) return matches;
+          return (matches || []).filter(function (m) {
+            if (cause.folder) return m.viaFolder;
+            if (cause.tags) {
+              return m.viaTags.some(function (k) { return cause.tags.indexOf(k) !== -1; });
+            }
+            return true;
+          });
+        }
+        /* The prompt: one checkbox row per matching bundle,
+           root title and wiki marker, every box checked by
+           default. Confirm grows each checked bundle through
+           the -60 path at that bundle's own permission;
+           Cancel, the ×, the backdrop, Esc, or unchecking
+           everything adds nothing. Unchecking leaves no trace
+           — no blocklist is written anywhere — so a later
+           trigger for the same document asks again. */
+        var watchPending = null;
+        function openWatchPrompt(doc, matches) {
+          watchPending = { doc: doc, matches: matches };
+          document.getElementById('shareWatchDocName').textContent = doc.title || 'Untitled';
+          var listEl = document.getElementById('shareWatchList');
+          listEl.innerHTML = '';
+          matches.forEach(function (m) { listEl.appendChild(watchRowEl(m)); });
+          updateWatchConfirmLabel();
+          document.getElementById('shareWatchModal').hidden = false;
+          try { document.getElementById('shareWatchConfirm').focus(); } catch (e) {}
+        }
+        function watchRowEl(m) {
+          var bundle = m.bundle;
+          var row = document.createElement('label');
+          row.className = 'bundle-row';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = true;
+          cb.setAttribute('data-watch-bundle', bundleKeyOf(bundle));
+          cb.setAttribute('aria-label', 'Share as part of ' + bundleRootTitle(bundle));
+          cb.addEventListener('change', updateWatchConfirmLabel);
+          row.appendChild(cb);
+          var main = document.createElement('span');
+          main.className = 'bundle-main';
+          var title = document.createElement('span');
+          title.className = 'bundle-title';
+          title.textContent = bundleRootTitle(bundle);
+          main.appendChild(title);
+          var why = [];
+          if (m.viaFolder) {
+            var f = m.bundle && watchPending && watchPending.doc ? folderById(watchPending.doc.folderId) : null;
+            why.push(f ? 'Folder: ' + f.name : 'Watched folder');
+          }
+          (m.viaTags || []).forEach(function (k) { why.push('#' + canonicalTagName(k)); });
+          if (why.length) {
+            var hint = document.createElement('span');
+            hint.className = 'bundle-folder';
+            hint.textContent = why.join(' \u00B7 ');
+            main.appendChild(hint);
+          }
+          row.appendChild(main);
+          if (bundle.wiki) {
+            var wikiBadge = document.createElement('span');
+            wikiBadge.className = 'bundle-badge';
+            wikiBadge.textContent = 'Wiki';
+            row.appendChild(wikiBadge);
+          }
+          return row;
+        }
+        function watchCheckedBundles() {
+          if (!watchPending) return [];
+          var out = [];
+          document.querySelectorAll('#shareWatchList input[type="checkbox"][data-watch-bundle]').forEach(function (cb) {
+            if (!cb.checked) return;
+            var m = watchPending.matches.find(function (x) {
+              return bundleKeyOf(x.bundle) === cb.getAttribute('data-watch-bundle');
+            });
+            if (m) out.push(m.bundle);
+          });
+          return out;
+        }
+        function updateWatchConfirmLabel() {
+          var n = watchCheckedBundles().length;
+          var btn = document.getElementById('shareWatchConfirm');
+          btn.disabled = n === 0;
+          btn.textContent = 'Share with ' + n + (n === 1 ? ' bundle' : ' bundles');
+        }
+        function closeWatchPrompt() {
+          document.getElementById('shareWatchModal').hidden = true;
+          watchPending = null;
+        }
+        function confirmWatchPrompt() {
+          if (!watchPending || !sb || !sbUser) return;
+          var pending = watchPending;
+          var chosen = watchCheckedBundles();
+          if (!chosen.length) { closeWatchPrompt(); return; }
+          var btn = document.getElementById('shareWatchConfirm');
+          btn.disabled = true;
+          btn.textContent = 'Sharing\u2026';
+          var chain = Promise.resolve();
+          var added = 0;
+          chosen.forEach(function (bundle) {
+            chain = chain.then(function () {
+              return growBundleManifest(bundle, [pending.doc]).then(function (out) {
+                if (out) { saveLocalBundle(out.manifest); added++; }
+              });
+            });
+          });
+          chain.then(function () {
+            btn.disabled = false;
+            updateWatchConfirmLabel();
+            closeWatchPrompt();
+            if (added && typeof folioToast === 'function') {
+              folioToast('Shared \u201C' + (pending.doc.title || 'Untitled') + '\u201D with ' +
+                added + (added === 1 ? ' bundle.' : ' bundles.'), 4200);
+            }
+            if (!document.getElementById('shareModal').hidden && shareModalDocId === pending.doc.id) {
+              loadShareList();
+            }
+          }).catch(function () {
+            btn.disabled = false;
+            updateWatchConfirmLabel();
+          });
+        }
+        document.getElementById('shareWatchConfirm').addEventListener('click', confirmWatchPrompt);
+        document.getElementById('shareWatchCancel').addEventListener('click', closeWatchPrompt);
+        document.getElementById('shareWatchClose').addEventListener('click', closeWatchPrompt);
+        document.getElementById('shareWatchModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeWatchPrompt();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && !document.getElementById('shareWatchModal').hidden) closeWatchPrompt();
+        });
+        /* The signed-in trigger evaluation: gather every
+           bundle (local copies plus the remote manifests),
+           match, and prompt. One prompt at a time — an event
+           that lands while a prompt is up stands down, and a
+           later trigger asks again. Called ONLY from the
+           three single-document events (creation in a folder,
+           a single move into a folder, a tag added through
+           editing); bulk paths — tag rename/merge, the
+           multi-select move, folder-delete content lifts,
+           imports — never call it, and bundle creation itself
+           creates no document event (its root is a member by
+           construction, and membership excludes a match
+           anyway). */
+        function maybePromptWatchShare(doc, cause) {
+          if (!doc || watchPending) return;
+          if (!sb || !sbUser) return;
+          allOwnerBundles().then(function (bundles) {
+            if (watchPending) return;
+            var matches = filterWatchMatchesByCause(computeWatchMatches(doc, bundles), cause);
+            if (matches.length) openWatchPrompt(doc, matches);
+          }).catch(function () {});
+        }
+        /* The same evaluation over the local bundle copies,
+           synchronously — the harness door below drives the
+           real prompt through it, standing in for the
+           signed-in fetch the sandbox cannot make. */
+        function evaluateWatchPrompt(doc, cause) {
+          if (!doc || watchPending) return [];
+          var matches = filterWatchMatchesByCause(computeWatchMatches(doc, localBundles()), cause);
+          if (matches.length) openWatchPrompt(doc, matches);
+          return matches;
+        }
+        /* Tag-added detection for the editing trigger: the
+           open document's tag set is baselined whenever it is
+           opened (and reseeded by every library-wide rewrite,
+           which goes through openDoc), and each editor update
+           diffs against the baseline. Only a tag that was not
+           there before can trigger — and the baseline moves
+           with every update, so the same addition never fires
+           twice, while a remove-then-readd is a new event and
+           asks again. */
+        var watchTagsByDoc = {};
+        function docTagKeySet(doc) {
+          var s = {};
+          docTags(doc).forEach(function (t) { s[t.key] = true; });
+          return s;
+        }
+        function seedWatchTags(doc) {
+          if (doc) watchTagsByDoc[doc.id] = docTagKeySet(doc);
+        }
+        function checkTagTrigger(doc) {
+          if (!doc) return;
+          var now = docTagKeySet(doc);
+          var prev = watchTagsByDoc[doc.id];
+          watchTagsByDoc[doc.id] = now;
+          if (!prev) return;
+          var added = Object.keys(now).filter(function (k) { return !prev[k]; });
+          if (added.length) maybePromptWatchShare(doc, { tags: added });
+        }
+
         /* ---------------- sharing: bundle revoke choice ---------------- */
         var shareRevokePending = null;
         function openShareRevokeModal(share, bundle) {
@@ -20593,6 +21352,7 @@
               document.getElementById('shareBundleModal').hidden &&
               document.getElementById('shareAddDocsModal').hidden &&
               document.getElementById('shareDriftModal').hidden &&
+              document.getElementById('shareWatchModal').hidden &&
               document.getElementById('shareRevokeModal').hidden) closeShareModal();
         });
 
@@ -21548,6 +22308,204 @@
               }),
             };
           },
+          /* ---- build -62: add to a bundle + watch rules ---- */
+          /* Every bundle this device knows, as manifests —
+             the local half of the Feature A enumeration. */
+          bundlesLocal: function () {
+            return localBundles().map(function (b) { return bundleManifestOf(b); });
+          },
+          /* The watch rules on a stored bundle, either form. */
+          watchOf: function (raw) {
+            var b = parseShareBundle(raw);
+            return b ? normalizeWatch(b.watch) : null;
+          },
+          /* The manifest with the watch rules replaced. */
+          withWatch: function (raw, watch) {
+            var b = parseShareBundle(raw);
+            if (!b) return null;
+            var man = bundleManifestOf(b);
+            man.watch = normalizeWatch(watch);
+            return man;
+          },
+          /* Acts the panel's watch save without the backend:
+             builds the manifest, stores it locally, holds it
+             as the panel's bundle, and returns it. */
+          setWatchLocal: function (raw, watch) {
+            var b = parseShareBundle(raw);
+            if (!b) return null;
+            var man = bundleManifestOf(b);
+            man.watch = normalizeWatch(watch);
+            saveLocalBundle(man);
+            sharePanelBundle = parseShareBundle(man);
+            return man;
+          },
+          /* Renders the real watch editor into the Share
+             panel wrap against a stored bundle and reads it
+             back: watched chips and picker options. */
+          previewWatchEditor: function (docId, bundleRaw) {
+            var b = parseShareBundle(bundleRaw);
+            var wrap = document.getElementById('shareBundlePanel');
+            if (!b || !wrap) return null;
+            shareModalDocId = docId;
+            sharePanelBundle = b;
+            wrap.innerHTML = '';
+            wrap.appendChild(bundleWatchEl(b));
+            return window.FolioShareBundle.watchEditorState();
+          },
+          watchEditorState: function () {
+            var root = document.getElementById('shareBundleWatch');
+            if (!root) return null;
+            var folders = [];
+            root.querySelectorAll('[data-watch-folder-chip]').forEach(function (el) {
+              var lab = el.querySelector('span');
+              folders.push({ id: el.getAttribute('data-watch-folder-chip'), name: lab ? lab.textContent : '' });
+            });
+            var tags = [];
+            root.querySelectorAll('[data-watch-tag-chip]').forEach(function (el) {
+              var lab = el.querySelector('span');
+              tags.push({ key: el.getAttribute('data-watch-tag-chip'), name: lab ? lab.textContent : '' });
+            });
+            var folderOptions = [];
+            var fSel = root.querySelector('[data-watch-folder-select]');
+            if (fSel) fSel.querySelectorAll('option').forEach(function (o) {
+              folderOptions.push({ id: o.value, name: o.textContent.trim() });
+            });
+            var tagOptions = [];
+            var tSel = root.querySelector('[data-watch-tag-select]');
+            if (tSel) tSel.querySelectorAll('option').forEach(function (o) {
+              tagOptions.push({ key: o.value, name: o.textContent });
+            });
+            return { folders: folders, tags: tags, folderOptions: folderOptions, tagOptions: tagOptions };
+          },
+          /* The watch match itself, over the given stored
+             bundles (or the local copies when none are
+             given): one entry per matching bundle, with the
+             folder/tag causes that hit. */
+          watchMatchesFor: function (docId, bundlesRaw) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!d) return [];
+            var bundles = bundlesRaw
+              ? (bundlesRaw || []).map(function (r) { return parseShareBundle(r); }).filter(Boolean)
+              : localBundles();
+            return computeWatchMatches(d, bundles).map(function (m) {
+              return {
+                key: bundleKeyOf(m.bundle),
+                rootToken: m.bundle.rootToken,
+                rootTitle: bundleRootTitle(m.bundle),
+                wiki: m.bundle.wiki === true,
+                members: m.bundle.members.length,
+                viaFolder: m.viaFolder,
+                viaTags: m.viaTags,
+              };
+            });
+          },
+          /* Opens the real watch prompt for a document
+             through the local evaluation (the signed-in path
+             fetches remote manifests first; the matching, the
+             modal, and the grow path are the same code), with
+             an optional trigger cause — { folder: id } or
+             { tags: [keys] } — and reads the modal back. */
+          watchPromptFor: function (docId, cause) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!d) return null;
+            evaluateWatchPrompt(d, cause || null);
+            return window.FolioShareBundle.watchDomState();
+          },
+          watchDomState: function () {
+            var rows = [];
+            document.querySelectorAll('#shareWatchList .bundle-row').forEach(function (el) {
+              var cb = el.querySelector('input[type="checkbox"]');
+              var title = el.querySelector('.bundle-title');
+              var hint = el.querySelector('.bundle-folder');
+              var badges = [];
+              el.querySelectorAll('.bundle-badge').forEach(function (x) { badges.push(x.textContent); });
+              rows.push({
+                key: cb ? cb.getAttribute('data-watch-bundle') : null,
+                rootTitle: title ? title.textContent : '',
+                hint: hint ? hint.textContent : '',
+                checked: cb ? cb.checked : null,
+                badges: badges,
+              });
+            });
+            return {
+              open: !document.getElementById('shareWatchModal').hidden,
+              docName: document.getElementById('shareWatchDocName').textContent,
+              title: document.getElementById('shareWatchTitle').textContent,
+              confirmText: document.getElementById('shareWatchConfirm').textContent,
+              confirmDisabled: document.getElementById('shareWatchConfirm').disabled,
+              checkedKeys: watchCheckedBundles().map(function (b) { return bundleKeyOf(b); }),
+              rows: rows,
+            };
+          },
+          closeWatch: function () {
+            closeWatchPrompt();
+            return window.FolioShareBundle.watchDomState();
+          },
+          /* The real creation door, then the local trigger
+             evaluation for the folder it landed in. */
+          createInFolderFor: function (folderId) {
+            var before = {};
+            lib.docs.forEach(function (d) { before[d.id] = true; });
+            createDocInFolder(folderId);
+            var doc = lib.docs.find(function (d) { return !before[d.id]; }) || currentDoc();
+            evaluateWatchPrompt(doc, { folder: folderId });
+            return { docId: doc.id, prompt: window.FolioShareBundle.watchDomState() };
+          },
+          /* The real single-document move, then the local
+             trigger evaluation for the folder it landed in. */
+          moveDocFor: function (docId, folderId) {
+            moveDocToFolder(docId, folderId);
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (d && folderId) evaluateWatchPrompt(d, { folder: folderId });
+            return window.FolioShareBundle.watchDomState();
+          },
+          /* The editing trigger's evaluation for a tag the
+             document now carries (the real path diffs the
+             editor's updates against the open baseline). */
+          tagTriggerFor: function (docId, tagKey) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!d) return null;
+            evaluateWatchPrompt(d, { tags: [String(tagKey || '').toLowerCase()] });
+            return window.FolioShareBundle.watchDomState();
+          },
+          /* Renders the real Feature A section for a document
+             against stored bundles (the panel path fetches
+             the owner's sets instead) and reads it back. With
+             no bundles given, the local copies stand in. */
+          addToPanelFor: function (docId, bundlesRaw) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!d) return null;
+            shareModalDocId = docId;
+            var bundles = bundlesRaw
+              ? (bundlesRaw || []).map(function (r) { return parseShareBundle(r); }).filter(Boolean)
+              : localBundles();
+            renderAddToBundleSection(d, bundles);
+            return window.FolioShareBundle.addToDomState();
+          },
+          addToDomState: function () {
+            var rows = [];
+            document.querySelectorAll('#shareAddToPanel .bundle-addto-row').forEach(function (el) {
+              var name = el.querySelector('.bundle-addto-name');
+              var meta = el.querySelector('.bundle-addto-meta');
+              var btn = el.querySelector('[data-addto-add]');
+              var badges = [];
+              el.querySelectorAll('.bundle-badge').forEach(function (x) { badges.push(x.textContent); });
+              rows.push({
+                key: el.getAttribute('data-addto-bundle'),
+                rootTitle: name ? name.textContent : '',
+                meta: meta ? meta.textContent : '',
+                badges: badges,
+                isMember: el.classList.contains('is-member'),
+                addDisabled: btn ? btn.disabled : null,
+              });
+            });
+            var label = document.getElementById('shareAddToLabel');
+            return {
+              labelHidden: label ? label.hidden : null,
+              labelText: label ? label.textContent : null,
+              rows: rows,
+            };
+          },
         };
 
         /* ---------------- backend boot ---------------- */
@@ -21644,7 +22602,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-61';
+        var FOLIO_BUILD = '20261029-62';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
