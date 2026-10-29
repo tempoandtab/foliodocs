@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-58" />
+    <meta name="folio-build" content="20261029-59" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2562,6 +2562,37 @@
       .comment-group-meta { font-size: 12px; color: var(--ink-3); }
       .comment-group .share-link { margin-top: 1px; }
 
+      /* ---------------- Share-with-links bundle (build -59) ----------------
+         The confirmation list: the shared document first (the
+         primary share, no checkbox — it IS the share), then one
+         row per document in the transitive wikilink closure,
+         each with a checkbox that starts checked. Folder names
+         ride along as a quiet hint so same-titled documents in
+         different folders stay distinguishable. */
+      .bundle-list { margin-top: 6px; max-height: 46dvh; overflow-y: auto; }
+      .bundle-row {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 2px; border-bottom: 1px solid var(--line-soft);
+        cursor: pointer; min-height: 44px;
+      }
+      .bundle-row:last-child { border-bottom: 0; }
+      .bundle-row.is-root { cursor: default; }
+      .bundle-row input[type="checkbox"] {
+        width: 20px; height: 20px; flex: 0 0 auto; margin: 0;
+        accent-color: var(--accent); cursor: pointer;
+      }
+      .bundle-row .bundle-main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+      .bundle-title { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .bundle-folder { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+      .bundle-badge {
+        flex: 0 0 auto; font-size: 11.5px; font-weight: 700;
+        color: var(--chip-ink); background: var(--chip-bg);
+        padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+      }
+      .bundle-badge.is-root-badge { color: var(--accent-ink); background: var(--accent); }
+      .bundle-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+      .bundle-member-note { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; margin-top: 2px; }
+
       /* ---------------- Public share view ---------------- */
       .share-view { position: fixed; inset: 0; z-index: 120; background: var(--bg); overflow-y: auto; }
       .share-view[hidden] { display: none; }
@@ -3292,8 +3323,44 @@
           </div>
           <div class="pop-label" style="margin-top:14px">Active links</div>
           <div id="shareList"></div>
+          <div class="pop-label" style="margin-top:14px" id="shareBundleLabel" hidden>Shared as a set</div>
+          <div id="shareBundlePanel"></div>
           <div class="pop-label" style="margin-top:14px">Comments</div>
           <div id="ownerComments"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shareBundleModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareBundleTitle">
+        <div class="panel-head">
+          <h2 id="shareBundleTitle">Share linked documents</h2>
+          <button class="icon-btn" id="shareBundleClose" type="button" aria-label="Cancel sharing" data-tip="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note">This share link will allow people to view this document and all documents linked from it. Each document below gets its own link with the same permission as the one you chose. Uncheck any document you don&rsquo;t want to include &mdash; links to it will appear as plain text instead.</p>
+        <div class="bundle-list" id="shareBundleList"></div>
+        <div class="bundle-foot">
+          <button class="btn-ghost" id="shareBundleCancel" type="button">Cancel</button>
+          <button class="btn-primary" id="shareBundleConfirm" type="button">Share 1 document</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shareRevokeModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareRevokeTitle" style="max-width:440px">
+        <div class="panel-head">
+          <h2 id="shareRevokeTitle">Revoke this link?</h2>
+          <button class="icon-btn" id="shareRevokeClose" type="button" aria-label="Cancel revoke" data-tip="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note" id="shareRevokeText"></p>
+        <div class="bundle-foot">
+          <button class="btn-ghost" id="shareRevokeCancel" type="button">Cancel</button>
+          <button class="btn-ghost" id="shareRevokeOnlyBtn" type="button">Revoke only this link</button>
+          <button class="btn-danger" id="shareRevokeAllBtn" type="button">Revoke the whole set</button>
         </div>
       </div>
     </div>
@@ -18861,6 +18928,214 @@
             }).catch(function () { return []; });
         }
 
+        /* ---------------- sharing: linked-document bundles (build -59) ----------------
+           Sharing a document that wikilinks elsewhere offers to
+           share the whole TRANSITIVE CLOSURE: every existing
+           document reachable by following wikilinks from the
+           shared doc, recursively. The walk is breadth-first
+           and cycle-safe (a visited set by document id, so
+           A -> B -> A terminates), and wikilinks that point at
+           not-yet-existing documents are ignored — there is
+           nothing to share for them. The user confirms the set
+           in a modal with a checkbox per closure document
+           (all checked by default); unchecking a document
+           excludes only that document, even when others were
+           reachable through it — the checked set is what gets
+           shared, full stop.
+
+           The confirmed set is recorded as a BUNDLE MANIFEST on
+           every member's share row: { v, id, rootToken,
+           members: [{ token, doc, title }] } (doc = the remote
+           document id). The root's Share panel reads it back to
+           show the linked set, and revoking the root offers to
+           revoke the whole set with it. The public view needs
+           it too: get_shared_document must return s.bundle
+           alongside the document, and the viewer navigates
+           wikilinks whose target is in the manifest to that
+           member's own share link, rendering any other
+           wikilink as plain text.
+           One-time dashboard step (SQL editor), same add-on
+           pattern as the styles column in build -58:
+             alter table public.shares
+               add column if not exists bundle jsonb;
+           and get_shared_document gains `bundle jsonb` in its
+           RETURNS table plus s.bundle in its select (drop +
+           recreate, as with the styles step). Until both land,
+           every write below fails soft exactly like -58's did:
+           inserts retry without the manifest (the links are
+           created, just not recorded as a set), the owner keeps
+           a local copy of the manifest on this device so the
+           Share panel and the revoke offer still work here,
+           and shared views keep their pre--59 rendering. */
+        function normShareTitle(t) { return String(t || '').trim().toLowerCase(); }
+        function shareFolderHint(doc) {
+          if (!doc || !doc.folderId) return '';
+          var f = folderById(doc.folderId);
+          return f ? (f.name || '') : '';
+        }
+        function computeShareClosure(rootDoc) {
+          var visited = {};
+          visited[rootDoc.id] = true;
+          var order = [];
+          var queue = [rootDoc];
+          while (queue.length) {
+            var cur = queue.shift();
+            var titles = [];
+            collectWikiLinks(cur.content, titles);
+            titles.forEach(function (t) {
+              var target = findDocByTitle(t);
+              if (!target || visited[target.id]) return;
+              visited[target.id] = true;
+              order.push(target);
+              queue.push(target);
+            });
+          }
+          return order;
+        }
+        function parseShareBundle(raw) {
+          var b = raw;
+          if (typeof b === 'string') {
+            try { b = JSON.parse(b); } catch (e) { b = null; }
+          }
+          if (!b || typeof b !== 'object' || !Array.isArray(b.members)) return null;
+          var members = b.members.filter(function (m) {
+            return m && typeof m.token === 'string' && m.token && typeof m.title === 'string';
+          });
+          if (!members.length) return null;
+          var byTitle = {};
+          members.forEach(function (m) { byTitle[normShareTitle(m.title)] = m; });
+          return {
+            v: 1,
+            id: typeof b.id === 'string' ? b.id : null,
+            rootToken: typeof b.rootToken === 'string' ? b.rootToken : (members[0] ? members[0].token : null),
+            members: members,
+            byTitle: byTitle,
+          };
+        }
+        function bundleManifestOf(bundle) {
+          return {
+            v: 1,
+            id: bundle.id,
+            rootToken: bundle.rootToken,
+            members: bundle.members.map(function (m) { return { token: m.token, doc: m.doc || null, title: m.title }; }),
+          };
+        }
+        /* The viewer's content transform: with a bundle in
+           hand, a wikilink whose target is a member stays a
+           link (and is marked as existing, whatever the saved
+           flag said); any other wikilink becomes a plain text
+           node carrying its display text — not a link, no
+           missing-chip, no error, nothing beyond the words the
+           author wrote. */
+        function bundleViewContent(content, bundle) {
+          var clone;
+          try { clone = JSON.parse(JSON.stringify(content || { type: 'doc', content: [{ type: 'paragraph' }] })); }
+          catch (e) { return content; }
+          function walk(node) {
+            if (!node || typeof node !== 'object') return node;
+            if (node.type === 'wikiLink' && node.attrs) {
+              var m = bundle.byTitle[normShareTitle(node.attrs.title)];
+              if (m) { node.attrs.exists = true; return node; }
+              return { type: 'text', text: node.attrs.display || node.attrs.title || '' };
+            }
+            if (Array.isArray(node.content)) node.content = node.content.map(walk);
+            return node;
+          }
+          return walk(clone);
+        }
+        /* The plan the confirm step executes: one entry per
+           selected document, reusing the token of a document
+           that already has an active share (no duplicates) and
+           marking the rest as new. Pure — the harness drives
+           this directly. */
+        function planBundleShares(selectedDocs, existingByDocId) {
+          return selectedDocs.map(function (d) {
+            var ex = existingByDocId ? existingByDocId[d.id] : null;
+            var token = null;
+            if (typeof ex === 'string') token = ex;
+            else if (ex && typeof ex.token === 'string') token = ex.token;
+            return { doc: d, token: token, isNew: !token };
+          });
+        }
+        var SHARE_BUNDLES_KEY = 'folio.share-bundles.v1';
+        function localBundleStore() {
+          try {
+            var raw = localStorage.getItem(SHARE_BUNDLES_KEY);
+            var parsed = raw ? JSON.parse(raw) : null;
+            return parsed && typeof parsed === 'object' ? parsed : {};
+          } catch (e) { return {}; }
+        }
+        function localBundleFor(token) {
+          if (!token) return null;
+          return parseShareBundle(localBundleStore()[token]);
+        }
+        function saveLocalBundle(manifest) {
+          try {
+            var store = localBundleStore();
+            manifest.members.forEach(function (m) { store[m.token] = manifest; });
+            localStorage.setItem(SHARE_BUNDLES_KEY, JSON.stringify(store));
+          } catch (e) {}
+        }
+        function removeLocalBundle(manifest) {
+          try {
+            var store = localBundleStore();
+            manifest.members.forEach(function (m) { delete store[m.token]; });
+            if (manifest.rootToken) delete store[manifest.rootToken];
+            localStorage.setItem(SHARE_BUNDLES_KEY, JSON.stringify(store));
+          } catch (e) {}
+        }
+        var shareBundleColOk = true;
+        function fetchShareBundle(token) {
+          var local = localBundleFor(token);
+          if (!sb || !sbUser || !shareBundleColOk) return Promise.resolve(local);
+          return sb.from('shares').select('bundle').eq('token', token).then(function (res) {
+            if (res && !res.error && res.data && res.data.length) {
+              var b = parseShareBundle(res.data[0].bundle);
+              if (b) return b;
+              return local;
+            }
+            if (res && res.error) shareBundleColOk = false;
+            return local;
+          }).catch(function () { return local; });
+        }
+        /* One insert ladder for every share row: full row
+           (styles snapshot + bundle manifest) first, then
+           styles only, then the bare pre--58 row — a missing
+           dashboard column never blocks link creation. */
+        function insertShareRow(row) {
+          var bare = { token: row.token, document_id: row.document_id, permission: row.permission };
+          var withStyles = { token: row.token, document_id: row.document_id, permission: row.permission };
+          if (row.styles) withStyles.styles = row.styles;
+          var full = { token: row.token, document_id: row.document_id, permission: row.permission };
+          if (row.styles) full.styles = row.styles;
+          if (row.bundle) full.bundle = row.bundle;
+          return sb.from('shares').insert(full).then(function (res) {
+            if (!res || !res.error) return res;
+            if (row.bundle) {
+              shareBundleColOk = false;
+              return sb.from('shares').insert(withStyles).then(function (r2) {
+                if (!r2 || !r2.error) return r2;
+                if (row.styles) {
+                  shareStylesColOk = false;
+                  return sb.from('shares').insert(bare);
+                }
+                return r2;
+              });
+            }
+            if (row.styles) {
+              shareStylesColOk = false;
+              return sb.from('shares').insert(bare);
+            }
+            return res;
+          });
+        }
+        function updateShareBundle(token, manifest) {
+          if (!sb || !shareBundleColOk) return Promise.resolve();
+          return sb.from('shares').update({ bundle: manifest }).eq('token', token).then(function (res) {
+            if (res && res.error) shareBundleColOk = false;
+          }).catch(function () {});
+        }
+
         function refreshShareBadge() {
           var badge = document.getElementById('shareBadge');
           if (!badge) return;
@@ -18891,7 +19166,67 @@
           if (!signedOut) { loadShareList(); loadOwnerComments(); refreshShareStyleSnapshots(); }
         }
         function closeShareModal() { document.getElementById('shareModal').hidden = true; }
+        /* The root share's panel shows the bundle it heads:
+           every other member of the set with its own link, so
+           the owner can copy a member's link directly and can
+           see exactly what revoking the root puts in play. */
+        function loadBundlePanel() {
+          var wrap = document.getElementById('shareBundlePanel');
+          var label = document.getElementById('shareBundleLabel');
+          if (!wrap) return;
+          wrap.innerHTML = '';
+          if (label) label.hidden = true;
+          var forDocId = shareModalDocId;
+          var doc = lib.docs.find(function (d) { return d.id === forDocId; });
+          var rid = doc ? remoteIdFor('docs', doc.id) : null;
+          if (!sb || !sbUser || !rid) return;
+          docShares(rid).then(function (shares) {
+            var found = null;
+            var chain = Promise.resolve();
+            shares.forEach(function (s) {
+              chain = chain.then(function () {
+                if (found) return null;
+                return fetchShareBundle(s.token).then(function (b) {
+                  if (b && b.rootToken === s.token && b.members.length > 1) found = b;
+                });
+              });
+            });
+            return chain.then(function () { return found; });
+          }).then(function (bundle) {
+            if (shareModalDocId !== forDocId || !bundle) return;
+            if (label) label.hidden = false;
+            var note = document.createElement('div');
+            note.className = 'bundle-member-note';
+            note.textContent = 'This link was created together with links to the documents below, so readers can follow wiki-links between them. Revoking the main link above offers to revoke these too.';
+            wrap.appendChild(note);
+            bundle.members.forEach(function (m) {
+              if (m.token === bundle.rootToken) return;
+              var row = document.createElement('div');
+              row.className = 'share-row';
+              var meta = document.createElement('div');
+              meta.className = 'share-meta';
+              var title = document.createElement('div');
+              title.className = 'share-perm';
+              title.textContent = m.title || 'Untitled';
+              meta.appendChild(title);
+              var link = document.createElement('div');
+              link.className = 'share-link';
+              link.textContent = shareLinkFor(m.token);
+              meta.appendChild(link);
+              row.appendChild(meta);
+              var copy = document.createElement('button');
+              copy.type = 'button';
+              copy.className = 'btn-ghost';
+              copy.textContent = 'Copy';
+              copy.setAttribute('data-tip', 'Copy link');
+              copy.addEventListener('click', function () { copyText(shareLinkFor(m.token), copy); });
+              row.appendChild(copy);
+              wrap.appendChild(row);
+            });
+          }).catch(function () {});
+        }
         function loadShareList() {
+          loadBundlePanel();
           var listEl = document.getElementById('shareList');
           var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
@@ -18940,8 +19275,17 @@
           revoke.setAttribute('data-tip', 'Revoke this link \u2014 it stops working right away');
           revoke.addEventListener('click', function () {
             if (!sb) return;
-            revoke.disabled = true;
-            sb.from('shares').delete().eq('token', s.token).then(function () { loadShareList(); });
+            /* A bundle root's revoke offers the whole set
+               (build -59); any other link revokes alone, as
+               before. */
+            fetchShareBundle(s.token).then(function (b) {
+              if (b && b.rootToken === s.token && b.members.length > 1) {
+                openShareRevokeModal(s, b);
+                return;
+              }
+              revoke.disabled = true;
+              sb.from('shares').delete().eq('token', s.token).then(function () { loadShareList(); });
+            });
           });
           row.appendChild(revoke);
           return row;
@@ -19030,6 +19374,198 @@
           });
         }
 
+        /* ---------------- sharing: bundle confirmation modal ----------------
+           Shown before anything is created when the document
+           being shared has a non-empty wikilink closure.
+           Cancel (button, ×, backdrop, Esc) creates nothing at
+           all; the Share modal stays open underneath. */
+        var bundlePending = null;
+        function openShareBundleModal(rootDoc, closure, existingByDocId) {
+          bundlePending = { rootDoc: rootDoc, closure: closure, existing: existingByDocId || {} };
+          var listEl = document.getElementById('shareBundleList');
+          listEl.innerHTML = '';
+          listEl.appendChild(bundleRowEl(rootDoc, null, true));
+          closure.forEach(function (d) {
+            listEl.appendChild(bundleRowEl(d, bundlePending.existing[d.id] || null, false));
+          });
+          updateBundleConfirmLabel();
+          document.getElementById('shareBundleModal').hidden = false;
+          var confirmBtn = document.getElementById('shareBundleConfirm');
+          try { confirmBtn.focus(); } catch (e) {}
+        }
+        function bundleRowEl(doc, existingShare, isRoot) {
+          var row = document.createElement('label');
+          row.className = 'bundle-row' + (isRoot ? ' is-root' : '');
+          if (!isRoot) {
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = true;
+            cb.setAttribute('data-bundle-doc', doc.id);
+            cb.setAttribute('aria-label', 'Include ' + (doc.title || 'Untitled') + ' in this share');
+            cb.addEventListener('change', updateBundleConfirmLabel);
+            row.appendChild(cb);
+          }
+          var main = document.createElement('span');
+          main.className = 'bundle-main';
+          var title = document.createElement('span');
+          title.className = 'bundle-title';
+          title.textContent = doc.title || 'Untitled';
+          main.appendChild(title);
+          var hint = shareFolderHint(doc);
+          if (hint) {
+            var folder = document.createElement('span');
+            folder.className = 'bundle-folder';
+            folder.textContent = hint;
+            main.appendChild(folder);
+          }
+          row.appendChild(main);
+          if (isRoot) {
+            var rootBadge = document.createElement('span');
+            rootBadge.className = 'bundle-badge is-root-badge';
+            rootBadge.textContent = 'This document';
+            row.appendChild(rootBadge);
+          } else if (existingShare) {
+            var sharedBadge = document.createElement('span');
+            sharedBadge.className = 'bundle-badge';
+            sharedBadge.textContent = 'Already shared';
+            row.appendChild(sharedBadge);
+          }
+          return row;
+        }
+        function bundleCheckedDocs() {
+          if (!bundlePending) return [];
+          var out = [bundlePending.rootDoc];
+          document.querySelectorAll('#shareBundleList input[type="checkbox"][data-bundle-doc]').forEach(function (cb) {
+            if (!cb.checked) return;
+            var d = bundlePending.closure.find(function (x) { return x.id === cb.getAttribute('data-bundle-doc'); });
+            if (d) out.push(d);
+          });
+          return out;
+        }
+        function updateBundleConfirmLabel() {
+          var n = bundleCheckedDocs().length;
+          document.getElementById('shareBundleConfirm').textContent =
+            'Share ' + n + (n === 1 ? ' document' : ' documents');
+        }
+        function closeShareBundleModal() {
+          document.getElementById('shareBundleModal').hidden = true;
+          bundlePending = null;
+        }
+        function confirmShareBundle() {
+          if (!bundlePending || !sb || !sbUser) return;
+          var pending = bundlePending;
+          var selected = bundleCheckedDocs();
+          var perm = sharePermChoice;
+          var btn = document.getElementById('shareBundleConfirm');
+          btn.disabled = true;
+          btn.textContent = 'Sharing\u2026';
+          pushAll().then(function () {
+            /* Remote ids are settled by the push; a document
+               with no remote id cannot be shared and drops out
+               of the set rather than blocking the rest. */
+            var usable = selected.filter(function (d) { return !!remoteIdFor('docs', d.id); });
+            if (!usable.length) { btn.disabled = false; updateBundleConfirmLabel(); return null; }
+            var plan = planBundleShares(usable, pending.existing);
+            plan.forEach(function (e) { if (!e.token) e.token = genToken(); });
+            var rootEntry = plan[0];
+            var manifest = {
+              v: 1,
+              id: genToken(),
+              rootToken: rootEntry.token,
+              members: plan.map(function (e) {
+                return { token: e.token, doc: remoteIdFor('docs', e.doc.id), title: e.doc.title || 'Untitled' };
+              }),
+            };
+            var snap = shareStylesSnapshot();
+            var chain = Promise.resolve();
+            plan.forEach(function (e) {
+              chain = chain.then(function () {
+                if (e.isNew) {
+                  return insertShareRow({
+                    token: e.token, document_id: remoteIdFor('docs', e.doc.id),
+                    permission: perm, styles: snap, bundle: manifest,
+                  });
+                }
+                return updateShareBundle(e.token, manifest);
+              });
+            });
+            return chain.then(function () { return { manifest: manifest, rootToken: rootEntry.token }; });
+          }).then(function (out) {
+            btn.disabled = false;
+            if (!out) return;
+            saveLocalBundle(out.manifest);
+            closeShareBundleModal();
+            document.getElementById('shareNewLink').hidden = false;
+            document.getElementById('shareNewLinkInput').value = shareLinkFor(out.rootToken);
+            loadShareList();
+            if (typeof folioToast === 'function') {
+              var n = out.manifest.members.length;
+              folioToast('Shared ' + n + (n === 1 ? ' document' : ' documents') + ' \u2014 the main link is ready to copy in the Share panel.', 4200);
+            }
+          }).catch(function () {
+            btn.disabled = false;
+            updateBundleConfirmLabel();
+          });
+        }
+        document.getElementById('shareBundleConfirm').addEventListener('click', confirmShareBundle);
+        document.getElementById('shareBundleCancel').addEventListener('click', closeShareBundleModal);
+        document.getElementById('shareBundleClose').addEventListener('click', closeShareBundleModal);
+        document.getElementById('shareBundleModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeShareBundleModal();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && !document.getElementById('shareBundleModal').hidden) closeShareBundleModal();
+        });
+
+        /* ---------------- sharing: bundle revoke choice ---------------- */
+        var shareRevokePending = null;
+        function openShareRevokeModal(share, bundle) {
+          shareRevokePending = { share: share, bundle: bundle };
+          var root = bundle.members.find(function (m) { return m.token === bundle.rootToken; });
+          document.getElementById('shareRevokeText').textContent =
+            '\u201C' + ((root && root.title) || 'This document') + '\u201D was shared as a set of ' +
+            bundle.members.length + ' documents. Revoking the whole set turns off every link in the set; ' +
+            'revoking only this link leaves the other documents\u2019 own links working.';
+          document.getElementById('shareRevokeModal').hidden = false;
+        }
+        function closeShareRevokeModal() {
+          document.getElementById('shareRevokeModal').hidden = true;
+          shareRevokePending = null;
+        }
+        document.getElementById('shareRevokeCancel').addEventListener('click', closeShareRevokeModal);
+        document.getElementById('shareRevokeClose').addEventListener('click', closeShareRevokeModal);
+        document.getElementById('shareRevokeModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeShareRevokeModal();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && !document.getElementById('shareRevokeModal').hidden) closeShareRevokeModal();
+        });
+        document.getElementById('shareRevokeOnlyBtn').addEventListener('click', function () {
+          if (!shareRevokePending || !sb) return;
+          var pending = shareRevokePending;
+          var btn = this;
+          btn.disabled = true;
+          sb.from('shares').delete().eq('token', pending.share.token).then(function () {
+            btn.disabled = false;
+            removeLocalBundle(pending.bundle);
+            closeShareRevokeModal();
+            loadShareList();
+          }).catch(function () { btn.disabled = false; });
+        });
+        document.getElementById('shareRevokeAllBtn').addEventListener('click', function () {
+          if (!shareRevokePending || !sb) return;
+          var pending = shareRevokePending;
+          var btn = this;
+          btn.disabled = true;
+          var tokens = pending.bundle.members.map(function (m) { return m.token; });
+          sb.from('shares').delete().in('token', tokens).then(function () {
+            btn.disabled = false;
+            removeLocalBundle(pending.bundle);
+            closeShareRevokeModal();
+            loadShareList();
+          }).catch(function () { btn.disabled = false; });
+        });
+
         document.getElementById('shareBtn').addEventListener('click', openShareModal);
         /* Print: the topbar button and ⌘P / Ctrl+P both run the
            shared print flow for the open document. The shortcut
@@ -19070,30 +19606,20 @@
             });
           });
         });
-        document.getElementById('createShareBtn').addEventListener('click', function () {
-          if (!sb || !sbUser) return;
-          var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
-          if (!doc) return;
-          var btn = this;
+        /* The pre--59 single-document creation, unchanged: it
+           is still the whole flow for a document whose
+           wikilink closure is empty. The insert goes through
+           insertShareRow, whose ladder is the one this handler
+           used to run inline (styles snapshot, then bare). */
+        function createSingleShare(doc, btn) {
           btn.disabled = true;
           pushAll().then(function () {
             var rid = remoteIdFor('docs', doc.id);
             if (!rid) { btn.disabled = false; return; }
             var token = genToken();
-            /* The new link carries the owner's current
-               style snapshot (build -58). If the styles
-               column isn't there yet, the insert fails —
-               retry bare so link creation never breaks;
-               the snapshot lands later via the refresh
-               once the dashboard step is run. */
-            var withStyles = { token: token, document_id: rid, permission: sharePermChoice, styles: shareStylesSnapshot() };
-            var bare = { token: token, document_id: rid, permission: sharePermChoice };
-            sb.from('shares').insert(withStyles).then(function (res) {
-              if (res && res.error) {
-                shareStylesColOk = false;
-                return sb.from('shares').insert(bare);
-              }
-              return res;
+            insertShareRow({
+              token: token, document_id: rid, permission: sharePermChoice,
+              styles: shareStylesSnapshot(),
             }).then(function (res) {
               btn.disabled = false;
               if (res && res.error) return;
@@ -19102,18 +19628,57 @@
               loadShareList();
             }).catch(function () { btn.disabled = false; });
           });
+        }
+        document.getElementById('createShareBtn').addEventListener('click', function () {
+          if (!sb || !sbUser) return;
+          var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
+          if (!doc) return;
+          var btn = this;
+          /* Build -59: a document with outbound wikilinks
+             confirms its transitive closure in the bundle
+             modal before anything is created. A link-free
+             document keeps the single-share flow, no modal. */
+          var closure = computeShareClosure(doc);
+          if (!closure.length) { createSingleShare(doc, btn); return; }
+          btn.disabled = true;
+          pushAll().then(function () {
+            var existing = {};
+            var chain = Promise.resolve();
+            [doc].concat(closure).forEach(function (d) {
+              chain = chain.then(function () {
+                var rid = remoteIdFor('docs', d.id);
+                if (!rid) { existing[d.id] = null; return null; }
+                return docShares(rid).then(function (shares) {
+                  existing[d.id] = shares.length ? shares[0] : null;
+                });
+              });
+            });
+            return chain.then(function () {
+              btn.disabled = false;
+              openShareBundleModal(doc, closure, existing);
+            });
+          }).catch(function () { btn.disabled = false; });
         });
         document.getElementById('copyNewLinkBtn').addEventListener('click', function () {
           copyText(document.getElementById('shareNewLinkInput').value, this);
         });
         document.addEventListener('keydown', function (ev) {
-          if (ev.key === 'Escape' && !document.getElementById('shareModal').hidden) closeShareModal();
+          /* The bundle modals sit on top of the Share modal
+             (build -59) and own Escape while they are open. */
+          if (ev.key === 'Escape' && !document.getElementById('shareModal').hidden &&
+              document.getElementById('shareBundleModal').hidden &&
+              document.getElementById('shareRevokeModal').hidden) closeShareModal();
         });
 
         /* ---------------- sharing: public view ---------------- */
         var shareEditor = null;
         var shareViewToken = null;
         var shareViewPerm = 'view';
+        /* The bundle manifest of the share being viewed
+           (build -59), parsed from the row get_shared_document
+           returned; null for a standalone share, whose view
+           behaves exactly as before. */
+        var shareViewBundle = null;
         /* The viewer's own root theme/accent, saved while a
            shared view wears the owner's (build -58) and
            restored on exit. */
@@ -19151,6 +19716,7 @@
           document.getElementById('shareView').hidden = true;
           document.getElementById('appRoot').style.display = '';
           shareViewToken = null;
+          shareViewBundle = null;
           if (sharePrevRootTheme) {
             if (sharePrevRootTheme.t) rootEl.setAttribute('data-theme', sharePrevRootTheme.t);
             else rootEl.removeAttribute('data-theme');
@@ -19166,15 +19732,36 @@
           document.getElementById('shareInvalid').hidden = true;
           document.getElementById('shareDoc').hidden = false;
           document.getElementById('shareDocTitle').textContent = row.title || 'Untitled';
+          document.getElementById('shareView').scrollTop = 0;
+          /* Build -59: with a bundle manifest on the row, the
+             content is rewritten for the viewer before the
+             editor ever sees it — wikilinks into the bundle
+             stay links and navigate between the members' own
+             share links (the hash change re-enters the share
+             view with the member's token, so its permission,
+             comments, and -58 style snapshot all come from its
+             own row); wikilinks anywhere else become plain
+             text. Without a manifest the row renders exactly
+             as it did before -59. */
+          shareViewBundle = parseShareBundle(row.bundle);
+          var viewContent = row.content || { type: 'doc', content: [{ type: 'paragraph' }] };
+          if (shareViewBundle) viewContent = bundleViewContent(viewContent, shareViewBundle);
           var mount = document.getElementById('shareMount');
           if (shareEditor) { shareEditor.destroy(); shareEditor = null; }
           mount.innerHTML = '';
           shareEditor = window.FolioKit.createEditor({
             element: mount,
-            content: row.content || { type: 'doc', content: [{ type: 'paragraph' }] },
+            content: viewContent,
             placeholder: '',
-            existsTitle: function () { return false; },
-            onNavigate: function () {},
+            existsTitle: function (title) {
+              return shareViewBundle ? !!shareViewBundle.byTitle[normShareTitle(title)] : false;
+            },
+            onNavigate: function (title) {
+              var m = shareViewBundle ? shareViewBundle.byTitle[normShareTitle(title)] : null;
+              if (m && m.token && m.token !== shareViewToken) {
+                window.location.hash = '#/s/' + encodeURIComponent(m.token);
+              }
+            },
             onTagClick: function () {},
           });
           if (shareEditor && shareEditor.editor && shareEditor.editor.setEditable) {
@@ -19248,6 +19835,40 @@
             errEl.hidden = false;
           });
         });
+
+        /* Harness surface for the bundle logic (build -59):
+           the sandbox cannot reach the live backend, so the
+           closure walk, the share plan, the viewer transform,
+           and the confirmation modal are exercised through
+           these entry points against the real library and the
+           real DOM. Read-mostly; openConfirmFor only opens the
+           modal (confirming is what creates shares, and it
+           needs a signed-in backend). */
+        window.FolioShareBundle = {
+          closureFor: function (docId) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            return d ? computeShareClosure(d).map(function (x) { return x.id; }) : [];
+          },
+          planFor: function (selectedIds, existingByDocId) {
+            var docs = (selectedIds || []).map(function (id) {
+              return lib.docs.find(function (x) { return x.id === id; });
+            }).filter(Boolean);
+            return planBundleShares(docs, existingByDocId || {}).map(function (e) {
+              return { docId: e.doc.id, token: e.token, isNew: e.isNew };
+            });
+          },
+          viewContent: function (content, manifestRaw) {
+            var b = parseShareBundle(manifestRaw);
+            return b ? bundleViewContent(content, b) : content;
+          },
+          parse: function (raw) { return parseShareBundle(raw); },
+          openConfirmFor: function (docId, existingByDocId) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!d) return false;
+            openShareBundleModal(d, computeShareClosure(d), existingByDocId || {});
+            return true;
+          },
+        };
 
         /* ---------------- backend boot ---------------- */
         function initBackend() {
@@ -19343,7 +19964,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-58';
+        var FOLIO_BUILD = '20261029-59';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
