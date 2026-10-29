@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-59" />
+    <meta name="folio-build" content="20261029-60" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2593,6 +2593,35 @@
       .bundle-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
       .bundle-member-note { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; margin-top: 2px; }
 
+      /* ---------------- Wiki mode for share bundles (build -60) ----------------
+         The creation modal's opt-in and the Share panel's wiki
+         switch share one row shape: a label that can wrap, a
+         control that never shrinks. The modal uses a real
+         checkbox (the bundle list's own pattern); the panel
+         uses the app .wiki-toggle switch. */
+      .bundle-wiki-check {
+        display: flex; align-items: flex-start; gap: 10px;
+        margin-top: 14px; padding: 10px 2px; min-height: 44px; cursor: pointer;
+        font-size: 14px; line-height: 1.45; color: var(--ink-2);
+      }
+      .bundle-wiki-check input[type="checkbox"] {
+        width: 20px; height: 20px; flex: 0 0 auto; margin: 1px 0 0;
+        accent-color: var(--accent); cursor: pointer;
+      }
+      .bundle-wiki-check strong { color: var(--ink); font-weight: 700; }
+      .bundle-wiki-row {
+        display: flex; align-items: center; gap: 12px;
+        padding: 10px 0; border-bottom: 1px solid var(--line-soft);
+      }
+      .bundle-wiki-text { flex: 1; min-width: 0; }
+      .bundle-wiki-name { display: block; font-size: 14.5px; font-weight: 700; }
+      .bundle-wiki-desc { display: block; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; margin-top: 1px; }
+      .bundle-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+      /* The Add-documents picker reuses the bundle list rows;
+         its confirm button names the count like the creation
+         modal's does. */
+      .adddocs-list { margin-top: 6px; max-height: 46dvh; overflow-y: auto; }
+
       /* ---------------- Public share view ---------------- */
       .share-view { position: fixed; inset: 0; z-index: 120; background: var(--bg); overflow-y: auto; }
       .share-view[hidden] { display: none; }
@@ -2610,6 +2639,138 @@
       .comment-form { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
       .comment-form[hidden] { display: none; }
       .comment-form .btn-primary { align-self: flex-start; }
+
+      /* ---------------- Wiki sidebar in the shared view (build -60) ----------------
+         A wiki bundle's shared view gains the docs library
+         sidebar: every bundle document, the root pinned first,
+         the rest alphabetical, the open document highlighted.
+         On wide screens it is a sticky rail beside the paper.
+         On phone widths it leaves the flow entirely and rides
+         over the document as a drawer behind the toggle in the
+         paper, so the document keeps the screen. Without wiki
+         mode (.has-wiki absent) none of this renders and the
+         view is exactly the plain -59 one. */
+      .share-wiki { display: none; }
+      .share-view.has-wiki .share-layout {
+        display: flex; align-items: flex-start; justify-content: center;
+        max-width: 1180px; margin: 0 auto; padding: 0 20px;
+      }
+      .share-view.has-wiki .share-wiki {
+        display: flex; flex-direction: column; position: sticky; top: 0;
+        width: 248px; flex: 0 0 248px; max-height: 100dvh; overflow: hidden;
+        padding: 30px 18px 48px 0;
+      }
+      .share-view.has-wiki .paper { margin: 26px 0 90px; flex: 1; min-width: 0; }
+      .share-wiki-head { padding: 0 10px 10px; }
+      .share-wiki-label {
+        display: block; font-size: 11px; font-weight: 700;
+        letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3);
+      }
+      .share-wiki-root {
+        display: block; font-family: "Newsreader", Georgia, serif;
+        font-size: 19px; font-weight: 600; line-height: 1.25; margin-top: 3px;
+        overflow-wrap: break-word;
+      }
+      .share-wiki-close { display: none; }
+      .share-wiki-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+      /* Bundle search + tag filter (build -60 fold-in): the
+         search field is pinned at the sidebar's top because
+         the head/search/mode rows are flex-fixed and only the
+         list scrolls. It exists in the DOM always but renders
+         solely inside a wiki sidebar (.has-wiki) — the wrap
+         is hidden for every other shared view. The sidebar
+         list has ONE mode at a time: full list, a tag filter
+         (mode head with the tag and a back row), or search
+         results (title plus a one-line excerpt for body
+         matches). */
+      .share-wiki-search { position: relative; flex: 0 0 auto; margin: 0 0 10px; }
+      .share-wiki-search[hidden] { display: none; }
+      .share-wiki-search input {
+        width: 100%; font: inherit; font-size: 14px; color: var(--ink);
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: 9px; padding: 9px 36px 9px 12px; min-height: 40px; outline: none;
+      }
+      .share-wiki-search input:focus { border-color: var(--accent); }
+      .share-wiki-search-clear {
+        position: absolute; top: 3px; right: 3px;
+        width: 34px; height: 34px; border-radius: 7px;
+        display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2);
+      }
+      .share-wiki-search-clear:hover { background: var(--hover); color: var(--ink); }
+      .share-wiki-search-clear[hidden] { display: none; }
+      .share-wiki-modehead { flex: 0 0 auto; padding: 0 2px 8px; }
+      .share-wiki-modehead[hidden] { display: none; }
+      .share-wiki-back {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 13.5px; font-weight: 700; color: var(--accent);
+        padding: 7px 8px; margin-left: -8px; border-radius: 8px; min-height: 36px;
+      }
+      .share-wiki-back:hover { background: var(--hover); }
+      .share-wiki-back[hidden] { display: none; }
+      .share-wiki-mode-title {
+        font-family: "Newsreader", Georgia, serif;
+        font-size: 19px; font-weight: 600; line-height: 1.25;
+        padding: 2px 8px 0; overflow-wrap: anywhere;
+      }
+      .share-wiki-item--result { flex-direction: column; align-items: stretch; gap: 1px; }
+      .share-wiki-excerpt {
+        font-size: 12.5px; font-weight: 400; color: var(--ink-3); line-height: 1.4;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .share-wiki-item.current .share-wiki-excerpt { color: var(--ink-2); }
+      .share-wiki-empty { font-size: 13.5px; color: var(--ink-3); line-height: 1.5; padding: 8px 10px; }
+      .share-wiki-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 9px 10px; border-radius: 9px; min-height: 40px;
+        font-size: 14.5px; font-weight: 500; color: var(--ink-2);
+        text-decoration: none; overflow-wrap: anywhere;
+      }
+      .share-wiki-item:hover { background: var(--hover); color: var(--ink); }
+      .share-wiki-item.current { background: var(--active); color: var(--ink); font-weight: 700; }
+      .share-wiki-item .share-wiki-item-title { flex: 1; min-width: 0; }
+      .share-wiki-badge {
+        flex: 0 0 auto; font-size: 11px; font-weight: 700;
+        color: var(--accent-ink); background: var(--accent);
+        padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+      }
+      .share-wiki-toggle { display: none; }
+      .share-wiki-scrim { display: none; }
+      @media (max-width: 860px) {
+        .share-view.has-wiki .share-layout { display: block; padding: 0; }
+        .share-view.has-wiki .paper { margin: 26px auto 90px; }
+        .share-view.has-wiki .share-wiki {
+          position: fixed; top: 0; left: 0; bottom: 0; z-index: 160;
+          width: min(300px, 84vw); flex: none; max-height: none;
+          background: var(--sidebar); color: var(--sidebar-ink);
+          border-right: 1px solid var(--line);
+          padding: 20px 14px 40px;
+          transform: translateX(-105%);
+          transition: transform 200ms ease;
+        }
+        .share-view.has-wiki.wiki-open .share-wiki { transform: none; box-shadow: var(--shadow); }
+        .share-view.has-wiki.wiki-open .share-wiki-scrim {
+          display: block; position: fixed; inset: 0; z-index: 150;
+          background: rgba(0, 0, 0, 0.35);
+        }
+        .share-wiki-head { display: flex; align-items: flex-start; gap: 8px; padding: 0 4px 10px; }
+        .share-wiki-head-text { flex: 1; min-width: 0; }
+        .share-wiki-close {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 36px; height: 36px; border-radius: 8px; flex: 0 0 auto; color: var(--ink-2);
+        }
+        .share-wiki-close:hover { background: var(--hover); color: var(--ink); }
+        .share-view.has-wiki .share-wiki-toggle {
+          display: inline-flex; align-items: center; gap: 7px;
+          font-size: 13.5px; font-weight: 600; color: var(--ink-2);
+          border: 1px solid var(--line); border-radius: 9px;
+          background: var(--surface); padding: 8px 12px; min-height: 40px;
+          margin-bottom: 18px;
+        }
+        .share-view.has-wiki .share-wiki-toggle:hover { color: var(--ink); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .share-view.has-wiki .share-wiki { transition: none; }
+      }
       @media (max-width: 560px) {
         .share-btn .share-label { display: none; }
         .share-title { font-size: 29px; }
@@ -3340,10 +3501,31 @@
           </button>
         </div>
         <p class="form-note">This share link will allow people to view this document and all documents linked from it. Each document below gets its own link with the same permission as the one you chose. Uncheck any document you don&rsquo;t want to include &mdash; links to it will appear as plain text instead.</p>
+        <label class="bundle-wiki-check">
+          <input type="checkbox" id="shareBundleWiki" />
+          <span><strong>Present this set as a wiki</strong> &mdash; readers get a sidebar listing every document in the set, so they can browse the whole collection, not just follow links.</span>
+        </label>
         <div class="bundle-list" id="shareBundleList"></div>
         <div class="bundle-foot">
           <button class="btn-ghost" id="shareBundleCancel" type="button">Cancel</button>
           <button class="btn-primary" id="shareBundleConfirm" type="button">Share 1 document</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shareAddDocsModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareAddDocsTitle">
+        <div class="panel-head">
+          <h2 id="shareAddDocsTitle">Add documents to this set</h2>
+          <button class="icon-btn" id="shareAddDocsClose" type="button" aria-label="Cancel adding documents" data-tip="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note">Each document you add joins the set right away. It gets a link with the set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one &mdash; and appears in the wiki sidebar when this set is presented as a wiki.</p>
+        <div class="adddocs-list" id="shareAddDocsList"></div>
+        <div class="bundle-foot">
+          <button class="btn-ghost" id="shareAddDocsCancel" type="button">Cancel</button>
+          <button class="btn-primary" id="shareAddDocsConfirm" type="button" disabled>Add documents</button>
         </div>
       </div>
     </div>
@@ -3476,7 +3658,38 @@
     </div>
 
     <div class="share-view" id="shareView" hidden>
+      <div class="share-layout" id="shareLayout">
+      <aside class="share-wiki" id="shareWiki" hidden aria-label="Wiki documents">
+        <div class="share-wiki-head">
+          <div class="share-wiki-head-text">
+            <span class="share-wiki-label">Wiki</span>
+            <span class="share-wiki-root" id="shareWikiRoot"></span>
+          </div>
+          <button class="share-wiki-close" id="shareWikiClose" type="button" aria-label="Close wiki sidebar" data-tip="Close">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="share-wiki-search" id="shareWikiSearchWrap" hidden>
+          <input id="shareWikiSearch" type="search" placeholder="Search this wiki" aria-label="Search this wiki" autocomplete="off" autocapitalize="off" spellcheck="false" />
+          <button class="share-wiki-search-clear" id="shareWikiSearchClear" type="button" aria-label="Clear search" data-tip="Clear search" hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="share-wiki-modehead" id="shareWikiModeHead" hidden>
+          <button class="share-wiki-back" id="shareWikiBack" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+            All documents
+          </button>
+          <div class="share-wiki-mode-title" id="shareWikiModeTitle"></div>
+        </div>
+        <nav class="share-wiki-list" id="shareWikiList"></nav>
+      </aside>
+      <div class="share-wiki-scrim" id="shareWikiScrim"></div>
       <div class="paper">
+        <button class="share-wiki-toggle" id="shareWikiToggle" type="button" aria-label="Show wiki documents">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          Wiki documents
+        </button>
         <div class="share-loading" id="shareLoading">Loading&hellip;</div>
         <div id="shareInvalid" hidden>
           <h1 class="share-title">This link isn&rsquo;t available</h1>
@@ -3497,6 +3710,7 @@
             <p class="form-note" id="commentClosedNote" hidden>This link is view-only, so comments here are read-only.</p>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -18966,7 +19180,17 @@
            created, just not recorded as a set), the owner keeps
            a local copy of the manifest on this device so the
            Share panel and the revoke offer still work here,
-           and shared views keep their pre--59 rendering. */
+           and shared views keep their pre--59 rendering.
+
+           Build -60 extends the same record, no new dashboard
+           step: the manifest gains a `wiki` flag (present the
+           set with a library sidebar in the shared view) and a
+           per-member `created` flag (the bundle minted this
+           share vs reused a pre-existing one — removal revokes
+           the former and only detaches the latter). The root
+           Share panel carries the wiki switch and an
+           Add documents picker for growing the set after
+           creation. */
         function normShareTitle(t) { return String(t || '').trim().toLowerCase(); }
         function shareFolderHint(doc) {
           if (!doc || !doc.folderId) return '';
@@ -19008,16 +19232,94 @@
             v: 1,
             id: typeof b.id === 'string' ? b.id : null,
             rootToken: typeof b.rootToken === 'string' ? b.rootToken : (members[0] ? members[0].token : null),
+            /* Wiki mode (build -60): the flag rides the same
+               bundle record, object or JSON-string form alike.
+               Anything but a literal true is off, so a -59
+               manifest (no flag) parses as a plain bundle. */
+            wiki: b.wiki === true,
             members: members,
             byTitle: byTitle,
           };
         }
         function bundleManifestOf(bundle) {
-          return {
+          var manifest = {
             v: 1,
             id: bundle.id,
             rootToken: bundle.rootToken,
-            members: bundle.members.map(function (m) { return { token: m.token, doc: m.doc || null, title: m.title }; }),
+            wiki: bundle.wiki === true,
+            members: bundle.members.map(function (m) {
+              var out = { token: m.token, doc: m.doc || null, title: m.title };
+              /* Whether the bundle CREATED this member's share
+                 (build -60): removal revokes a bundle-created
+                 share but only detaches a pre-existing one, so
+                 the distinction has to survive in the record.
+                 A -59 member has no flag and is treated as
+                 pre-existing — detaching never destroys a link
+                 whose origin is unknown. */
+              if (typeof m.created === 'boolean') out.created = m.created;
+              return out;
+            }),
+          };
+          return manifest;
+        }
+        /* The wiki sidebar's order (build -60): the root
+           pinned first, the rest alphabetical by title
+           (case-insensitive, token as the stable tiebreak).
+           Pure — the harness checks the order directly. */
+        function wikiSidebarMembers(bundle) {
+          if (!bundle || !bundle.members) return [];
+          var root = null;
+          var rest = [];
+          bundle.members.forEach(function (m) {
+            if (m.token === bundle.rootToken && !root) root = m;
+            else rest.push(m);
+          });
+          rest.sort(function (a, b) {
+            var ta = String(a.title || '').toLowerCase();
+            var tb = String(b.title || '').toLowerCase();
+            if (ta < tb) return -1;
+            if (ta > tb) return 1;
+            return a.token < b.token ? -1 : (a.token > b.token ? 1 : 0);
+          });
+          return root ? [root].concat(rest) : rest;
+        }
+        /* The Add-documents plan (build -60): one entry per
+           selected document not already in the set, reusing
+           an existing share's token where the document has
+           one (created=false) and marking the rest as new
+           shares the bundle will create (created=true). Pure
+           apart from the library's own remote-id map, which
+           only filters out documents already in the set. */
+        function planBundleAdditions(selectedDocs, existingByDocId, bundle) {
+          var memberDocs = {};
+          if (bundle && bundle.members) {
+            bundle.members.forEach(function (m) { if (m.doc) memberDocs[m.doc] = true; });
+          }
+          var fresh = (selectedDocs || []).filter(function (d) {
+            var rid = remoteIdFor('docs', d.id);
+            return !(rid && memberDocs[rid]);
+          });
+          return planBundleShares(fresh, existingByDocId || {}).map(function (e) {
+            return { doc: e.doc, token: e.token, isNew: e.isNew, created: e.isNew };
+          });
+        }
+        /* The remove plan (build -60): revoking is only for
+           shares the bundle itself created; a pre-existing
+           share is detached — the member leaves the manifest,
+           its own link keeps working. The root is never
+           removable here (revoking it is the share list's own
+           flow). Pure. */
+        function planBundleRemove(bundle, token) {
+          if (!bundle || !bundle.members || token === bundle.rootToken) return null;
+          var member = null;
+          bundle.members.forEach(function (m) { if (m.token === token) member = m; });
+          if (!member) return null;
+          var manifest = bundleManifestOf(bundle);
+          manifest.members = manifest.members.filter(function (m) { return m.token !== token; });
+          return {
+            member: member,
+            mode: member.created === true ? 'revoke' : 'detach',
+            manifest: manifest,
           };
         }
         /* The viewer's content transform: with a bundle in
@@ -19135,6 +19437,43 @@
             if (res && res.error) shareBundleColOk = false;
           }).catch(function () {});
         }
+        /* Build -60: one write path for every manifest change
+           after creation (wiki toggle, add, remove). The local
+           copy is saved first — it is what keeps the change
+           working on this device while the bundle column is
+           missing — then every member's share row is updated
+           so any member's link serves the same set. Fails soft
+           exactly like the -59 writes. */
+        function persistBundleManifest(manifest) {
+          saveLocalBundle(manifest);
+          var chain = Promise.resolve();
+          manifest.members.forEach(function (m) {
+            chain = chain.then(function () { return updateShareBundle(m.token, manifest); });
+          });
+          return chain;
+        }
+        /* Detaching a pre-existing share from a set (build
+           -60): clear its bundle column so its own view stops
+           rendering as a member, without touching the link
+           itself. Fail-soft like every bundle write. */
+        function clearShareBundleRemote(token) {
+          try {
+            var store = localBundleStore();
+            delete store[token];
+            localStorage.setItem(SHARE_BUNDLES_KEY, JSON.stringify(store));
+          } catch (e) {}
+          if (!sb || !shareBundleColOk) return Promise.resolve();
+          return sb.from('shares').update({ bundle: null }).eq('token', token).then(function (res) {
+            if (res && res.error) shareBundleColOk = false;
+          }).catch(function () {});
+        }
+        function removeLocalBundleToken(token) {
+          try {
+            var store = localBundleStore();
+            delete store[token];
+            localStorage.setItem(SHARE_BUNDLES_KEY, JSON.stringify(store));
+          } catch (e) {}
+        }
 
         function refreshShareBadge() {
           var badge = document.getElementById('shareBadge');
@@ -19170,35 +19509,80 @@
            every other member of the set with its own link, so
            the owner can copy a member's link directly and can
            see exactly what revoking the root puts in play. */
+        /* The bundle the Share panel is currently showing
+           (build -60): loadBundlePanel records it here so the
+           wiki switch, Add documents, and the member Remove
+           buttons all act on the same set, and so the harness
+           can read back what the panel settled on. */
+        var sharePanelBundle = null;
+        var sharePanelRootPerm = 'view';
         function loadBundlePanel() {
           var wrap = document.getElementById('shareBundlePanel');
           var label = document.getElementById('shareBundleLabel');
           if (!wrap) return;
           wrap.innerHTML = '';
           if (label) label.hidden = true;
+          sharePanelBundle = null;
           var forDocId = shareModalDocId;
           var doc = lib.docs.find(function (d) { return d.id === forDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
           if (!sb || !sbUser || !rid) return;
           docShares(rid).then(function (shares) {
             var found = null;
+            var foundPerm = 'view';
             var chain = Promise.resolve();
             shares.forEach(function (s) {
               chain = chain.then(function () {
                 if (found) return null;
                 return fetchShareBundle(s.token).then(function (b) {
-                  if (b && b.rootToken === s.token && b.members.length > 1) found = b;
+                  if (b && b.rootToken === s.token && b.members.length > 1) { found = b; foundPerm = s.permission || 'view'; }
                 });
               });
             });
-            return chain.then(function () { return found; });
-          }).then(function (bundle) {
-            if (shareModalDocId !== forDocId || !bundle) return;
+            return chain.then(function () { return found ? { bundle: found, perm: foundPerm } : null; });
+          }).then(function (out) {
+            if (shareModalDocId !== forDocId || !out) return;
+            var bundle = out.bundle;
+            sharePanelBundle = bundle;
+            sharePanelRootPerm = out.perm || 'view';
             if (label) label.hidden = false;
             var note = document.createElement('div');
             note.className = 'bundle-member-note';
             note.textContent = 'This link was created together with links to the documents below, so readers can follow wiki-links between them. Revoking the main link above offers to revoke these too.';
             wrap.appendChild(note);
+            /* Wiki switch (build -60): flips the bundle
+               record's flag; the shared views gain or lose the
+               sidebar, membership and links untouched. */
+            var wikiRow = document.createElement('div');
+            wikiRow.className = 'bundle-wiki-row';
+            var wikiText = document.createElement('div');
+            wikiText.className = 'bundle-wiki-text';
+            var wikiName = document.createElement('span');
+            wikiName.className = 'bundle-wiki-name';
+            wikiName.textContent = 'Present this set as a wiki';
+            wikiText.appendChild(wikiName);
+            var wikiDesc = document.createElement('span');
+            wikiDesc.className = 'bundle-wiki-desc';
+            wikiDesc.textContent = 'Readers get a sidebar listing every document in the set.';
+            wikiText.appendChild(wikiDesc);
+            wikiRow.appendChild(wikiText);
+            var wikiSwitch = document.createElement('button');
+            wikiSwitch.type = 'button';
+            wikiSwitch.className = 'wiki-toggle';
+            wikiSwitch.id = 'shareBundleWikiSwitch';
+            wikiSwitch.setAttribute('role', 'switch');
+            wikiSwitch.setAttribute('aria-checked', bundle.wiki ? 'true' : 'false');
+            wikiSwitch.setAttribute('aria-label', 'Present this set as a wiki');
+            var knob = document.createElement('span');
+            knob.className = 'wt-knob';
+            wikiSwitch.appendChild(knob);
+            wikiSwitch.addEventListener('click', function () {
+              var on = wikiSwitch.getAttribute('aria-checked') !== 'true';
+              wikiSwitch.setAttribute('aria-checked', on ? 'true' : 'false');
+              setBundleWiki(bundle, on);
+            });
+            wikiRow.appendChild(wikiSwitch);
+            wrap.appendChild(wikiRow);
             bundle.members.forEach(function (m) {
               if (m.token === bundle.rootToken) return;
               var row = document.createElement('div');
@@ -19221,9 +19605,79 @@
               copy.setAttribute('data-tip', 'Copy link');
               copy.addEventListener('click', function () { copyText(shareLinkFor(m.token), copy); });
               row.appendChild(copy);
+              /* Remove (build -60): a bundle-created share is
+                 revoked with the member; a pre-existing share
+                 is only detached, and its own link survives.
+                 The tip names which of the two will happen. */
+              var remove = document.createElement('button');
+              remove.type = 'button';
+              remove.className = 'btn-ghost btn-danger-ghost';
+              remove.textContent = 'Remove';
+              remove.setAttribute('data-bundle-remove', m.token);
+              remove.setAttribute('data-tip', m.created === true
+                ? 'Remove from this set and revoke this document\u2019s link'
+                : 'Remove from this set \u2014 this document\u2019s own link keeps working');
+              remove.addEventListener('click', function () { removeBundleMember(bundle, m, remove); });
+              row.appendChild(remove);
               wrap.appendChild(row);
             });
+            var actions = document.createElement('div');
+            actions.className = 'bundle-actions';
+            var addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.className = 'btn-ghost';
+            addBtn.id = 'shareBundleAddBtn';
+            addBtn.textContent = 'Add documents\u2026';
+            addBtn.setAttribute('data-tip', 'Add more of your documents to this set');
+            addBtn.addEventListener('click', function () { openAddDocsModal(bundle); });
+            actions.appendChild(addBtn);
+            wrap.appendChild(actions);
           }).catch(function () {});
+        }
+        /* The wiki flag flip (build -60): a new manifest with
+           only the flag changed, persisted to every member's
+           row and the local copy. Membership, tokens, and
+           permissions are not touched, so turning wiki off
+           returns the shared views to the plain -59 rendering
+           with every link intact. */
+        function setBundleWiki(bundle, on) {
+          if (!bundle) return Promise.resolve(null);
+          var manifest = bundleManifestOf(bundle);
+          manifest.wiki = !!on;
+          sharePanelBundle = parseShareBundle(manifest);
+          return persistBundleManifest(manifest).then(function () {
+            if (!document.getElementById('shareModal').hidden) loadBundlePanel();
+            return manifest;
+          });
+        }
+        /* Removing one member (build -60), per the pure plan:
+           revoke a bundle-created share outright; detach a
+           pre-existing one (clear its bundle record, keep the
+           link). The remaining members get the shrunk
+           manifest; the removed token's local entry goes too,
+           so this device stops treating it as a member. */
+        function removeBundleMember(bundle, member, btn) {
+          var plan = planBundleRemove(bundle, member.token);
+          if (!plan || !sb) return;
+          if (btn) btn.disabled = true;
+          var first = Promise.resolve();
+          if (plan.mode === 'revoke') {
+            first = sb.from('shares').delete().eq('token', member.token).then(function () {}).catch(function () {});
+          } else {
+            first = clearShareBundleRemote(member.token);
+          }
+          first.then(function () {
+            removeLocalBundleToken(member.token);
+            return persistBundleManifest(plan.manifest);
+          }).then(function () {
+            sharePanelBundle = parseShareBundle(plan.manifest);
+            loadBundlePanel();
+            if (typeof folioToast === 'function') {
+              folioToast(plan.mode === 'revoke'
+                ? 'Removed \u201C' + (member.title || 'Untitled') + '\u201D from the set and revoked its link.'
+                : 'Removed \u201C' + (member.title || 'Untitled') + '\u201D from the set. Its own link still works.', 4200);
+            }
+          }).catch(function () { if (btn) btn.disabled = false; });
         }
         function loadShareList() {
           loadBundlePanel();
@@ -19382,6 +19836,11 @@
         var bundlePending = null;
         function openShareBundleModal(rootDoc, closure, existingByDocId) {
           bundlePending = { rootDoc: rootDoc, closure: closure, existing: existingByDocId || {} };
+          /* Wiki mode is opt-in per set (build -60): the
+             checkbox starts unchecked every time the modal
+             opens, so a plain bundle stays the default. */
+          var wikiCb = document.getElementById('shareBundleWiki');
+          if (wikiCb) wikiCb.checked = false;
           var listEl = document.getElementById('shareBundleList');
           listEl.innerHTML = '';
           listEl.appendChild(bundleRowEl(rootDoc, null, true));
@@ -19468,12 +19927,18 @@
             var plan = planBundleShares(usable, pending.existing);
             plan.forEach(function (e) { if (!e.token) e.token = genToken(); });
             var rootEntry = plan[0];
+            var wikiCb = document.getElementById('shareBundleWiki');
             var manifest = {
               v: 1,
               id: genToken(),
               rootToken: rootEntry.token,
+              /* Build -60: the modal's wiki checkbox, and each
+                 member's created flag (true when this bundle
+                 mints the share, false when it reuses one) so
+                 removal later knows revoke from detach. */
+              wiki: !!(wikiCb && wikiCb.checked),
               members: plan.map(function (e) {
-                return { token: e.token, doc: remoteIdFor('docs', e.doc.id), title: e.doc.title || 'Untitled' };
+                return { token: e.token, doc: remoteIdFor('docs', e.doc.id), title: e.doc.title || 'Untitled', created: e.isNew };
               }),
             };
             var snap = shareStylesSnapshot();
@@ -19515,6 +19980,180 @@
         });
         document.addEventListener('keydown', function (ev) {
           if (ev.key === 'Escape' && !document.getElementById('shareBundleModal').hidden) closeShareBundleModal();
+        });
+
+        /* ---------------- sharing: add documents to a bundle (build -60) ----------------
+           The root Share panel's "Add documents…" picker: a
+           multi-select over the owner's library, documents
+           already in the set left out. Confirming joins each
+           picked document immediately — a fresh share at the
+           bundle's permission, or its existing active share
+           reused — and every member's row (old and new) gets
+           the grown manifest, so the wiki sidebar and the
+           panel agree everywhere at once. Cancel (button, ×,
+           backdrop, Esc) changes nothing. */
+        var bundleAddPending = null;
+        function openAddDocsModal(bundle) {
+          if (!bundle) return;
+          bundleAddPending = { bundle: bundle };
+          var listEl = document.getElementById('shareAddDocsList');
+          listEl.innerHTML = '';
+          var memberDocs = {};
+          bundle.members.forEach(function (m) { if (m.doc) memberDocs[m.doc] = true; });
+          var docs = lib.docs.filter(function (d) {
+            if (d.id === shareModalDocId) return false;
+            var rid = remoteIdFor('docs', d.id);
+            return !(rid && memberDocs[rid]);
+          }).sort(function (a, b) {
+            var ta = String(a.title || '').toLowerCase();
+            var tb = String(b.title || '').toLowerCase();
+            return ta < tb ? -1 : (ta > tb ? 1 : 0);
+          });
+          if (!docs.length) {
+            var empty = document.createElement('div');
+            empty.className = 'list-empty';
+            empty.textContent = 'Every document in your library is already in this set.';
+            listEl.appendChild(empty);
+          }
+          docs.forEach(function (d) { listEl.appendChild(addDocRowEl(d)); });
+          updateAddDocsConfirmLabel();
+          document.getElementById('shareAddDocsModal').hidden = false;
+          var first = listEl.querySelector('input[type="checkbox"]');
+          try { (first || document.getElementById('shareAddDocsConfirm')).focus(); } catch (e) {}
+        }
+        function addDocRowEl(doc) {
+          var row = document.createElement('label');
+          row.className = 'bundle-row';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = false;
+          cb.setAttribute('data-add-doc', doc.id);
+          cb.setAttribute('aria-label', 'Add ' + (doc.title || 'Untitled') + ' to this set');
+          cb.addEventListener('change', updateAddDocsConfirmLabel);
+          row.appendChild(cb);
+          var main = document.createElement('span');
+          main.className = 'bundle-main';
+          var title = document.createElement('span');
+          title.className = 'bundle-title';
+          title.textContent = doc.title || 'Untitled';
+          main.appendChild(title);
+          var hint = shareFolderHint(doc);
+          if (hint) {
+            var folder = document.createElement('span');
+            folder.className = 'bundle-folder';
+            folder.textContent = hint;
+            main.appendChild(folder);
+          }
+          row.appendChild(main);
+          return row;
+        }
+        function addDocsCheckedDocs() {
+          if (!bundleAddPending) return [];
+          var out = [];
+          document.querySelectorAll('#shareAddDocsList input[type="checkbox"][data-add-doc]').forEach(function (cb) {
+            if (!cb.checked) return;
+            var d = lib.docs.find(function (x) { return x.id === cb.getAttribute('data-add-doc'); });
+            if (d) out.push(d);
+          });
+          return out;
+        }
+        function updateAddDocsConfirmLabel() {
+          var n = addDocsCheckedDocs().length;
+          var btn = document.getElementById('shareAddDocsConfirm');
+          btn.disabled = n === 0;
+          btn.textContent = n === 0 ? 'Add documents' : 'Add ' + n + (n === 1 ? ' document' : ' documents');
+        }
+        function closeAddDocsModal() {
+          document.getElementById('shareAddDocsModal').hidden = true;
+          bundleAddPending = null;
+        }
+        function confirmAddDocs() {
+          if (!bundleAddPending || !sb || !sbUser) return;
+          var bundle = bundleAddPending.bundle;
+          var selected = addDocsCheckedDocs();
+          if (!selected.length) return;
+          var btn = document.getElementById('shareAddDocsConfirm');
+          btn.disabled = true;
+          btn.textContent = 'Adding\u2026';
+          pushAll().then(function () {
+            var usable = selected.filter(function (d) { return !!remoteIdFor('docs', d.id); });
+            if (!usable.length) return null;
+            /* The bundle's permission is its root share's;
+               added shares are created at that permission. */
+            var rootDoc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
+            var rootRid = rootDoc ? remoteIdFor('docs', rootDoc.id) : null;
+            var permChain = rootRid
+              ? docShares(rootRid).then(function (shares) {
+                  var rootShare = shares.find(function (s) { return s.token === bundle.rootToken; });
+                  return rootShare ? (rootShare.permission || 'view') : sharePanelRootPerm;
+                })
+              : Promise.resolve(sharePanelRootPerm);
+            return permChain.then(function (perm) {
+              var existing = {};
+              var chain = Promise.resolve();
+              usable.forEach(function (d) {
+                chain = chain.then(function () {
+                  return docShares(remoteIdFor('docs', d.id)).then(function (shares) {
+                    existing[d.id] = shares.length ? shares[0] : null;
+                  });
+                });
+              });
+              return chain.then(function () {
+                var plan = planBundleAdditions(usable, existing, bundle);
+                plan.forEach(function (e) { if (!e.token) e.token = genToken(); });
+                if (!plan.length) return null;
+                var manifest = bundleManifestOf(bundle);
+                plan.forEach(function (e) {
+                  manifest.members.push({
+                    token: e.token, doc: remoteIdFor('docs', e.doc.id),
+                    title: e.doc.title || 'Untitled', created: e.created,
+                  });
+                });
+                var snap = shareStylesSnapshot();
+                var ops = Promise.resolve();
+                plan.forEach(function (e) {
+                  ops = ops.then(function () {
+                    if (e.isNew) {
+                      return insertShareRow({
+                        token: e.token, document_id: remoteIdFor('docs', e.doc.id),
+                        permission: perm, styles: snap, bundle: manifest,
+                      });
+                    }
+                    return updateShareBundle(e.token, manifest);
+                  });
+                });
+                /* Existing members' rows get the grown manifest
+                   too, so the set reads the same from any link. */
+                bundle.members.forEach(function (m) {
+                  ops = ops.then(function () { return updateShareBundle(m.token, manifest); });
+                });
+                return ops.then(function () { return { manifest: manifest, added: plan.length }; });
+              });
+            });
+          }).then(function (out) {
+            btn.disabled = false;
+            updateAddDocsConfirmLabel();
+            if (!out) return;
+            saveLocalBundle(out.manifest);
+            sharePanelBundle = parseShareBundle(out.manifest);
+            closeAddDocsModal();
+            loadBundlePanel();
+            if (typeof folioToast === 'function') {
+              folioToast('Added ' + out.added + (out.added === 1 ? ' document' : ' documents') + ' to the set.', 4200);
+            }
+          }).catch(function () {
+            btn.disabled = false;
+            updateAddDocsConfirmLabel();
+          });
+        }
+        document.getElementById('shareAddDocsConfirm').addEventListener('click', confirmAddDocs);
+        document.getElementById('shareAddDocsCancel').addEventListener('click', closeAddDocsModal);
+        document.getElementById('shareAddDocsClose').addEventListener('click', closeAddDocsModal);
+        document.getElementById('shareAddDocsModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeAddDocsModal();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && !document.getElementById('shareAddDocsModal').hidden) closeAddDocsModal();
         });
 
         /* ---------------- sharing: bundle revoke choice ---------------- */
@@ -19667,6 +20306,7 @@
              (build -59) and own Escape while they are open. */
           if (ev.key === 'Escape' && !document.getElementById('shareModal').hidden &&
               document.getElementById('shareBundleModal').hidden &&
+              document.getElementById('shareAddDocsModal').hidden &&
               document.getElementById('shareRevokeModal').hidden) closeShareModal();
         });
 
@@ -19690,6 +20330,10 @@
         }
         function enterShareView(token) {
           shareViewToken = token;
+          /* A new token may be a different bundle (or none):
+             clear the wiki sidebar until this row's manifest
+             is known, so a stale set never flashes. */
+          renderWikiSidebar(null, token);
           document.getElementById('shareView').hidden = false;
           document.getElementById('appRoot').style.display = 'none';
           hideAuthGate();
@@ -19707,16 +20351,370 @@
           });
         }
         function showShareInvalid() {
+          renderWikiSidebar(null, shareViewToken);
           document.getElementById('shareLoading').hidden = true;
           document.getElementById('shareDoc').hidden = true;
           document.getElementById('shareInvalid').hidden = false;
         }
+        /* The wiki sidebar (build -60): renders the bundle's
+           whole membership into the shared view — root pinned
+           first, the rest alphabetical (wikiSidebarMembers),
+           the open document highlighted. Entries are plain
+           hash links to each member's own shared view, so a
+           tap re-enters the share view with that member's
+           token and its own permission, comments, and style
+           snapshot apply. A non-wiki bundle (or none) clears
+           the sidebar and the .has-wiki class, which is what
+           makes the view render exactly as it did in -59.
+           Nothing outside the manifest is listed, so nothing
+           outside the bundle becomes reachable.
+
+           Fold-in (tag navigation + bundle search): the list
+           has ONE mode at a time — 'all' (the full list),
+           'tag' (only members carrying the clicked hashtag),
+           or 'search' (title/body matches). Entering one
+           filtered mode exits the other; clearing either
+           returns to 'all'. Tag membership and body text come
+           from the members' own contents, fetched through
+           their share tokens on first use and cached for the
+           session — so a tag or a term only ever matches
+           bundle members, never the owner's wider library:
+           the intersection is the manifest itself. */
+        var shareWikiMode = 'all';
+        var shareWikiTag = null;
+        var shareWikiQuery = '';
+        var shareWikiBundleKey = null;
+        var shareWikiReqSeq = 0;
+        var shareWikiSearchTimer = null;
+        /* Session cache of member contents, by share token:
+           { title, content, tags: [lowercase keys], text } —
+           plus the in-flight promise map beside it. */
+        var shareMemberInfo = {};
+        var shareMemberPending = {};
+        function makeShareMemberInfo(title, content) {
+          var tags = {};
+          docTags({ content: content }).forEach(function (t) { tags[t.key] = true; });
+          return {
+            title: title || 'Untitled',
+            content: content || null,
+            tags: Object.keys(tags),
+            text: shareContentText(content),
+          };
+        }
+        /* Plain text of a document body for bundle search:
+           text nodes as written, tags as their #name, wiki
+           links as their display text — block boundaries as
+           spaces, whitespace collapsed. */
+        function shareContentText(content) {
+          var parts = [];
+          (function walk(node) {
+            if (!node || typeof node !== 'object') return;
+            if (node.type === 'text' && typeof node.text === 'string') parts.push(node.text);
+            else if (node.type === 'tag' && node.attrs && node.attrs.name) parts.push('#' + node.attrs.name);
+            else if (node.type === 'wikiLink' && node.attrs) parts.push(node.attrs.display || node.attrs.title || '');
+            if (Array.isArray(node.content)) {
+              node.content.forEach(walk);
+              if (node.type !== 'doc') parts.push(' ');
+            }
+          })(content || { type: 'doc', content: [] });
+          return parts.join(' ').replace(/\s+/g, ' ').trim();
+        }
+        function fetchShareMemberInfo(token) {
+          if (shareMemberInfo[token]) return Promise.resolve(shareMemberInfo[token]);
+          if (shareMemberPending[token]) return shareMemberPending[token];
+          if (!sb) return Promise.resolve(null);
+          var p = sb.rpc('get_shared_document', { t: token }).then(function (res) {
+            delete shareMemberPending[token];
+            if (res && !res.error && res.data && res.data.length) {
+              shareMemberInfo[token] = makeShareMemberInfo(res.data[0].title, res.data[0].content);
+              return shareMemberInfo[token];
+            }
+            return null;
+          }).catch(function () { delete shareMemberPending[token]; return null; });
+          shareMemberPending[token] = p;
+          return p;
+        }
+        function fetchAllShareMemberInfos(bundle) {
+          return Promise.all(bundle.members.map(function (m) { return fetchShareMemberInfo(m.token); }));
+        }
+        /* The tag intersection, pure over the cached infos:
+           members (in sidebar order) whose content carries
+           the tag. Members whose content could not be fetched
+           simply do not match — they are never guessed in. */
+        function wikiTagMembers(bundle, tagKey) {
+          return wikiSidebarMembers(bundle).filter(function (m) {
+            var info = shareMemberInfo[m.token];
+            return !!info && info.tags.indexOf(tagKey) !== -1;
+          });
+        }
+        /* One-line excerpt around the first body match:
+           ~110 characters of context, ellipses where the text
+           runs on. Returns '' when there is no body match. */
+        function wikiSearchExcerpt(text, q) {
+          if (!text || !q) return '';
+          var i = text.toLowerCase().indexOf(q);
+          if (i === -1) return '';
+          var start = Math.max(0, i - 42);
+          var end = Math.min(text.length, i + q.length + 68);
+          return (start > 0 ? '\u2026' : '') + text.slice(start, end).trim() + (end < text.length ? '\u2026' : '');
+        }
+        /* Bundle search, pure over the cached infos: title
+           matches first (sidebar order), then body-only
+           matches; a member matching both appears once, as a
+           title match with its body excerpt attached. */
+        function wikiSearchResults(bundle, query) {
+          var q = String(query || '').trim().toLowerCase();
+          if (!q) return [];
+          var titleHits = [];
+          var bodyHits = [];
+          wikiSidebarMembers(bundle).forEach(function (m) {
+            var info = shareMemberInfo[m.token];
+            var title = (info && info.title) || m.title || 'Untitled';
+            var excerpt = info ? wikiSearchExcerpt(info.text, q) : '';
+            if (title.toLowerCase().indexOf(q) !== -1) {
+              titleHits.push({ member: m, title: title, excerpt: excerpt, titleMatch: true });
+            } else if (excerpt) {
+              bodyHits.push({ member: m, title: title, excerpt: excerpt, titleMatch: false });
+            }
+          });
+          return titleHits.concat(bodyHits);
+        }
+        function resetWikiSidebarState() {
+          shareWikiMode = 'all';
+          shareWikiTag = null;
+          shareWikiQuery = '';
+          shareWikiReqSeq++;
+          if (shareWikiSearchTimer) { clearTimeout(shareWikiSearchTimer); shareWikiSearchTimer = null; }
+          var input = document.getElementById('shareWikiSearch');
+          if (input) input.value = '';
+          var clear = document.getElementById('shareWikiSearchClear');
+          if (clear) clear.hidden = true;
+        }
+        function renderWikiSidebar(bundle, currentToken) {
+          var view = document.getElementById('shareView');
+          var aside = document.getElementById('shareWiki');
+          if (!view || !aside) return;
+          var isWiki = !!(bundle && bundle.wiki && bundle.members && bundle.members.length);
+          view.classList.toggle('has-wiki', isWiki);
+          view.classList.remove('wiki-open');
+          var searchWrap = document.getElementById('shareWikiSearchWrap');
+          if (!isWiki) {
+            aside.hidden = true;
+            if (searchWrap) searchWrap.hidden = true;
+            /* A real non-wiki bundle forgets the set key, so
+               the next wiki starts unfiltered. A null bundle is
+               only the transient loading/invalid state between
+               members of the same set — the key (and any tag
+               filter or search in force) survives it, so
+               navigating inside a filtered list keeps the
+               filter and highlights the newly open document. */
+            if (bundle) { shareWikiBundleKey = null; resetWikiSidebarState(); }
+            renderWikiList(null, currentToken);
+            return;
+          }
+          /* A different set than the one on screen resets the
+             list mode; moving between members of the same set
+             keeps a tag filter or search in place, with the
+             newly open document highlighted inside it. */
+          var key = bundle.id || bundle.rootToken;
+          if (shareWikiBundleKey !== key) {
+            shareWikiBundleKey = key;
+            resetWikiSidebarState();
+          }
+          if (searchWrap) searchWrap.hidden = false;
+          var rootEl2 = document.getElementById('shareWikiRoot');
+          var ordered = wikiSidebarMembers(bundle);
+          if (rootEl2) rootEl2.textContent = ordered.length ? (ordered[0].title || 'Untitled') : '';
+          aside.hidden = false;
+          renderWikiList(bundle, currentToken);
+        }
+        function wikiListItemEl(m, currentToken, excerpt) {
+          var view = document.getElementById('shareView');
+          var a = document.createElement('a');
+          a.className = 'share-wiki-item' + (excerpt ? ' share-wiki-item--result' : '') + (m.token === currentToken ? ' current' : '');
+          a.href = '#/s/' + encodeURIComponent(m.token);
+          a.setAttribute('data-wiki-token', m.token);
+          if (m.token === currentToken) a.setAttribute('aria-current', 'page');
+          var t = document.createElement('span');
+          t.className = 'share-wiki-item-title';
+          t.textContent = m.title || 'Untitled';
+          a.appendChild(t);
+          if (excerpt) {
+            var ex = document.createElement('span');
+            ex.className = 'share-wiki-excerpt';
+            ex.textContent = excerpt;
+            a.appendChild(ex);
+          }
+          var bundle = shareViewBundle;
+          if (bundle && m.token === bundle.rootToken) {
+            var badge = document.createElement('span');
+            badge.className = 'share-wiki-badge';
+            badge.textContent = 'Start';
+            a.appendChild(badge);
+          }
+          a.addEventListener('click', function () { view.classList.remove('wiki-open'); });
+          return a;
+        }
+        function renderWikiList(bundle, currentToken) {
+          var list = document.getElementById('shareWikiList');
+          var head = document.getElementById('shareWikiModeHead');
+          var back = document.getElementById('shareWikiBack');
+          var modeTitle = document.getElementById('shareWikiModeTitle');
+          if (!list) return;
+          list.innerHTML = '';
+          if (!bundle) {
+            if (head) head.hidden = true;
+            return;
+          }
+          if (shareWikiMode === 'tag' && shareWikiTag) {
+            if (head) head.hidden = false;
+            if (back) back.hidden = false;
+            if (modeTitle) modeTitle.textContent = '#' + shareWikiTag.name;
+            var tagged = wikiTagMembers(bundle, shareWikiTag.key);
+            if (!tagged.length) {
+              var emptyTag = document.createElement('div');
+              emptyTag.className = 'share-wiki-empty';
+              emptyTag.textContent = 'No documents in this wiki have this tag.';
+              list.appendChild(emptyTag);
+              return;
+            }
+            tagged.forEach(function (m) { list.appendChild(wikiListItemEl(m, currentToken, '')); });
+            return;
+          }
+          if (shareWikiMode === 'search') {
+            if (head) head.hidden = false;
+            if (back) back.hidden = true;
+            if (modeTitle) modeTitle.textContent = 'Results for \u201C' + shareWikiQuery + '\u201D';
+            var results = wikiSearchResults(bundle, shareWikiQuery);
+            if (!results.length) {
+              var emptySearch = document.createElement('div');
+              emptySearch.className = 'share-wiki-empty';
+              emptySearch.textContent = 'No documents in this wiki match.';
+              list.appendChild(emptySearch);
+              return;
+            }
+            results.forEach(function (r) { list.appendChild(wikiListItemEl(r.member, currentToken, r.excerpt)); });
+            return;
+          }
+          if (head) head.hidden = true;
+          wikiSidebarMembers(bundle).forEach(function (m) { list.appendChild(wikiListItemEl(m, currentToken, '')); });
+        }
+        /* Tag navigation entry point (hashtag click in the
+           viewed document): exits any search, fetches the
+           members' contents on first use, then filters. The
+           phone drawer opens so the filtered list is what the
+           reader sees next; on wide screens the class is
+           inert. */
+        function applyWikiTagFilter(name) {
+          var bundle = shareViewBundle;
+          if (!bundle || !bundle.wiki || !name) return Promise.resolve(false);
+          shareWikiMode = 'tag';
+          shareWikiTag = { key: String(name).toLowerCase(), name: String(name) };
+          shareWikiQuery = '';
+          var input = document.getElementById('shareWikiSearch');
+          if (input) input.value = '';
+          var clear = document.getElementById('shareWikiSearchClear');
+          if (clear) clear.hidden = true;
+          var seq = ++shareWikiReqSeq;
+          renderWikiList(bundle, shareViewToken || bundle.rootToken);
+          return fetchAllShareMemberInfos(bundle).then(function () {
+            if (seq !== shareWikiReqSeq || shareWikiMode !== 'tag') return false;
+            renderWikiList(bundle, shareViewToken || bundle.rootToken);
+            document.getElementById('shareView').classList.add('wiki-open');
+            return true;
+          });
+        }
+        /* Bundle search entry point: exits any tag filter,
+           fetches member contents on first use (later queries
+           reuse the session cache), then shows the results. */
+        function applyWikiSearch(query) {
+          var bundle = shareViewBundle;
+          if (!bundle || !bundle.wiki) return Promise.resolve(false);
+          var q = String(query || '').trim();
+          if (!q) { exitWikiFilter(); return Promise.resolve(false); }
+          shareWikiMode = 'search';
+          shareWikiQuery = q;
+          shareWikiTag = null;
+          var clear = document.getElementById('shareWikiSearchClear');
+          if (clear) clear.hidden = false;
+          var seq = ++shareWikiReqSeq;
+          renderWikiList(bundle, shareViewToken || bundle.rootToken);
+          return fetchAllShareMemberInfos(bundle).then(function () {
+            if (seq !== shareWikiReqSeq || shareWikiMode !== 'search') return false;
+            renderWikiList(bundle, shareViewToken || bundle.rootToken);
+            return true;
+          });
+        }
+        /* Clearing either filtered mode returns to the full
+           list, current document highlighted as usual. */
+        function exitWikiFilter() {
+          resetWikiSidebarState();
+          if (shareViewBundle && shareViewBundle.wiki) renderWikiList(shareViewBundle, shareViewToken);
+        }
+        /* Phone drawer controls (build -60): the toggle lives
+           in the paper and only renders under the phone tier
+           while a wiki is shown; the scrim and the sidebar's
+           own close button dismiss the drawer. */
+        document.getElementById('shareWikiToggle').addEventListener('click', function () {
+          document.getElementById('shareView').classList.add('wiki-open');
+        });
+        document.getElementById('shareWikiClose').addEventListener('click', function () {
+          document.getElementById('shareView').classList.remove('wiki-open');
+        });
+        document.getElementById('shareWikiScrim').addEventListener('click', function () {
+          document.getElementById('shareView').classList.remove('wiki-open');
+        });
+        /* Bundle search wiring (fold-in): typing searches
+           after a short settle (the first keystroke pays the
+           member-content fetch; later ones hit the cache);
+           emptying the field, or its clear control, restores
+           the full list. The tag filter's back row does the
+           same restore. */
+        document.getElementById('shareWikiSearch').addEventListener('input', function () {
+          var v = this.value;
+          var clear = document.getElementById('shareWikiSearchClear');
+          if (clear) clear.hidden = !v;
+          if (shareWikiSearchTimer) clearTimeout(shareWikiSearchTimer);
+          if (!v.trim()) {
+            if (shareWikiMode === 'search') exitWikiFilter();
+            return;
+          }
+          shareWikiSearchTimer = setTimeout(function () { applyWikiSearch(v); }, 220);
+        });
+        document.getElementById('shareWikiSearch').addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            if (shareWikiSearchTimer) clearTimeout(shareWikiSearchTimer);
+            applyWikiSearch(this.value);
+          }
+          if (ev.key === 'Escape') {
+            this.value = '';
+            exitWikiFilter();
+          }
+        });
+        document.getElementById('shareWikiSearchClear').addEventListener('click', function () {
+          var input = document.getElementById('shareWikiSearch');
+          input.value = '';
+          this.hidden = true;
+          exitWikiFilter();
+          try { input.focus(); } catch (e) {}
+        });
+        document.getElementById('shareWikiBack').addEventListener('click', function () {
+          exitWikiFilter();
+        });
         function exitShareView() {
           if (document.getElementById('shareView').hidden) return;
           document.getElementById('shareView').hidden = true;
           document.getElementById('appRoot').style.display = '';
           shareViewToken = null;
           shareViewBundle = null;
+          /* Leaving the shared view ends the wiki session:
+             filter/search state resets and the member-content
+             cache is dropped. */
+          resetWikiSidebarState();
+          shareMemberInfo = {};
+          shareMemberPending = {};
+          renderWikiSidebar(null, null);
           if (sharePrevRootTheme) {
             if (sharePrevRootTheme.t) rootEl.setAttribute('data-theme', sharePrevRootTheme.t);
             else rootEl.removeAttribute('data-theme');
@@ -19744,6 +20742,16 @@
              text. Without a manifest the row renders exactly
              as it did before -59. */
           shareViewBundle = parseShareBundle(row.bundle);
+          /* The open document's own content seeds the member
+             cache (fold-in): tag filters and search then know
+             this member without refetching it. */
+          if (shareViewToken && row.content) {
+            shareMemberInfo[shareViewToken] = makeShareMemberInfo(row.title, row.content);
+          }
+          /* Build -60: a wiki bundle's members all carry the
+             manifest, so the sidebar renders from any member's
+             own view, listing the whole set. */
+          renderWikiSidebar(shareViewBundle, shareViewToken);
           var viewContent = row.content || { type: 'doc', content: [{ type: 'paragraph' }] };
           if (shareViewBundle) viewContent = bundleViewContent(viewContent, shareViewBundle);
           var mount = document.getElementById('shareMount');
@@ -19762,7 +20770,13 @@
                 window.location.hash = '#/s/' + encodeURIComponent(m.token);
               }
             },
-            onTagClick: function () {},
+            /* Hashtag clicks (fold-in): in a wiki bundle they
+               filter the sidebar to the bundle members
+               carrying the tag; in any other shared view a
+               hashtag stays inert, exactly as before. */
+            onTagClick: function (name) {
+              if (shareViewBundle && shareViewBundle.wiki) applyWikiTagFilter(name);
+            },
           });
           if (shareEditor && shareEditor.editor && shareEditor.editor.setEditable) {
             shareEditor.editor.setEditable(false);
@@ -19868,6 +20882,219 @@
             openShareBundleModal(d, computeShareClosure(d), existingByDocId || {});
             return true;
           },
+          /* ---- build -60: wiki mode ---- */
+          /* The manifest exactly as it would be written back
+             to the bundle record (wiki flag and created flags
+             included), from either stored form. */
+          manifest: function (raw) {
+            var b = parseShareBundle(raw);
+            return b ? bundleManifestOf(b) : null;
+          },
+          /* The flag round-trip: set wiki on a stored bundle
+             (either form) and hand back the manifest. */
+          withWiki: function (raw, on) {
+            var b = parseShareBundle(raw);
+            if (!b) return null;
+            var man = bundleManifestOf(b);
+            man.wiki = !!on;
+            return man;
+          },
+          /* The sidebar's membership in display order, with
+             root/current marked — the pure half of the viewer
+             check. */
+          wikiSidebar: function (raw, currentToken) {
+            var b = parseShareBundle(raw);
+            if (!b) return { wiki: false, items: [] };
+            return {
+              wiki: b.wiki === true,
+              items: wikiSidebarMembers(b).map(function (m) {
+                return {
+                  token: m.token, doc: m.doc || null, title: m.title,
+                  isRoot: m.token === b.rootToken,
+                  isCurrent: m.token === currentToken,
+                };
+              }),
+            };
+          },
+          /* Renders the real sidebar DOM from a stored bundle
+             and reads it back, so the probe verifies the actual
+             elements (order, highlighting, hrefs), not just
+             the pure helper. */
+          previewWikiSidebar: function (raw, currentToken) {
+            var b = parseShareBundle(raw);
+            shareViewBundle = b;
+            renderWikiSidebar(b, currentToken || (b ? b.rootToken : null));
+            var items = [];
+            document.querySelectorAll('#shareWikiList .share-wiki-item').forEach(function (el) {
+              items.push({
+                token: el.getAttribute('data-wiki-token'),
+                title: el.textContent,
+                current: el.classList.contains('current'),
+                href: el.getAttribute('href'),
+              });
+            });
+            return {
+              wiki: !!(b && b.wiki),
+              sidebarHidden: document.getElementById('shareWiki').hidden,
+              hasWikiClass: document.getElementById('shareView').classList.contains('has-wiki'),
+              items: items,
+            };
+          },
+          /* ---- build -60 fold-in: tag navigation + bundle search ---- */
+          /* Seeds the session member-content cache, standing
+             in for the per-token get_shared_document fetches
+             the sandbox cannot make. Values are a content
+             object or { title, content }. */
+          seedMemberContent: function (contentsByToken) {
+            Object.keys(contentsByToken || {}).forEach(function (token) {
+              var v = contentsByToken[token];
+              if (v && typeof v === 'object' && ('content' in v || 'title' in v)) {
+                shareMemberInfo[token] = makeShareMemberInfo(v.title, v.content);
+              } else {
+                shareMemberInfo[token] = makeShareMemberInfo(null, v);
+              }
+            });
+          },
+          memberTags: function (content) {
+            return docTags({ content: content }).map(function (t) { return t.key; });
+          },
+          contentText: function (content) { return shareContentText(content); },
+          /* The tag intersection over seeded contents, in
+             sidebar order: exactly the bundle members carrying
+             the tag — the owner's wider library is never in
+             the room. */
+          tagFilterFor: function (raw, tagName, contentsByToken) {
+            var b = parseShareBundle(raw);
+            if (!b) return [];
+            window.FolioShareBundle.seedMemberContent(contentsByToken || {});
+            return wikiTagMembers(b, String(tagName || '').toLowerCase()).map(function (m) {
+              return { token: m.token, title: m.title, isRoot: m.token === b.rootToken };
+            });
+          },
+          /* Bundle search over seeded contents: title hits,
+             then body-only hits with their excerpts. */
+          searchFor: function (raw, query, contentsByToken) {
+            var b = parseShareBundle(raw);
+            if (!b) return [];
+            window.FolioShareBundle.seedMemberContent(contentsByToken || {});
+            return wikiSearchResults(b, query).map(function (r) {
+              return { token: r.member.token, title: r.title, excerpt: r.excerpt, titleMatch: r.titleMatch };
+            });
+          },
+          /* Reads back the real sidebar DOM and filter state. */
+          wikiDomState: function () {
+            var items = [];
+            document.querySelectorAll('#shareWikiList .share-wiki-item').forEach(function (el) {
+              var ex = el.querySelector('.share-wiki-excerpt');
+              items.push({
+                token: el.getAttribute('data-wiki-token'),
+                title: (el.querySelector('.share-wiki-item-title') || el).textContent,
+                current: el.classList.contains('current'),
+                href: el.getAttribute('href'),
+                excerpt: ex ? ex.textContent : '',
+              });
+            });
+            var empty = document.querySelector('#shareWikiList .share-wiki-empty');
+            return {
+              mode: shareWikiMode,
+              tag: shareWikiTag ? shareWikiTag.name : null,
+              query: shareWikiQuery,
+              asideHidden: document.getElementById('shareWiki').hidden,
+              hasWikiClass: document.getElementById('shareView').classList.contains('has-wiki'),
+              searchHidden: document.getElementById('shareWikiSearchWrap').hidden,
+              modeHeadHidden: document.getElementById('shareWikiModeHead').hidden,
+              modeTitle: document.getElementById('shareWikiModeTitle').textContent,
+              emptyText: empty ? empty.textContent : null,
+              items: items,
+            };
+          },
+          /* Drives the real tag filter (seeded contents stand
+             in for the fetches) and resolves to the DOM state. */
+          applyTag: function (raw, tagName, contentsByToken) {
+            var b = parseShareBundle(raw);
+            if (!b) return Promise.resolve(null);
+            window.FolioShareBundle.seedMemberContent(contentsByToken || {});
+            shareViewBundle = b;
+            renderWikiSidebar(b, shareViewToken || b.rootToken);
+            return applyWikiTagFilter(tagName).then(function () {
+              return window.FolioShareBundle.wikiDomState();
+            });
+          },
+          /* Drives the real bundle search and resolves to the
+             DOM state. */
+          applySearch: function (raw, query, contentsByToken) {
+            var b = parseShareBundle(raw);
+            if (!b) return Promise.resolve(null);
+            window.FolioShareBundle.seedMemberContent(contentsByToken || {});
+            shareViewBundle = b;
+            renderWikiSidebar(b, shareViewToken || b.rootToken);
+            var input = document.getElementById('shareWikiSearch');
+            if (input) input.value = query;
+            return applyWikiSearch(query).then(function () {
+              return window.FolioShareBundle.wikiDomState();
+            });
+          },
+          /* Clears whichever filter is in force, back to the
+             full list. */
+          exitFilter: function () {
+            exitWikiFilter();
+            return window.FolioShareBundle.wikiDomState();
+          },
+          /* The Add-documents plan: create-vs-reuse per
+             selected document against the given bundle. */
+          planAddFor: function (selectedIds, existingByDocId, bundleRaw) {
+            var docs = (selectedIds || []).map(function (id) {
+              return lib.docs.find(function (x) { return x.id === id; });
+            }).filter(Boolean);
+            var b = parseShareBundle(bundleRaw);
+            return planBundleAdditions(docs, existingByDocId || {}, b).map(function (e) {
+              return { docId: e.doc.id, token: e.token, isNew: e.isNew, created: e.created };
+            });
+          },
+          /* The remove plan: revoke vs detach, and the
+             manifest that remains. */
+          removePlanFor: function (raw, token) {
+            var b = parseShareBundle(raw);
+            if (!b) return null;
+            var plan = planBundleRemove(b, token);
+            if (!plan) return null;
+            return {
+              mode: plan.mode,
+              token: plan.member.token,
+              manifest: plan.manifest,
+              remainingTokens: plan.manifest.members.map(function (m) { return m.token; }),
+            };
+          },
+          /* Opens the real Add-documents picker against a
+             stored bundle, so the probe can drive it. */
+          openAddDocsFor: function (raw) {
+            var b = parseShareBundle(raw);
+            if (!b) return false;
+            sharePanelBundle = b;
+            openAddDocsModal(b);
+            return true;
+          },
+          /* Acts the panel's wiki switch logic without the
+             backend: builds the flipped manifest, stores it
+             locally, and returns it. */
+          setWikiLocal: function (raw, on) {
+            var b = parseShareBundle(raw);
+            if (!b) return null;
+            var man = bundleManifestOf(b);
+            man.wiki = !!on;
+            saveLocalBundle(man);
+            sharePanelBundle = parseShareBundle(man);
+            return man;
+          },
+          /* What the Share panel currently holds as its bundle
+             manifest (null when no bundle is in play). */
+          panelManifest: function () {
+            return sharePanelBundle ? bundleManifestOf(sharePanelBundle) : null;
+          },
+          localFor: function (token) {
+            var b = localBundleFor(token);
+            return b ? bundleManifestOf(b) : null;
+          },
         };
 
         /* ---------------- backend boot ---------------- */
@@ -19964,7 +21191,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-59';
+        var FOLIO_BUILD = '20261029-60';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
