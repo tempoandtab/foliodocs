@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261028-57" />
+    <meta name="folio-build" content="20261029-58" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4198,22 +4198,36 @@
           return st.themes[tid];
         }
         function tsIsGlobal(tid, key) {
-          var e = tsStore().themes[tid];
+          return tsIsGlobalIn(tsStore(), tid, key);
+        }
+        /* Store-explicit variants (build -58): the shared
+           view resolves against the OWNER's style store,
+           carried in the share snapshot — not the viewer's
+           local one — so these take the store as a parameter
+           instead of reading tsStore(). The wrappers above
+           and below keep every local caller unchanged. */
+        function tsIsGlobalIn(st, tid, key) {
+          var e = st.themes[tid];
           if (e && typeof e.g[key] === 'boolean') return e.g[key];
           var def = tsDef(key);
           return !!(def && def.global0);
         }
         function tsOverlay(tid, key) {
-          var st = tsStore();
-          if (tsIsGlobal(tid, key)) return st.global[key] || null;
+          return tsOverlayIn(tsStore(), tid, key);
+        }
+        function tsOverlayIn(st, tid, key) {
+          if (tsIsGlobalIn(st, tid, key)) return st.global[key] || null;
           var e = st.themes[tid];
           return (e && e.vals[key]) || null;
         }
         function tsResolved(tid, key, shippedBase) {
+          return tsResolvedIn(tsStore(), tid, key, shippedBase);
+        }
+        function tsResolvedIn(st, tid, key, shippedBase) {
           var base = shippedBase || tsShipped(tid, key);
           var out = {};
           Object.keys(base).forEach(function (k) { out[k] = base[k]; });
-          var ov = tsOverlay(tid, key);
+          var ov = tsOverlayIn(st, tid, key);
           if (ov) Object.keys(ov).forEach(function (k) { out[k] = ov[k]; });
           return out;
         }
@@ -4261,23 +4275,30 @@
            never leak in, and a setting flagged for the
            shipped default renders shipped. Print resolves
            over the print shipped sizes and converts px→pt;
-           its fixed white palette is left alone. */
-        function applyThemeScopeVars(scopeEl, forPrint) {
+           its fixed white palette is left alone.
+           The share scope passes ctx = { tid, store } parsed
+           from the share snapshot (build -58): resolution
+           then runs against the owner's active theme and
+           style store — including the owner's shareDefault
+           opt-outs — never the viewer's local ones. Print
+           and any ctx-less call keep the local resolution. */
+        function applyThemeScopeVars(scopeEl, forPrint, ctx) {
           if (!scopeEl) return;
-          var st = tsStore();
+          var st = (ctx && ctx.store) || tsStore();
+          var tid = (ctx && ctx.tid) || themeId;
           TS_ALL_DEFS.forEach(function (def) {
             if (def.id === 'iconSet') return;
             if (def.palette) {
               if (forPrint) return;
               var pFlag = !!st.shareDefault[def.id];
-              var pVal = pFlag ? tsShipped(themeId, def.id) : tsResolved(themeId, def.id, {});
+              var pVal = pFlag ? tsShipped(tid, def.id) : tsResolvedIn(st, tid, def.id, {});
               if (pVal.color) scopeEl.style.setProperty(def.palette.cssVar, pVal.color);
-              else scopeEl.style.setProperty(def.palette.cssVar, tsShipped(themeId, def.id).color);
+              else scopeEl.style.setProperty(def.palette.cssVar, tsShipped(tid, def.id).color);
               return;
             }
             var flagged = !!st.shareDefault[def.id];
-            var base = forPrint ? tsPrintShipped(def.id) : tsShipped(themeId, def.id);
-            var val = flagged ? base : tsResolved(themeId, def.id, base);
+            var base = forPrint ? tsPrintShipped(def.id) : tsShipped(tid, def.id);
+            var val = flagged ? base : tsResolvedIn(st, tid, def.id, base);
             (def.levers || []).forEach(function (lever) {
               var varName = tsVarFor(def.id, lever);
               if (!varName) return;
@@ -4291,6 +4312,10 @@
           tsStore().updated = Date.now();
           persist(false);
           applyThemedStyles();
+          /* Any style edit re-snapshots the owner's live
+             share links (build -58, debounced + signature-
+             guarded in the sharing section below). */
+          if (typeof scheduleShareStyleRefresh === 'function') scheduleShareStyleRefresh();
         }
         function tsSetLever(key, lever, value) {
           var def = tsDef(key);
@@ -17725,6 +17750,10 @@
             // like tag_meta: the add-on table may not exist
             // yet, and its absence must never fail the push.
             pushThemeStyles(meta0);
+            // Share-link style snapshots ride the same
+            // cycle (build -58): existing links pick up the
+            // owner's current styles without being recreated.
+            refreshShareStyleSnapshots();
             noteSyncSuccess();
             return true;
           }).catch(function () {
@@ -18703,6 +18732,80 @@
           bytes.forEach(function (b) { bin += String.fromCharCode(b); });
           return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
+
+        /* ---------------- sharing: theme styles snapshot ----------------
+           A shared view must render with the OWNER's theme
+           styles by default (build -52 design); the only
+           control is the per-setting opt-out ("Use shipped
+           default in shared views & print"). Anonymous
+           viewers cannot read the owner's theme_styles row
+           (owner-only RLS, deliberately not loosened), and
+           resolving from the viewer's own local store was
+           the bug: a fresh browser has an empty store, so
+           links rendered in shipped defaults wholesale.
+           The styles therefore travel WITH the share: every
+           shares row carries a snapshot — { v, theme,
+           accent, styles } where styles is the owner's whole
+           normalized theme-styles store (appearance data
+           only; the store's shareDefault flags ride along,
+           so opt-outs are honored by the viewer's own
+           resolution) — written when a link is created and
+           refreshed whenever the owner's styles change, so
+           EXISTING links pick up new styles too.
+           One-time dashboard step (SQL editor), same
+           add-on pattern as theme_styles / tag_meta:
+             alter table public.shares
+               add column if not exists styles jsonb;
+           and get_shared_document must return the column
+           alongside title / content / permission (add
+           s.styles to its select). Until both land, every
+           write below fails soft: link creation retries
+           without the snapshot, refreshes stop after the
+           first error, and viewers fall back to the
+           pre--58 local resolution — nothing breaks, the
+           links just render plain until the step is run. */
+        function shareStylesSnapshot() {
+          return {
+            v: 1,
+            theme: themeId,
+            accent: accentId,
+            styles: tsNormalizeStore(JSON.parse(JSON.stringify(tsStore()))),
+          };
+        }
+        function parseShareStyles(raw) {
+          var snap = raw;
+          if (typeof snap === 'string') {
+            try { snap = JSON.parse(snap); } catch (e) { snap = null; }
+          }
+          if (!snap || typeof snap !== 'object' || !snap.styles || typeof snap.styles !== 'object') return null;
+          return {
+            tid: THEMES.some(function (t) { return t.id === snap.theme; }) ? snap.theme : themeId,
+            accent: ACCENTS.some(function (a) { return a.id === snap.accent; }) ? snap.accent : accentId,
+            store: tsNormalizeStore(snap.styles),
+          };
+        }
+        var shareStylesColOk = true;
+        var shareStylesSig = null;
+        var shareStylesTimer = null;
+        function refreshShareStyleSnapshots() {
+          if (!sb || !sbUser || !shareStylesColOk) return;
+          var snap = shareStylesSnapshot();
+          var sig = JSON.stringify(snap);
+          if (sig === shareStylesSig) return;
+          sb.from('shares').select('token').then(function (res) {
+            if (!res || res.error) return;
+            if (!res.data || !res.data.length) { shareStylesSig = sig; return; }
+            var tokens = res.data.map(function (s) { return s.token; });
+            sb.from('shares').update({ styles: snap }).in('token', tokens).then(function (r2) {
+              if (r2 && r2.error) { shareStylesColOk = false; return; }
+              shareStylesSig = sig;
+            }).catch(function () {});
+          }).catch(function () {});
+        }
+        function scheduleShareStyleRefresh() {
+          if (shareStylesTimer) clearTimeout(shareStylesTimer);
+          shareStylesTimer = setTimeout(refreshShareStyleSnapshots, 1200);
+        }
         function commentRowEl(c, ownerView, onDelete) {
           var row = document.createElement('div');
           row.className = 'comment-row';
@@ -18785,7 +18888,7 @@
           var signedOut = !sbUser;
           document.getElementById('shareSignedOut').hidden = !signedOut;
           document.getElementById('shareMain').hidden = signedOut;
-          if (!signedOut) { loadShareList(); loadOwnerComments(); }
+          if (!signedOut) { loadShareList(); loadOwnerComments(); refreshShareStyleSnapshots(); }
         }
         function closeShareModal() { document.getElementById('shareModal').hidden = true; }
         function loadShareList() {
@@ -18977,9 +19080,23 @@
             var rid = remoteIdFor('docs', doc.id);
             if (!rid) { btn.disabled = false; return; }
             var token = genToken();
-            sb.from('shares').insert({ token: token, document_id: rid, permission: sharePermChoice }).then(function (res) {
+            /* The new link carries the owner's current
+               style snapshot (build -58). If the styles
+               column isn't there yet, the insert fails —
+               retry bare so link creation never breaks;
+               the snapshot lands later via the refresh
+               once the dashboard step is run. */
+            var withStyles = { token: token, document_id: rid, permission: sharePermChoice, styles: shareStylesSnapshot() };
+            var bare = { token: token, document_id: rid, permission: sharePermChoice };
+            sb.from('shares').insert(withStyles).then(function (res) {
+              if (res && res.error) {
+                shareStylesColOk = false;
+                return sb.from('shares').insert(bare);
+              }
+              return res;
+            }).then(function (res) {
               btn.disabled = false;
-              if (res.error) return;
+              if (res && res.error) return;
               document.getElementById('shareNewLink').hidden = false;
               document.getElementById('shareNewLinkInput').value = shareLinkFor(token);
               loadShareList();
@@ -18997,6 +19114,10 @@
         var shareEditor = null;
         var shareViewToken = null;
         var shareViewPerm = 'view';
+        /* The viewer's own root theme/accent, saved while a
+           shared view wears the owner's (build -58) and
+           restored on exit. */
+        var sharePrevRootTheme = null;
 
         function shareTokenFromHash() {
           var m = /^#\/s\/(.+)$/.exec(window.location.hash || '');
@@ -19030,6 +19151,13 @@
           document.getElementById('shareView').hidden = true;
           document.getElementById('appRoot').style.display = '';
           shareViewToken = null;
+          if (sharePrevRootTheme) {
+            if (sharePrevRootTheme.t) rootEl.setAttribute('data-theme', sharePrevRootTheme.t);
+            else rootEl.removeAttribute('data-theme');
+            if (sharePrevRootTheme.a) rootEl.setAttribute('data-accent', sharePrevRootTheme.a);
+            else rootEl.removeAttribute('data-accent');
+            sharePrevRootTheme = null;
+          }
           if (sb && !sbUser && !localOnly) showAuthGate();
         }
         function renderSharedDoc(row) {
@@ -19052,10 +19180,30 @@
           if (shareEditor && shareEditor.editor && shareEditor.editor.setEditable) {
             shareEditor.editor.setEditable(false);
           }
-          /* The shared view renders with the owner's styles
+          /* The shared view renders with the OWNER's styles
              resolved onto the share root — settings flagged
-             for the shipped default render shipped here. */
-          applyThemeScopeVars(document.getElementById('shareView'), false);
+             for the shipped default render shipped here.
+             The styles arrive in the share snapshot
+             (row.styles, build -58): resolution runs against
+             the owner's store and active theme, and the root
+             wears the owner's theme/accent while the view is
+             open so the theme-keyed stylesheet rules (dark
+             callout and mark colors, the shipped palette)
+             match too. Without a snapshot (a link created
+             before the dashboard step), fall back to the
+             local resolution exactly as before. */
+          var shareSnap = parseShareStyles(row.styles);
+          var shareRootEl = document.getElementById('shareView');
+          if (shareSnap) {
+            if (!sharePrevRootTheme) {
+              sharePrevRootTheme = { t: rootEl.getAttribute('data-theme'), a: rootEl.getAttribute('data-accent') };
+            }
+            rootEl.setAttribute('data-theme', shareSnap.tid);
+            rootEl.setAttribute('data-accent', shareSnap.accent);
+            applyThemeScopeVars(shareRootEl, false, shareSnap);
+          } else {
+            applyThemeScopeVars(shareRootEl, false);
+          }
           attachCodeCopy(mount, shareEditor.editor);
           loadSharedComments();
         }
@@ -19195,7 +19343,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261028-57';
+        var FOLIO_BUILD = '20261029-58';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
