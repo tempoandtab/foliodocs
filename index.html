@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-60" />
+    <meta name="folio-build" content="20261029-61" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2593,6 +2593,19 @@
       .bundle-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
       .bundle-member-note { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; margin-top: 2px; }
 
+      /* ---------------- Bundle drift notice (build -61) ----------------
+         A quiet row inside the Share panel's set section,
+         shown only while documents linked from the set are
+         not in it yet. Absent entirely when there is no
+         drift — the panel stays exactly as quiet as -60. */
+      .bundle-drift {
+        display: flex; align-items: center; gap: 10px;
+        margin-top: 10px; padding: 10px 12px;
+        background: var(--chip-bg); border-radius: 10px;
+      }
+      .bundle-drift-text { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+      .bundle-drift-text strong { color: var(--ink); font-weight: 700; }
+
       /* ---------------- Wiki mode for share bundles (build -60) ----------------
          The creation modal's opt-in and the Share panel's wiki
          switch share one row shape: a label that can wrap, a
@@ -3526,6 +3539,23 @@
         <div class="bundle-foot">
           <button class="btn-ghost" id="shareAddDocsCancel" type="button">Cancel</button>
           <button class="btn-primary" id="shareAddDocsConfirm" type="button" disabled>Add documents</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shareDriftModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareDriftTitle">
+        <div class="panel-head">
+          <h2 id="shareDriftTitle">Add linked documents to this set</h2>
+          <button class="icon-btn" id="shareDriftClose" type="button" aria-label="Cancel adding documents" data-tip="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note">These documents are linked from documents in this set, but aren&rsquo;t part of it yet &mdash; a reader who follows a link to one of them sees it as plain text. Each document you add gets a link with this set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one &mdash; and joins the wiki sidebar when this set is presented as a wiki.</p>
+        <div class="bundle-list" id="shareDriftList"></div>
+        <div class="bundle-foot">
+          <button class="btn-ghost" id="shareDriftCancel" type="button">Not now</button>
+          <button class="btn-primary" id="shareDriftConfirm" type="button">Add documents</button>
         </div>
       </div>
     </div>
@@ -19190,7 +19220,21 @@
            the former and only detaches the latter). The root
            Share panel carries the wiki switch and an
            Add documents picker for growing the set after
-           creation. */
+           creation.
+
+           Build -61 adds the two bundle-health behaviors, no
+           new dashboard step. DRIFT: the root's Share panel
+           recomputes the root's current closure against the
+           manifest and, when documents are reachable but not
+           in the set, shows a quiet notice with a Review that
+           opens the creation-style checkbox list; confirming
+           grows the set through the same path as Add
+           documents. Add-only, never automatic, and unlinking
+           a member proposes nothing. DEAD ENTRIES: in public
+           views, a member whose token stops resolving is
+           omitted from the sidebar, tag lists, and search, and
+           links to it render as plain text — view-time only,
+           the owner's manifest is never rewritten. */
         function normShareTitle(t) { return String(t || '').trim().toLowerCase(); }
         function shareFolderHint(doc) {
           if (!doc || !doc.folderId) return '';
@@ -19215,6 +19259,34 @@
             });
           }
           return order;
+        }
+        /* Drift (build -61): the documents the root's CURRENT
+           transitive closure reaches that are not in the bundle
+           yet. The set was frozen when it was created (or last
+           grown by hand), but the documents kept changing, so
+           links added since then point at documents no reader
+           can open. Membership is keyed by remote document id,
+           the manifest's own key; the local id is accepted too
+           because the two namespaces can never collide (local
+           ids are 'd…' strings, remote ids are UUIDs), which
+           keeps the comparison honest in the harness, where a
+           fixture manifest may key members by local id. The
+           root never appears (the closure excludes it, and it
+           is a member by construction). Pure read: proposing
+           is all this does. Adding takes the owner's explicit
+           confirm in the drift review, and a document no
+           longer linked from the root is never proposed for
+           removal — it simply stops appearing in the closure,
+           and removal stays the manual Remove action. */
+        function computeBundleDrift(rootDoc, bundle) {
+          if (!rootDoc || !bundle || !bundle.members) return [];
+          var memberDocs = {};
+          bundle.members.forEach(function (m) { if (m.doc) memberDocs[m.doc] = true; });
+          return computeShareClosure(rootDoc).filter(function (d) {
+            if (memberDocs[d.id]) return false;
+            var rid = remoteIdFor('docs', d.id);
+            return !(rid && memberDocs[rid]);
+          });
         }
         function parseShareBundle(raw) {
           var b = raw;
@@ -19337,7 +19409,12 @@
             if (!node || typeof node !== 'object') return node;
             if (node.type === 'wikiLink' && node.attrs) {
               var m = bundle.byTitle[normShareTitle(node.attrs.title)];
-              if (m) { node.attrs.exists = true; return node; }
+              /* Dead-entry cleanup (build -61): a member whose
+                 token is known not to resolve renders as plain
+                 text too — same treatment as a non-bundle link.
+                 shareMemberDead is viewer-session state, empty
+                 everywhere but the public view. */
+              if (m && !shareMemberDead[m.token]) { node.attrs.exists = true; return node; }
               return { type: 'text', text: node.attrs.display || node.attrs.title || '' };
             }
             if (Array.isArray(node.content)) node.content = node.content.map(walk);
@@ -19516,6 +19593,10 @@
            can read back what the panel settled on. */
         var sharePanelBundle = null;
         var sharePanelRootPerm = 'view';
+        /* The panel's current drift (build -61): closure
+           documents not yet in the set, recomputed every time
+           the panel loads. Empty means no notice renders. */
+        var sharePanelDrift = [];
         function loadBundlePanel() {
           var wrap = document.getElementById('shareBundlePanel');
           var label = document.getElementById('shareBundleLabel');
@@ -19523,6 +19604,7 @@
           wrap.innerHTML = '';
           if (label) label.hidden = true;
           sharePanelBundle = null;
+          sharePanelDrift = [];
           var forDocId = shareModalDocId;
           var doc = lib.docs.find(function (d) { return d.id === forDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
@@ -19632,7 +19714,42 @@
             addBtn.addEventListener('click', function () { openAddDocsModal(bundle); });
             actions.appendChild(addBtn);
             wrap.appendChild(actions);
+            /* Drift notice (build -61): the root's current
+               closure, recomputed against this set. Anything
+               reachable now but not a member is drift; when
+               there is none, nothing renders and the panel is
+               exactly as quiet as before. Add-only — documents
+               no longer linked are never mentioned here. */
+            sharePanelDrift = doc ? computeBundleDrift(doc, bundle) : [];
+            if (sharePanelDrift.length) wrap.appendChild(bundleDriftNoticeEl(bundle, sharePanelDrift));
           }).catch(function () {});
+        }
+        /* The drift notice row (build -61): the count, in the
+           owner's words, and a Review action that opens the
+           checkbox list. Nothing is added from here — the
+           notice only ever proposes. */
+        function bundleDriftNoticeEl(bundle, drift) {
+          var row = document.createElement('div');
+          row.className = 'bundle-drift';
+          row.id = 'shareBundleDrift';
+          var text = document.createElement('span');
+          text.className = 'bundle-drift-text';
+          var strong = document.createElement('strong');
+          strong.textContent = drift.length + (drift.length === 1
+            ? ' linked document isn\u2019t in this set yet'
+            : ' linked documents aren\u2019t in this set yet');
+          text.appendChild(strong);
+          text.appendChild(document.createTextNode(' \u2014 nothing is added until you review and confirm.'));
+          row.appendChild(text);
+          var review = document.createElement('button');
+          review.type = 'button';
+          review.className = 'btn-ghost';
+          review.id = 'shareBundleDriftReview';
+          review.textContent = 'Review';
+          review.setAttribute('data-tip', 'Choose which linked documents to add to this set');
+          review.addEventListener('click', function () { openDriftModal(bundle); });
+          row.appendChild(review);
+          return row;
         }
         /* The wiki flag flip (build -60): a new manifest with
            only the flag changed, persisted to every member's
@@ -20067,15 +20184,16 @@
           document.getElementById('shareAddDocsModal').hidden = true;
           bundleAddPending = null;
         }
-        function confirmAddDocs() {
-          if (!bundleAddPending || !sb || !sbUser) return;
-          var bundle = bundleAddPending.bundle;
-          var selected = addDocsCheckedDocs();
-          if (!selected.length) return;
-          var btn = document.getElementById('shareAddDocsConfirm');
-          btn.disabled = true;
-          btn.textContent = 'Adding\u2026';
-          pushAll().then(function () {
+        /* Growing a bundle (build -60, shared by the drift
+           review in -61): push, settle remote ids, then join
+           each selected document at the bundle's permission —
+           a fresh share, or its existing active share reused —
+           and write the grown manifest to every member's row,
+           old and new, so the set reads the same from any
+           link. Resolves to { manifest, added } or null when
+           nothing could be added. */
+        function growBundleManifest(bundle, selected) {
+          return pushAll().then(function () {
             var usable = selected.filter(function (d) { return !!remoteIdFor('docs', d.id); });
             if (!usable.length) return null;
             /* The bundle's permission is its root share's;
@@ -20130,7 +20248,17 @@
                 return ops.then(function () { return { manifest: manifest, added: plan.length }; });
               });
             });
-          }).then(function (out) {
+          });
+        }
+        function confirmAddDocs() {
+          if (!bundleAddPending || !sb || !sbUser) return;
+          var bundle = bundleAddPending.bundle;
+          var selected = addDocsCheckedDocs();
+          if (!selected.length) return;
+          var btn = document.getElementById('shareAddDocsConfirm');
+          btn.disabled = true;
+          btn.textContent = 'Adding\u2026';
+          growBundleManifest(bundle, selected).then(function (out) {
             btn.disabled = false;
             updateAddDocsConfirmLabel();
             if (!out) return;
@@ -20154,6 +20282,163 @@
         });
         document.addEventListener('keydown', function (ev) {
           if (ev.key === 'Escape' && !document.getElementById('shareAddDocsModal').hidden) closeAddDocsModal();
+        });
+
+        /* ---------------- sharing: bundle drift review (build -61) ----------------
+           The Share panel notice's Review action. The list is
+           the creation modal's shape — one checkbox row per
+           candidate, folder hint, "Already shared" badge where
+           the document already has an active link — but every
+           box starts CHECKED, because the owner arrived here
+           from a notice about documents readers can't reach.
+           Confirming runs the same grow path as Add documents
+           (bundle permission, reuse-or-create, manifest on
+           every member row), so wiki sidebars pick the new
+           members up from their own rows. Cancel (button, ×,
+           backdrop, Esc) adds nothing; candidates the owner
+           unchecked stay out, and the notice keeps counting
+           them next time the panel opens. */
+        var bundleDriftPending = null;
+        function openDriftModal(bundle, existingByDocId) {
+          var rootDoc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
+          if (!bundle || !rootDoc) return;
+          var drift = computeBundleDrift(rootDoc, bundle);
+          bundleDriftPending = {
+            bundle: bundle, rootDoc: rootDoc, candidates: drift,
+            existing: existingByDocId || null,
+          };
+          renderDriftList();
+          document.getElementById('shareDriftModal').hidden = false;
+          var first = document.querySelector('#shareDriftList input[type="checkbox"]');
+          try { (first || document.getElementById('shareDriftConfirm')).focus(); } catch (e) {}
+          /* The panel path arrives without share knowledge:
+             resolve each candidate's active share so the
+             "Already shared" badges can render, then redraw.
+             The harness passes its map in and skips this. */
+          if (!existingByDocId) {
+            var pending = bundleDriftPending;
+            pending.existing = {};
+            var chain = Promise.resolve();
+            drift.forEach(function (d) {
+              chain = chain.then(function () {
+                var rid = remoteIdFor('docs', d.id);
+                if (!rid) { pending.existing[d.id] = null; return null; }
+                return docShares(rid).then(function (shares) {
+                  pending.existing[d.id] = shares.length ? shares[0] : null;
+                }).catch(function () { pending.existing[d.id] = null; });
+              });
+            });
+            chain.then(function () {
+              if (bundleDriftPending === pending && !document.getElementById('shareDriftModal').hidden) renderDriftList();
+            });
+          }
+        }
+        function renderDriftList() {
+          if (!bundleDriftPending) return;
+          var listEl = document.getElementById('shareDriftList');
+          var checkedBefore = {};
+          listEl.querySelectorAll('input[type="checkbox"][data-drift-doc]').forEach(function (cb) {
+            checkedBefore[cb.getAttribute('data-drift-doc')] = cb.checked;
+          });
+          listEl.innerHTML = '';
+          var existing = bundleDriftPending.existing || {};
+          bundleDriftPending.candidates.forEach(function (d) {
+            listEl.appendChild(driftRowEl(d, existing[d.id] || null));
+          });
+          /* A badge redraw must not reset boxes the owner has
+             already unchecked while shares were resolving. */
+          Object.keys(checkedBefore).forEach(function (id) {
+            var cb = listEl.querySelector('input[type="checkbox"][data-drift-doc="' + id + '"]');
+            if (cb) cb.checked = checkedBefore[id];
+          });
+          updateDriftConfirmLabel();
+        }
+        function driftRowEl(doc, existingShare) {
+          var row = document.createElement('label');
+          row.className = 'bundle-row';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = true;
+          cb.setAttribute('data-drift-doc', doc.id);
+          cb.setAttribute('aria-label', 'Add ' + (doc.title || 'Untitled') + ' to this set');
+          cb.addEventListener('change', updateDriftConfirmLabel);
+          row.appendChild(cb);
+          var main = document.createElement('span');
+          main.className = 'bundle-main';
+          var title = document.createElement('span');
+          title.className = 'bundle-title';
+          title.textContent = doc.title || 'Untitled';
+          main.appendChild(title);
+          var hint = shareFolderHint(doc);
+          if (hint) {
+            var folder = document.createElement('span');
+            folder.className = 'bundle-folder';
+            folder.textContent = hint;
+            main.appendChild(folder);
+          }
+          row.appendChild(main);
+          if (existingShare) {
+            var sharedBadge = document.createElement('span');
+            sharedBadge.className = 'bundle-badge';
+            sharedBadge.textContent = 'Already shared';
+            row.appendChild(sharedBadge);
+          }
+          return row;
+        }
+        function driftCheckedDocs() {
+          if (!bundleDriftPending) return [];
+          var out = [];
+          document.querySelectorAll('#shareDriftList input[type="checkbox"][data-drift-doc]').forEach(function (cb) {
+            if (!cb.checked) return;
+            var d = bundleDriftPending.candidates.find(function (x) { return x.id === cb.getAttribute('data-drift-doc'); });
+            if (d) out.push(d);
+          });
+          return out;
+        }
+        function updateDriftConfirmLabel() {
+          var n = driftCheckedDocs().length;
+          var btn = document.getElementById('shareDriftConfirm');
+          btn.disabled = n === 0;
+          btn.textContent = n === 0 ? 'Add documents' : 'Add ' + n + (n === 1 ? ' document' : ' documents');
+        }
+        function closeDriftModal() {
+          document.getElementById('shareDriftModal').hidden = true;
+          bundleDriftPending = null;
+        }
+        function confirmDrift() {
+          if (!bundleDriftPending || !sb || !sbUser) return;
+          var bundle = bundleDriftPending.bundle;
+          var selected = driftCheckedDocs();
+          if (!selected.length) { closeDriftModal(); return; }
+          var btn = document.getElementById('shareDriftConfirm');
+          btn.disabled = true;
+          btn.textContent = 'Adding\u2026';
+          growBundleManifest(bundle, selected).then(function (out) {
+            btn.disabled = false;
+            if (!out) { updateDriftConfirmLabel(); return; }
+            saveLocalBundle(out.manifest);
+            sharePanelBundle = parseShareBundle(out.manifest);
+            closeDriftModal();
+            /* Reloading the panel recomputes the drift: what
+               was just added is in, the notice clears (or now
+               counts only what the owner left unchecked). */
+            loadBundlePanel();
+            if (typeof folioToast === 'function') {
+              folioToast('Added ' + out.added + (out.added === 1 ? ' document' : ' documents') + ' to the set.', 4200);
+            }
+          }).catch(function () {
+            btn.disabled = false;
+            updateDriftConfirmLabel();
+          });
+        }
+        document.getElementById('shareDriftConfirm').addEventListener('click', confirmDrift);
+        document.getElementById('shareDriftCancel').addEventListener('click', closeDriftModal);
+        document.getElementById('shareDriftClose').addEventListener('click', closeDriftModal);
+        document.getElementById('shareDriftModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeDriftModal();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && !document.getElementById('shareDriftModal').hidden) closeDriftModal();
         });
 
         /* ---------------- sharing: bundle revoke choice ---------------- */
@@ -20307,6 +20592,7 @@
           if (ev.key === 'Escape' && !document.getElementById('shareModal').hidden &&
               document.getElementById('shareBundleModal').hidden &&
               document.getElementById('shareAddDocsModal').hidden &&
+              document.getElementById('shareDriftModal').hidden &&
               document.getElementById('shareRevokeModal').hidden) closeShareModal();
         });
 
@@ -20391,6 +20677,27 @@
            plus the in-flight promise map beside it. */
         var shareMemberInfo = {};
         var shareMemberPending = {};
+        /* Tokens known NOT to resolve (build -61): a member
+           whose get_shared_document came back answered-but-
+           empty — its link was revoked outside this bundle.
+           Such a member is silently omitted from every public
+           bundle surface (the wiki sidebar, tag-filtered lists,
+           bundle search results) and an inline wikilink to it
+           renders as plain text, exactly like a non-bundle
+           link. This is view-time state only: the owner's
+           bundle manifest is never rewritten from here, and
+           his Share panel keeps listing the member. A token
+           leaves the set only by resolving successfully later
+           (or by the harness seeding content for it). An
+           errored or rejected lookup proves nothing — offline,
+           a backend hiccup — and marks nothing. */
+        var shareMemberDead = {};
+        /* The sidebar's membership with dead entries removed,
+           in sidebar order. Every public list renders from
+           this, never from the raw manifest. */
+        function liveWikiMembers(bundle) {
+          return wikiSidebarMembers(bundle).filter(function (m) { return !shareMemberDead[m.token]; });
+        }
         function makeShareMemberInfo(title, content) {
           var tags = {};
           docTags({ content: content }).forEach(function (t) { tags[t.key] = true; });
@@ -20426,9 +20733,15 @@
           var p = sb.rpc('get_shared_document', { t: token }).then(function (res) {
             delete shareMemberPending[token];
             if (res && !res.error && res.data && res.data.length) {
+              delete shareMemberDead[token];
               shareMemberInfo[token] = makeShareMemberInfo(res.data[0].title, res.data[0].content);
               return shareMemberInfo[token];
             }
+            /* Answered but empty: the token no longer
+               resolves (build -61) — remember it for this
+               session so the member drops out of the public
+               surfaces. */
+            if (res && !res.error) shareMemberDead[token] = true;
             return null;
           }).catch(function () { delete shareMemberPending[token]; return null; });
           shareMemberPending[token] = p;
@@ -20442,7 +20755,7 @@
            the tag. Members whose content could not be fetched
            simply do not match — they are never guessed in. */
         function wikiTagMembers(bundle, tagKey) {
-          return wikiSidebarMembers(bundle).filter(function (m) {
+          return liveWikiMembers(bundle).filter(function (m) {
             var info = shareMemberInfo[m.token];
             return !!info && info.tags.indexOf(tagKey) !== -1;
           });
@@ -20467,7 +20780,7 @@
           if (!q) return [];
           var titleHits = [];
           var bodyHits = [];
-          wikiSidebarMembers(bundle).forEach(function (m) {
+          liveWikiMembers(bundle).forEach(function (m) {
             var info = shareMemberInfo[m.token];
             var title = (info && info.title) || m.title || 'Untitled';
             var excerpt = info ? wikiSearchExcerpt(info.text, q) : '';
@@ -20597,7 +20910,7 @@
             return;
           }
           if (head) head.hidden = true;
-          wikiSidebarMembers(bundle).forEach(function (m) { list.appendChild(wikiListItemEl(m, currentToken, '')); });
+          liveWikiMembers(bundle).forEach(function (m) { list.appendChild(wikiListItemEl(m, currentToken, '')); });
         }
         /* Tag navigation entry point (hashtag click in the
            viewed document): exits any search, fetches the
@@ -20714,6 +21027,7 @@
           resetWikiSidebarState();
           shareMemberInfo = {};
           shareMemberPending = {};
+          shareMemberDead = {};
           renderWikiSidebar(null, null);
           if (sharePrevRootTheme) {
             if (sharePrevRootTheme.t) rootEl.setAttribute('data-theme', sharePrevRootTheme.t);
@@ -20723,6 +21037,63 @@
             sharePrevRootTheme = null;
           }
           if (sb && !sbUser && !localOnly) showAuthGate();
+        }
+        /* Mounts the read-only editor for the shared view
+           (extracted in build -61 so the dead-entry refresh
+           can re-mount with a re-transformed document). A
+           bundle member known not to resolve is not a link
+           target here either: existsTitle says no, and
+           onNavigate stands down. */
+        function mountShareEditor(viewContent) {
+          var mount = document.getElementById('shareMount');
+          if (shareEditor) { shareEditor.destroy(); shareEditor = null; }
+          mount.innerHTML = '';
+          shareEditor = window.FolioKit.createEditor({
+            element: mount,
+            content: viewContent,
+            placeholder: '',
+            existsTitle: function (title) {
+              var m = shareViewBundle ? shareViewBundle.byTitle[normShareTitle(title)] : null;
+              return !!m && !shareMemberDead[m.token];
+            },
+            onNavigate: function (title) {
+              var m = shareViewBundle ? shareViewBundle.byTitle[normShareTitle(title)] : null;
+              if (m && m.token && m.token !== shareViewToken && !shareMemberDead[m.token]) {
+                window.location.hash = '#/s/' + encodeURIComponent(m.token);
+              }
+            },
+            /* Hashtag clicks (fold-in): in a wiki bundle they
+               filter the sidebar to the bundle members
+               carrying the tag; in any other shared view a
+               hashtag stays inert, exactly as before. */
+            onTagClick: function (name) {
+              if (shareViewBundle && shareViewBundle.wiki) applyWikiTagFilter(name);
+            },
+          });
+          if (shareEditor && shareEditor.editor && shareEditor.editor.setEditable) {
+            shareEditor.editor.setEditable(false);
+          }
+          attachCodeCopy(mount, shareEditor.editor);
+        }
+        /* Dead-entry resolution (build -61): once a bundle
+           view is on screen, resolve every member through its
+           own token. Members that no longer resolve are
+           remembered in shareMemberDead; if any were learned
+           by this pass, the wiki list re-renders without them
+           and the document re-mounts with the viewer transform
+           re-run, so their inline links land as plain text.
+           The owner's manifest is never touched — this only
+           changes what this viewer sees. Stale passes (the
+           reader already moved to another member) stand down. */
+        function resolveBundleMembers(bundle, forToken, row) {
+          var knownBefore = Object.keys(shareMemberDead).length;
+          return fetchAllShareMemberInfos(bundle).then(function () {
+            if (shareViewToken !== forToken || shareViewBundle !== bundle) return;
+            if (bundle.wiki) renderWikiList(bundle, shareViewToken);
+            if (Object.keys(shareMemberDead).length === knownBefore) return;
+            var fresh = bundleViewContent(row.content || { type: 'doc', content: [{ type: 'paragraph' }] }, bundle);
+            mountShareEditor(fresh);
+          }).catch(function () {});
         }
         function renderSharedDoc(row) {
           shareViewPerm = row.permission || 'view';
@@ -20754,33 +21125,7 @@
           renderWikiSidebar(shareViewBundle, shareViewToken);
           var viewContent = row.content || { type: 'doc', content: [{ type: 'paragraph' }] };
           if (shareViewBundle) viewContent = bundleViewContent(viewContent, shareViewBundle);
-          var mount = document.getElementById('shareMount');
-          if (shareEditor) { shareEditor.destroy(); shareEditor = null; }
-          mount.innerHTML = '';
-          shareEditor = window.FolioKit.createEditor({
-            element: mount,
-            content: viewContent,
-            placeholder: '',
-            existsTitle: function (title) {
-              return shareViewBundle ? !!shareViewBundle.byTitle[normShareTitle(title)] : false;
-            },
-            onNavigate: function (title) {
-              var m = shareViewBundle ? shareViewBundle.byTitle[normShareTitle(title)] : null;
-              if (m && m.token && m.token !== shareViewToken) {
-                window.location.hash = '#/s/' + encodeURIComponent(m.token);
-              }
-            },
-            /* Hashtag clicks (fold-in): in a wiki bundle they
-               filter the sidebar to the bundle members
-               carrying the tag; in any other shared view a
-               hashtag stays inert, exactly as before. */
-            onTagClick: function (name) {
-              if (shareViewBundle && shareViewBundle.wiki) applyWikiTagFilter(name);
-            },
-          });
-          if (shareEditor && shareEditor.editor && shareEditor.editor.setEditable) {
-            shareEditor.editor.setEditable(false);
-          }
+          mountShareEditor(viewContent);
           /* The shared view renders with the OWNER's styles
              resolved onto the share root — settings flagged
              for the shipped default render shipped here.
@@ -20805,8 +21150,13 @@
           } else {
             applyThemeScopeVars(shareRootEl, false);
           }
-          attachCodeCopy(mount, shareEditor.editor);
           loadSharedComments();
+          /* Dead-entry cleanup (build -61): resolve the set's
+             members in the background; any that no longer
+             resolve quietly drop out of the sidebar, tag
+             lists, and search, and links to them re-render as
+             plain text. */
+          if (shareViewBundle) resolveBundleMembers(shareViewBundle, shareViewToken, row);
         }
         function loadSharedComments() {
           if (!sb || !shareViewToken) return;
@@ -20947,6 +21297,9 @@
              object or { title, content }. */
           seedMemberContent: function (contentsByToken) {
             Object.keys(contentsByToken || {}).forEach(function (token) {
+              /* Seeded content means the token resolves: it is
+                 not a dead entry (build -61). */
+              delete shareMemberDead[token];
               var v = contentsByToken[token];
               if (v && typeof v === 'object' && ('content' in v || 'title' in v)) {
                 shareMemberInfo[token] = makeShareMemberInfo(v.title, v.content);
@@ -21095,6 +21448,106 @@
             var b = localBundleFor(token);
             return b ? bundleManifestOf(b) : null;
           },
+          /* ---- build -61: bundle drift ---- */
+          /* The drift computation itself: closure documents
+             (in closure order) that are not in the bundle. */
+          driftFor: function (docId, bundleRaw) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            var b = parseShareBundle(bundleRaw);
+            if (!d || !b) return [];
+            return computeBundleDrift(d, b).map(function (x) {
+              return { docId: x.id, title: x.title || 'Untitled', folder: shareFolderHint(x) };
+            });
+          },
+          /* Renders the panel's drift notice exactly as
+             loadBundlePanel builds it (the panel itself needs
+             the backend), into the real Share panel wrap, and
+             reads it back. The Review button stays live: a
+             probe click opens the real drift modal. */
+          previewDriftNotice: function (docId, bundleRaw) {
+            var b = parseShareBundle(bundleRaw);
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            var wrap = document.getElementById('shareBundlePanel');
+            if (!b || !d || !wrap) return null;
+            shareModalDocId = docId;
+            sharePanelBundle = b;
+            sharePanelDrift = computeBundleDrift(d, b);
+            wrap.innerHTML = '';
+            if (sharePanelDrift.length) wrap.appendChild(bundleDriftNoticeEl(b, sharePanelDrift));
+            var notice = document.getElementById('shareBundleDrift');
+            return {
+              drift: sharePanelDrift.map(function (x) { return x.id; }),
+              noticeText: notice ? notice.textContent : null,
+              hasReview: !!document.getElementById('shareBundleDriftReview'),
+            };
+          },
+          panelDrift: function () { return sharePanelDrift.map(function (d) { return d.id; }); },
+          /* Opens the real drift review modal against a stored
+             bundle, with the existing-share map supplied (the
+             panel path fetches it instead). */
+          openDriftFor: function (docId, bundleRaw, existingByDocId) {
+            var b = parseShareBundle(bundleRaw);
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!b || !d) return false;
+            shareModalDocId = docId;
+            sharePanelBundle = b;
+            openDriftModal(b, existingByDocId || {});
+            return true;
+          },
+          /* Reads back the real drift modal: rows with their
+             checkbox state, folder hint, and badge. */
+          driftDomState: function () {
+            var rows = [];
+            document.querySelectorAll('#shareDriftList .bundle-row').forEach(function (el) {
+              var cb = el.querySelector('input[type="checkbox"]');
+              var badge = el.querySelector('.bundle-badge');
+              var title = el.querySelector('.bundle-title');
+              var folder = el.querySelector('.bundle-folder');
+              rows.push({
+                docId: cb ? cb.getAttribute('data-drift-doc') : null,
+                title: title ? title.textContent : '',
+                folder: folder ? folder.textContent : '',
+                checked: cb ? cb.checked : null,
+                badge: badge ? badge.textContent : null,
+              });
+            });
+            return {
+              open: !document.getElementById('shareDriftModal').hidden,
+              confirmText: document.getElementById('shareDriftConfirm').textContent,
+              confirmDisabled: document.getElementById('shareDriftConfirm').disabled,
+              checkedDocIds: driftCheckedDocs().map(function (d) { return d.id; }),
+              rows: rows,
+            };
+          },
+          /* ---- build -61: dead-entry cleanup ---- */
+          /* Marks tokens as not resolving, standing in for the
+             answered-but-empty get_shared_document the sandbox
+             cannot produce; any seeded content for them goes,
+             as a real failed resolution leaves no info. */
+          seedDead: function (tokens) {
+            (tokens || []).forEach(function (t) {
+              shareMemberDead[t] = true;
+              delete shareMemberInfo[t];
+            });
+          },
+          deadTokens: function () { return Object.keys(shareMemberDead); },
+          /* The viewer's live membership: sidebar order with
+             dead entries omitted — what the sidebar, tag
+             lists, and search results are all built from. */
+          liveWikiSidebar: function (raw, currentToken) {
+            var b = parseShareBundle(raw);
+            if (!b) return { wiki: false, items: [] };
+            return {
+              wiki: b.wiki === true,
+              items: liveWikiMembers(b).map(function (m) {
+                return {
+                  token: m.token, doc: m.doc || null, title: m.title,
+                  isRoot: m.token === b.rootToken,
+                  isCurrent: m.token === currentToken,
+                };
+              }),
+            };
+          },
         };
 
         /* ---------------- backend boot ---------------- */
@@ -21191,7 +21644,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-60';
+        var FOLIO_BUILD = '20261029-61';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
