@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-64" />
+    <meta name="folio-build" content="20261029-65" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2514,6 +2514,20 @@
         padding: 5dvh 14px 20px; overflow-y: auto;
       }
       .overlay[hidden] { display: none; }
+      /* The Share panel's follow-on modals (build -65): the
+         bundle creation review, Add documents, the drift
+         review, the watch-enable backlog sweep, the watch
+         prompt, and the revoke confirm all launch from the
+         Share panel — most while it is still open, the sweep
+         in the same breath as it closes. As a family they
+         sit one layer above the panel's 230 (and still below
+         the auth gate's 240) instead of relying on DOM order
+         at a shared z-index, which is how the sweep ended up
+         painted behind the panel on device (build -64). */
+      #shareBundleModal, #shareAddDocsModal, #shareDriftModal,
+      #shareSweepModal, #shareWatchModal, #shareRevokeModal {
+        z-index: 235;
+      }
       .panel {
         width: 100%; max-width: 560px; margin: auto 0;
         background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
@@ -23231,7 +23245,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-64';
+        var FOLIO_BUILD = '20261029-65';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
