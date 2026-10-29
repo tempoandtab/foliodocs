@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-65" />
+    <meta name="folio-build" content="20261029-66" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19431,7 +19431,19 @@
            watch: the rules were persisted when they were
            enabled and stay in effect for future documents.
            Confirming grows the set through the standard -60
-           path at the bundle's permission. */
+           path at the bundle's permission.
+
+           Build -66 widens the folder half of the match to
+           the whole SUBTREE (see folderMatchesWatch at the
+           matcher): watching a folder now covers every folder
+           inside it, at any depth, for the future prompts and
+           the backlog sweep alike, because both read the one
+           shared matcher. Tag rules are untouched. Build -66
+           also re-checked the -65 modal layering through the
+           genuine panel-close flow in a real browser (see the
+           -65 note at the overlay styles): the sweep opens
+           only after the panel has hidden, and hit-tests land
+           on the sweep — no further layer change was made. */
         function normShareTitle(t) { return String(t || '').trim().toLowerCase(); }
         function shareFolderHint(doc) {
           if (!doc || !doc.folderId) return '';
@@ -20160,7 +20172,7 @@
           wrap.appendChild(name);
           var desc = document.createElement('span');
           desc.className = 'bundle-wiki-desc';
-          desc.textContent = 'When a document is created or moved into a watched folder, or a watched tag is added to it, you\u2019ll be asked whether to share it as part of this set. Documents already in the set are never asked about, and nothing is ever added without asking.';
+          desc.textContent = 'When a document is created or moved into a watched folder \u2014 or any folder inside it \u2014 or a watched tag is added to it, you\u2019ll be asked whether to share it as part of this set. Documents already in the set are never asked about, and nothing is ever added without asking.';
           wrap.appendChild(desc);
           /* --- folders --- */
           var fLabel = document.createElement('div');
@@ -21203,19 +21215,51 @@
            carries, AND the document is not already a member.
            One entry per bundle, however many of its rules hit:
            a document in a watched folder carrying a watched
-           tag still lists the bundle once. */
+           tag still lists the bundle once.
+           Build -66: folder watches are SUBTREE-inclusive —
+           a document also matches when its folder sits anywhere
+           INSIDE a watched folder, at any depth. This matcher
+           is the one shared path: the -62 create / move-in /
+           tag prompts and the -64 backlog sweep (which probes
+           through computeWatchMatches) all inherit the wider
+           net from here, with no per-consumer special cases.
+           Tag matching is unchanged. */
+        /* Subtree test for one document folder against a
+           bundle's watched-folder list: the folder itself or
+           ANY ancestor may be the watched one. Each folder on
+           the walk is tried in both namespaces (its local id,
+           then its remote id), so a rule recorded against a
+           folder's remote id still catches documents filed
+           under that folder's local subtree. The direct checks
+           run before the walk so a document in the watched
+           folder itself matches even if its folder record is
+           somehow missing, and the walk is cycle-guarded like
+           every other parent-chain walk in the library. */
+        function folderMatchesWatch(folderId, watchFolders) {
+          if (!folderId || !watchFolders || !watchFolders.length) return false;
+          if (watchFolders.indexOf(folderId) !== -1) return true;
+          var selfRid = remoteIdFor('folders', folderId);
+          if (selfRid && watchFolders.indexOf(selfRid) !== -1) return true;
+          var seen = {};
+          var cur = folderById(folderId);
+          while (cur && cur.parentId && !seen[cur.id]) {
+            seen[cur.id] = true;
+            cur = folderById(cur.parentId);
+            if (!cur || seen[cur.id]) break;
+            if (watchFolders.indexOf(cur.id) !== -1) return true;
+            var rid = remoteIdFor('folders', cur.id);
+            if (rid && watchFolders.indexOf(rid) !== -1) return true;
+          }
+          return false;
+        }
         function computeWatchMatches(doc, bundles) {
           if (!doc) return [];
-          var folderRid = doc.folderId ? remoteIdFor('folders', doc.folderId) : null;
           var tagKeys = docTags(doc).map(function (t) { return t.key; });
           var out = [];
           (bundles || []).forEach(function (b) {
             if (!b || !b.watch) return;
             if (bundleHasDoc(b, doc)) return;
-            var viaFolder = !!doc.folderId && (
-              b.watch.folders.indexOf(doc.folderId) !== -1 ||
-              (!!folderRid && b.watch.folders.indexOf(folderRid) !== -1)
-            );
+            var viaFolder = folderMatchesWatch(doc.folderId, b.watch.folders);
             var viaTags = tagKeys.filter(function (k) { return b.watch.tags.indexOf(k) !== -1; });
             if (viaFolder || viaTags.length) {
               out.push({ bundle: b, viaFolder: viaFolder, viaTags: viaTags });
@@ -23245,7 +23289,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-65';
+        var FOLIO_BUILD = '20261029-66';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
