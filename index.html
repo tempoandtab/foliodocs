@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-63" />
+    <meta name="folio-build" content="20261029-64" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3618,6 +3618,23 @@
         <div class="bundle-foot">
           <button class="btn-ghost" id="shareDriftCancel" type="button">Not now</button>
           <button class="btn-primary" id="shareDriftConfirm" type="button">Add documents</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shareSweepModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareSweepTitle">
+        <div class="panel-head">
+          <h2 id="shareSweepTitle">Add existing documents to this set</h2>
+          <button class="icon-btn" id="shareSweepClose" type="button" aria-label="Skip adding existing documents" data-tip="Not now">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note">You just started watching <span id="shareSweepRules"></span> for the &ldquo;<span id="shareSweepBundleName"></span>&rdquo; set. These documents already match &mdash; share them as part of the set now? Each one gets a link with the set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one. The watch stays on either way: skipping this only leaves the existing documents out.</p>
+        <div class="bundle-list" id="shareSweepList"></div>
+        <div class="bundle-foot">
+          <button class="btn-ghost" id="shareSweepCancel" type="button">Not now</button>
+          <button class="btn-primary" id="shareSweepConfirm" type="button">Add documents</button>
         </div>
       </div>
     </div>
@@ -19377,7 +19394,30 @@
            A bundle whose root document is no longer in the
            library contributes no row, and a root's own panel
            shows rows only for OTHER bundles it belongs to as a
-           member. */
+           member.
+
+           Build -64 adds the WATCH-ENABLE BACKLOG SWEEP, same
+           record, no new dashboard step: the -62 watch rules
+           only ever governed the future, so the documents a
+           newly watched folder or tag ALREADY matches still
+           had to be added by hand. Now, watch-rule additions
+           made during one editing session in the root panel's
+           watch editor are remembered (add transitions only —
+           removing a rule records nothing, and re-adding one
+           later is a fresh enable), and on leaving the editor
+           (the Share panel closing) ONE review modal offers
+           the union of the existing backlog across every rule
+           the session added: each candidate once, however many
+           of the new rules match it, every box checked by
+           default, "Already shared" badges where a document
+           already has its own link, and a confirm label that
+           counts the checked documents. Matching nothing opens
+           no modal. Declining — Cancel, close, or unchecking
+           everything — adds nothing and NEVER undoes the
+           watch: the rules were persisted when they were
+           enabled and stay in effect for future documents.
+           Confirming grows the set through the standard -60
+           path at the bundle's permission. */
         function normShareTitle(t) { return String(t || '').trim().toLowerCase(); }
         function shareFolderHint(doc) {
           if (!doc || !doc.folderId) return '';
@@ -19878,7 +19918,13 @@
              right after a go-to-root navigation lands here. */
           else { loadGoToRootPanel(); }
         }
-        function closeShareModal() { document.getElementById('shareModal').hidden = true; }
+        function closeShareModal() {
+          document.getElementById('shareModal').hidden = true;
+          /* Leaving the Share panel is leaving the watch
+             editor (build -64): any watch rules enabled during
+             this session get their one backlog sweep offer. */
+          finishWatchEditSession();
+        }
         /* The root share's panel shows the bundle it heads:
            every other member of the set with its own link, so
            the owner can copy a member's link directly and can
@@ -20246,6 +20292,10 @@
            place instead. */
         function setBundleWatch(bundle, watch) {
           if (!bundle) return Promise.resolve(null);
+          /* Build -64: remember which rules this call newly
+             enables, so leaving the editor can offer the
+             existing backlog those rules already match. */
+          recordWatchRuleAdds(bundle, watch);
           var manifest = bundleManifestOf(bundle);
           manifest.watch = normalizeWatch(watch);
           sharePanelBundle = parseShareBundle(manifest);
@@ -21358,6 +21408,275 @@
           if (added.length) maybePromptWatchShare(doc, { tags: added });
         }
 
+        /* ---------------- sharing: watch-enable backlog sweep (build -64) ----------------
+           The -62 watch editor persists a rule the moment it
+           is enabled, but the rule only ever governed the
+           future — the documents already sitting in the folder
+           or carrying the tag still needed adding by hand.
+           This is the other half. While the root panel's watch
+           editor is up, every setBundleWatch call diffs the
+           rules it is handed against the bundle's current
+           rules and remembers the ADD transitions in a session
+           (removals record nothing; re-adding a rule that was
+           removed records it again — a re-enable is a fresh
+           enable, and re-offers the then-current backlog).
+           Leaving the editor — the Share panel closing, the
+           one funnel every exit passes through — finishes the
+           session: the union of the existing backlog across
+           every rule the session added is offered in ONE
+           review modal, in the drift review's shape. A session
+           that added no rules, or whose rules match nothing
+           already in the library, opens no modal at all. */
+        var watchSweepSession = null;
+        function recordWatchRuleAdds(bundle, newWatch) {
+          if (!bundle) return;
+          var key = bundleKeyOf(bundle);
+          if (!key) return;
+          var prev = normalizeWatch(bundle.watch);
+          var next = normalizeWatch(newWatch);
+          if (!watchSweepSession || watchSweepSession.key !== key) {
+            watchSweepSession = { key: key, bundle: bundle, addedFolders: [], addedTags: [] };
+          }
+          watchSweepSession.bundle = bundle;
+          next.folders.forEach(function (f) {
+            if (prev.folders.indexOf(f) === -1 && watchSweepSession.addedFolders.indexOf(f) === -1) {
+              watchSweepSession.addedFolders.push(f);
+            }
+          });
+          next.tags.forEach(function (t) {
+            if (prev.tags.indexOf(t) === -1 && watchSweepSession.addedTags.indexOf(t) === -1) {
+              watchSweepSession.addedTags.push(t);
+            }
+          });
+        }
+        /* The backlog itself, pure over the library: every
+           document the given rules match under the -62 watch
+           semantics (computeWatchMatches against a probe
+           bundle carrying only the newly added rules), minus
+           the documents already in the set — the root is a
+           member by construction, so it never appears. A
+           document matched by both a new folder rule and a
+           new tag rule is one candidate, listed once. The
+           order is the Add-documents picker's: alphabetical
+           by title, id as the stable tiebreak. */
+        function computeWatchBacklog(bundle, rules) {
+          if (!bundle || !bundle.members) return [];
+          var r = normalizeWatch(rules);
+          if (!r.folders.length && !r.tags.length) return [];
+          var probe = {
+            v: 1, id: bundle.id, rootToken: bundle.rootToken,
+            wiki: bundle.wiki === true, watch: r,
+            members: bundle.members, byTitle: bundle.byTitle,
+          };
+          return lib.docs.filter(function (doc) {
+            return computeWatchMatches(doc, [probe]).length > 0;
+          }).sort(function (a, b) {
+            var ta = String(a.title || '').toLowerCase();
+            var tb = String(b.title || '').toLowerCase();
+            if (ta < tb) return -1;
+            if (ta > tb) return 1;
+            return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
+          });
+        }
+        function describeWatchRules(rules) {
+          var r = normalizeWatch(rules);
+          var parts = [];
+          r.folders.forEach(function (fid) {
+            var f = folderById(fid);
+            parts.push('the \u201C' + (f ? f.name : 'watched') + '\u201D folder');
+          });
+          r.tags.forEach(function (k) { parts.push('the #' + canonicalTagName(k) + ' tag'); });
+          if (!parts.length) return 'a folder or tag';
+          if (parts.length === 1) return parts[0];
+          return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+        }
+        /* Finishing the session: consume the recorded adds
+           (the session is over either way, so nothing can
+           double-offer), settle on the freshest copy of the
+           bundle — the local store's, which the editor's own
+           persists just wrote — and open the one modal when
+           the backlog is non-empty. Returns the backlog it
+           offered, or null when no modal appears. */
+        function finishWatchEditSession() {
+          var session = watchSweepSession;
+          watchSweepSession = null;
+          if (!session) return null;
+          if (!session.addedFolders.length && !session.addedTags.length) return null;
+          var rules = { folders: session.addedFolders.slice(), tags: session.addedTags.slice() };
+          var bundle = session.bundle;
+          var local = localBundles().find(function (b) { return bundleKeyOf(b) === session.key; });
+          if (local) bundle = local;
+          else if (sharePanelBundle && bundleKeyOf(sharePanelBundle) === session.key) bundle = sharePanelBundle;
+          var backlog = computeWatchBacklog(bundle, rules);
+          if (!backlog.length) return null;
+          openWatchSweepModal(bundle, rules, backlog);
+          return backlog;
+        }
+        /* The review modal, in the drift review's shape: one
+           checkbox row per candidate document, folder hint,
+           "Already shared" badge where the document already
+           has an active link — and every box CHECKED by
+           default, because the owner just asked this folder
+           or tag to be watched. Confirming runs the same grow
+           path as Add documents and the drift review (bundle
+           permission, reuse-or-create, manifest on every
+           member row), so wiki sidebars pick the new members
+           up. Declining — Not now, the ×, the backdrop, Esc,
+           or unchecking everything — adds nothing, and the
+           watch rules REMAIN in effect: they were persisted
+           when they were enabled, and this modal concerns
+           only the existing backlog, never the rules. */
+        var bundleSweepPending = null;
+        function openWatchSweepModal(bundle, rules, backlog, existingByDocId) {
+          if (!bundle || !backlog || !backlog.length) return false;
+          bundleSweepPending = {
+            bundle: bundle, rules: normalizeWatch(rules), candidates: backlog,
+            existing: existingByDocId || null,
+          };
+          document.getElementById('shareSweepBundleName').textContent = bundleRootTitle(bundle);
+          document.getElementById('shareSweepRules').textContent = describeWatchRules(rules);
+          /* A fresh offer starts from a clean list: the
+             checked-state preservation in renderSweepList is
+             for THIS opening's badge redraw, never a previous
+             modal's leftovers — every box starts checked. */
+          document.getElementById('shareSweepList').innerHTML = '';
+          renderSweepList();
+          document.getElementById('shareSweepModal').hidden = false;
+          var first = document.querySelector('#shareSweepList input[type="checkbox"]');
+          try { (first || document.getElementById('shareSweepConfirm')).focus(); } catch (e) {}
+          /* The panel path arrives without share knowledge:
+             resolve each candidate's active share so the
+             "Already shared" badges can render, then redraw.
+             The harness passes its map in and skips this. */
+          if (!existingByDocId) {
+            var pending = bundleSweepPending;
+            pending.existing = {};
+            var chain = Promise.resolve();
+            backlog.forEach(function (d) {
+              chain = chain.then(function () {
+                var rid = remoteIdFor('docs', d.id);
+                if (!rid) { pending.existing[d.id] = null; return null; }
+                return docShares(rid).then(function (shares) {
+                  pending.existing[d.id] = shares.length ? shares[0] : null;
+                }).catch(function () { pending.existing[d.id] = null; });
+              });
+            });
+            chain.then(function () {
+              if (bundleSweepPending === pending && !document.getElementById('shareSweepModal').hidden) renderSweepList();
+            });
+          }
+          return true;
+        }
+        function renderSweepList() {
+          if (!bundleSweepPending) return;
+          var listEl = document.getElementById('shareSweepList');
+          var checkedBefore = {};
+          listEl.querySelectorAll('input[type="checkbox"][data-sweep-doc]').forEach(function (cb) {
+            checkedBefore[cb.getAttribute('data-sweep-doc')] = cb.checked;
+          });
+          listEl.innerHTML = '';
+          var existing = bundleSweepPending.existing || {};
+          bundleSweepPending.candidates.forEach(function (d) {
+            listEl.appendChild(sweepRowEl(d, existing[d.id] || null));
+          });
+          /* A badge redraw must not reset boxes the owner has
+             already unchecked while shares were resolving. */
+          Object.keys(checkedBefore).forEach(function (id) {
+            var cb = listEl.querySelector('input[type="checkbox"][data-sweep-doc="' + id + '"]');
+            if (cb) cb.checked = checkedBefore[id];
+          });
+          updateSweepConfirmLabel();
+        }
+        function sweepRowEl(doc, existingShare) {
+          var row = document.createElement('label');
+          row.className = 'bundle-row';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = true;
+          cb.setAttribute('data-sweep-doc', doc.id);
+          cb.setAttribute('aria-label', 'Add ' + (doc.title || 'Untitled') + ' to this set');
+          cb.addEventListener('change', updateSweepConfirmLabel);
+          row.appendChild(cb);
+          var main = document.createElement('span');
+          main.className = 'bundle-main';
+          var title = document.createElement('span');
+          title.className = 'bundle-title';
+          title.textContent = doc.title || 'Untitled';
+          main.appendChild(title);
+          var hint = shareFolderHint(doc);
+          if (hint) {
+            var folder = document.createElement('span');
+            folder.className = 'bundle-folder';
+            folder.textContent = hint;
+            main.appendChild(folder);
+          }
+          row.appendChild(main);
+          if (existingShare) {
+            var sharedBadge = document.createElement('span');
+            sharedBadge.className = 'bundle-badge';
+            sharedBadge.textContent = 'Already shared';
+            row.appendChild(sharedBadge);
+          }
+          return row;
+        }
+        function sweepCheckedDocs() {
+          if (!bundleSweepPending) return [];
+          var out = [];
+          document.querySelectorAll('#shareSweepList input[type="checkbox"][data-sweep-doc]').forEach(function (cb) {
+            if (!cb.checked) return;
+            var d = bundleSweepPending.candidates.find(function (x) { return x.id === cb.getAttribute('data-sweep-doc'); });
+            if (d) out.push(d);
+          });
+          return out;
+        }
+        function updateSweepConfirmLabel() {
+          var n = sweepCheckedDocs().length;
+          var btn = document.getElementById('shareSweepConfirm');
+          btn.disabled = n === 0;
+          btn.textContent = n === 0 ? 'Add documents' : 'Add ' + n + (n === 1 ? ' document' : ' documents');
+        }
+        function closeWatchSweepModal() {
+          document.getElementById('shareSweepModal').hidden = true;
+          bundleSweepPending = null;
+        }
+        function confirmWatchSweep() {
+          if (!bundleSweepPending || !sb || !sbUser) return;
+          var bundle = bundleSweepPending.bundle;
+          var selected = sweepCheckedDocs();
+          if (!selected.length) { closeWatchSweepModal(); return; }
+          var btn = document.getElementById('shareSweepConfirm');
+          btn.disabled = true;
+          btn.textContent = 'Adding\u2026';
+          growBundleManifest(bundle, selected).then(function (out) {
+            btn.disabled = false;
+            if (!out) { updateSweepConfirmLabel(); return; }
+            saveLocalBundle(out.manifest);
+            if (sharePanelBundle && bundleKeyOf(sharePanelBundle) === bundleKeyOf(bundle)) {
+              sharePanelBundle = parseShareBundle(out.manifest);
+            }
+            closeWatchSweepModal();
+            /* The Share panel closed to offer this sweep; if
+               it has since reopened, reloading it recomputes
+               its set section against the grown manifest. */
+            if (!document.getElementById('shareModal').hidden) loadBundlePanel();
+            if (typeof folioToast === 'function') {
+              folioToast('Added ' + out.added + (out.added === 1 ? ' document' : ' documents') + ' to the set.', 4200);
+            }
+          }).catch(function () {
+            btn.disabled = false;
+            updateSweepConfirmLabel();
+          });
+        }
+        document.getElementById('shareSweepConfirm').addEventListener('click', confirmWatchSweep);
+        document.getElementById('shareSweepCancel').addEventListener('click', closeWatchSweepModal);
+        document.getElementById('shareSweepClose').addEventListener('click', closeWatchSweepModal);
+        document.getElementById('shareSweepModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeWatchSweepModal();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && !document.getElementById('shareSweepModal').hidden) closeWatchSweepModal();
+        });
+
         /* ---------------- sharing: bundle revoke choice ---------------- */
         var shareRevokePending = null;
         function openShareRevokeModal(share, bundle) {
@@ -21510,6 +21829,7 @@
               document.getElementById('shareBundleModal').hidden &&
               document.getElementById('shareAddDocsModal').hidden &&
               document.getElementById('shareDriftModal').hidden &&
+              document.getElementById('shareSweepModal').hidden &&
               document.getElementById('shareWatchModal').hidden &&
               document.getElementById('shareRevokeModal').hidden) closeShareModal();
         });
@@ -22731,6 +23051,90 @@
             el.click();
             return window.FolioShareBundle.goToRootDomState();
           },
+          /* ---- build -64: watch-enable backlog sweep ---- */
+          /* The backlog computation itself, over a stored
+             bundle and an explicit set of newly added rules:
+             the non-member documents those rules match, each
+             once, in the modal's order. */
+          sweepBacklogFor: function (bundleRaw, rules) {
+            var b = parseShareBundle(bundleRaw);
+            if (!b) return [];
+            return computeWatchBacklog(b, rules || {}).map(function (x) {
+              return { docId: x.id, title: x.title || 'Untitled', folder: shareFolderHint(x) };
+            });
+          },
+          /* What the current watch-editing session has
+             recorded as newly enabled (null between sessions). */
+          sweepSessionState: function () {
+            if (!watchSweepSession) return null;
+            return {
+              key: watchSweepSession.key,
+              addedFolders: watchSweepSession.addedFolders.slice(),
+              addedTags: watchSweepSession.addedTags.slice(),
+            };
+          },
+          /* Acts the real watch save (the editor's own path,
+             session recording included) against a stored
+             bundle, without the backend round-trip the panel
+             load would make. */
+          enableWatchFor: function (bundleRaw, watch) {
+            var b = parseShareBundle(bundleRaw);
+            if (!b) return null;
+            sharePanelBundle = b;
+            return setBundleWatch(b, watch).then(function (man) {
+              return { manifest: man, session: window.FolioShareBundle.sweepSessionState() };
+            });
+          },
+          /* Leaves the editor: finishes the session exactly
+             as closing the Share panel does, and reads back
+             the sweep modal. */
+          finishWatchSession: function () {
+            finishWatchEditSession();
+            return window.FolioShareBundle.sweepDomState();
+          },
+          /* Opens the real sweep modal directly against a
+             stored bundle and explicit rules, with the
+             existing-share map supplied (the session path
+             fetches it instead). */
+          openSweepFor: function (bundleRaw, rules, existingByDocId) {
+            var b = parseShareBundle(bundleRaw);
+            if (!b) return null;
+            var backlog = computeWatchBacklog(b, rules || {});
+            sharePanelBundle = b;
+            openWatchSweepModal(b, rules || {}, backlog, existingByDocId || {});
+            return window.FolioShareBundle.sweepDomState();
+          },
+          /* Reads back the real sweep modal: rows with their
+             checkbox state, folder hint, and badge. */
+          sweepDomState: function () {
+            var rows = [];
+            document.querySelectorAll('#shareSweepList .bundle-row').forEach(function (el) {
+              var cb = el.querySelector('input[type="checkbox"]');
+              var badge = el.querySelector('.bundle-badge');
+              var title = el.querySelector('.bundle-title');
+              var folder = el.querySelector('.bundle-folder');
+              rows.push({
+                docId: cb ? cb.getAttribute('data-sweep-doc') : null,
+                title: title ? title.textContent : '',
+                folder: folder ? folder.textContent : '',
+                checked: cb ? cb.checked : null,
+                badge: badge ? badge.textContent : null,
+              });
+            });
+            return {
+              open: !document.getElementById('shareSweepModal').hidden,
+              bundleName: document.getElementById('shareSweepBundleName').textContent,
+              rulesText: document.getElementById('shareSweepRules').textContent,
+              confirmText: document.getElementById('shareSweepConfirm').textContent,
+              confirmDisabled: document.getElementById('shareSweepConfirm').disabled,
+              checkedDocIds: sweepCheckedDocs().map(function (d) { return d.id; }),
+              rows: rows,
+            };
+          },
+          closeSweep: function () {
+            closeWatchSweepModal();
+            return window.FolioShareBundle.sweepDomState();
+          },
         };
 
         /* ---------------- backend boot ---------------- */
@@ -22827,7 +23231,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-63';
+        var FOLIO_BUILD = '20261029-64';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
