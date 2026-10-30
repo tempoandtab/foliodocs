@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261030-68" />
+    <meta name="folio-build" content="20261030-69" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2528,9 +2528,43 @@
          overlays. The -65 family layer (235) is gone with
          the family: with a single overlay there is no
          stacking order between them left to get wrong.
-         The revoke view keeps its old narrower measure. */
+         Build -69: one FIXED frame for every view, the way
+         the theme styles modal frames its navigation. Up to
+         -68 the panel's height was driven by whichever view
+         was inside it: Main, tall with a bundle's members,
+         filled the screen as a full-height sheet, while a
+         short follow-on view (the backlog sweep above all)
+         shrank the same panel to a small centered card with
+         margins on all sides — one element, but on screen
+         unmistakably a second, different modal arriving over
+         the first. Now the overlay never scrolls and the
+         panel always fills the overlay's padded frame —
+         same position, same width, same height for Main and
+         for every follow-on view (the revoke view's old
+         narrower measure is gone too). Each view is the
+         frame's single scroll region under its header row,
+         its checkbox list flexes to fill the frame, and its
+         action row rests on the frame's bottom edge. A view
+         swap changes the header and the content inside the
+         frame, and nothing about the frame itself. */
+      #shareModal { overflow: hidden; overscroll-behavior: contain; }
+      #shareModal .panel {
+        height: 100%; max-height: 100%;
+        display: flex; flex-direction: column; overflow: hidden;
+      }
       .share-shell-view[hidden] { display: none; }
-      #shareModal[data-share-view="revoke"] .panel { max-width: 440px; }
+      .share-shell-view {
+        display: flex; flex-direction: column;
+        flex: 1 1 auto; min-height: 0;
+        overflow-y: auto; overscroll-behavior: contain;
+      }
+      .share-shell-view > * { flex: 0 0 auto; }
+      .share-shell-view .panel-head { flex: 0 0 auto; }
+      .share-shell-view .bundle-list,
+      .share-shell-view .adddocs-list {
+        flex: 1 1 auto; min-height: 0; max-height: none;
+      }
+      .share-shell-view .bundle-foot { margin-top: auto; padding-top: 18px; }
       .share-back {
         display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto;
         font-size: 14px; font-weight: 700; color: var(--accent);
@@ -3560,7 +3594,12 @@
              of it — so no stacking order between them can ever
              be wrong, on any engine. The pattern is the theme
              styles modal's: one frame, the view swaps, a back
-             affordance returns to the list (here, to Main). -->
+             affordance returns to the list (here, to Main).
+             Build -69: the frame is FIXED — the panel fills the
+             overlay at the same geometry for every view, so a
+             swap replaces the header and content inside the one
+             sheet instead of the sheet collapsing into a small
+             centered card for the shorter follow-on views. -->
         <div class="share-shell-view" id="shareViewMain">
           <div class="panel-head">
             <h2 id="shareTitle">Share &ldquo;<span id="shareDocName"></span>&rdquo;</h2>
@@ -20062,11 +20101,16 @@
           });
           var modal = document.getElementById('shareModal');
           modal.setAttribute('data-share-view', name);
-          /* The overlay itself is the scroller, and the Main
-             view is very tall on a large bundle: a view swapped
-             in at a deep scroll offset can present mispositioned
-             (build -68). Every view change starts at the top. */
-          try { modal.scrollTop = 0; } catch (e) {}
+          /* The view itself is the scroller inside the fixed
+             frame (build -69; the overlay was, up to -68), and
+             the Main view is very tall on a large bundle: a view
+             swapped in at a deep scroll offset can present
+             mispositioned. Every view change starts at the top. */
+          try {
+            modal.scrollTop = 0;
+            var viewEl = document.getElementById(SHARE_VIEW_IDS[name]);
+            if (viewEl) viewEl.scrollTop = 0;
+          } catch (e) {}
           var panel = modal.querySelector('.panel');
           if (panel) panel.setAttribute('aria-labelledby', SHARE_VIEW_TITLES[name]);
           /* A follow-on view implies the shell is up: the
