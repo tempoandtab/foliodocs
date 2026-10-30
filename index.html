@@ -8,12 +8,18 @@
     <link rel="apple-touch-icon" sizes="180x180" href="IMG_2912.png" />
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#12332a" />
-    <!-- Build stamp: the update check fetches this page with the
-         cache bypassed and compares the stamp below against the
-         FOLIO_BUILD constant in the app script. Any difference
-         means the server is serving a newer build than the one
-         running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261030-67" />
+    <!-- Build stamp: this meta tag is the SINGLE source of the
+         build stamp (build -68). The app script derives its
+         FOLIO_BUILD constant from this tag at runtime, and the
+         update check fetches this page with the cache bypassed
+         and compares the served tag against it. Because both
+         sides read the same value through the same parser, the
+         two can never disagree inside one file — the -67-era
+         phantom reload loop, where a deploy bumped one of the
+         two hand-maintained copies and every load then detected
+         a "newer" build forever, is impossible by construction.
+         Bump this one value on every deploy. -->
+    <meta name="folio-build" content="20261030-68" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19518,6 +19524,72 @@
             return !(rid && memberDocs[rid]);
           });
         }
+        /* Folder resolution across the two id namespaces
+           (build -68). A folder has a LOCAL id in this device's
+           library ('d…' from uid()) and a REMOTE id on the
+           server (a UUID, derived deterministically from the
+           local id + account, or adopted as-is). Which one a
+           library is keyed by depends on how it was rehydrated:
+           a library that grew locally keeps local ids, while a
+           fresh storage (a new origin, Safari vs the home-screen
+           app) adopts the server's rows UNDER THEIR REMOTE IDS.
+           A bundle manifest is shared between those worlds — it
+           rides the shares table to every device and origin —
+           so a watch rule recorded under one namespace can be
+           read back on a library keyed by the other. A plain
+           folderById lookup then misses a folder that plainly
+           exists, which is exactly the -67 bug: watch chips
+           reading "Folder no longer in the library" after a
+           reload for folders nobody deleted, and folder watches
+           silently never matching. The resolver tries, in order:
+           the id itself, the local id the id map names for it
+           (treating it as a remote id), the remote id the map
+           (or the deterministic derivation) names for it
+           (treating it as a local id), and any live folder whose
+           remote id it is. It only ever returns a folder that
+           actually stands in the library; anything else resolves
+           to null and callers keep the stored id untouched. */
+        function resolveFolderByAnyId(id) {
+          if (!id || typeof id !== 'string') return null;
+          var direct = folderById(id);
+          if (direct) return direct;
+          try {
+            var lid = localIdFor('folders', id);
+            if (lid && lid !== id) {
+              var byLocal = folderById(lid);
+              if (byLocal) return byLocal;
+            }
+            var rid = remoteIdFor('folders', id);
+            if (!rid && typeof sbUser !== 'undefined' && sbUser) {
+              try { rid = deriveRemoteId('folders', id); } catch (e) { rid = null; }
+            }
+            if (rid && rid !== id) {
+              var byRemote = folderById(rid);
+              if (byRemote) return byRemote;
+              var lid2 = localIdFor('folders', rid);
+              if (lid2 && lid2 !== rid) {
+                var byRemoteLocal = folderById(lid2);
+                if (byRemoteLocal) return byRemoteLocal;
+              }
+            }
+            var match = lib.folders.find(function (f) {
+              return remoteIdFor('folders', f.id) === id;
+            });
+            if (match) return match;
+          } catch (e) {}
+          return null;
+        }
+        /* The id this library actually keys the named folder
+           by, when it can be resolved at all — stored watch ids
+           are normalized to it, so a rule written in one
+           namespace is rewritten into the reader's namespace
+           on load and stays healed wherever it is next saved.
+           Unresolvable ids pass through unchanged: the folder
+           may simply not have been pulled yet. */
+        function canonicalWatchFolderId(id) {
+          var f = resolveFolderByAnyId(id);
+          return f ? f.id : id;
+        }
         /* Watch rules (build -62): the bundle record's
            watch: { folders: [folderIds], tags: [tagKeys] }.
            Folder ids are the library's own ids (matching also
@@ -19532,7 +19604,15 @@
           if (w && typeof w === 'object') {
             if (Array.isArray(w.folders)) {
               w.folders.forEach(function (f) {
-                if (typeof f === 'string' && f && folders.indexOf(f) === -1) folders.push(f);
+                if (typeof f !== 'string' || !f) return;
+                /* Build -68: canonicalize into this library's
+                   namespace when the folder resolves (above);
+                   dedupe happens on the canonical id, so the
+                   same folder recorded in both namespaces is
+                   one rule, not two chips. */
+                var cf = f;
+                try { cf = canonicalWatchFolderId(f); } catch (e) { cf = f; }
+                if (folders.indexOf(cf) === -1) folders.push(cf);
               });
             }
             if (Array.isArray(w.tags)) {
@@ -19982,6 +20062,11 @@
           });
           var modal = document.getElementById('shareModal');
           modal.setAttribute('data-share-view', name);
+          /* The overlay itself is the scroller, and the Main
+             view is very tall on a large bundle: a view swapped
+             in at a deep scroll offset can present mispositioned
+             (build -68). Every view change starts at the top. */
+          try { modal.scrollTop = 0; } catch (e) {}
           var panel = modal.querySelector('.panel');
           if (panel) panel.setAttribute('aria-labelledby', SHARE_VIEW_TITLES[name]);
           /* A follow-on view implies the shell is up: the
@@ -19998,6 +20083,18 @@
         function hideShareShell() {
           document.getElementById('shareModal').hidden = true;
           showShareView('main');
+          /* An update offer deferred while this shell was open
+             (build -68) is offered now that nothing is stacked
+             under it. */
+          try {
+            if (updateDeferredStamp && updateDeferredStamp !== FOLIO_BUILD) {
+              var deferredStamp = updateDeferredStamp;
+              updateDeferredStamp = null;
+              showUpdateBanner(deferredStamp);
+            } else {
+              updateDeferredStamp = null;
+            }
+          } catch (e) {}
         }
         function openShareModal() {
           var doc = currentDoc();
@@ -20320,7 +20417,12 @@
             var fChips = document.createElement('div');
             fChips.className = 'watch-chips';
             watch.folders.forEach(function (fid) {
-              var f = folderById(fid);
+              /* Build -68: resolve across both id namespaces —
+                 a plain folderById missed folders keyed by
+                 their remote id (and vice versa) and rendered
+                 the "no longer in the library" fallback for
+                 folders that exist. */
+              var f = resolveFolderByAnyId(fid);
               var chip = document.createElement('span');
               chip.className = 'watch-chip';
               chip.setAttribute('data-watch-folder-chip', fid);
@@ -20335,7 +20437,12 @@
               x.setAttribute('data-tip', 'Stop watching this folder');
               x.addEventListener('click', function () {
                 setBundleWatch(bundle, {
-                  folders: watch.folders.filter(function (v) { return v !== fid; }),
+                  /* Remove by resolved identity (build -68), so
+                     a duplicate entry for the same folder in the
+                     other namespace goes with it. */
+                  folders: watch.folders.filter(function (v) {
+                    return canonicalWatchFolderId(v) !== canonicalWatchFolderId(fid);
+                  }),
                   tags: watch.tags,
                 });
               });
@@ -20350,7 +20457,12 @@
             wrap.appendChild(fNone);
           }
           var fCandidates = folderTreeFlat().filter(function (e) {
-            return watch.folders.indexOf(e.folder.id) === -1;
+            /* A folder already watched under the OTHER
+               namespace's id is still already watched (build
+               -68) — never offer it again as a second rule. */
+            return !watch.folders.some(function (w) {
+              return w === e.folder.id || canonicalWatchFolderId(w) === e.folder.id;
+            });
           });
           if (fCandidates.length) {
             var fPicker = document.createElement('div');
@@ -21357,20 +21469,59 @@
            folder itself matches even if its folder record is
            somehow missing, and the walk is cycle-guarded like
            every other parent-chain walk in the library. */
+        /* The watched-folder set, expanded across both id
+           namespaces (build -68): every stored entry contributes
+           itself, the live folder it resolves to, that folder's
+           remote id, and the local id the map names for it. The
+           -66 matcher already translated the DOCUMENT's folder
+           into its remote id, but a rule recorded in a namespace
+           this library never held — written on another origin
+           whose local ids this device never saw, then read back
+           from the shared manifest — matched nothing at all,
+           so folder watches silently stopped firing after a
+           cross-namespace reload, not just mislabelled. With
+           the set expanded on the rule side as well, either
+           side may speak either namespace. */
+        function expandedWatchFolderSet(watchFolders) {
+          var set = {};
+          (watchFolders || []).forEach(function (w) {
+            if (!w || typeof w !== 'string') return;
+            set[w] = true;
+            try {
+              var f = resolveFolderByAnyId(w);
+              if (f) {
+                set[f.id] = true;
+                var frid = remoteIdFor('folders', f.id);
+                if (frid) set[frid] = true;
+              }
+              var lid = localIdFor('folders', w);
+              if (lid) set[lid] = true;
+              var rid = remoteIdFor('folders', w);
+              if (rid) set[rid] = true;
+            } catch (e) {}
+          });
+          return set;
+        }
         function folderMatchesWatch(folderId, watchFolders) {
           if (!folderId || !watchFolders || !watchFolders.length) return false;
-          if (watchFolders.indexOf(folderId) !== -1) return true;
+          var set = expandedWatchFolderSet(watchFolders);
+          if (set[folderId]) return true;
           var selfRid = remoteIdFor('folders', folderId);
-          if (selfRid && watchFolders.indexOf(selfRid) !== -1) return true;
+          if (selfRid && set[selfRid]) return true;
+          /* The document's folder may itself be recorded under
+             its other-namespace id in this library (adoption
+             keys folders by remote id): resolve it to the live
+             folder before walking, so the walk starts from the
+             real record either way. */
           var seen = {};
-          var cur = folderById(folderId);
+          var cur = resolveFolderByAnyId(folderId) || folderById(folderId);
           while (cur && cur.parentId && !seen[cur.id]) {
             seen[cur.id] = true;
-            cur = folderById(cur.parentId);
+            cur = resolveFolderByAnyId(cur.parentId) || folderById(cur.parentId);
             if (!cur || seen[cur.id]) break;
-            if (watchFolders.indexOf(cur.id) !== -1) return true;
+            if (set[cur.id]) return true;
             var rid = remoteIdFor('folders', cur.id);
-            if (rid && watchFolders.indexOf(rid) !== -1) return true;
+            if (rid && set[rid]) return true;
           }
           return false;
         }
@@ -21665,7 +21816,7 @@
           var r = normalizeWatch(rules);
           var parts = [];
           r.folders.forEach(function (fid) {
-            var f = folderById(fid);
+            var f = resolveFolderByAnyId(fid);
             parts.push('the \u201C' + (f ? f.name : 'watched') + '\u201D folder');
           });
           r.tags.forEach(function (k) { parts.push('the #' + canonicalTagName(k) + ' tag'); });
@@ -23434,9 +23585,31 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261030-67';
+        /* Build -68: FOLIO_BUILD is DERIVED from this document's
+           own <meta name="folio-build"> tag — the same value, read
+           through the same trimming the served-stamp parser
+           applies — so the running stamp and the served stamp can
+           never be two disagreeing copies. The literal is only a
+           fallback for a document whose tag is missing entirely
+           (a sandbox shell page), never a second source. */
+        var FOLIO_BUILD = (function () {
+          try {
+            var m = document.querySelector('meta[name="folio-build"]');
+            var v = m ? m.getAttribute('content') : null;
+            if (v && String(v).trim()) return String(v).trim();
+          } catch (e) {}
+          return '20261030-68';
+        })();
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
+        /* A genuine update found while the Share shell is open
+           waits here instead of painting over it (build -68):
+           the banner and the share overlay share z-index 230 and
+           the banner is later in the DOM, so it would land on
+           top of the panel as an apparent second modal.
+           hideShareShell offers the deferred stamp when the
+           shell closes. */
+        var updateDeferredStamp = null;
         var updateCheckInFlight = false;
         var updateLastCheckAt = 0;
         function folioServedStamp(html) {
@@ -23444,10 +23617,19 @@
           var tag = /<meta[^>]*name=["']folio-build["'][^>]*>/i.exec(html);
           if (!tag) return null;
           var c = /content=["']([^"']+)["']/i.exec(tag[0]);
-          return c && c[1] ? c[1] : null;
+          /* Trimmed (build -68): a served value differing only
+             by stray whitespace is the same stamp, not an
+             update. */
+          return c && c[1] ? String(c[1]).trim() : null;
         }
         function showUpdateBanner(stamp) {
           if (!updateBannerEl) return;
+          /* Never paint over the open Share shell (build -68):
+             defer the offer until the shell closes. */
+          try {
+            var shareModalEl = document.getElementById('shareModal');
+            if (shareModalEl && !shareModalEl.hidden) { updateDeferredStamp = stamp; return; }
+          } catch (e) {}
           updatePromptedStamp = stamp;
           updateBannerEl.hidden = false;
         }
