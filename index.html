@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261030-71" />
+    <meta name="folio-build" content="20261030-72" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2772,6 +2772,21 @@
       .bundle-drift-text { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
       .bundle-drift-text strong { color: var(--ink); font-weight: 700; }
 
+      /* ---------------- Watch backlog review row (build -72) ----------------
+         The state-driven sibling of the drift notice: while
+         existing non-member documents match the set's watch
+         rules, this row sits under the watch editor offering
+         the review. Absent entirely at zero matches or with
+         no watch rules — the panel stays exactly as quiet
+         as before. */
+      .bundle-watch-review {
+        display: flex; align-items: center; gap: 10px;
+        margin-top: 10px; padding: 10px 12px;
+        background: var(--chip-bg); border-radius: 10px;
+      }
+      .bundle-watch-review-text { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+      .bundle-watch-review-text strong { color: var(--ink); font-weight: 700; }
+
       /* ---------------- Wiki mode for share bundles (build -60) ----------------
          The creation modal's opt-in and the Share panel's wiki
          switch share one row shape: a label that can wrap, a
@@ -3802,12 +3817,13 @@
 
         <div class="share-shell-view" id="shareViewSweep" hidden>
           <div class="panel-head">
+            <button class="share-back" id="shareSweepBack" type="button" aria-label="Back to Share">&lsaquo; Share</button>
             <h2 id="shareSweepTitle">Add existing documents to this set</h2>
             <button class="icon-btn" id="shareSweepClose" type="button" aria-label="Skip adding existing documents" data-tip="Not now">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <p class="form-note">You just started watching <span id="shareSweepRules"></span> for the &ldquo;<span id="shareSweepBundleName"></span>&rdquo; set. These documents already match &mdash; share them as part of the set now? Each one gets a link with the set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one. The watch stays on either way: skipping this only leaves the existing documents out.</p>
+          <p class="form-note">This set watches <span id="shareSweepRules"></span>. These documents already match &mdash; share them as part of the &ldquo;<span id="shareSweepBundleName"></span>&rdquo; set now? Each one gets a link with the set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one. The watch stays on either way: skipping this only leaves the existing documents out.</p>
           <div class="bundle-list" id="shareSweepList"></div>
           <div class="bundle-foot">
             <button class="btn-ghost" id="shareSweepCancel" type="button">Not now</button>
@@ -20186,10 +20202,12 @@
            sweep, watch prompt — is a view inside this same
            panel, and showShareView is the only navigation
            between them; at no moment is a second overlay open.
-           Views entered from a panel session return to Main;
-           the terminal views (sweep, watch prompt) close the
-           whole shell when they end — the end-states those
-           flows had as separate overlays, translated. */
+           Views entered from a panel session return to Main.
+           Build -72: the sweep is one of them — it is entered
+           from Main's Review row and returns to Main when it
+           ends. Only the watch prompt, which can also arrive
+           straight from the editor with no panel session under
+           it, still closes the whole shell when it ends. */
         var SHARE_VIEW_IDS = {
           main: 'shareViewMain', bundle: 'shareViewBundle', adddocs: 'shareViewAddDocs',
           drift: 'shareViewDrift', sweep: 'shareViewSweep', watch: 'shareViewWatch',
@@ -20223,7 +20241,8 @@
           if (panel) panel.setAttribute('aria-labelledby', SHARE_VIEW_TITLES[name]);
           /* A follow-on view implies the shell is up: the
              watch prompt opens it straight from the editor,
-             and the sweep arrives as a panel session ends. */
+             and the sweep is swapped in from Main's Review
+             row (build -72). */
           if (name !== 'main') modal.hidden = false;
         }
         function shareShellOpen() {
@@ -20268,14 +20287,14 @@
           else { loadGoToRootPanel(); }
         }
         function closeShareModal() {
-          /* Leaving the Share panel is leaving the watch
-             editor (build -64): any watch rules enabled during
-             this session get their one backlog sweep offer.
-             Build -67: the sweep is a view of this shell, so
-             when an offer exists the shell navigates to it and
-             stays up; it hides only when there is no offer. */
-          var offered = finishWatchEditSession();
-          if (!offered) hideShareShell();
+          /* Build -72: closing the Share panel simply closes
+             it — by every path (the ×, the backdrop, Escape,
+             any Done/close affordance). The -64 on-close
+             backlog sweep offer is gone: existing documents
+             that match the set's watch rules are offered from
+             Main's Review row instead, while the panel is
+             open, and closing never opens anything. */
+          hideShareShell();
         }
         /* The root share's panel shows the bundle it heads:
            every other member of the set with its own link, so
@@ -20301,6 +20320,19 @@
            is not repeated. The key resets on every fresh
            fetch, so each panel opening computes drift once. */
         var sharePanelDriftKey = null;
+        /* The panel's current watch backlog (build -72): the
+           existing non-member documents matching the bundle's
+           FULL current watch rules — what Main's Review row
+           counts and what the sweep lists. Cached exactly
+           like the drift beside it (the -67 lag work): the
+           key covers everything the match reads — the bundle,
+           its membership, its watch rules, and the library's
+           size and newest edit — so the walk runs on panel
+           open and on watch edits, never per render and never
+           per tap. The key resets on every fresh fetch, so
+           each panel opening computes the backlog once. */
+        var sharePanelBacklog = [];
+        var sharePanelBacklogKey = null;
         /* Whether the bundle's shared-documents list is
            folded in the Share panel (build -71). Session
            state only: it survives the panel's in-place
@@ -20314,6 +20346,25 @@
           return doc.id + '|' + (doc.updated || 0) + '|' + lib.docs.length + '|' + maxUpd + '|' +
             bundle.members.map(function (m) { return m.doc || m.token; }).join(',');
         }
+        function panelBacklogKey(bundle) {
+          var maxUpd = 0;
+          lib.docs.forEach(function (d) { if ((d.updated || 0) > maxUpd) maxUpd = d.updated || 0; });
+          var w = normalizeWatch(bundle && bundle.watch);
+          return bundleKeyOf(bundle) + '|' + lib.docs.length + '|' + maxUpd + '|' +
+            (bundle && bundle.members ? bundle.members.map(function (m) { return m.doc || m.token; }).join(',') : '') +
+            '|' + w.folders.join(',') + '|' + w.tags.join(',');
+        }
+        /* The panel-session backlog for a bundle, from the
+           cache whenever its key still holds (build -72). */
+        function panelBacklogFor(bundle) {
+          if (!bundle) return [];
+          var key = panelBacklogKey(bundle);
+          if (key !== sharePanelBacklogKey) {
+            sharePanelBacklog = computeWatchBacklog(bundle, normalizeWatch(bundle.watch));
+            sharePanelBacklogKey = key;
+          }
+          return sharePanelBacklog;
+        }
         function loadBundlePanel() {
           var wrap = document.getElementById('shareBundlePanel');
           var label = document.getElementById('shareBundleLabel');
@@ -20323,6 +20374,8 @@
           sharePanelBundle = null;
           sharePanelDrift = [];
           sharePanelDriftKey = null;
+          sharePanelBacklog = [];
+          sharePanelBacklogKey = null;
           var forDocId = shareModalDocId;
           var doc = lib.docs.find(function (d) { return d.id === forDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
@@ -20374,6 +20427,8 @@
             sharePanelBundle = null;
             sharePanelDrift = [];
             sharePanelDriftKey = null;
+            sharePanelBacklog = [];
+            sharePanelBacklogKey = null;
             return;
           }
           renderBundlePanel(bundle, sharePanelRootPerm);
@@ -20522,6 +20577,18 @@
                pickers add. Changes persist through the same
                manifest write as the wiki switch. */
             wrap.appendChild(bundleWatchEl(bundle));
+            /* Watch backlog review row (build -72): below the
+               watch editors, in the drift notice's placement
+               pattern. State-driven, not session-driven: it
+               renders whenever the bundle's FULL current watch
+               rules match existing non-member documents —
+               including backlogs left by watches added in
+               earlier sessions — with the live count from the
+               panel-session cache, and it is absent at zero
+               matches or when no watch rules remain. Tapping
+               it swaps the panel to the sweep view in-flow. */
+            var panelBacklog = panelBacklogFor(bundle);
+            if (panelBacklog.length) wrap.appendChild(bundleWatchReviewEl(bundle, panelBacklog));
             /* Drift notice (build -61): the root's current
                closure, recomputed against this set. Anything
                reachable now but not a member is drift; when
@@ -20534,6 +20601,38 @@
               sharePanelDriftKey = driftKey;
             }
             if (sharePanelDrift.length) wrap.appendChild(bundleDriftNoticeEl(bundle, sharePanelDrift));
+        }
+        /* The watch backlog review row (build -72): the
+           count, in the owner's words, and a Review action
+           labeled with that count that swaps the panel to
+           the sweep's checkbox list. Nothing is added from
+           here — the row only ever proposes, and it stays
+           for as long as matches remain unreviewed. */
+        function bundleWatchReviewEl(bundle, backlog) {
+          var n = (backlog || []).length;
+          var row = document.createElement('div');
+          row.className = 'bundle-watch-review';
+          row.id = 'shareBundleWatchReview';
+          row.setAttribute('data-watch-review-count', String(n));
+          var text = document.createElement('span');
+          text.className = 'bundle-watch-review-text';
+          var strong = document.createElement('strong');
+          strong.textContent = n + (n === 1
+            ? ' existing document matches this set\u2019s watch rules'
+            : ' existing documents match this set\u2019s watch rules');
+          text.appendChild(strong);
+          text.appendChild(document.createTextNode(' \u2014 nothing is added until you review and confirm.'));
+          row.appendChild(text);
+          var review = document.createElement('button');
+          review.type = 'button';
+          review.className = 'btn-ghost';
+          review.id = 'shareBundleWatchReviewBtn';
+          review.textContent = 'Review ' + n + (n === 1 ? ' matching document' : ' matching documents');
+          review.setAttribute('data-watch-review-count', String(n));
+          review.setAttribute('data-tip', 'Choose which matching documents to add to this set');
+          review.addEventListener('click', function () { openWatchReview(bundle); });
+          row.appendChild(review);
+          return row;
         }
         /* The drift notice row (build -61): the count, in the
            owner's words, and a Review action that opens the
@@ -20770,10 +20869,13 @@
            place instead. */
         function setBundleWatch(bundle, watch) {
           if (!bundle) return Promise.resolve(null);
-          /* Build -64: remember which rules this call newly
-             enables, so leaving the editor can offer the
-             existing backlog those rules already match. */
-          recordWatchRuleAdds(bundle, watch);
+          /* Build -72: no session is recorded here. The
+             backlog offer is state-driven — Main's Review
+             row recomputes from the bundle's full current
+             rules when the panel re-renders after this save
+             (its cache key covers the rules), so a watch
+             added now surfaces its matches in place, and a
+             watch removed takes its row with it. */
           var manifest = bundleManifestOf(bundle);
           manifest.watch = normalizeWatch(watch);
           sharePanelBundle = parseShareBundle(manifest);
@@ -21945,57 +22047,39 @@
           if (added.length) maybePromptWatchShare(doc, { tags: added });
         }
 
-        /* ---------------- sharing: watch-enable backlog sweep (build -64) ----------------
+        /* ---------------- sharing: watch backlog review (build -72) ----------------
            The -62 watch editor persists a rule the moment it
            is enabled, but the rule only ever governed the
            future — the documents already sitting in the folder
            or carrying the tag still needed adding by hand.
-           This is the other half. While the root panel's watch
-           editor is up, every setBundleWatch call diffs the
-           rules it is handed against the bundle's current
-           rules and remembers the ADD transitions in a session
-           (removals record nothing; re-adding a rule that was
-           removed records it again — a re-enable is a fresh
-           enable, and re-offers the then-current backlog).
-           Leaving the editor — the Share panel closing, the
-           one funnel every exit passes through — finishes the
-           session: the union of the existing backlog across
-           every rule the session added is offered in ONE
-           review modal, in the drift review's shape. A session
-           that added no rules, or whose rules match nothing
-           already in the library, opens no modal at all. */
-        var watchSweepSession = null;
-        function recordWatchRuleAdds(bundle, newWatch) {
-          if (!bundle) return;
-          var key = bundleKeyOf(bundle);
-          if (!key) return;
-          var prev = normalizeWatch(bundle.watch);
-          var next = normalizeWatch(newWatch);
-          if (!watchSweepSession || watchSweepSession.key !== key) {
-            watchSweepSession = { key: key, bundle: bundle, addedFolders: [], addedTags: [] };
-          }
-          watchSweepSession.bundle = bundle;
-          next.folders.forEach(function (f) {
-            if (prev.folders.indexOf(f) === -1 && watchSweepSession.addedFolders.indexOf(f) === -1) {
-              watchSweepSession.addedFolders.push(f);
-            }
-          });
-          next.tags.forEach(function (t) {
-            if (prev.tags.indexOf(t) === -1 && watchSweepSession.addedTags.indexOf(t) === -1) {
-              watchSweepSession.addedTags.push(t);
-            }
-          });
-        }
+           This is the other half, and since -72 it is
+           STATE-driven, not session-driven: the root panel's
+           Main view carries a Review row (bundleWatchReviewEl)
+           whenever the bundle's FULL current watch rules match
+           existing non-member documents — including backlogs
+           left by watches added in earlier sessions — and
+           tapping it swaps this same panel to the sweep view
+           in-flow. The -64 design (record the rules a panel
+           session adds, then offer their backlog when the
+           panel closes) is deleted outright: closing the
+           panel, by any path, never opens the sweep, and no
+           pending-sweep session state exists anymore. The
+           panel-session cache beside the drift cache
+           (sharePanelBacklog, above) holds the match
+           computation: recomputed on panel open and on watch
+           edits, read verbatim on tap. */
         /* The backlog itself, pure over the library: every
            document the given rules match under the -62 watch
            semantics (computeWatchMatches against a probe
-           bundle carrying only the newly added rules), minus
-           the documents already in the set — the root is a
+           bundle carrying only those rules), minus the
+           documents already in the set — the root is a
            member by construction, so it never appears. A
-           document matched by both a new folder rule and a
-           new tag rule is one candidate, listed once. The
-           order is the Add-documents picker's: alphabetical
-           by title, id as the stable tiebreak. */
+           document matched by both a folder rule and a tag
+           rule is one candidate, listed once. The order is
+           the Add-documents picker's: alphabetical by title,
+           id as the stable tiebreak. Called with the bundle's
+           full current watch rules, this is the union across
+           ALL of them, deduped — the sweep's list. */
         function computeWatchBacklog(bundle, rules) {
           if (!bundle || !bundle.members) return [];
           var r = normalizeWatch(rules);
@@ -22027,42 +22111,43 @@
           if (parts.length === 1) return parts[0];
           return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
         }
-        /* Finishing the session: consume the recorded adds
-           (the session is over either way, so nothing can
-           double-offer), settle on the freshest copy of the
-           bundle — the local store's, which the editor's own
-           persists just wrote — and open the one modal when
-           the backlog is non-empty. Returns the backlog it
-           offered, or null when no modal appears. */
-        function finishWatchEditSession() {
-          var session = watchSweepSession;
-          watchSweepSession = null;
-          if (!session) return null;
-          if (!session.addedFolders.length && !session.addedTags.length) return null;
-          var rules = { folders: session.addedFolders.slice(), tags: session.addedTags.slice() };
-          var bundle = session.bundle;
-          var local = localBundles().find(function (b) { return bundleKeyOf(b) === session.key; });
-          if (local) bundle = local;
-          else if (sharePanelBundle && bundleKeyOf(sharePanelBundle) === session.key) bundle = sharePanelBundle;
-          var backlog = computeWatchBacklog(bundle, rules);
-          if (!backlog.length) return null;
-          openWatchSweepModal(bundle, rules, backlog);
-          return backlog;
+        /* Opening the review from Main's Review row
+           (build -72): the list is the panel-session cached
+           backlog for the bundle's full current rules — the
+           tap itself performs no fresh library walk (the
+           cache is populated on panel open and refreshed on
+           every watch edit; panelBacklogFor only computes on
+           a key miss, which a rendered Review row cannot
+           produce). No rules or no matches opens nothing —
+           the row that leads here exists only when both are
+           non-empty. */
+        function openWatchReview(bundle, existingByDocId) {
+          if (!bundle) return false;
+          var rules = normalizeWatch(bundle.watch);
+          if (!rules.folders.length && !rules.tags.length) return false;
+          var backlog = panelBacklogFor(bundle);
+          if (!backlog.length) return false;
+          return openWatchSweepModal(bundle, rules, backlog.slice(), existingByDocId);
         }
-        /* The review modal, in the drift review's shape: one
+        /* The review view, in the drift review's shape: one
            checkbox row per candidate document, folder hint,
            "Already shared" badge where the document already
            has an active link — and every box CHECKED by
-           default, because the owner just asked this folder
-           or tag to be watched. Confirming runs the same grow
-           path as Add documents and the drift review (bundle
-           permission, reuse-or-create, manifest on every
-           member row), so wiki sidebars pick the new members
-           up. Declining — Not now, the ×, the backdrop, Esc,
-           or unchecking everything — adds nothing, and the
-           watch rules REMAIN in effect: they were persisted
-           when they were enabled, and this modal concerns
-           only the existing backlog, never the rules. */
+           default, because the owner is reviewing documents
+           their watch rules already match. Confirming runs
+           the same grow path as Add documents and the drift
+           review (bundle permission, reuse-or-create,
+           manifest on every member row), so wiki sidebars
+           pick the new members up. Every exit — confirming,
+           Not now, the ×, back, the backdrop, Esc — returns
+           to Main (build -72): the sweep is a session view
+           of the panel now, never its terminal state, and
+           the shell stays open with Main refreshed. Declining
+           adds nothing, and the watch rules REMAIN in effect:
+           they were persisted when they were enabled, and
+           this view concerns only the existing backlog, never
+           the rules — so a declined backlog is offered again
+           by the Review row for as long as it matches. */
         var bundleSweepPending = null;
         function openWatchSweepModal(bundle, rules, backlog, existingByDocId) {
           if (!bundle || !backlog || !backlog.length) return false;
@@ -22174,11 +22259,17 @@
         }
         function closeWatchSweepModal() {
           bundleSweepPending = null;
-          /* The sweep is a terminal view (build -67): it is
-             entered as the user leaves, so ending it — Not
-             now, the x, a confirm — closes the whole shell,
-             exactly the overlay-era end-state. */
-          hideShareShell();
+          /* The sweep is a session view (build -72): it is
+             entered from Main's Review row, so ending it —
+             Not now, the ×, back, a confirm — returns to
+             Main and does NOT close the shell. Returning
+             re-renders the bundle section from the current
+             manifest, so the member list, the drift notice,
+             and the Review row's count (or its absence, once
+             the backlog is cleared) all reflect what the
+             sweep just did. */
+          showShareView('main');
+          refreshBundlePanel();
         }
         function confirmWatchSweep() {
           if (!bundleSweepPending || !sb || !sbUser) return;
@@ -22195,11 +22286,11 @@
             if (sharePanelBundle && bundleKeyOf(sharePanelBundle) === bundleKeyOf(bundle)) {
               sharePanelBundle = parseShareBundle(out.manifest);
             }
+            /* Back at Main (build -72): closeWatchSweepModal
+               returns there and refreshes the panel against
+               the grown manifest — new members present, the
+               Review count updated or the row gone. */
             closeWatchSweepModal();
-            /* The shell closed to offer this sweep; if it has
-               since reopened, refreshing it recomputes its set
-               section against the grown manifest. */
-            if (!document.getElementById('shareModal').hidden) refreshBundlePanel();
             if (typeof folioToast === 'function') {
               folioToast('Added ' + out.added + (out.added === 1 ? ' document' : ' documents') + ' to the set.', 4200);
             }
@@ -22211,6 +22302,7 @@
         document.getElementById('shareSweepConfirm').addEventListener('click', confirmWatchSweep);
         document.getElementById('shareSweepCancel').addEventListener('click', closeWatchSweepModal);
         document.getElementById('shareSweepClose').addEventListener('click', closeWatchSweepModal);
+        document.getElementById('shareSweepBack').addEventListener('click', closeWatchSweepModal);
 
         /* ---------------- sharing: bundle revoke choice ---------------- */
         var shareRevokePending = null;
@@ -22280,11 +22372,13 @@
         });
         document.getElementById('shareClose').addEventListener('click', closeShareModal);
         /* Backdrop and Escape act on the CURRENT view
-           (build -67): a flow view cancels back to Main, a
-           terminal view (sweep, watch prompt) ends the
-           shell, Main closes the panel — each view's own
-           overlay-era backdrop/Esc behavior, routed through
-           the one shell. */
+           (build -67): a flow view cancels back to Main —
+           since -72 the sweep is one of them — the watch
+           prompt ends the shell (or returns to Main, when a
+           panel session underlies it), and Main closes the
+           panel. Closing Main NEVER opens the sweep
+           (build -72): the on-close offer is deleted, and
+           the backlog lives on Main's Review row instead. */
         function shareShellDismiss() {
           switch (shareCurrentView) {
             case 'bundle': closeShareBundleModal(); break;
@@ -23239,12 +23333,21 @@
           bundlePanelState: function () {
             var head = document.getElementById('shareBundleFoldHead');
             var members = document.getElementById('shareBundleMembers');
+            var reviewRow = document.getElementById('shareBundleWatchReview');
+            var reviewBtn = document.getElementById('shareBundleWatchReviewBtn');
             return {
               foldHead: head ? head.textContent.replace(/\s+/g, ' ').trim() : null,
               foldExpanded: head ? head.getAttribute('aria-expanded') : null,
               membersHidden: members ? members.hidden : null,
               memberRows: members ? members.querySelectorAll('.share-row').length : 0,
               watchPresent: !!document.getElementById('shareBundleWatch'),
+              /* Build -72: the watch backlog Review row, read
+                 back from the same render. */
+              watchReviewPresent: !!reviewRow,
+              watchReviewCount: reviewRow ? Number(reviewRow.getAttribute('data-watch-review-count')) : null,
+              watchReviewText: reviewRow ? reviewRow.textContent.replace(/\s+/g, ' ').trim() : null,
+              watchReviewButtonText: reviewBtn ? reviewBtn.textContent : null,
+              panelBacklog: sharePanelBacklog.map(function (d) { return d.id; }),
             };
           },
           localFor: function (token) {
@@ -23616,32 +23719,30 @@
             el.click();
             return window.FolioShareBundle.goToRootDomState();
           },
-          /* ---- build -64: watch-enable backlog sweep ---- */
+          /* ---- build -72: watch backlog review ---- */
           /* The backlog computation itself, over a stored
-             bundle and an explicit set of newly added rules:
+             bundle and an explicit set of rules (the bundle's
+             full current watch rules when none are given):
              the non-member documents those rules match, each
-             once, in the modal's order. */
+             once, in the sweep's order. */
           sweepBacklogFor: function (bundleRaw, rules) {
             var b = parseShareBundle(bundleRaw);
             if (!b) return [];
-            return computeWatchBacklog(b, rules || {}).map(function (x) {
+            return computeWatchBacklog(b, rules || normalizeWatch(b.watch)).map(function (x) {
               return { docId: x.id, title: x.title || 'Untitled', folder: shareFolderHint(x) };
             });
           },
-          /* What the current watch-editing session has
-             recorded as newly enabled (null between sessions). */
+          /* Build -72: there is no watch-editing session
+             anymore — the on-close offer and its pending
+             state are deleted, so this is null by design. */
           sweepSessionState: function () {
-            if (!watchSweepSession) return null;
-            return {
-              key: watchSweepSession.key,
-              addedFolders: watchSweepSession.addedFolders.slice(),
-              addedTags: watchSweepSession.addedTags.slice(),
-            };
+            return null;
           },
-          /* Acts the real watch save (the editor's own path,
-             session recording included) against a stored
-             bundle, without the backend round-trip the panel
-             load would make. */
+          /* Acts the real watch save (the editor's own path)
+             against a stored bundle, without the backend
+             round-trip the panel load would make. Saving a
+             watch records no session (build -72); the panel's
+             Review row is what surfaces the backlog. */
           enableWatchFor: function (bundleRaw, watch) {
             var b = parseShareBundle(bundleRaw);
             if (!b) return null;
@@ -23650,23 +23751,74 @@
               return { manifest: man, session: window.FolioShareBundle.sweepSessionState() };
             });
           },
-          /* Leaves the editor: finishes the session exactly
-             as closing the Share panel does, and reads back
-             the sweep modal. */
+          /* The -72 regression door for the deleted -64
+             trigger: closes the Share panel exactly as its
+             own close paths do, and reads back the sweep —
+             which must NOT have opened (open: false), with
+             the shell simply closed. */
           finishWatchSession: function () {
-            finishWatchEditSession();
+            closeShareModal();
             return window.FolioShareBundle.sweepDomState();
           },
-          /* Opens the real sweep modal directly against a
+          /* Closes the root Share panel through the real
+             close path and reads back shell + sweep state:
+             the sweep must never appear on close. */
+          closeSharePanel: function () {
+            closeShareModal();
+            return {
+              shell: window.FolioShareBundle.shareShellState(),
+              sweep: window.FolioShareBundle.sweepDomState(),
+            };
+          },
+          /* Reads back Main's watch Review row from the real
+             panel render: presence, live count, and the
+             button's full label. */
+          watchReviewState: function () {
+            var row = document.getElementById('shareBundleWatchReview');
+            var btn = document.getElementById('shareBundleWatchReviewBtn');
+            return {
+              present: !!row,
+              count: row ? Number(row.getAttribute('data-watch-review-count')) : null,
+              text: row ? row.textContent.replace(/\s+/g, ' ').trim() : null,
+              buttonText: btn ? btn.textContent : null,
+              backlog: sharePanelBacklog.map(function (d) { return d.id; }),
+            };
+          },
+          /* Opens the real sweep through the Review path
+             (build -72) against a stored bundle — the full
+             current watch rules, the panel-session cached
+             backlog — with the existing-share map supplied
+             (the panel path fetches it instead). */
+          openWatchReviewFor: function (bundleRaw, existingByDocId) {
+            var b = parseShareBundle(bundleRaw);
+            if (!b) return null;
+            var rootDoc = bundleRootDoc(b);
+            if (rootDoc) shareModalDocId = rootDoc.id;
+            sharePanelBundle = b;
+            sharePanelBacklog = [];
+            sharePanelBacklogKey = null;
+            openWatchReview(b, existingByDocId || {});
+            return window.FolioShareBundle.sweepDomState();
+          },
+          /* Clicks the rendered Review button in Main,
+             exactly as a tap does, and reads back the sweep. */
+          clickWatchReview: function () {
+            var btn = document.getElementById('shareBundleWatchReviewBtn');
+            if (!btn) return null;
+            btn.click();
+            return window.FolioShareBundle.sweepDomState();
+          },
+          /* Opens the real sweep view directly against a
              stored bundle and explicit rules, with the
-             existing-share map supplied (the session path
-             fetches it instead). */
+             existing-share map supplied (the Review path
+             resolves it instead). */
           openSweepFor: function (bundleRaw, rules, existingByDocId) {
             var b = parseShareBundle(bundleRaw);
             if (!b) return null;
-            var backlog = computeWatchBacklog(b, rules || {});
+            var useRules = rules || normalizeWatch(b.watch);
+            var backlog = computeWatchBacklog(b, useRules);
             sharePanelBundle = b;
-            openWatchSweepModal(b, rules || {}, backlog, existingByDocId || {});
+            openWatchSweepModal(b, useRules, backlog, existingByDocId || {});
             return window.FolioShareBundle.sweepDomState();
           },
           /* Reads back the real sweep modal: rows with their
@@ -23688,6 +23840,8 @@
             });
             return {
               open: shareShellViewOpen('sweep'),
+              view: shareShellOpen() ? shareCurrentView : null,
+              hasBack: !!document.getElementById('shareSweepBack'),
               bundleName: document.getElementById('shareSweepBundleName').textContent,
               rulesText: document.getElementById('shareSweepRules').textContent,
               confirmText: document.getElementById('shareSweepConfirm').textContent,
