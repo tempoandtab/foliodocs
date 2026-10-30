@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261030-72" />
+    <meta name="folio-build" content="20261030-73" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2807,6 +2807,22 @@
         display: flex; align-items: center; gap: 12px;
         padding: 10px 0; border-bottom: 1px solid var(--line-soft);
       }
+      /* Per-set sections in the root Share panel (build -73):
+         a root can head one set per permission — a view set
+         and a comment set — and each renders as its own
+         section under the "Shared as a set" label, headed by
+         the permission it belongs to. */
+      .bundle-set-section + .bundle-set-section {
+        margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line);
+      }
+      .bundle-set-head {
+        font-size: 12px; font-weight: 700; letter-spacing: .04em;
+        text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px;
+      }
+      /* The creation modal's update notice (build -73): shown
+         only when confirming will update an existing
+         same-permission set instead of creating a new link. */
+      .bundle-update-note { color: var(--ink-2); font-weight: 600; }
       .bundle-wiki-text { flex: 1; min-width: 0; }
       .bundle-wiki-name { display: block; font-size: 14.5px; font-weight: 700; }
       .bundle-wiki-desc { display: block; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; margin-top: 1px; }
@@ -3772,6 +3788,7 @@
             </button>
           </div>
           <p class="form-note">This share link will allow people to view this document and all documents linked from it. Each document below gets its own link with the same permission as the one you chose. Uncheck any document you don&rsquo;t want to include &mdash; links to it will appear as plain text instead.</p>
+          <p class="form-note bundle-update-note" id="shareBundleUpdateNote" hidden></p>
           <label class="bundle-wiki-check">
             <input type="checkbox" id="shareBundleWiki" />
             <span><strong>Present this set as a wiki</strong> &mdash; readers get a sidebar listing every document in the set, so they can browse the whole collection, not just follow links.</span>
@@ -19486,6 +19503,21 @@
               return (!res.error && res.data) ? res.data : [];
             }).catch(function () { return []; });
         }
+        /* The share of a document AT one permission (build
+           -73): bundle flows reuse an existing share only when
+           it carries the permission in play — a view set and a
+           comment set on the same root are independent sets
+           with independent links, and neither flow may ever
+           reach for the other permission's rows. Returns the
+           newest share at that permission, or null (the caller
+           then mints a fresh token at that permission). */
+        function shareForPerm(shares, perm) {
+          var want = perm || 'view';
+          var hit = (shares || []).find(function (s) {
+            return ((s && s.permission) || 'view') === want;
+          });
+          return hit || null;
+        }
 
         /* ---------------- sharing: linked-document bundles (build -59) ----------------
            Sharing a document that wikilinks elsewhere offers to
@@ -19620,7 +19652,34 @@
            genuine panel-close flow in a real browser (see the
            -65 note at the overlay styles): the sweep opens
            only after the panel has hidden, and hit-tests land
-           on the sweep — no further layer change was made. */
+           on the sweep — no further layer change was made.
+
+           Build -73 makes bundle reuse PERMISSION-AWARE and
+           re-creation SET-PRESERVING, same record, no new
+           dashboard step. The pre--73 flows resolved a
+           document's "existing share" permission-blind (its
+           newest share, whatever its permission), so creating
+           a comment set on a root that headed a view set
+           REUSED the view links and overwrote the view set's
+           manifest with a fresh stripped one — the set, its
+           wiki flag, and its watch rules silently replaced.
+           Now every reuse (creation, grow, drift badges,
+           sweep badges) selects the share AT the permission
+           in play via shareForPerm — the chosen permission
+           for creation, the bundle's own root permission for
+           operations on an existing set — and mints a fresh
+           row when none exists there. A root can therefore
+           head two independent sets (a view set and a comment
+           set), each with its own root token, members, wiki
+           flag, and watch rules; the Share panel tracks them
+           per root token and renders one section per set.
+           Re-creating at a permission the root already has a
+           set at initializes the confirmation FROM that set:
+           the wiki checkbox takes its flag, its watch rules
+           carry into the new manifest, membership is the
+           union of its members and the checked closure, and
+           the modal says plainly that confirming updates the
+           existing set rather than creating another link. */
         function normShareTitle(t) { return String(t || '').trim().toLowerCase(); }
         function shareFolderHint(doc) {
           if (!doc || !doc.folderId) return '';
@@ -20307,6 +20366,17 @@
            can read back what the panel settled on. */
         var sharePanelBundle = null;
         var sharePanelRootPerm = 'view';
+        /* Every set the open document heads (build -73): one
+           entry per root token — a view set and a comment set
+           are independent sets, and the panel surfaces each
+           in its own section. sharePanelBundle above remains
+           the primary (first, or most recently mutated) entry
+           for the single-set readers. sharePanelPerms records
+           each known bundle's root permission by bundle key,
+           so grow / drift / sweep reuse resolves within the
+           bundle's own permission without a fetch. */
+        var sharePanelBundles = [];
+        var sharePanelPerms = {};
         /* The panel's current drift (build -61): closure
            documents not yet in the set, recomputed every time
            the panel loads. Empty means no notice renders. */
@@ -20333,13 +20403,22 @@
            each panel opening computes the backlog once. */
         var sharePanelBacklog = [];
         var sharePanelBacklogKey = null;
-        /* Whether the bundle's shared-documents list is
-           folded in the Share panel (build -71). Session
-           state only: it survives the panel's in-place
-           re-renders (wiki flips, watch edits, removals) so
-           a folded list never springs back open mid-task,
-           and it starts unfolded on a fresh load. */
-        var bundleDocsFolded = false;
+        /* Per-set caches (build -73): with two sets in the
+           panel, each set's drift and backlog cache under its
+           own bundle key; the single-set vars above mirror
+           the most recently rendered set for the harness. */
+        var sharePanelDriftByKey = {};
+        var sharePanelBacklogByKey = {};
+        /* Whether a bundle's shared-documents list is folded
+           in the Share panel (build -71; per set since -73).
+           Session state only: it survives the panel's
+           in-place re-renders (wiki flips, watch edits,
+           removals) so a folded list never springs back open
+           mid-task, and it starts unfolded on a fresh load. */
+        var bundleFoldByKey = {};
+        function bundleDocsFolded(bundle) {
+          return !!(bundle && bundleFoldByKey[bundleKeyOf(bundle)]);
+        }
         function panelDriftKey(doc, bundle) {
           var maxUpd = 0;
           lib.docs.forEach(function (d) { if ((d.updated || 0) > maxUpd) maxUpd = d.updated || 0; });
@@ -20355,15 +20434,63 @@
             '|' + w.folders.join(',') + '|' + w.tags.join(',');
         }
         /* The panel-session backlog for a bundle, from the
-           cache whenever its key still holds (build -72). */
+           cache whenever its key still holds (build -72;
+           cached per bundle since -73, so two sets in one
+           panel never share a backlog). */
         function panelBacklogFor(bundle) {
           if (!bundle) return [];
           var key = panelBacklogKey(bundle);
-          if (key !== sharePanelBacklogKey) {
-            sharePanelBacklog = computeWatchBacklog(bundle, normalizeWatch(bundle.watch));
-            sharePanelBacklogKey = key;
+          var bk = bundleKeyOf(bundle);
+          var hit = bk ? sharePanelBacklogByKey[bk] : null;
+          if (!hit || hit.key !== key) {
+            hit = { key: key, backlog: computeWatchBacklog(bundle, normalizeWatch(bundle.watch)) };
+            if (bk) sharePanelBacklogByKey[bk] = hit;
           }
-          return sharePanelBacklog;
+          sharePanelBacklog = hit.backlog;
+          sharePanelBacklogKey = key;
+          return hit.backlog;
+        }
+        /* A bundle's root permission (build -73): the panel
+           session's record when it has one, else the root
+           share row itself (found by the bundle's root
+           token), else the panel's primary permission. Grow,
+           drift, and sweep reuse runs at THIS permission, so
+           a set never reuses — or overwrites — the other
+           permission's links. */
+        function resolveBundlePerm(bundle) {
+          var bk = bundleKeyOf(bundle);
+          if (bk && sharePanelPerms[bk]) return Promise.resolve(sharePanelPerms[bk]);
+          var rootMember = bundleRootMember(bundle);
+          var rootDoc = bundleRootDoc(bundle);
+          var rid = rootDoc ? remoteIdFor('docs', rootDoc.id) : (rootMember ? rootMember.doc : null);
+          if (!rid || !sb || !sbUser) return Promise.resolve(sharePanelRootPerm || 'view');
+          return docShares(rid).then(function (shares) {
+            var s = shares.find(function (x) { return x.token === bundle.rootToken; });
+            var p = s ? (s.permission || 'view') : 'view';
+            if (bk) sharePanelPerms[bk] = p;
+            return p;
+          }).catch(function () { return sharePanelRootPerm || 'view'; });
+        }
+        /* Records a bundle mutation in the panel session
+           (build -73): the entry for that bundle's key is
+           replaced with the new manifest's parse, and the
+           primary follows it — so a re-render shows every
+           set's current state, and an operation on one set
+           never reads or writes the other's manifest. */
+        function syncPanelBundle(manifest) {
+          var b = parseShareBundle(manifest);
+          if (!b) return null;
+          var bk = bundleKeyOf(b);
+          var inEntries = false;
+          sharePanelBundles.forEach(function (e) {
+            if (bundleKeyOf(e.bundle) === bk) { e.bundle = b; inEntries = true; }
+          });
+          if ((sharePanelBundle && bundleKeyOf(sharePanelBundle) === bk) || inEntries) {
+            sharePanelBundle = b;
+            var entry = sharePanelBundles.find(function (e) { return bundleKeyOf(e.bundle) === bk; });
+            if (entry) sharePanelRootPerm = entry.perm;
+          }
+          return b;
         }
         function loadBundlePanel() {
           var wrap = document.getElementById('shareBundlePanel');
@@ -20372,33 +20499,49 @@
           wrap.innerHTML = '';
           if (label) label.hidden = true;
           sharePanelBundle = null;
+          sharePanelBundles = [];
+          sharePanelPerms = {};
           sharePanelDrift = [];
           sharePanelDriftKey = null;
           sharePanelBacklog = [];
           sharePanelBacklogKey = null;
+          sharePanelDriftByKey = {};
+          sharePanelBacklogByKey = {};
           var forDocId = shareModalDocId;
           var doc = lib.docs.find(function (d) { return d.id === forDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
           if (!sb || !sbUser || !rid) return;
           docShares(rid).then(function (shares) {
             /* Build -67: probe every share's bundle in
-               parallel and take the first (in share order)
-               that heads a set — the old chain spent one
-               round trip per share, in sequence. */
+               parallel — the old chain spent one round trip
+               per share, in sequence. Build -73: EVERY share
+               that heads a set contributes a section (a root
+               can head a view set and a comment set at once),
+               tracked per root token rather than first-match. */
             return Promise.all(shares.map(function (s) {
               return fetchShareBundle(s.token).then(function (b) { return { s: s, b: b }; });
             })).then(function (results) {
-              for (var i = 0; i < results.length; i++) {
-                var r = results[i];
+              var entries = [];
+              var seen = {};
+              results.forEach(function (r) {
                 if (r.b && r.b.rootToken === r.s.token && r.b.members.length > 1) {
-                  return { bundle: r.b, perm: r.s.permission || 'view' };
+                  var bk = bundleKeyOf(r.b);
+                  if (bk && seen[bk]) return;
+                  if (bk) seen[bk] = true;
+                  entries.push({ bundle: r.b, perm: r.s.permission || 'view' });
                 }
-              }
-              return null;
+              });
+              return entries;
             });
-          }).then(function (out) {
-            if (shareModalDocId !== forDocId || !out) return;
-            renderBundlePanel(out.bundle, out.perm);
+          }).then(function (entries) {
+            if (shareModalDocId !== forDocId || !entries.length) return;
+            sharePanelBundles = entries;
+            entries.forEach(function (e) {
+              sharePanelPerms[bundleKeyOf(e.bundle)] = e.perm;
+            });
+            sharePanelBundle = entries[0].bundle;
+            sharePanelRootPerm = entries[0].perm;
+            renderBundleSections();
           }).catch(function () {});
         }
         /* Re-render the panel's bundle section from the
@@ -20415,11 +20558,24 @@
            the same way the fetch would and stops. */
         function refreshBundlePanel() {
           if (!shareShellOpen()) return;
-          var bundle = sharePanelBundle;
-          if (!bundle) return;
-          var rootDoc = bundleRootDoc(bundle);
-          if (!rootDoc || rootDoc.id !== shareModalDocId) return;
-          if (!bundle.members || bundle.members.length <= 1) {
+          /* A harness door may hold a bundle without panel
+             entries; adopt it so the refresh renders it. */
+          if (!sharePanelBundles.length && sharePanelBundle) {
+            sharePanelBundles = [{ bundle: sharePanelBundle, perm: sharePanelRootPerm }];
+            sharePanelPerms[bundleKeyOf(sharePanelBundle)] = sharePanelRootPerm;
+          }
+          if (!sharePanelBundles.length) return;
+          /* An entry whose root has left this document, or
+             that has shrunk back to a lone root — the state
+             the fetch path renders as no section at all —
+             settles the same way here and is dropped. Only
+             that entry goes; the other set is untouched. */
+          sharePanelBundles = sharePanelBundles.filter(function (e) {
+            if (!e.bundle || !e.bundle.members || e.bundle.members.length <= 1) return false;
+            var rootDoc = bundleRootDoc(e.bundle);
+            return !!rootDoc && rootDoc.id === shareModalDocId;
+          });
+          if (!sharePanelBundles.length) {
             var wrap = document.getElementById('shareBundlePanel');
             var label = document.getElementById('shareBundleLabel');
             if (wrap) wrap.innerHTML = '';
@@ -20431,16 +20587,60 @@
             sharePanelBacklogKey = null;
             return;
           }
-          renderBundlePanel(bundle, sharePanelRootPerm);
+          var primary = sharePanelBundles.find(function (e) {
+            return sharePanelBundle && bundleKeyOf(e.bundle) === bundleKeyOf(sharePanelBundle);
+          }) || sharePanelBundles[0];
+          sharePanelBundle = primary.bundle;
+          sharePanelRootPerm = primary.perm;
+          renderBundleSections();
         }
-        function renderBundlePanel(bundle, perm) {
+        /* Renders every set the open document heads, one
+           section per root token (build -73). */
+        function renderBundleSections() {
           var wrap = document.getElementById('shareBundlePanel');
           var label = document.getElementById('shareBundleLabel');
-          if (!wrap || !bundle) return;
+          if (!wrap) return;
           wrap.innerHTML = '';
+          if (label) label.hidden = !sharePanelBundles.length;
+          sharePanelBundles.forEach(function (e) {
+            wrap.appendChild(renderBundleSection(e.bundle, e.perm));
+          });
+        }
+        /* Records a bundle as a panel entry (replacing the
+           same key's entry) and re-renders the sections —
+           the entry point loadBundlePanel's successors and
+           the harness preview use for a single set. */
+        function renderBundlePanel(bundle, perm) {
+          if (!bundle) return;
+          var bk = bundleKeyOf(bundle);
+          var found = false;
+          sharePanelBundles.forEach(function (e) {
+            if (bundleKeyOf(e.bundle) === bk) { e.bundle = bundle; e.perm = perm || e.perm; found = true; }
+          });
+          if (!found) sharePanelBundles.push({ bundle: bundle, perm: perm || 'view' });
+          sharePanelPerms[bk] = perm || sharePanelPerms[bk] || 'view';
           sharePanelBundle = bundle;
           sharePanelRootPerm = perm || 'view';
-          if (label) label.hidden = false;
+          renderBundleSections();
+        }
+        /* One set's section (build -73): the note, the wiki
+           switch, the foldable member list, Add documents,
+           the watch editor, the backlog Review row, and the
+           drift notice — all acting on THIS bundle only.
+           Element hooks are data attributes keyed by the
+           bundle key, never shared ids, so two sections can
+           coexist in the one panel wrap. */
+        function renderBundleSection(bundle, perm) {
+          var wrap = document.createElement('div');
+          wrap.className = 'bundle-set-section';
+          var bk = bundleKeyOf(bundle);
+          wrap.setAttribute('data-bundle-set', bk || '');
+          wrap.setAttribute('data-bundle-root', bundle.rootToken || '');
+          wrap.setAttribute('data-bundle-perm', perm || 'view');
+          var setHead = document.createElement('div');
+          setHead.className = 'bundle-set-head';
+          setHead.textContent = perm === 'comment' ? 'Can comment set' : 'View only set';
+          wrap.appendChild(setHead);
           var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
             var note = document.createElement('div');
             note.className = 'bundle-member-note';
@@ -20465,7 +20665,7 @@
             var wikiSwitch = document.createElement('button');
             wikiSwitch.type = 'button';
             wikiSwitch.className = 'wiki-toggle';
-            wikiSwitch.id = 'shareBundleWikiSwitch';
+            wikiSwitch.setAttribute('data-bundle-wiki', bk || '');
             wikiSwitch.setAttribute('role', 'switch');
             wikiSwitch.setAttribute('aria-checked', bundle.wiki ? 'true' : 'false');
             wikiSwitch.setAttribute('aria-label', 'Present this set as a wiki');
@@ -20489,13 +20689,13 @@
             var memberCount = bundle.members.filter(function (m) { return m.token !== bundle.rootToken; }).length;
             var memberTarget = wrap;
             if (memberCount) {
+              var folded = bundleDocsFolded(bundle);
               var foldHead = document.createElement('button');
               foldHead.type = 'button';
-              foldHead.className = 'bundle-fold-head' + (bundleDocsFolded ? ' is-folded' : '');
-              foldHead.id = 'shareBundleFoldHead';
-              foldHead.setAttribute('aria-expanded', bundleDocsFolded ? 'false' : 'true');
-              foldHead.setAttribute('aria-controls', 'shareBundleMembers');
-              foldHead.setAttribute('data-tip', bundleDocsFolded ? 'Show the documents in this set' : 'Fold the documents list away');
+              foldHead.className = 'bundle-fold-head' + (folded ? ' is-folded' : '');
+              foldHead.setAttribute('data-bundle-fold', bk || '');
+              foldHead.setAttribute('aria-expanded', folded ? 'false' : 'true');
+              foldHead.setAttribute('data-tip', folded ? 'Show the documents in this set' : 'Fold the documents list away');
               var foldChev = document.createElement('span');
               foldChev.className = 'bundle-fold-chev';
               foldChev.setAttribute('aria-hidden', 'true');
@@ -20510,14 +20710,15 @@
               foldHead.appendChild(foldCount);
               var membersWrap = document.createElement('div');
               membersWrap.className = 'bundle-members';
-              membersWrap.id = 'shareBundleMembers';
-              membersWrap.hidden = bundleDocsFolded;
+              membersWrap.setAttribute('data-bundle-members', bk || '');
+              membersWrap.hidden = folded;
               foldHead.addEventListener('click', function () {
-                bundleDocsFolded = !bundleDocsFolded;
-                membersWrap.hidden = bundleDocsFolded;
-                foldHead.classList.toggle('is-folded', bundleDocsFolded);
-                foldHead.setAttribute('aria-expanded', bundleDocsFolded ? 'false' : 'true');
-                foldHead.setAttribute('data-tip', bundleDocsFolded ? 'Show the documents in this set' : 'Fold the documents list away');
+                var nowFolded = !bundleDocsFolded(bundle);
+                bundleFoldByKey[bundleKeyOf(bundle)] = nowFolded;
+                membersWrap.hidden = nowFolded;
+                foldHead.classList.toggle('is-folded', nowFolded);
+                foldHead.setAttribute('aria-expanded', nowFolded ? 'false' : 'true');
+                foldHead.setAttribute('data-tip', nowFolded ? 'Show the documents in this set' : 'Fold the documents list away');
               });
               wrap.appendChild(foldHead);
               wrap.appendChild(membersWrap);
@@ -20566,7 +20767,7 @@
             var addBtn = document.createElement('button');
             addBtn.type = 'button';
             addBtn.className = 'btn-ghost';
-            addBtn.id = 'shareBundleAddBtn';
+            addBtn.setAttribute('data-bundle-add', bk || '');
             addBtn.textContent = 'Add documents\u2026';
             addBtn.setAttribute('data-tip', 'Add more of your documents to this set');
             addBtn.addEventListener('click', function () { openAddDocsModal(bundle); });
@@ -20596,11 +20797,15 @@
                exactly as quiet as before. Add-only — documents
                no longer linked are never mentioned here. */
             var driftKey = doc ? panelDriftKey(doc, bundle) : null;
-            if (driftKey !== sharePanelDriftKey) {
-              sharePanelDrift = doc ? computeBundleDrift(doc, bundle) : [];
-              sharePanelDriftKey = driftKey;
+            var driftHit = bk ? sharePanelDriftByKey[bk] : null;
+            if (!driftHit || driftHit.key !== driftKey) {
+              driftHit = { key: driftKey, drift: doc ? computeBundleDrift(doc, bundle) : [] };
+              if (bk) sharePanelDriftByKey[bk] = driftHit;
             }
-            if (sharePanelDrift.length) wrap.appendChild(bundleDriftNoticeEl(bundle, sharePanelDrift));
+            sharePanelDrift = driftHit.drift;
+            sharePanelDriftKey = driftKey;
+            if (driftHit.drift.length) wrap.appendChild(bundleDriftNoticeEl(bundle, driftHit.drift));
+          return wrap;
         }
         /* The watch backlog review row (build -72): the
            count, in the owner's words, and a Review action
@@ -20612,7 +20817,7 @@
           var n = (backlog || []).length;
           var row = document.createElement('div');
           row.className = 'bundle-watch-review';
-          row.id = 'shareBundleWatchReview';
+          row.setAttribute('data-bundle-watch-review', bundleKeyOf(bundle) || '');
           row.setAttribute('data-watch-review-count', String(n));
           var text = document.createElement('span');
           text.className = 'bundle-watch-review-text';
@@ -20626,7 +20831,7 @@
           var review = document.createElement('button');
           review.type = 'button';
           review.className = 'btn-ghost';
-          review.id = 'shareBundleWatchReviewBtn';
+          review.setAttribute('data-bundle-watch-review-btn', bundleKeyOf(bundle) || '');
           review.textContent = 'Review ' + n + (n === 1 ? ' matching document' : ' matching documents');
           review.setAttribute('data-watch-review-count', String(n));
           review.setAttribute('data-tip', 'Choose which matching documents to add to this set');
@@ -20641,7 +20846,7 @@
         function bundleDriftNoticeEl(bundle, drift) {
           var row = document.createElement('div');
           row.className = 'bundle-drift';
-          row.id = 'shareBundleDrift';
+          row.setAttribute('data-bundle-drift', bundleKeyOf(bundle) || '');
           var text = document.createElement('span');
           text.className = 'bundle-drift-text';
           var strong = document.createElement('strong');
@@ -20654,7 +20859,7 @@
           var review = document.createElement('button');
           review.type = 'button';
           review.className = 'btn-ghost';
-          review.id = 'shareBundleDriftReview';
+          review.setAttribute('data-bundle-drift-review', bundleKeyOf(bundle) || '');
           review.textContent = 'Review';
           review.setAttribute('data-tip', 'Choose which linked documents to add to this set');
           review.addEventListener('click', function () { openDriftModal(bundle); });
@@ -20671,7 +20876,7 @@
           if (!bundle) return Promise.resolve(null);
           var manifest = bundleManifestOf(bundle);
           manifest.wiki = !!on;
-          sharePanelBundle = parseShareBundle(manifest);
+          syncPanelBundle(manifest);
           return persistBundleManifest(manifest).then(function () {
             refreshBundlePanel();
             return manifest;
@@ -20701,7 +20906,7 @@
           var watch = normalizeWatch(bundle && bundle.watch);
           var wrap = document.createElement('div');
           wrap.className = 'bundle-watch';
-          wrap.id = 'shareBundleWatch';
+          wrap.setAttribute('data-bundle-watch', bundleKeyOf(bundle) || '');
           var name = document.createElement('span');
           name.className = 'bundle-wiki-name';
           name.textContent = 'Watch for new documents';
@@ -20878,14 +21083,15 @@
              watch removed takes its row with it. */
           var manifest = bundleManifestOf(bundle);
           manifest.watch = normalizeWatch(watch);
-          sharePanelBundle = parseShareBundle(manifest);
+          syncPanelBundle(manifest);
           return persistBundleManifest(manifest).then(function () {
             if (!document.getElementById('shareModal').hidden) {
               refreshBundlePanel();
             } else {
-              var old = document.getElementById('shareBundleWatch');
-              if (old && old.parentNode && sharePanelBundle) {
-                old.parentNode.replaceChild(bundleWatchEl(sharePanelBundle), old);
+              var updated = parseShareBundle(manifest);
+              var old = document.querySelector('[data-bundle-watch="' + (bundleKeyOf(bundle) || '') + '"]');
+              if (old && old.parentNode && updated) {
+                old.parentNode.replaceChild(bundleWatchEl(updated), old);
               }
             }
             return manifest;
@@ -20911,7 +21117,7 @@
             removeLocalBundleToken(member.token);
             return persistBundleManifest(plan.manifest);
           }).then(function () {
-            sharePanelBundle = parseShareBundle(plan.manifest);
+            syncPanelBundle(plan.manifest);
             refreshBundlePanel();
             if (typeof folioToast === 'function') {
               folioToast(plan.mode === 'revoke'
@@ -21257,28 +21463,77 @@
            Cancel (button, ×, backdrop, Esc) creates nothing at
            all; the shell stays on its Main view underneath. */
         var bundlePending = null;
-        function openShareBundleModal(rootDoc, closure, existingByDocId) {
-          bundlePending = { rootDoc: rootDoc, closure: closure, existing: existingByDocId || {} };
-          /* Wiki mode is opt-in per set (build -60): the
-             checkbox starts unchecked every time the modal
-             opens, so a plain bundle stays the default. */
+        /* Opens the creation review (build -73): when a set
+           already exists for this root AT the chosen
+           permission, the modal initializes FROM it instead
+           of blank — the wiki checkbox takes the set's flag,
+           the update note names what confirming will do, and
+           the set's members that aren't in the current
+           closure ride along as carried rows (no checkbox:
+           membership is the union, and a grown member is
+           never dropped by re-confirming). The other
+           permission's set, if any, is not read here at all. */
+        function openShareBundleModal(rootDoc, closure, existingByDocId, existingSet) {
+          var exSet = existingSet || null;
+          if (!exSet) {
+            /* Fallback for callers that did not resolve the
+               set: the local copy on this device, keyed by
+               the root's share at this permission. */
+            var rootShare = existingByDocId ? existingByDocId[rootDoc.id] : null;
+            var rootToken = typeof rootShare === 'string' ? rootShare
+              : (rootShare && typeof rootShare.token === 'string' ? rootShare.token : null);
+            if (rootToken) {
+              var local = localBundleFor(rootToken);
+              if (local && local.rootToken === rootToken && local.members.length > 1) exSet = local;
+            }
+          }
+          bundlePending = {
+            rootDoc: rootDoc, closure: closure, existing: existingByDocId || {},
+            existingSet: exSet, perm: sharePermChoice,
+          };
           var wikiCb = document.getElementById('shareBundleWiki');
-          if (wikiCb) wikiCb.checked = false;
+          if (wikiCb) wikiCb.checked = exSet ? exSet.wiki === true : false;
+          var note = document.getElementById('shareBundleUpdateNote');
+          if (note) {
+            if (exSet) {
+              note.hidden = false;
+              note.textContent = 'This updates your existing ' +
+                (bundlePending.perm === 'comment' ? 'can-comment' : 'view-only') +
+                ' set for this document \u2014 confirming keeps its link, its wiki setting, its watch rules, and every document already in it, and adds the documents below. It does not create another link.';
+            } else {
+              note.hidden = true;
+              note.textContent = '';
+            }
+          }
           var listEl = document.getElementById('shareBundleList');
           listEl.innerHTML = '';
           listEl.appendChild(bundleRowEl(rootDoc, null, true));
           closure.forEach(function (d) {
             listEl.appendChild(bundleRowEl(d, bundlePending.existing[d.id] || null, false));
           });
+          if (exSet) {
+            var inList = {};
+            inList[rootDoc.id] = true;
+            closure.forEach(function (d) { inList[d.id] = true; });
+            exSet.members.forEach(function (m) {
+              if (m.token === exSet.rootToken || !m.doc) return;
+              var d = lib.docs.find(function (x) {
+                return x.id === m.doc || remoteIdFor('docs', x.id) === m.doc;
+              });
+              if (!d || inList[d.id]) return;
+              inList[d.id] = true;
+              listEl.appendChild(bundleRowEl(d, null, false, 'Already in this set'));
+            });
+          }
           updateBundleConfirmLabel();
           showShareView('bundle');
           var confirmBtn = document.getElementById('shareBundleConfirm');
           try { confirmBtn.focus(); } catch (e) {}
         }
-        function bundleRowEl(doc, existingShare, isRoot) {
+        function bundleRowEl(doc, existingShare, isRoot, fixedBadge) {
           var row = document.createElement('label');
           row.className = 'bundle-row' + (isRoot ? ' is-root' : '');
-          if (!isRoot) {
+          if (!isRoot && !fixedBadge) {
             var cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.checked = true;
@@ -21306,6 +21561,11 @@
             rootBadge.className = 'bundle-badge is-root-badge';
             rootBadge.textContent = 'This document';
             row.appendChild(rootBadge);
+          } else if (fixedBadge) {
+            var fixedEl = document.createElement('span');
+            fixedEl.className = 'bundle-badge';
+            fixedEl.textContent = fixedBadge;
+            row.appendChild(fixedEl);
           } else if (existingShare) {
             var sharedBadge = document.createElement('span');
             sharedBadge.className = 'bundle-badge';
@@ -21324,8 +21584,29 @@
           });
           return out;
         }
+        /* The existing set's members that the checked list
+           does not already cover (build -73): confirming an
+           update carries them into the new manifest verbatim,
+           so nothing grown into the set — by Add documents,
+           drift, or a watch sweep — is ever dropped by
+           re-creating at the same permission. */
+        function bundleCarriedMembers(pending, selectedDocs) {
+          var exSet = pending && pending.existingSet;
+          if (!exSet || !exSet.members) return [];
+          var covered = {};
+          (selectedDocs || []).forEach(function (d) {
+            covered[d.id] = true;
+            var rid = remoteIdFor('docs', d.id);
+            if (rid) covered[rid] = true;
+          });
+          return exSet.members.filter(function (m) {
+            if (m.token === exSet.rootToken) return false;
+            return !(m.doc && covered[m.doc]);
+          });
+        }
         function updateBundleConfirmLabel() {
-          var n = bundleCheckedDocs().length;
+          var checked = bundleCheckedDocs();
+          var n = checked.length + (bundlePending ? bundleCarriedMembers(bundlePending, checked).length : 0);
           document.getElementById('shareBundleConfirm').textContent =
             'Share ' + n + (n === 1 ? ' document' : ' documents');
         }
@@ -21337,7 +21618,10 @@
           if (!bundlePending || !sb || !sbUser) return;
           var pending = bundlePending;
           var selected = bundleCheckedDocs();
-          var perm = sharePermChoice;
+          /* The permission chosen when the modal opened
+             (build -73): reuse, the set lookup, and every new
+             row all run at this one permission. */
+          var perm = pending.perm || sharePermChoice;
           var btn = document.getElementById('shareBundleConfirm');
           btn.disabled = true;
           btn.textContent = 'Sharing\u2026';
@@ -21351,19 +21635,37 @@
             plan.forEach(function (e) { if (!e.token) e.token = genToken(); });
             var rootEntry = plan[0];
             var wikiCb = document.getElementById('shareBundleWiki');
+            /* Build -73: confirming over an existing
+               same-permission set UPDATES that set — same
+               bundle id, same root link (the plan reuses the
+               root's share at this permission), the modal's
+               wiki flag (initialized from the set, so it reads
+               as preservation unless the owner flips it), the
+               set's watch rules carried over untouched, and
+               membership = the checked documents UNION the
+               set's existing members (carried below). A set at
+               the OTHER permission is a different set entirely
+               and is never read or written here. */
+            var exSet = (pending.existingSet && pending.existingSet.rootToken === rootEntry.token)
+              ? pending.existingSet : null;
+            var carried = exSet ? bundleCarriedMembers(pending, usable) : [];
             var manifest = {
               v: 1,
-              id: genToken(),
+              id: exSet && exSet.id ? exSet.id : genToken(),
               rootToken: rootEntry.token,
               /* Build -60: the modal's wiki checkbox, and each
                  member's created flag (true when this bundle
                  mints the share, false when it reuses one) so
                  removal later knows revoke from detach. */
               wiki: !!(wikiCb && wikiCb.checked),
-              watch: { folders: [], tags: [] },
+              watch: exSet ? normalizeWatch(exSet.watch) : { folders: [], tags: [] },
               members: plan.map(function (e) {
                 return { token: e.token, doc: remoteIdFor('docs', e.doc.id), title: e.doc.title || 'Untitled', created: e.isNew };
-              }),
+              }).concat(carried.map(function (m) {
+                var out = { token: m.token, doc: m.doc || null, title: m.title };
+                if (typeof m.created === 'boolean') out.created = m.created;
+                return out;
+              })),
             };
             var snap = shareStylesSnapshot();
             var chain = Promise.resolve();
@@ -21377,6 +21679,12 @@
                 }
                 return updateShareBundle(e.token, manifest);
               });
+            });
+            /* Carried members keep their links; their rows
+               get the updated manifest like everyone else's,
+               so the set reads the same from any member. */
+            carried.forEach(function (m) {
+              chain = chain.then(function () { return updateShareBundle(m.token, manifest); });
             });
             return chain.then(function () { return { manifest: manifest, rootToken: rootEntry.token }; });
           }).then(function (out) {
@@ -21522,12 +21830,19 @@
                 })
               : Promise.resolve(sharePanelRootPerm);
             return permChain.then(function (perm) {
+              /* Build -73: reuse resolves at the bundle's own
+                 permission — a document's share at the OTHER
+                 permission is not this set's to reuse, and a
+                 document with no share at this permission gets
+                 a fresh one here. The other permission's rows
+                 and manifests are never written. */
+              if (bundleKeyOf(bundle)) sharePanelPerms[bundleKeyOf(bundle)] = perm;
               var existing = {};
               var chain = Promise.resolve();
               usable.forEach(function (d) {
                 chain = chain.then(function () {
                   return docShares(remoteIdFor('docs', d.id)).then(function (shares) {
-                    existing[d.id] = shares.length ? shares[0] : null;
+                    existing[d.id] = shareForPerm(shares, perm);
                   });
                 });
               });
@@ -21578,7 +21893,7 @@
             updateAddDocsConfirmLabel();
             if (!out) return;
             saveLocalBundle(out.manifest);
-            sharePanelBundle = parseShareBundle(out.manifest);
+            syncPanelBundle(out.manifest);
             closeAddDocsModal();
             refreshBundlePanel();
             if (typeof folioToast === 'function') {
@@ -21628,18 +21943,24 @@
           if (!existingByDocId) {
             var pending = bundleDriftPending;
             pending.existing = {};
-            var chain = Promise.resolve();
-            drift.forEach(function (d) {
-              chain = chain.then(function () {
-                var rid = remoteIdFor('docs', d.id);
-                if (!rid) { pending.existing[d.id] = null; return null; }
-                return docShares(rid).then(function (shares) {
-                  pending.existing[d.id] = shares.length ? shares[0] : null;
-                }).catch(function () { pending.existing[d.id] = null; });
+            /* Build -73: the "Already shared" badge means the
+               share this set would reuse — the document's
+               share at the BUNDLE's permission, never its
+               newest share regardless of permission. */
+            resolveBundlePerm(bundle).then(function (perm) {
+              var chain = Promise.resolve();
+              drift.forEach(function (d) {
+                chain = chain.then(function () {
+                  var rid = remoteIdFor('docs', d.id);
+                  if (!rid) { pending.existing[d.id] = null; return null; }
+                  return docShares(rid).then(function (shares) {
+                    pending.existing[d.id] = shareForPerm(shares, perm);
+                  }).catch(function () { pending.existing[d.id] = null; });
+                });
               });
-            });
-            chain.then(function () {
-              if (bundleDriftPending === pending && shareShellViewOpen('drift')) renderDriftList();
+              chain.then(function () {
+                if (bundleDriftPending === pending && shareShellViewOpen('drift')) renderDriftList();
+              });
             });
           }
         }
@@ -21727,7 +22048,7 @@
             btn.disabled = false;
             if (!out) { updateDriftConfirmLabel(); return; }
             saveLocalBundle(out.manifest);
-            sharePanelBundle = parseShareBundle(out.manifest);
+            syncPanelBundle(out.manifest);
             closeDriftModal();
             /* Refreshing the panel recomputes the drift: what
                was just added is in, the notice clears (or now
@@ -22173,18 +22494,22 @@
           if (!existingByDocId) {
             var pending = bundleSweepPending;
             pending.existing = {};
-            var chain = Promise.resolve();
-            backlog.forEach(function (d) {
-              chain = chain.then(function () {
-                var rid = remoteIdFor('docs', d.id);
-                if (!rid) { pending.existing[d.id] = null; return null; }
-                return docShares(rid).then(function (shares) {
-                  pending.existing[d.id] = shares.length ? shares[0] : null;
-                }).catch(function () { pending.existing[d.id] = null; });
+            /* Build -73: badge resolution at the bundle's own
+               permission, exactly as the drift review's. */
+            resolveBundlePerm(bundle).then(function (perm) {
+              var chain = Promise.resolve();
+              backlog.forEach(function (d) {
+                chain = chain.then(function () {
+                  var rid = remoteIdFor('docs', d.id);
+                  if (!rid) { pending.existing[d.id] = null; return null; }
+                  return docShares(rid).then(function (shares) {
+                    pending.existing[d.id] = shareForPerm(shares, perm);
+                  }).catch(function () { pending.existing[d.id] = null; });
+                });
               });
-            });
-            chain.then(function () {
-              if (bundleSweepPending === pending && shareShellViewOpen('sweep')) renderSweepList();
+              chain.then(function () {
+                if (bundleSweepPending === pending && shareShellViewOpen('sweep')) renderSweepList();
+              });
             });
           }
           return true;
@@ -22283,9 +22608,7 @@
             btn.disabled = false;
             if (!out) { updateSweepConfirmLabel(); return; }
             saveLocalBundle(out.manifest);
-            if (sharePanelBundle && bundleKeyOf(sharePanelBundle) === bundleKeyOf(bundle)) {
-              sharePanelBundle = parseShareBundle(out.manifest);
-            }
+            syncPanelBundle(out.manifest);
             /* Back at Main (build -72): closeWatchSweepModal
                returns there and refreshes the panel against
                the grown manifest — new members present, the
@@ -22443,6 +22766,13 @@
           if (!closure.length) { createSingleShare(doc, btn); return; }
           btn.disabled = true;
           pushAll().then(function () {
+            /* Build -73: existing shares are resolved at the
+               CHOSEN permission — the bundle flow reuses a
+               document's share only when it carries the
+               permission in play, and mints a fresh one
+               otherwise. The other permission's links (and
+               its set, if the root heads one) are untouched. */
+            var perm = sharePermChoice;
             var existing = {};
             var chain = Promise.resolve();
             [doc].concat(closure).forEach(function (d) {
@@ -22450,13 +22780,23 @@
                 var rid = remoteIdFor('docs', d.id);
                 if (!rid) { existing[d.id] = null; return null; }
                 return docShares(rid).then(function (shares) {
-                  existing[d.id] = shares.length ? shares[0] : null;
+                  existing[d.id] = shareForPerm(shares, perm);
                 });
               });
             });
             return chain.then(function () {
+              /* A set the root already heads at THIS
+                 permission initializes the modal (build -73):
+                 its wiki flag, watch rules, and grown members
+                 are preserved on confirm. */
+              var rootShare = existing[doc.id];
+              if (!rootShare || !rootShare.token) return null;
+              return fetchShareBundle(rootShare.token).then(function (b) {
+                return (b && b.rootToken === rootShare.token && b.members.length > 1) ? b : null;
+              }).catch(function () { return null; });
+            }).then(function (existingSet) {
               btn.disabled = false;
-              openShareBundleModal(doc, closure, existing);
+              openShareBundleModal(doc, closure, existing, existingSet);
             });
           }).catch(function () { btn.disabled = false; });
         });
@@ -23331,16 +23671,17 @@
             return window.FolioShareBundle.bundlePanelState();
           },
           bundlePanelState: function () {
-            var head = document.getElementById('shareBundleFoldHead');
-            var members = document.getElementById('shareBundleMembers');
-            var reviewRow = document.getElementById('shareBundleWatchReview');
-            var reviewBtn = document.getElementById('shareBundleWatchReviewBtn');
+            var panelWrap = document.getElementById('shareBundlePanel');
+            var head = panelWrap ? panelWrap.querySelector('[data-bundle-fold]') : null;
+            var members = panelWrap ? panelWrap.querySelector('[data-bundle-members]') : null;
+            var reviewRow = panelWrap ? panelWrap.querySelector('[data-bundle-watch-review]') : null;
+            var reviewBtn = panelWrap ? panelWrap.querySelector('[data-bundle-watch-review-btn]') : null;
             return {
               foldHead: head ? head.textContent.replace(/\s+/g, ' ').trim() : null,
               foldExpanded: head ? head.getAttribute('aria-expanded') : null,
               membersHidden: members ? members.hidden : null,
               memberRows: members ? members.querySelectorAll('.share-row').length : 0,
-              watchPresent: !!document.getElementById('shareBundleWatch'),
+              watchPresent: !!(panelWrap && panelWrap.querySelector('[data-bundle-watch]')),
               /* Build -72: the watch backlog Review row, read
                  back from the same render. */
               watchReviewPresent: !!reviewRow,
@@ -23380,11 +23721,11 @@
             sharePanelDrift = computeBundleDrift(d, b);
             wrap.innerHTML = '';
             if (sharePanelDrift.length) wrap.appendChild(bundleDriftNoticeEl(b, sharePanelDrift));
-            var notice = document.getElementById('shareBundleDrift');
+            var notice = wrap.querySelector('[data-bundle-drift]');
             return {
               drift: sharePanelDrift.map(function (x) { return x.id; }),
               noticeText: notice ? notice.textContent : null,
-              hasReview: !!document.getElementById('shareBundleDriftReview'),
+              hasReview: !!wrap.querySelector('[data-bundle-drift-review]'),
             };
           },
           panelDrift: function () { return sharePanelDrift.map(function (d) { return d.id; }); },
@@ -23499,7 +23840,7 @@
             return window.FolioShareBundle.watchEditorState();
           },
           watchEditorState: function () {
-            var root = document.getElementById('shareBundleWatch');
+            var root = document.querySelector('[data-bundle-watch]');
             if (!root) return null;
             var folders = [];
             root.querySelectorAll('[data-watch-folder-chip]').forEach(function (el) {
@@ -23774,8 +24115,8 @@
              panel render: presence, live count, and the
              button's full label. */
           watchReviewState: function () {
-            var row = document.getElementById('shareBundleWatchReview');
-            var btn = document.getElementById('shareBundleWatchReviewBtn');
+            var row = document.querySelector('[data-bundle-watch-review]');
+            var btn = document.querySelector('[data-bundle-watch-review-btn]');
             return {
               present: !!row,
               count: row ? Number(row.getAttribute('data-watch-review-count')) : null,
@@ -23797,16 +24138,76 @@
             sharePanelBundle = b;
             sharePanelBacklog = [];
             sharePanelBacklogKey = null;
+            delete sharePanelBacklogByKey[bundleKeyOf(b)];
             openWatchReview(b, existingByDocId || {});
             return window.FolioShareBundle.sweepDomState();
           },
           /* Clicks the rendered Review button in Main,
              exactly as a tap does, and reads back the sweep. */
           clickWatchReview: function () {
-            var btn = document.getElementById('shareBundleWatchReviewBtn');
+            var btn = document.querySelector('[data-bundle-watch-review-btn]');
             if (!btn) return null;
             btn.click();
             return window.FolioShareBundle.sweepDomState();
+          },
+          /* ---- build -73: permission-aware sets ---- */
+          /* Every set section the panel currently renders,
+             keyed by root token: permission, member tokens,
+             and the wiki switch state — the per-token panel
+             read-back for a root heading two sets at once. */
+          panelSets: function () {
+            var out = [];
+            document.querySelectorAll('#shareBundlePanel [data-bundle-set]').forEach(function (sec) {
+              var wiki = sec.querySelector('[data-bundle-wiki]');
+              var links = [];
+              sec.querySelectorAll('[data-bundle-members] .share-link, .bundle-set-section > .share-row .share-link').forEach(function (el) {
+                links.push(el.textContent);
+              });
+              out.push({
+                key: sec.getAttribute('data-bundle-set'),
+                rootToken: sec.getAttribute('data-bundle-root'),
+                perm: sec.getAttribute('data-bundle-perm'),
+                head: (sec.querySelector('.bundle-set-head') || {}).textContent || null,
+                memberRows: sec.querySelectorAll('.share-row').length,
+                wikiOn: wiki ? wiki.getAttribute('aria-checked') === 'true' : null,
+                watchPresent: !!sec.querySelector('[data-bundle-watch]'),
+                reviewCount: (function () {
+                  var r = sec.querySelector('[data-bundle-watch-review]');
+                  return r ? Number(r.getAttribute('data-watch-review-count')) : null;
+                })(),
+              });
+            });
+            return out;
+          },
+          /* The creation modal's state for a pending bundle:
+             the wiki checkbox, the update note, and the rows
+             (checkboxed vs carried) — the set-preserving
+             initialization read-back. */
+          bundleModalState: function () {
+            var note = document.getElementById('shareBundleUpdateNote');
+            var rows = [];
+            document.querySelectorAll('#shareBundleList .bundle-row').forEach(function (el) {
+              var cb = el.querySelector('input[type="checkbox"]');
+              var badge = el.querySelector('.bundle-badge');
+              var title = el.querySelector('.bundle-title');
+              rows.push({
+                title: title ? title.textContent : '',
+                hasCheckbox: !!cb,
+                checked: cb ? cb.checked : null,
+                badge: badge ? badge.textContent : null,
+              });
+            });
+            var wikiCb = document.getElementById('shareBundleWiki');
+            return {
+              open: shareShellViewOpen('bundle'),
+              perm: bundlePending ? bundlePending.perm : null,
+              hasExistingSet: !!(bundlePending && bundlePending.existingSet),
+              wikiChecked: wikiCb ? wikiCb.checked : null,
+              noteHidden: note ? note.hidden : null,
+              noteText: note ? note.textContent : null,
+              confirmText: document.getElementById('shareBundleConfirm').textContent,
+              rows: rows,
+            };
           },
           /* Opens the real sweep view directly against a
              stored bundle and explicit rules, with the
