@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261030-74" />
+    <meta name="folio-build" content="20261030-75" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2853,6 +2853,16 @@
       .settings-perm-line .settings-perm { font-weight: 700; color: var(--ink); }
       .alias-edit-row { display: flex; gap: 8px; align-items: center; }
       .alias-edit-row .text-input { flex: 1; min-width: 0; }
+      /* The settings Permission dropdown (build -75): a real
+         select styled like the watch pickers, so permission
+         reads as an editable setting, not a badge. */
+      .perm-edit-row { display: flex; gap: 8px; align-items: center; }
+      .perm-select {
+        flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--ink);
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: 9px; padding: 8px 10px; min-height: 40px;
+      }
+      .perm-select:disabled { opacity: 0.6; }
       .settings-danger { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
       #shareSettingsBundle .bundle-set-head { display: none; }
       .wizard-step-note { margin-top: 10px; }
@@ -3958,10 +3968,17 @@
             </button>
           </div>
           <div class="settings-perm-line">
-            <span class="settings-perm" id="shareSettingsPerm"></span>
             <span id="shareSettingsKind"></span>
           </div>
-          <div class="pop-label">Name (only you see this)</div>
+          <div class="pop-label">Permission</div>
+          <div class="perm-edit-row">
+            <select class="perm-select" id="shareSettingsPermSelect" aria-label="Permission for this link">
+              <option value="view">View only</option>
+              <option value="comment">Can comment</option>
+            </select>
+          </div>
+          <p class="form-note" id="shareSettingsPermHint" hidden>Applies to every link in this set — anyone holding any of these links gains or loses commenting. The link addresses don&rsquo;t change, and comments already left stay put.</p>
+          <div class="pop-label" style="margin-top:14px">Name (only you see this)</div>
           <div class="alias-edit-row">
             <input class="text-input" id="shareSettingsAlias" type="text" autocomplete="off" placeholder="Add a name for this link" aria-label="Name for this link — only you see this" />
             <button class="btn-ghost" id="shareSettingsAliasSave" type="button">Save name</button>
@@ -21739,8 +21756,14 @@
           var entry = currentLinkEntry();
           if (!entry) { showShareView('main'); return; }
           document.getElementById('shareSettingsTitle').textContent = linkDisplayName(entry);
-          document.getElementById('shareSettingsPerm').textContent =
-            entry.perm === 'comment' ? 'Can comment' : 'View only';
+          /* Build -75: the permission is an editable
+             dropdown now, not a static line — it always
+             shows the link's current permission, and the
+             whole-set hint appears only for a real set. */
+          var permSel = document.getElementById('shareSettingsPermSelect');
+          if (permSel) permSel.value = entry.perm === 'comment' ? 'comment' : 'view';
+          var permHint = document.getElementById('shareSettingsPermHint');
+          if (permHint) permHint.hidden = !(entry.bundle && entry.bundle.members.length > 1);
           document.getElementById('shareSettingsKind').textContent = entry.bundle
             ? 'Set of ' + entry.bundle.members.length + ' documents' + (entry.bundle.wiki ? ' \u00B7 Wiki' : '')
             : 'Single document';
@@ -21795,6 +21818,76 @@
             loadLinkList();
             if (typeof folioToast === 'function') {
               folioToast(v ? 'Link named \u201C' + v + '\u201D \u2014 only you see this name.' : 'Link name removed.', 3200);
+            }
+          });
+        });
+        /* The permission flip (build -75): the settings
+           view's Permission dropdown rewrites ONLY the
+           permission value on this link's own share rows —
+           a standalone link's single row, or, for a set, the
+           root row and every member row in the set's
+           manifest, scoped strictly to that manifest's
+           membership. Tokens never change and the bundle
+           manifest is never rewritten, so the set's wiki
+           flag, watch rules, membership, and bundle id stay
+           byte-identical, and no other link's or set's rows
+           are touched. Comments are keyed by share_token
+           and are never created, moved, or deleted by a
+           flip: comment → view only stops new comments
+           (the viewer keys commenting off the row's
+           permission), and flipping back re-enables them.
+           The panel-session permission records follow the
+           flip so grow / drift / sweep keep resolving
+           within this set's own permission. Resolves true
+           only when the backend accepted the write. */
+        function setLinkPermission(entry, perm) {
+          if (!entry || !sb) return Promise.resolve(false);
+          var tokens = entry.bundle && entry.bundle.members.length > 1
+            ? entry.bundle.members.map(function (m) { return m.token; })
+            : [entry.token];
+          if (tokens.indexOf(entry.token) === -1) tokens.unshift(entry.token);
+          return sb.from('shares').update({ permission: perm }).in('token', tokens).then(function (res) {
+            if (res && res.error) return false;
+            entry.perm = perm;
+            noteBundleInfo(entry.token, perm, entry.alias || '');
+            if (entry.bundle) {
+              var bk = bundleKeyOf(entry.bundle);
+              if (bk) sharePanelPerms[bk] = perm;
+              sharePanelBundles.forEach(function (e) {
+                if (bundleKeyOf(e.bundle) === bk) e.perm = perm;
+              });
+              if (sharePanelBundle && bundleKeyOf(sharePanelBundle) === bk) sharePanelRootPerm = perm;
+            }
+            return true;
+          }).catch(function () { return false; });
+        }
+        document.getElementById('shareSettingsPermSelect').addEventListener('change', function () {
+          var entry = currentLinkEntry();
+          if (!entry) return;
+          var sel = this;
+          var prev = entry.perm === 'comment' ? 'comment' : 'view';
+          var next = sel.value === 'comment' ? 'comment' : 'view';
+          if (next === prev) return;
+          sel.disabled = true;
+          setLinkPermission(entry, next).then(function (ok) {
+            sel.disabled = false;
+            if (ok) {
+              /* Stay in this settings view; the list reload
+                 re-renders it with the new permission and
+                 refreshes the list item behind it. */
+              loadLinkList();
+              if (typeof folioToast === 'function') {
+                folioToast(next === 'comment'
+                  ? 'Permission changed — people with this link can now comment.'
+                  : 'Permission changed — this link is view only now. Comments already left stay put.', 3400);
+              }
+            } else {
+              /* The rows didn't change, so the dropdown
+                 must not claim they did. */
+              sel.value = prev;
+              if (typeof folioToast === 'function') {
+                folioToast('Couldn\u2019t change the permission — check your connection and try again.', 4200);
+              }
             }
           });
         });
@@ -24933,11 +25026,16 @@
                 return { data: null, error: null };
               }
               if (c._op === 'update') {
+                if (state.failUpdates) {
+                  return { data: null, error: { message: 'stubbed update failure' } };
+                }
                 if (!state.aliasColumn && c._obj && 'alias' in c._obj && c._obj.alias != null) {
                   return { data: null, error: { message: 'column "alias" of relation "shares" does not exist' } };
                 }
                 state.rows.forEach(function (r) {
-                  if (r.token === f.token) Object.keys(c._obj || {}).forEach(function (k) { r[k] = c._obj[k]; });
+                  var hit = r.token === f.token ||
+                    (f['token__in'] && f['token__in'].indexOf(r.token) !== -1);
+                  if (hit) Object.keys(c._obj || {}).forEach(function (k) { r[k] = c._obj[k]; });
                 });
                 return { data: null, error: null };
               }
@@ -25139,7 +25237,21 @@
               view: shareShellOpen() ? shareCurrentView : null,
               token: shareSettingsToken,
               title: document.getElementById('shareSettingsTitle').textContent,
-              perm: document.getElementById('shareSettingsPerm').textContent,
+              /* Build -75: the permission reads from the
+                 settings dropdown — its label form, as the
+                 -74 static line reported it. */
+              perm: (function () {
+                var s = document.getElementById('shareSettingsPermSelect');
+                return s ? (s.value === 'comment' ? 'Can comment' : 'View only') : null;
+              })(),
+              permValue: (function () {
+                var s = document.getElementById('shareSettingsPermSelect');
+                return s ? s.value : null;
+              })(),
+              permHintVisible: (function () {
+                var h = document.getElementById('shareSettingsPermHint');
+                return h ? !h.hidden : null;
+              })(),
               kind: document.getElementById('shareSettingsKind').textContent,
               aliasValue: document.getElementById('shareSettingsAlias').value,
               link: document.getElementById('shareSettingsLinkInput').value,
@@ -25171,6 +25283,42 @@
                 });
               }, 80);
             });
+          },
+          /* Sets the open settings view's Permission
+             dropdown and fires its real change handler
+             (build -75), settling to the settings, list,
+             and stub-row state after the flip lands. */
+          setSettingsPerm: function (value) {
+            var sel = document.getElementById('shareSettingsPermSelect');
+            if (!sel) return Promise.resolve(null);
+            sel.value = value;
+            sel.dispatchEvent(new Event('change'));
+            return new Promise(function (res) {
+              setTimeout(function () {
+                res({
+                  settings: window.FolioShareBundle.settingsState(),
+                  list: window.FolioShareBundle.linkListState(),
+                  rows: window.FolioShareBundle.stubRows(),
+                });
+              }, 350);
+            });
+          },
+          /* Arms (or clears) a stubbed backend failure for
+             share-row updates (build -75): while armed,
+             every update resolves with an error, so a
+             permission flip must revert and leave the rows
+             untouched. */
+          stubFailUpdates: function (on) {
+            var st = window.__folioStubState;
+            if (st) st.failUpdates = !!on;
+            return st ? st.failUpdates : null;
+          },
+          /* The stub's comment rows, deep-copied — comments
+             are keyed by share_token and a permission flip
+             must leave them exactly as seeded. */
+          stubComments: function () {
+            var st = window.__folioStubState;
+            return st ? JSON.parse(JSON.stringify(st.comments)) : [];
           },
           /* Flips the open settings view's wiki switch. */
           flipSettingsWiki: function () {
