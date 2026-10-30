@@ -13,7 +13,7 @@
          FOLIO_BUILD constant in the app script. Any difference
          means the server is serving a newer build than the one
          running. Bump both together on every deploy. -->
-    <meta name="folio-build" content="20261029-66" />
+    <meta name="folio-build" content="20261030-67" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2514,20 +2514,24 @@
         padding: 5dvh 14px 20px; overflow-y: auto;
       }
       .overlay[hidden] { display: none; }
-      /* The Share panel's follow-on modals (build -65): the
-         bundle creation review, Add documents, the drift
-         review, the watch-enable backlog sweep, the watch
-         prompt, and the revoke confirm all launch from the
-         Share panel — most while it is still open, the sweep
-         in the same breath as it closes. As a family they
-         sit one layer above the panel's 230 (and still below
-         the auth gate's 240) instead of relying on DOM order
-         at a shared z-index, which is how the sweep ended up
-         painted behind the panel on device (build -64). */
-      #shareBundleModal, #shareAddDocsModal, #shareDriftModal,
-      #shareSweepModal, #shareWatchModal, #shareRevokeModal {
-        z-index: 235;
+      /* Share shell views (build -67): the Share panel's
+         follow-on flows — bundle creation review, Add
+         documents, drift review, watch prompt, revoke
+         confirm, backlog sweep — are views inside the one
+         Share panel, swapped by showShareView, not separate
+         overlays. The -65 family layer (235) is gone with
+         the family: with a single overlay there is no
+         stacking order between them left to get wrong.
+         The revoke view keeps its old narrower measure. */
+      .share-shell-view[hidden] { display: none; }
+      #shareModal[data-share-view="revoke"] .panel { max-width: 440px; }
+      .share-back {
+        display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto;
+        font-size: 14px; font-weight: 700; color: var(--accent);
+        padding: 8px 12px 8px 5px; border-radius: 8px; min-height: 40px;
+        margin-left: -5px;
       }
+      .share-back:active { background: var(--hover); }
       .panel {
         width: 100%; max-width: 560px; margin: auto 0;
         background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
@@ -3541,148 +3545,152 @@
 
     <div class="overlay" id="shareModal" hidden>
       <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
-        <div class="panel-head">
-          <h2 id="shareTitle">Share &ldquo;<span id="shareDocName"></span>&rdquo;</h2>
-          <button class="icon-btn" id="shareClose" type="button" aria-label="Close sharing" data-tip="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div id="shareSignedOut" hidden>
-          <p class="form-note">Share links are powered by your FolioDocs account — sign in to sync this document and create a link anyone can open, no sign-in needed on their end.</p>
-          <p style="margin-top:14px"><button class="btn-primary" id="shareSignInBtn" type="button">Sign in</button></p>
-        </div>
-        <div id="shareMain">
-          <div class="pop-label">New link permission</div>
-          <div class="perm-row">
-            <button class="perm-opt on" type="button" data-perm="view" aria-pressed="true">
-              <span class="perm-name">View only</span>
-              <span class="perm-desc">Anyone with the link can read this document.</span>
-            </button>
-            <button class="perm-opt" type="button" data-perm="comment" aria-pressed="false">
-              <span class="perm-name">Can comment</span>
-              <span class="perm-desc">Readers can also leave comments — no account needed.</span>
+        <!-- Share shell (build -67): ONE modal, swappable views.
+             Main is the Share panel itself; the bundle creation
+             review, Add documents, the drift review, the watch
+             prompt, the revoke confirm, and the backlog sweep
+             are views inside this same panel, reached by
+             navigation — never a second overlay stacked on top
+             of it — so no stacking order between them can ever
+             be wrong, on any engine. The pattern is the theme
+             styles modal's: one frame, the view swaps, a back
+             affordance returns to the list (here, to Main). -->
+        <div class="share-shell-view" id="shareViewMain">
+          <div class="panel-head">
+            <h2 id="shareTitle">Share &ldquo;<span id="shareDocName"></span>&rdquo;</h2>
+            <button class="icon-btn" id="shareClose" type="button" aria-label="Close sharing" data-tip="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <button class="btn-primary" id="createShareBtn" type="button">Create share link</button>
-          <div class="share-newlink" id="shareNewLink" hidden>
-            <input class="text-input" id="shareNewLinkInput" type="text" readonly aria-label="New share link" />
-            <button class="btn-ghost" id="copyNewLinkBtn" type="button" data-tip="Copy link">Copy</button>
+          <div id="shareSignedOut" hidden>
+            <p class="form-note">Share links are powered by your FolioDocs account — sign in to sync this document and create a link anyone can open, no sign-in needed on their end.</p>
+            <p style="margin-top:14px"><button class="btn-primary" id="shareSignInBtn" type="button">Sign in</button></p>
           </div>
-          <div class="pop-label" style="margin-top:14px">Active links</div>
-          <div id="shareList"></div>
-          <div id="shareGoToRootPanel"></div>
-          <div class="pop-label" style="margin-top:14px" id="shareBundleLabel" hidden>Shared as a set</div>
-          <div id="shareBundlePanel"></div>
-          <div class="pop-label" style="margin-top:14px" id="shareAddToLabel" hidden>Add to a share bundle</div>
-          <div id="shareAddToPanel"></div>
-          <div class="pop-label" style="margin-top:14px">Comments</div>
-          <div id="ownerComments"></div>
+          <div id="shareMain">
+            <div class="pop-label">New link permission</div>
+            <div class="perm-row">
+              <button class="perm-opt on" type="button" data-perm="view" aria-pressed="true">
+                <span class="perm-name">View only</span>
+                <span class="perm-desc">Anyone with the link can read this document.</span>
+              </button>
+              <button class="perm-opt" type="button" data-perm="comment" aria-pressed="false">
+                <span class="perm-name">Can comment</span>
+                <span class="perm-desc">Readers can also leave comments — no account needed.</span>
+              </button>
+            </div>
+            <button class="btn-primary" id="createShareBtn" type="button">Create share link</button>
+            <div class="share-newlink" id="shareNewLink" hidden>
+              <input class="text-input" id="shareNewLinkInput" type="text" readonly aria-label="New share link" />
+              <button class="btn-ghost" id="copyNewLinkBtn" type="button" data-tip="Copy link">Copy</button>
+            </div>
+            <div class="pop-label" style="margin-top:14px">Active links</div>
+            <div id="shareList"></div>
+            <div id="shareGoToRootPanel"></div>
+            <div class="pop-label" style="margin-top:14px" id="shareBundleLabel" hidden>Shared as a set</div>
+            <div id="shareBundlePanel"></div>
+            <div class="pop-label" style="margin-top:14px" id="shareAddToLabel" hidden>Add to a share bundle</div>
+            <div id="shareAddToPanel"></div>
+            <div class="pop-label" style="margin-top:14px">Comments</div>
+            <div id="ownerComments"></div>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <div class="overlay" id="shareBundleModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareBundleTitle">
-        <div class="panel-head">
-          <h2 id="shareBundleTitle">Share linked documents</h2>
-          <button class="icon-btn" id="shareBundleClose" type="button" aria-label="Cancel sharing" data-tip="Cancel">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
+        <div class="share-shell-view" id="shareViewBundle" hidden>
+          <div class="panel-head">
+            <button class="share-back" id="shareBundleBack" type="button" aria-label="Back to Share">&lsaquo; Share</button>
+            <h2 id="shareBundleTitle">Share linked documents</h2>
+            <button class="icon-btn" id="shareBundleClose" type="button" aria-label="Cancel sharing" data-tip="Cancel">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <p class="form-note">This share link will allow people to view this document and all documents linked from it. Each document below gets its own link with the same permission as the one you chose. Uncheck any document you don&rsquo;t want to include &mdash; links to it will appear as plain text instead.</p>
+          <label class="bundle-wiki-check">
+            <input type="checkbox" id="shareBundleWiki" />
+            <span><strong>Present this set as a wiki</strong> &mdash; readers get a sidebar listing every document in the set, so they can browse the whole collection, not just follow links.</span>
+          </label>
+          <div class="bundle-list" id="shareBundleList"></div>
+          <div class="bundle-foot">
+            <button class="btn-ghost" id="shareBundleCancel" type="button">Cancel</button>
+            <button class="btn-primary" id="shareBundleConfirm" type="button">Share 1 document</button>
+          </div>
         </div>
-        <p class="form-note">This share link will allow people to view this document and all documents linked from it. Each document below gets its own link with the same permission as the one you chose. Uncheck any document you don&rsquo;t want to include &mdash; links to it will appear as plain text instead.</p>
-        <label class="bundle-wiki-check">
-          <input type="checkbox" id="shareBundleWiki" />
-          <span><strong>Present this set as a wiki</strong> &mdash; readers get a sidebar listing every document in the set, so they can browse the whole collection, not just follow links.</span>
-        </label>
-        <div class="bundle-list" id="shareBundleList"></div>
-        <div class="bundle-foot">
-          <button class="btn-ghost" id="shareBundleCancel" type="button">Cancel</button>
-          <button class="btn-primary" id="shareBundleConfirm" type="button">Share 1 document</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="overlay" id="shareAddDocsModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareAddDocsTitle">
-        <div class="panel-head">
-          <h2 id="shareAddDocsTitle">Add documents to this set</h2>
-          <button class="icon-btn" id="shareAddDocsClose" type="button" aria-label="Cancel adding documents" data-tip="Cancel">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
+        <div class="share-shell-view" id="shareViewAddDocs" hidden>
+          <div class="panel-head">
+            <button class="share-back" id="shareAddDocsBack" type="button" aria-label="Back to Share">&lsaquo; Share</button>
+            <h2 id="shareAddDocsTitle">Add documents to this set</h2>
+            <button class="icon-btn" id="shareAddDocsClose" type="button" aria-label="Cancel adding documents" data-tip="Cancel">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <p class="form-note">Each document you add joins the set right away. It gets a link with the set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one &mdash; and appears in the wiki sidebar when this set is presented as a wiki.</p>
+          <div class="adddocs-list" id="shareAddDocsList"></div>
+          <div class="bundle-foot">
+            <button class="btn-ghost" id="shareAddDocsCancel" type="button">Cancel</button>
+            <button class="btn-primary" id="shareAddDocsConfirm" type="button" disabled>Add documents</button>
+          </div>
         </div>
-        <p class="form-note">Each document you add joins the set right away. It gets a link with the set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one &mdash; and appears in the wiki sidebar when this set is presented as a wiki.</p>
-        <div class="adddocs-list" id="shareAddDocsList"></div>
-        <div class="bundle-foot">
-          <button class="btn-ghost" id="shareAddDocsCancel" type="button">Cancel</button>
-          <button class="btn-primary" id="shareAddDocsConfirm" type="button" disabled>Add documents</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="overlay" id="shareDriftModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareDriftTitle">
-        <div class="panel-head">
-          <h2 id="shareDriftTitle">Add linked documents to this set</h2>
-          <button class="icon-btn" id="shareDriftClose" type="button" aria-label="Cancel adding documents" data-tip="Cancel">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
+        <div class="share-shell-view" id="shareViewDrift" hidden>
+          <div class="panel-head">
+            <button class="share-back" id="shareDriftBack" type="button" aria-label="Back to Share">&lsaquo; Share</button>
+            <h2 id="shareDriftTitle">Add linked documents to this set</h2>
+            <button class="icon-btn" id="shareDriftClose" type="button" aria-label="Cancel adding documents" data-tip="Cancel">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <p class="form-note">These documents are linked from documents in this set, but aren&rsquo;t part of it yet &mdash; a reader who follows a link to one of them sees it as plain text. Each document you add gets a link with this set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one &mdash; and joins the wiki sidebar when this set is presented as a wiki.</p>
+          <div class="bundle-list" id="shareDriftList"></div>
+          <div class="bundle-foot">
+            <button class="btn-ghost" id="shareDriftCancel" type="button">Not now</button>
+            <button class="btn-primary" id="shareDriftConfirm" type="button">Add documents</button>
+          </div>
         </div>
-        <p class="form-note">These documents are linked from documents in this set, but aren&rsquo;t part of it yet &mdash; a reader who follows a link to one of them sees it as plain text. Each document you add gets a link with this set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one &mdash; and joins the wiki sidebar when this set is presented as a wiki.</p>
-        <div class="bundle-list" id="shareDriftList"></div>
-        <div class="bundle-foot">
-          <button class="btn-ghost" id="shareDriftCancel" type="button">Not now</button>
-          <button class="btn-primary" id="shareDriftConfirm" type="button">Add documents</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="overlay" id="shareSweepModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareSweepTitle">
-        <div class="panel-head">
-          <h2 id="shareSweepTitle">Add existing documents to this set</h2>
-          <button class="icon-btn" id="shareSweepClose" type="button" aria-label="Skip adding existing documents" data-tip="Not now">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
+        <div class="share-shell-view" id="shareViewSweep" hidden>
+          <div class="panel-head">
+            <h2 id="shareSweepTitle">Add existing documents to this set</h2>
+            <button class="icon-btn" id="shareSweepClose" type="button" aria-label="Skip adding existing documents" data-tip="Not now">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <p class="form-note">You just started watching <span id="shareSweepRules"></span> for the &ldquo;<span id="shareSweepBundleName"></span>&rdquo; set. These documents already match &mdash; share them as part of the set now? Each one gets a link with the set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one. The watch stays on either way: skipping this only leaves the existing documents out.</p>
+          <div class="bundle-list" id="shareSweepList"></div>
+          <div class="bundle-foot">
+            <button class="btn-ghost" id="shareSweepCancel" type="button">Not now</button>
+            <button class="btn-primary" id="shareSweepConfirm" type="button">Add documents</button>
+          </div>
         </div>
-        <p class="form-note">You just started watching <span id="shareSweepRules"></span> for the &ldquo;<span id="shareSweepBundleName"></span>&rdquo; set. These documents already match &mdash; share them as part of the set now? Each one gets a link with the set&rsquo;s permission &mdash; or reuses its own existing link, if it already has one. The watch stays on either way: skipping this only leaves the existing documents out.</p>
-        <div class="bundle-list" id="shareSweepList"></div>
-        <div class="bundle-foot">
-          <button class="btn-ghost" id="shareSweepCancel" type="button">Not now</button>
-          <button class="btn-primary" id="shareSweepConfirm" type="button">Add documents</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="overlay" id="shareWatchModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareWatchTitle">
-        <div class="panel-head">
-          <h2 id="shareWatchTitle">Share this document as part of the following bundles?</h2>
-          <button class="icon-btn" id="shareWatchClose" type="button" aria-label="Cancel" data-tip="Cancel">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
+        <div class="share-shell-view" id="shareViewWatch" hidden>
+          <div class="panel-head">
+            <h2 id="shareWatchTitle">Share this document as part of the following bundles?</h2>
+            <button class="icon-btn" id="shareWatchClose" type="button" aria-label="Cancel" data-tip="Cancel">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <p class="form-note">&ldquo;<span id="shareWatchDocName"></span>&rdquo; landed in a folder or gained a tag that these share bundles watch. It gets a link with each bundle&rsquo;s permission and joins that set. Uncheck any bundle you don&rsquo;t want — the choice is for this time only, and you&rsquo;ll be asked again next time.</p>
+          <div class="bundle-list" id="shareWatchList"></div>
+          <div class="bundle-foot">
+            <button class="btn-ghost" id="shareWatchCancel" type="button">Cancel</button>
+            <button class="btn-primary" id="shareWatchConfirm" type="button">Share with 1 bundle</button>
+          </div>
         </div>
-        <p class="form-note">&ldquo;<span id="shareWatchDocName"></span>&rdquo; landed in a folder or gained a tag that these share bundles watch. It gets a link with each bundle&rsquo;s permission and joins that set. Uncheck any bundle you don&rsquo;t want — the choice is for this time only, and you&rsquo;ll be asked again next time.</p>
-        <div class="bundle-list" id="shareWatchList"></div>
-        <div class="bundle-foot">
-          <button class="btn-ghost" id="shareWatchCancel" type="button">Cancel</button>
-          <button class="btn-primary" id="shareWatchConfirm" type="button">Share with 1 bundle</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="overlay" id="shareRevokeModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareRevokeTitle" style="max-width:440px">
-        <div class="panel-head">
-          <h2 id="shareRevokeTitle">Revoke this link?</h2>
-          <button class="icon-btn" id="shareRevokeClose" type="button" aria-label="Cancel revoke" data-tip="Cancel">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <p class="form-note" id="shareRevokeText"></p>
-        <div class="bundle-foot">
-          <button class="btn-ghost" id="shareRevokeCancel" type="button">Cancel</button>
-          <button class="btn-ghost" id="shareRevokeOnlyBtn" type="button">Revoke only this link</button>
-          <button class="btn-danger" id="shareRevokeAllBtn" type="button">Revoke the whole set</button>
+        <div class="share-shell-view" id="shareViewRevoke" hidden>
+          <div class="panel-head">
+            <button class="share-back" id="shareRevokeBack" type="button" aria-label="Back to Share">&lsaquo; Share</button>
+            <h2 id="shareRevokeTitle">Revoke this link?</h2>
+            <button class="icon-btn" id="shareRevokeClose" type="button" aria-label="Cancel revoke" data-tip="Cancel">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <p class="form-note" id="shareRevokeText"></p>
+          <div class="bundle-foot">
+            <button class="btn-ghost" id="shareRevokeCancel" type="button">Cancel</button>
+            <button class="btn-ghost" id="shareRevokeOnlyBtn" type="button">Revoke only this link</button>
+            <button class="btn-danger" id="shareRevokeAllBtn" type="button">Revoke the whole set</button>
+          </div>
         </div>
       </div>
     </div>
@@ -19455,12 +19463,25 @@
           visited[rootDoc.id] = true;
           var order = [];
           var queue = [rootDoc];
+          /* Build -67: one title index per walk, built lazily
+             on the first lookup — findDocByTitle's per-title
+             linear scan made the walk O(closure x links x
+             library); first-in-library wins, exactly as the
+             scan's first match did. */
+          var byTitle = null;
           while (queue.length) {
             var cur = queue.shift();
             var titles = [];
             collectWikiLinks(cur.content, titles);
             titles.forEach(function (t) {
-              var target = findDocByTitle(t);
+              if (!byTitle) {
+                byTitle = {};
+                lib.docs.forEach(function (d) {
+                  var k = String(d.title || '').trim().toLowerCase();
+                  if (!(k in byTitle)) byTitle[k] = d;
+                });
+              }
+              var target = byTitle[String(t || '').trim().toLowerCase()] || null;
               if (!target || visited[target.id]) return;
               visited[target.id] = true;
               order.push(target);
@@ -19761,11 +19782,16 @@
            exactly like the -59 writes. */
         function persistBundleManifest(manifest) {
           saveLocalBundle(manifest);
-          var chain = Promise.resolve();
-          manifest.members.forEach(function (m) {
-            chain = chain.then(function () { return updateShareBundle(m.token, manifest); });
-          });
-          return chain;
+          /* Build -67: the per-member writes are independent
+             (the same manifest onto each member's row), so
+             they go out in parallel — the old sequential
+             chain spent one round trip per member on every
+             in-panel tap, which is what made a large bundle's
+             panel feel laggy. updateShareBundle fails soft
+             per row, as before. */
+          return Promise.all(manifest.members.map(function (m) {
+            return updateShareBundle(m.token, manifest);
+          }));
         }
         /* Detaching a pre-existing share from a set (build
            -60): clear its bundle column so its own view stops
@@ -19926,12 +19952,60 @@
             badge.textContent = n;
           }).catch(function () { badge.hidden = true; });
         }
+        /* ---------------- share shell (build -67) ----------------
+           One overlay, seven views. Every follow-on flow the
+           Share panel launches — bundle creation review, Add
+           documents, drift review, revoke confirm, backlog
+           sweep, watch prompt — is a view inside this same
+           panel, and showShareView is the only navigation
+           between them; at no moment is a second overlay open.
+           Views entered from a panel session return to Main;
+           the terminal views (sweep, watch prompt) close the
+           whole shell when they end — the end-states those
+           flows had as separate overlays, translated. */
+        var SHARE_VIEW_IDS = {
+          main: 'shareViewMain', bundle: 'shareViewBundle', adddocs: 'shareViewAddDocs',
+          drift: 'shareViewDrift', sweep: 'shareViewSweep', watch: 'shareViewWatch',
+          revoke: 'shareViewRevoke',
+        };
+        var SHARE_VIEW_TITLES = {
+          main: 'shareTitle', bundle: 'shareBundleTitle', adddocs: 'shareAddDocsTitle',
+          drift: 'shareDriftTitle', sweep: 'shareSweepTitle', watch: 'shareWatchTitle',
+          revoke: 'shareRevokeTitle',
+        };
+        var shareCurrentView = 'main';
+        function showShareView(name) {
+          shareCurrentView = name;
+          Object.keys(SHARE_VIEW_IDS).forEach(function (k) {
+            var el = document.getElementById(SHARE_VIEW_IDS[k]);
+            if (el) el.hidden = k !== name;
+          });
+          var modal = document.getElementById('shareModal');
+          modal.setAttribute('data-share-view', name);
+          var panel = modal.querySelector('.panel');
+          if (panel) panel.setAttribute('aria-labelledby', SHARE_VIEW_TITLES[name]);
+          /* A follow-on view implies the shell is up: the
+             watch prompt opens it straight from the editor,
+             and the sweep arrives as a panel session ends. */
+          if (name !== 'main') modal.hidden = false;
+        }
+        function shareShellOpen() {
+          return !document.getElementById('shareModal').hidden;
+        }
+        function shareShellViewOpen(name) {
+          return shareShellOpen() && shareCurrentView === name;
+        }
+        function hideShareShell() {
+          document.getElementById('shareModal').hidden = true;
+          showShareView('main');
+        }
         function openShareModal() {
           var doc = currentDoc();
           if (!doc) return;
           shareModalDocId = doc.id;
           document.getElementById('shareDocName').textContent = doc.title || 'Untitled';
           document.getElementById('shareNewLink').hidden = true;
+          showShareView('main');
           document.getElementById('shareModal').hidden = false;
           var signedOut = !sbUser;
           document.getElementById('shareSignedOut').hidden = !signedOut;
@@ -19945,11 +20019,14 @@
           else { loadGoToRootPanel(); }
         }
         function closeShareModal() {
-          document.getElementById('shareModal').hidden = true;
           /* Leaving the Share panel is leaving the watch
              editor (build -64): any watch rules enabled during
-             this session get their one backlog sweep offer. */
-          finishWatchEditSession();
+             this session get their one backlog sweep offer.
+             Build -67: the sweep is a view of this shell, so
+             when an offer exists the shell navigates to it and
+             stays up; it hides only when there is no offer. */
+          var offered = finishWatchEditSession();
+          if (!offered) hideShareShell();
         }
         /* The root share's panel shows the bundle it heads:
            every other member of the set with its own link, so
@@ -19966,6 +20043,21 @@
            documents not yet in the set, recomputed every time
            the panel loads. Empty means no notice renders. */
         var sharePanelDrift = [];
+        /* The drift cache key (build -67): the panel's drift
+           walk is recomputed only when something it reads
+           actually changes — the root document, the library's
+           size or newest edit, or the set's membership. While
+           a panel session keeps re-rendering (wiki flips,
+           watch edits, removals), the key holds and the walk
+           is not repeated. The key resets on every fresh
+           fetch, so each panel opening computes drift once. */
+        var sharePanelDriftKey = null;
+        function panelDriftKey(doc, bundle) {
+          var maxUpd = 0;
+          lib.docs.forEach(function (d) { if ((d.updated || 0) > maxUpd) maxUpd = d.updated || 0; });
+          return doc.id + '|' + (doc.updated || 0) + '|' + lib.docs.length + '|' + maxUpd + '|' +
+            bundle.members.map(function (m) { return m.doc || m.token; }).join(',');
+        }
         function loadBundlePanel() {
           var wrap = document.getElementById('shareBundlePanel');
           var label = document.getElementById('shareBundleLabel');
@@ -19974,29 +20066,71 @@
           if (label) label.hidden = true;
           sharePanelBundle = null;
           sharePanelDrift = [];
+          sharePanelDriftKey = null;
           var forDocId = shareModalDocId;
           var doc = lib.docs.find(function (d) { return d.id === forDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
           if (!sb || !sbUser || !rid) return;
           docShares(rid).then(function (shares) {
-            var found = null;
-            var foundPerm = 'view';
-            var chain = Promise.resolve();
-            shares.forEach(function (s) {
-              chain = chain.then(function () {
-                if (found) return null;
-                return fetchShareBundle(s.token).then(function (b) {
-                  if (b && b.rootToken === s.token && b.members.length > 1) { found = b; foundPerm = s.permission || 'view'; }
-                });
-              });
+            /* Build -67: probe every share's bundle in
+               parallel and take the first (in share order)
+               that heads a set — the old chain spent one
+               round trip per share, in sequence. */
+            return Promise.all(shares.map(function (s) {
+              return fetchShareBundle(s.token).then(function (b) { return { s: s, b: b }; });
+            })).then(function (results) {
+              for (var i = 0; i < results.length; i++) {
+                var r = results[i];
+                if (r.b && r.b.rootToken === r.s.token && r.b.members.length > 1) {
+                  return { bundle: r.b, perm: r.s.permission || 'view' };
+                }
+              }
+              return null;
             });
-            return chain.then(function () { return found ? { bundle: found, perm: foundPerm } : null; });
           }).then(function (out) {
             if (shareModalDocId !== forDocId || !out) return;
-            var bundle = out.bundle;
-            sharePanelBundle = bundle;
-            sharePanelRootPerm = out.perm || 'view';
-            if (label) label.hidden = false;
+            renderBundlePanel(out.bundle, out.perm);
+          }).catch(function () {});
+        }
+        /* Re-render the panel's bundle section from the
+           in-memory manifest (build -67): what every in-panel
+           mutation calls instead of a refetch — the wiki
+           switch, watch edits, member removal, and the grow
+           confirms. The manifest the mutation just wrote IS
+           sharePanelBundle, so the re-render costs one DOM
+           pass over the rows, no network, and no repeated
+           closure walk (the drift cache above). A cached set
+           that is not the open panel's, or that has shrunk
+           back to a lone root — the state the fetch path
+           renders as no section at all — settles the section
+           the same way the fetch would and stops. */
+        function refreshBundlePanel() {
+          if (!shareShellOpen()) return;
+          var bundle = sharePanelBundle;
+          if (!bundle) return;
+          var rootDoc = bundleRootDoc(bundle);
+          if (!rootDoc || rootDoc.id !== shareModalDocId) return;
+          if (!bundle.members || bundle.members.length <= 1) {
+            var wrap = document.getElementById('shareBundlePanel');
+            var label = document.getElementById('shareBundleLabel');
+            if (wrap) wrap.innerHTML = '';
+            if (label) label.hidden = true;
+            sharePanelBundle = null;
+            sharePanelDrift = [];
+            sharePanelDriftKey = null;
+            return;
+          }
+          renderBundlePanel(bundle, sharePanelRootPerm);
+        }
+        function renderBundlePanel(bundle, perm) {
+          var wrap = document.getElementById('shareBundlePanel');
+          var label = document.getElementById('shareBundleLabel');
+          if (!wrap || !bundle) return;
+          wrap.innerHTML = '';
+          sharePanelBundle = bundle;
+          sharePanelRootPerm = perm || 'view';
+          if (label) label.hidden = false;
+          var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
             var note = document.createElement('div');
             note.className = 'bundle-member-note';
             note.textContent = 'This link was created together with links to the documents below, so readers can follow wiki-links between them. Revoking the main link above offers to revoke these too.';
@@ -20094,9 +20228,12 @@
                there is none, nothing renders and the panel is
                exactly as quiet as before. Add-only — documents
                no longer linked are never mentioned here. */
-            sharePanelDrift = doc ? computeBundleDrift(doc, bundle) : [];
+            var driftKey = doc ? panelDriftKey(doc, bundle) : null;
+            if (driftKey !== sharePanelDriftKey) {
+              sharePanelDrift = doc ? computeBundleDrift(doc, bundle) : [];
+              sharePanelDriftKey = driftKey;
+            }
             if (sharePanelDrift.length) wrap.appendChild(bundleDriftNoticeEl(bundle, sharePanelDrift));
-          }).catch(function () {});
         }
         /* The drift notice row (build -61): the count, in the
            owner's words, and a Review action that opens the
@@ -20137,7 +20274,7 @@
           manifest.wiki = !!on;
           sharePanelBundle = parseShareBundle(manifest);
           return persistBundleManifest(manifest).then(function () {
-            if (!document.getElementById('shareModal').hidden) loadBundlePanel();
+            refreshBundlePanel();
             return manifest;
           });
         }
@@ -20312,8 +20449,8 @@
         /* The watch flip, mirroring setBundleWiki: a new
            manifest with only the rules changed, persisted to
            every member's row and the local copy. With the
-           Share modal open the panel reloads (its fetch reads
-           the just-saved local copy back); rendered standalone
+           Share modal open the panel re-renders from the
+           just-written in-memory manifest (build -67); rendered standalone
            (the harness preview) the editor re-renders in
            place instead. */
         function setBundleWatch(bundle, watch) {
@@ -20327,7 +20464,7 @@
           sharePanelBundle = parseShareBundle(manifest);
           return persistBundleManifest(manifest).then(function () {
             if (!document.getElementById('shareModal').hidden) {
-              loadBundlePanel();
+              refreshBundlePanel();
             } else {
               var old = document.getElementById('shareBundleWatch');
               if (old && old.parentNode && sharePanelBundle) {
@@ -20358,7 +20495,7 @@
             return persistBundleManifest(plan.manifest);
           }).then(function () {
             sharePanelBundle = parseShareBundle(plan.manifest);
-            loadBundlePanel();
+            refreshBundlePanel();
             if (typeof folioToast === 'function') {
               folioToast(plan.mode === 'revoke'
                 ? 'Removed \u201C' + (member.title || 'Untitled') + '\u201D from the set and revoked its link.'
@@ -20701,7 +20838,7 @@
            Shown before anything is created when the document
            being shared has a non-empty wikilink closure.
            Cancel (button, ×, backdrop, Esc) creates nothing at
-           all; the Share modal stays open underneath. */
+           all; the shell stays on its Main view underneath. */
         var bundlePending = null;
         function openShareBundleModal(rootDoc, closure, existingByDocId) {
           bundlePending = { rootDoc: rootDoc, closure: closure, existing: existingByDocId || {} };
@@ -20717,7 +20854,7 @@
             listEl.appendChild(bundleRowEl(d, bundlePending.existing[d.id] || null, false));
           });
           updateBundleConfirmLabel();
-          document.getElementById('shareBundleModal').hidden = false;
+          showShareView('bundle');
           var confirmBtn = document.getElementById('shareBundleConfirm');
           try { confirmBtn.focus(); } catch (e) {}
         }
@@ -20776,8 +20913,8 @@
             'Share ' + n + (n === 1 ? ' document' : ' documents');
         }
         function closeShareBundleModal() {
-          document.getElementById('shareBundleModal').hidden = true;
           bundlePending = null;
+          showShareView('main');
         }
         function confirmShareBundle() {
           if (!bundlePending || !sb || !sbUser) return;
@@ -20845,12 +20982,7 @@
         document.getElementById('shareBundleConfirm').addEventListener('click', confirmShareBundle);
         document.getElementById('shareBundleCancel').addEventListener('click', closeShareBundleModal);
         document.getElementById('shareBundleClose').addEventListener('click', closeShareBundleModal);
-        document.getElementById('shareBundleModal').addEventListener('click', function (ev) {
-          if (ev.target === this) closeShareBundleModal();
-        });
-        document.addEventListener('keydown', function (ev) {
-          if (ev.key === 'Escape' && !document.getElementById('shareBundleModal').hidden) closeShareBundleModal();
-        });
+        document.getElementById('shareBundleBack').addEventListener('click', closeShareBundleModal);
 
         /* ---------------- sharing: add documents to a bundle (build -60) ----------------
            The root Share panel's "Add documents…" picker: a
@@ -20887,7 +21019,7 @@
           }
           docs.forEach(function (d) { listEl.appendChild(addDocRowEl(d)); });
           updateAddDocsConfirmLabel();
-          document.getElementById('shareAddDocsModal').hidden = false;
+          showShareView('adddocs');
           var first = listEl.querySelector('input[type="checkbox"]');
           try { (first || document.getElementById('shareAddDocsConfirm')).focus(); } catch (e) {}
         }
@@ -20934,8 +21066,8 @@
           btn.textContent = n === 0 ? 'Add documents' : 'Add ' + n + (n === 1 ? ' document' : ' documents');
         }
         function closeAddDocsModal() {
-          document.getElementById('shareAddDocsModal').hidden = true;
           bundleAddPending = null;
+          showShareView('main');
         }
         /* Growing a bundle (build -60, shared by the drift
            review in -61): push, settle remote ids, then join
@@ -21031,7 +21163,7 @@
             saveLocalBundle(out.manifest);
             sharePanelBundle = parseShareBundle(out.manifest);
             closeAddDocsModal();
-            loadBundlePanel();
+            refreshBundlePanel();
             if (typeof folioToast === 'function') {
               folioToast('Added ' + out.added + (out.added === 1 ? ' document' : ' documents') + ' to the set.', 4200);
             }
@@ -21043,12 +21175,7 @@
         document.getElementById('shareAddDocsConfirm').addEventListener('click', confirmAddDocs);
         document.getElementById('shareAddDocsCancel').addEventListener('click', closeAddDocsModal);
         document.getElementById('shareAddDocsClose').addEventListener('click', closeAddDocsModal);
-        document.getElementById('shareAddDocsModal').addEventListener('click', function (ev) {
-          if (ev.target === this) closeAddDocsModal();
-        });
-        document.addEventListener('keydown', function (ev) {
-          if (ev.key === 'Escape' && !document.getElementById('shareAddDocsModal').hidden) closeAddDocsModal();
-        });
+        document.getElementById('shareAddDocsBack').addEventListener('click', closeAddDocsModal);
 
         /* ---------------- sharing: bundle drift review (build -61) ----------------
            The Share panel notice's Review action. The list is
@@ -21074,7 +21201,7 @@
             existing: existingByDocId || null,
           };
           renderDriftList();
-          document.getElementById('shareDriftModal').hidden = false;
+          showShareView('drift');
           var first = document.querySelector('#shareDriftList input[type="checkbox"]');
           try { (first || document.getElementById('shareDriftConfirm')).focus(); } catch (e) {}
           /* The panel path arrives without share knowledge:
@@ -21095,7 +21222,7 @@
               });
             });
             chain.then(function () {
-              if (bundleDriftPending === pending && !document.getElementById('shareDriftModal').hidden) renderDriftList();
+              if (bundleDriftPending === pending && shareShellViewOpen('drift')) renderDriftList();
             });
           }
         }
@@ -21168,8 +21295,8 @@
           btn.textContent = n === 0 ? 'Add documents' : 'Add ' + n + (n === 1 ? ' document' : ' documents');
         }
         function closeDriftModal() {
-          document.getElementById('shareDriftModal').hidden = true;
           bundleDriftPending = null;
+          showShareView('main');
         }
         function confirmDrift() {
           if (!bundleDriftPending || !sb || !sbUser) return;
@@ -21185,10 +21312,10 @@
             saveLocalBundle(out.manifest);
             sharePanelBundle = parseShareBundle(out.manifest);
             closeDriftModal();
-            /* Reloading the panel recomputes the drift: what
+            /* Refreshing the panel recomputes the drift: what
                was just added is in, the notice clears (or now
                counts only what the owner left unchecked). */
-            loadBundlePanel();
+            refreshBundlePanel();
             if (typeof folioToast === 'function') {
               folioToast('Added ' + out.added + (out.added === 1 ? ' document' : ' documents') + ' to the set.', 4200);
             }
@@ -21200,12 +21327,7 @@
         document.getElementById('shareDriftConfirm').addEventListener('click', confirmDrift);
         document.getElementById('shareDriftCancel').addEventListener('click', closeDriftModal);
         document.getElementById('shareDriftClose').addEventListener('click', closeDriftModal);
-        document.getElementById('shareDriftModal').addEventListener('click', function (ev) {
-          if (ev.target === this) closeDriftModal();
-        });
-        document.addEventListener('keydown', function (ev) {
-          if (ev.key === 'Escape' && !document.getElementById('shareDriftModal').hidden) closeDriftModal();
-        });
+        document.getElementById('shareDriftBack').addEventListener('click', closeDriftModal);
 
         /* ---------------- sharing: watch rules — matching & prompt (build -62) ----------------
            The match, pure over a document and a bundle list:
@@ -21295,13 +21417,20 @@
            trigger for the same document asks again. */
         var watchPending = null;
         function openWatchPrompt(doc, matches) {
-          watchPending = { doc: doc, matches: matches };
+          /* Build -67: the prompt is a view of the share
+             shell. It normally opens the shell straight from
+             the editor; if a panel session for this same
+             document is somehow already up on Main, closing
+             the prompt returns there instead of closing the
+             shell (the overlay-era end-state, translated). */
+          var returnToMain = shareShellViewOpen('main') && shareModalDocId === doc.id;
+          watchPending = { doc: doc, matches: matches, returnToMain: returnToMain };
           document.getElementById('shareWatchDocName').textContent = doc.title || 'Untitled';
           var listEl = document.getElementById('shareWatchList');
           listEl.innerHTML = '';
           matches.forEach(function (m) { listEl.appendChild(watchRowEl(m)); });
           updateWatchConfirmLabel();
-          document.getElementById('shareWatchModal').hidden = false;
+          showShareView('watch');
           try { document.getElementById('shareWatchConfirm').focus(); } catch (e) {}
         }
         function watchRowEl(m) {
@@ -21361,8 +21490,10 @@
           btn.textContent = 'Share with ' + n + (n === 1 ? ' bundle' : ' bundles');
         }
         function closeWatchPrompt() {
-          document.getElementById('shareWatchModal').hidden = true;
+          var back = !!(watchPending && watchPending.returnToMain);
           watchPending = null;
+          if (back) showShareView('main');
+          else hideShareShell();
         }
         function confirmWatchPrompt() {
           if (!watchPending || !sb || !sbUser) return;
@@ -21400,12 +21531,6 @@
         document.getElementById('shareWatchConfirm').addEventListener('click', confirmWatchPrompt);
         document.getElementById('shareWatchCancel').addEventListener('click', closeWatchPrompt);
         document.getElementById('shareWatchClose').addEventListener('click', closeWatchPrompt);
-        document.getElementById('shareWatchModal').addEventListener('click', function (ev) {
-          if (ev.target === this) closeWatchPrompt();
-        });
-        document.addEventListener('keydown', function (ev) {
-          if (ev.key === 'Escape' && !document.getElementById('shareWatchModal').hidden) closeWatchPrompt();
-        });
         /* The signed-in trigger evaluation: gather every
            bundle (local copies plus the remote manifests),
            match, and prompt. One prompt at a time — an event
@@ -21599,7 +21724,7 @@
              modal's leftovers — every box starts checked. */
           document.getElementById('shareSweepList').innerHTML = '';
           renderSweepList();
-          document.getElementById('shareSweepModal').hidden = false;
+          showShareView('sweep');
           var first = document.querySelector('#shareSweepList input[type="checkbox"]');
           try { (first || document.getElementById('shareSweepConfirm')).focus(); } catch (e) {}
           /* The panel path arrives without share knowledge:
@@ -21620,7 +21745,7 @@
               });
             });
             chain.then(function () {
-              if (bundleSweepPending === pending && !document.getElementById('shareSweepModal').hidden) renderSweepList();
+              if (bundleSweepPending === pending && shareShellViewOpen('sweep')) renderSweepList();
             });
           }
           return true;
@@ -21694,8 +21819,12 @@
           btn.textContent = n === 0 ? 'Add documents' : 'Add ' + n + (n === 1 ? ' document' : ' documents');
         }
         function closeWatchSweepModal() {
-          document.getElementById('shareSweepModal').hidden = true;
           bundleSweepPending = null;
+          /* The sweep is a terminal view (build -67): it is
+             entered as the user leaves, so ending it — Not
+             now, the x, a confirm — closes the whole shell,
+             exactly the overlay-era end-state. */
+          hideShareShell();
         }
         function confirmWatchSweep() {
           if (!bundleSweepPending || !sb || !sbUser) return;
@@ -21713,10 +21842,10 @@
               sharePanelBundle = parseShareBundle(out.manifest);
             }
             closeWatchSweepModal();
-            /* The Share panel closed to offer this sweep; if
-               it has since reopened, reloading it recomputes
-               its set section against the grown manifest. */
-            if (!document.getElementById('shareModal').hidden) loadBundlePanel();
+            /* The shell closed to offer this sweep; if it has
+               since reopened, refreshing it recomputes its set
+               section against the grown manifest. */
+            if (!document.getElementById('shareModal').hidden) refreshBundlePanel();
             if (typeof folioToast === 'function') {
               folioToast('Added ' + out.added + (out.added === 1 ? ' document' : ' documents') + ' to the set.', 4200);
             }
@@ -21728,12 +21857,6 @@
         document.getElementById('shareSweepConfirm').addEventListener('click', confirmWatchSweep);
         document.getElementById('shareSweepCancel').addEventListener('click', closeWatchSweepModal);
         document.getElementById('shareSweepClose').addEventListener('click', closeWatchSweepModal);
-        document.getElementById('shareSweepModal').addEventListener('click', function (ev) {
-          if (ev.target === this) closeWatchSweepModal();
-        });
-        document.addEventListener('keydown', function (ev) {
-          if (ev.key === 'Escape' && !document.getElementById('shareSweepModal').hidden) closeWatchSweepModal();
-        });
 
         /* ---------------- sharing: bundle revoke choice ---------------- */
         var shareRevokePending = null;
@@ -21744,20 +21867,15 @@
             '\u201C' + ((root && root.title) || 'This document') + '\u201D was shared as a set of ' +
             bundle.members.length + ' documents. Revoking the whole set turns off every link in the set; ' +
             'revoking only this link leaves the other documents\u2019 own links working.';
-          document.getElementById('shareRevokeModal').hidden = false;
+          showShareView('revoke');
         }
         function closeShareRevokeModal() {
-          document.getElementById('shareRevokeModal').hidden = true;
           shareRevokePending = null;
+          showShareView('main');
         }
         document.getElementById('shareRevokeCancel').addEventListener('click', closeShareRevokeModal);
         document.getElementById('shareRevokeClose').addEventListener('click', closeShareRevokeModal);
-        document.getElementById('shareRevokeModal').addEventListener('click', function (ev) {
-          if (ev.target === this) closeShareRevokeModal();
-        });
-        document.addEventListener('keydown', function (ev) {
-          if (ev.key === 'Escape' && !document.getElementById('shareRevokeModal').hidden) closeShareRevokeModal();
-        });
+        document.getElementById('shareRevokeBack').addEventListener('click', closeShareRevokeModal);
         document.getElementById('shareRevokeOnlyBtn').addEventListener('click', function () {
           if (!shareRevokePending || !sb) return;
           var pending = shareRevokePending;
@@ -21807,8 +21925,25 @@
           }
         });
         document.getElementById('shareClose').addEventListener('click', closeShareModal);
+        /* Backdrop and Escape act on the CURRENT view
+           (build -67): a flow view cancels back to Main, a
+           terminal view (sweep, watch prompt) ends the
+           shell, Main closes the panel — each view's own
+           overlay-era backdrop/Esc behavior, routed through
+           the one shell. */
+        function shareShellDismiss() {
+          switch (shareCurrentView) {
+            case 'bundle': closeShareBundleModal(); break;
+            case 'adddocs': closeAddDocsModal(); break;
+            case 'drift': closeDriftModal(); break;
+            case 'revoke': closeShareRevokeModal(); break;
+            case 'sweep': closeWatchSweepModal(); break;
+            case 'watch': closeWatchPrompt(); break;
+            default: closeShareModal();
+          }
+        }
         document.getElementById('shareModal').addEventListener('click', function (ev) {
-          if (ev.target === this) closeShareModal();
+          if (ev.target === this) shareShellDismiss();
         });
         document.getElementById('shareSignInBtn').addEventListener('click', function () {
           closeShareModal();
@@ -21881,15 +22016,9 @@
           copyText(document.getElementById('shareNewLinkInput').value, this);
         });
         document.addEventListener('keydown', function (ev) {
-          /* The bundle modals sit on top of the Share modal
-             (build -59) and own Escape while they are open. */
-          if (ev.key === 'Escape' && !document.getElementById('shareModal').hidden &&
-              document.getElementById('shareBundleModal').hidden &&
-              document.getElementById('shareAddDocsModal').hidden &&
-              document.getElementById('shareDriftModal').hidden &&
-              document.getElementById('shareSweepModal').hidden &&
-              document.getElementById('shareWatchModal').hidden &&
-              document.getElementById('shareRevokeModal').hidden) closeShareModal();
+          /* The shell's views own Escape while the shell is
+             up (build -67): the same routing as the backdrop. */
+          if (ev.key === 'Escape' && !document.getElementById('shareModal').hidden) shareShellDismiss();
         });
 
         /* ---------------- sharing: public view ---------------- */
@@ -22808,7 +22937,7 @@
               });
             });
             return {
-              open: !document.getElementById('shareDriftModal').hidden,
+              open: shareShellViewOpen('drift'),
               confirmText: document.getElementById('shareDriftConfirm').textContent,
               confirmDisabled: document.getElementById('shareDriftConfirm').disabled,
               checkedDocIds: driftCheckedDocs().map(function (d) { return d.id; }),
@@ -22964,7 +23093,7 @@
               });
             });
             return {
-              open: !document.getElementById('shareWatchModal').hidden,
+              open: shareShellViewOpen('watch'),
               docName: document.getElementById('shareWatchDocName').textContent,
               title: document.getElementById('shareWatchTitle').textContent,
               confirmText: document.getElementById('shareWatchConfirm').textContent,
@@ -23180,7 +23309,7 @@
               });
             });
             return {
-              open: !document.getElementById('shareSweepModal').hidden,
+              open: shareShellViewOpen('sweep'),
               bundleName: document.getElementById('shareSweepBundleName').textContent,
               rulesText: document.getElementById('shareSweepRules').textContent,
               confirmText: document.getElementById('shareSweepConfirm').textContent,
@@ -23192,6 +23321,22 @@
           closeSweep: function () {
             closeWatchSweepModal();
             return window.FolioShareBundle.sweepDomState();
+          },
+          /* ---- build -67: share shell ---- */
+          /* The shell's navigation state: which view is up
+             (or closed), and how many overlays are visible —
+             the single-overlay assertion the shell exists
+             to make. */
+          shareShellState: function () {
+            var overlays = 0;
+            document.querySelectorAll('.overlay, .auth-overlay').forEach(function (el) {
+              if (!el.hidden) overlays++;
+            });
+            return {
+              open: shareShellOpen(),
+              view: shareShellOpen() ? shareCurrentView : null,
+              visibleOverlays: overlays,
+            };
           },
         };
 
@@ -23289,7 +23434,7 @@
            fetch, or a served page whose stamp cannot be parsed
            (a sandbox shell page, a captive portal) show nothing
            and change nothing. */
-        var FOLIO_BUILD = '20261029-66';
+        var FOLIO_BUILD = '20261030-67';
         var updateBannerEl = document.getElementById('updateBanner');
         var updatePromptedStamp = null;
         var updateCheckInFlight = false;
