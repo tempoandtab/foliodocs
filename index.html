@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261030-73" />
+    <meta name="folio-build" content="20261030-74" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2823,6 +2823,39 @@
          only when confirming will update an existing
          same-permission set instead of creating a new link. */
       .bundle-update-note { color: var(--ink-2); font-weight: 600; }
+      /* ---------------- Link list + per-link settings (build -74) ----------------
+         The Share panel's main view is a list of links: each
+         link (a set or a standalone link) is one navigation
+         row — its alias (or a generated heading) over its
+         permission and set facts — and tapping it opens that
+         link's own settings view inside the same shell. The
+         create wizard reuses the .perm-opt cards, but as a
+         step of the wizard, never as panel chrome. */
+      .share-link-item {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; text-align: left;
+        padding: 11px 4px; min-height: 52px; border-radius: 9px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .share-link-item:hover { background: var(--hover); }
+      .share-link-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+      .share-link-item-head {
+        font-size: 15px; font-weight: 700; color: var(--ink);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .share-link-item-sub { font-size: 12.5px; color: var(--ink-3); }
+      .share-link-item-chev { flex: 0 0 auto; color: var(--ink-3); font-size: 20px; line-height: 1; }
+      .create-link-row { margin: 2px 0 14px; }
+      .settings-perm-line {
+        display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+        font-size: 13.5px; color: var(--ink-2); margin: 2px 0 10px;
+      }
+      .settings-perm-line .settings-perm { font-weight: 700; color: var(--ink); }
+      .alias-edit-row { display: flex; gap: 8px; align-items: center; }
+      .alias-edit-row .text-input { flex: 1; min-width: 0; }
+      .settings-danger { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+      #shareSettingsBundle .bundle-set-head { display: none; }
+      .wizard-step-note { margin-top: 10px; }
       .bundle-wiki-text { flex: 1; min-width: 0; }
       .bundle-wiki-name { display: block; font-size: 14.5px; font-weight: 700; }
       .bundle-wiki-desc { display: block; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; margin-top: 1px; }
@@ -3751,31 +3784,28 @@
             <p style="margin-top:14px"><button class="btn-primary" id="shareSignInBtn" type="button">Sign in</button></p>
           </div>
           <div id="shareMain">
-            <div class="pop-label">New link permission</div>
-            <div class="perm-row">
-              <button class="perm-opt on" type="button" data-perm="view" aria-pressed="true">
-                <span class="perm-name">View only</span>
-                <span class="perm-desc">Anyone with the link can read this document.</span>
-              </button>
-              <button class="perm-opt" type="button" data-perm="comment" aria-pressed="false">
-                <span class="perm-name">Can comment</span>
-                <span class="perm-desc">Readers can also leave comments — no account needed.</span>
-              </button>
+            <!-- Build -74: the main view is the LINK LIST.
+                 Creating and managing are separate jobs now:
+                 the Create link button opens the create wizard
+                 (permission, alias, wiki, members), and every
+                 existing link is a navigation row into its own
+                 settings view, where it is managed. The old
+                 top-of-panel permission cards are gone — they
+                 read as tabs and armed a composer that was
+                 fused with the existing set's settings. -->
+            <div class="create-link-row">
+              <button class="btn-primary" id="createShareBtn" type="button">Create link</button>
             </div>
-            <button class="btn-primary" id="createShareBtn" type="button">Create share link</button>
             <div class="share-newlink" id="shareNewLink" hidden>
               <input class="text-input" id="shareNewLinkInput" type="text" readonly aria-label="New share link" />
               <button class="btn-ghost" id="copyNewLinkBtn" type="button" data-tip="Copy link">Copy</button>
             </div>
-            <div class="pop-label" style="margin-top:14px">Active links</div>
+            <div class="pop-label">Links for this document</div>
             <div id="shareList"></div>
             <div id="shareGoToRootPanel"></div>
-            <div class="pop-label" style="margin-top:14px" id="shareBundleLabel" hidden>Shared as a set</div>
-            <div id="shareBundlePanel"></div>
+            <div id="shareBundlePanel" hidden></div>
             <div class="pop-label" style="margin-top:14px" id="shareAddToLabel" hidden>Add to a share bundle</div>
             <div id="shareAddToPanel"></div>
-            <div class="pop-label" style="margin-top:14px">Comments</div>
-            <div id="ownerComments"></div>
           </div>
         </div>
 
@@ -3787,9 +3817,10 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <p class="form-note">This share link will allow people to view this document and all documents linked from it. Each document below gets its own link with the same permission as the one you chose. Uncheck any document you don&rsquo;t want to include &mdash; links to it will appear as plain text instead.</p>
+          <p class="form-note" id="shareBundleIntro">This share link will allow people to view this document and all documents linked from it. Each document below gets its own new link with the permission you chose, made just for this set. Uncheck any document you don&rsquo;t want to include &mdash; links to it will appear as plain text instead.</p>
+          <p class="form-note" id="shareBundleWizardInfo" hidden></p>
           <p class="form-note bundle-update-note" id="shareBundleUpdateNote" hidden></p>
-          <label class="bundle-wiki-check">
+          <label class="bundle-wiki-check" hidden>
             <input type="checkbox" id="shareBundleWiki" />
             <span><strong>Present this set as a wiki</strong> &mdash; readers get a sidebar listing every document in the set, so they can browse the whole collection, not just follow links.</span>
           </label>
@@ -3876,6 +3907,81 @@
             <button class="btn-ghost" id="shareRevokeCancel" type="button">Cancel</button>
             <button class="btn-ghost" id="shareRevokeOnlyBtn" type="button">Revoke only this link</button>
             <button class="btn-danger" id="shareRevokeAllBtn" type="button">Revoke the whole set</button>
+          </div>
+        </div>
+
+        <div class="share-shell-view" id="shareViewWizard" hidden>
+          <div class="panel-head">
+            <button class="share-back" id="shareWizardBack" type="button" aria-label="Back">&lsaquo; Share</button>
+            <h2 id="shareWizardTitle">Create link</h2>
+            <button class="icon-btn" id="shareWizardClose" type="button" aria-label="Cancel creating a link" data-tip="Cancel">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div id="shareWizardStepPerm">
+            <div class="pop-label">What can people with this link do?</div>
+            <div class="perm-row">
+              <button class="perm-opt wz-perm on" type="button" data-wz-perm="view" aria-pressed="true">
+                <span class="perm-name">View only</span>
+                <span class="perm-desc">Anyone with the link can read.</span>
+              </button>
+              <button class="perm-opt wz-perm" type="button" data-wz-perm="comment" aria-pressed="false">
+                <span class="perm-name">Can comment</span>
+                <span class="perm-desc">Readers can also leave comments — no account needed.</span>
+              </button>
+            </div>
+            <p class="form-note wizard-step-note">Every Create makes a brand-new link — creating never changes a link you already have.</p>
+          </div>
+          <div id="shareWizardStepAlias" hidden>
+            <label class="pop-label" for="shareWizardAlias">Name this link (only you see this)</label>
+            <input class="text-input" id="shareWizardAlias" type="text" autocomplete="off" placeholder="Optional — e.g. Ideas wiki for class" style="width:100%" />
+            <p class="form-note wizard-step-note">A private name for your own organization, so you can tell your links apart. People who open the link never see it. Leave it blank to skip.</p>
+          </div>
+          <div id="shareWizardStepWiki" hidden>
+            <label class="bundle-wiki-check" style="margin-top:2px">
+              <input type="checkbox" id="shareWizardWiki" />
+              <span><strong>Present this set as a wiki</strong> &mdash; readers get a sidebar listing every document in the set, so they can browse the whole collection, not just follow links. You can change this later in the link&rsquo;s settings.</span>
+            </label>
+          </div>
+          <div class="bundle-foot">
+            <button class="btn-ghost" id="shareWizardCancel" type="button">Cancel</button>
+            <button class="btn-primary" id="shareWizardNext" type="button">Continue</button>
+          </div>
+        </div>
+
+        <div class="share-shell-view" id="shareViewSettings" hidden>
+          <div class="panel-head">
+            <button class="share-back" id="shareSettingsBack" type="button" aria-label="Back to links">&lsaquo; Links</button>
+            <h2 id="shareSettingsTitle">Link settings</h2>
+            <button class="icon-btn" id="shareSettingsClose" type="button" aria-label="Close link settings" data-tip="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="settings-perm-line">
+            <span class="settings-perm" id="shareSettingsPerm"></span>
+            <span id="shareSettingsKind"></span>
+          </div>
+          <div class="pop-label">Name (only you see this)</div>
+          <div class="alias-edit-row">
+            <input class="text-input" id="shareSettingsAlias" type="text" autocomplete="off" placeholder="Add a name for this link" aria-label="Name for this link — only you see this" />
+            <button class="btn-ghost" id="shareSettingsAliasSave" type="button">Save name</button>
+          </div>
+          <div class="pop-label" style="margin-top:14px">Link</div>
+          <div class="share-newlink" style="margin-top:0">
+            <input class="text-input" id="shareSettingsLinkInput" type="text" readonly aria-label="Share link" />
+            <button class="btn-ghost" id="shareSettingsCopy" type="button" data-tip="Copy link">Copy</button>
+          </div>
+          <div id="shareSettingsBundle"></div>
+          <div id="shareSettingsStandalone" hidden>
+            <p class="form-note" style="margin-top:12px">This link shares just this document. Add documents to turn it into a set — it keeps this same link, and gains the wiki and watch settings.</p>
+            <div class="bundle-actions">
+              <button class="btn-ghost" id="shareSettingsAddDocs" type="button" data-tip="Add more of your documents to this link&rsquo;s set">Add documents&hellip;</button>
+            </div>
+          </div>
+          <div class="pop-label" style="margin-top:14px">Comments</div>
+          <div id="shareSettingsComments"></div>
+          <div class="settings-danger">
+            <button class="btn-ghost btn-danger-ghost" id="shareSettingsRevoke" type="button" data-tip="Revoke this link — it stops working right away">Revoke this link</button>
           </div>
         </div>
       </div>
@@ -19497,10 +19603,107 @@
           }
           return q;
         }
+        /* ---------------- link aliases (build -74) ----------------
+           Every share row can carry an owner-only alias: a
+           private name the owner gives a link purely for
+           their own organization ("Ideas wiki for class").
+           It lives in an `alias` column on the shares table
+           when that column exists; until the owner runs the
+           one-line SQL (surfaced with this build), every read
+           and write fails soft to a local store keyed by
+           token (folio.share-aliases.v1) and NO error ever
+           surfaces. The column wins when it exists. The alias
+           is NEVER written into a bundle manifest or any
+           other field the public payload carries:
+           get_shared_document does not return it and the
+           public viewer never renders it. */
+        var SHARE_ALIASES_KEY = 'folio.share-aliases.v1';
+        var shareAliasColOk = true;
+        var shareAliasCache = {};
+        /* Root-token facts learned from share-row reads
+           (build -74): token -> { perm, alias }. Lets the
+           watch prompt and the Add-to-bundle picker name a
+           set by alias / permission even when its root is a
+           different document than the one whose panel is
+           open. */
+        var bundleInfoByRootToken = {};
+        function localAliasStore() {
+          try {
+            var raw = localStorage.getItem(SHARE_ALIASES_KEY);
+            var parsed = raw ? JSON.parse(raw) : null;
+            return parsed && typeof parsed === 'object' ? parsed : {};
+          } catch (e) { return {}; }
+        }
+        function localAliasFor(token) {
+          if (!token) return '';
+          if (typeof shareAliasCache[token] === 'string' && shareAliasCache[token]) return shareAliasCache[token];
+          var v = localAliasStore()[token];
+          return typeof v === 'string' ? v : '';
+        }
+        function localAliasSet(token, alias) {
+          if (!token) return;
+          var v = String(alias || '').trim();
+          shareAliasCache[token] = v;
+          try {
+            var store = localAliasStore();
+            if (v) store[token] = v; else delete store[token];
+            localStorage.setItem(SHARE_ALIASES_KEY, JSON.stringify(store));
+          } catch (e) {}
+        }
+        /* The alias a share row carries, wherever it lives:
+           the column's value when the row was read with it,
+           else the local store. */
+        function aliasForRow(row) {
+          if (!row || !row.token) return '';
+          if (typeof row.alias === 'string' && row.alias.trim()) return row.alias.trim();
+          return localAliasFor(row.token);
+        }
+        function noteBundleInfo(token, perm, alias) {
+          if (!token) return;
+          var prev = bundleInfoByRootToken[token] || {};
+          bundleInfoByRootToken[token] = {
+            perm: perm || prev.perm || 'view',
+            alias: (typeof alias === 'string' && alias.trim()) ? alias.trim() : (prev.alias || ''),
+          };
+        }
+        /* Persists an alias for a token: the column when it
+           exists, the local store otherwise (and whenever
+           the column write fails). Never rejects, never
+           surfaces an error. */
+        function persistAlias(token, alias) {
+          if (!token) return Promise.resolve();
+          var v = String(alias || '').trim();
+          shareAliasCache[token] = v;
+          var info = bundleInfoByRootToken[token];
+          if (info) info.alias = v;
+          if (!v) {
+            localAliasSet(token, '');
+            if (shareAliasColOk && sb && sbUser) {
+              return sb.from('shares').update({ alias: null }).eq('token', token)
+                .then(function () {}).catch(function () {});
+            }
+            return Promise.resolve();
+          }
+          if (shareAliasColOk && sb && sbUser) {
+            return sb.from('shares').update({ alias: v }).eq('token', token).then(function (res) {
+              if (res && res.error) { shareAliasColOk = false; localAliasSet(token, v); }
+            }).catch(function () { localAliasSet(token, v); });
+          }
+          localAliasSet(token, v);
+          return Promise.resolve();
+        }
         function docShares(rid) {
-          return sb.from('shares').select('token, permission, created_at').eq('document_id', rid)
+          var bare = function () {
+            return sb.from('shares').select('token, permission, created_at').eq('document_id', rid)
+              .order('created_at', { ascending: false }).then(function (res) {
+                return (!res.error && res.data) ? res.data : [];
+              });
+          };
+          if (!shareAliasColOk) return bare().catch(function () { return []; });
+          return sb.from('shares').select('token, permission, created_at, alias').eq('document_id', rid)
             .order('created_at', { ascending: false }).then(function (res) {
-              return (!res.error && res.data) ? res.data : [];
+              if (res && res.error) { shareAliasColOk = false; return bare(); }
+              return (res && res.data) ? res.data : [];
             }).catch(function () { return []; });
         }
         /* The share of a document AT one permission (build
@@ -20039,35 +20242,44 @@
           }).catch(function () { return local; });
         }
         /* One insert ladder for every share row: full row
-           (styles snapshot + bundle manifest) first, then
-           styles only, then the bare pre--58 row — a missing
-           dashboard column never blocks link creation. */
+           (styles snapshot + bundle manifest + alias) first,
+           then progressively barer rows — a missing dashboard
+           column never blocks link creation. Build -74 adds
+           the alias rung: the first attempt that names a
+           missing optional column retires that column for
+           the session (the alias then lives in the local
+           store via persistAlias), and creation proceeds. */
         function insertShareRow(row) {
-          var bare = { token: row.token, document_id: row.document_id, permission: row.permission };
-          var withStyles = { token: row.token, document_id: row.document_id, permission: row.permission };
-          if (row.styles) withStyles.styles = row.styles;
-          var full = { token: row.token, document_id: row.document_id, permission: row.permission };
-          if (row.styles) full.styles = row.styles;
-          if (row.bundle) full.bundle = row.bundle;
-          return sb.from('shares').insert(full).then(function (res) {
-            if (!res || !res.error) return res;
-            if (row.bundle) {
-              shareBundleColOk = false;
-              return sb.from('shares').insert(withStyles).then(function (r2) {
-                if (!r2 || !r2.error) return r2;
-                if (row.styles) {
-                  shareStylesColOk = false;
-                  return sb.from('shares').insert(bare);
-                }
-                return r2;
-              });
-            }
-            if (row.styles) {
-              shareStylesColOk = false;
-              return sb.from('shares').insert(bare);
-            }
-            return res;
+          var aliasVal = (typeof row.alias === 'string' && row.alias.trim()) ? row.alias.trim() : null;
+          function mk(withStyles, withBundle, withAlias) {
+            var o = { token: row.token, document_id: row.document_id, permission: row.permission };
+            if (withStyles && row.styles) o.styles = row.styles;
+            if (withBundle && row.bundle) o.bundle = row.bundle;
+            if (withAlias && aliasVal) o.alias = aliasVal;
+            return o;
+          }
+          var attempts = [];
+          var seenShapes = {};
+          [mk(true, true, true), mk(true, true, false),
+           mk(true, false, true), mk(true, false, false),
+           mk(false, false, true), mk(false, false, false)].forEach(function (a) {
+            var k = Object.keys(a).sort().join(',');
+            if (seenShapes[k]) return;
+            seenShapes[k] = true;
+            attempts.push(a);
           });
+          function tryAt(i) {
+            return sb.from('shares').insert(attempts[i]).then(function (res) {
+              if (!res || !res.error) return res;
+              var a = attempts[i];
+              if ('bundle' in a) shareBundleColOk = false;
+              if ('styles' in a) shareStylesColOk = false;
+              if ('alias' in a) shareAliasColOk = false;
+              if (i + 1 < attempts.length) return tryAt(i + 1);
+              return res;
+            });
+          }
+          return tryAt(0);
         }
         function updateShareBundle(token, manifest) {
           if (!sb || !shareBundleColOk) return Promise.resolve();
@@ -20147,7 +20359,31 @@
         function allOwnerBundles() {
           var local = localBundles();
           if (!sb || !sbUser) return Promise.resolve(local);
-          return sb.from('shares').select('token').then(function (res) {
+          /* Build -74: the enumeration also records each
+             row's permission (and alias, when the column
+             exists) by token, so set names elsewhere — the
+             watch prompt, the Add-to picker — can carry
+             alias / permission for sets rooted at other
+             documents. The alias-less retry keeps the
+             enumeration working before the column exists. */
+          var cols = shareAliasColOk ? 'token, permission, alias' : 'token, permission';
+          var run = function (c) {
+            return sb.from('shares').select(c).then(function (res) {
+              if (res && !res.error && res.data) {
+                res.data.forEach(function (row) {
+                  noteBundleInfo(row.token, row.permission || 'view', aliasForRow(row));
+                });
+              }
+              return res;
+            });
+          };
+          return run(cols).then(function (first) {
+            if (first && first.error && shareAliasColOk) {
+              shareAliasColOk = false;
+              return run('token, permission');
+            }
+            return first;
+          }).then(function (res) {
             if (!res || res.error || !res.data || !res.data.length) return local;
             var byKey = {};
             local.forEach(function (b) { byKey[bundleKeyOf(b)] = b; });
@@ -20270,13 +20506,19 @@
         var SHARE_VIEW_IDS = {
           main: 'shareViewMain', bundle: 'shareViewBundle', adddocs: 'shareViewAddDocs',
           drift: 'shareViewDrift', sweep: 'shareViewSweep', watch: 'shareViewWatch',
-          revoke: 'shareViewRevoke',
+          revoke: 'shareViewRevoke', wizard: 'shareViewWizard', settings: 'shareViewSettings',
         };
         var SHARE_VIEW_TITLES = {
           main: 'shareTitle', bundle: 'shareBundleTitle', adddocs: 'shareAddDocsTitle',
           drift: 'shareDriftTitle', sweep: 'shareSweepTitle', watch: 'shareWatchTitle',
-          revoke: 'shareRevokeTitle',
+          revoke: 'shareRevokeTitle', wizard: 'shareWizardTitle', settings: 'shareSettingsTitle',
         };
+        /* Which view a follow-on flow (Add documents, drift,
+           sweep, revoke) returns to when it ends (build -74):
+           'settings' when it was launched from a link's
+           settings view, 'main' when launched from the list.
+           Set at each launch; the closers read it. */
+        var shareFlowReturn = 'main';
         var shareCurrentView = 'main';
         function showShareView(name) {
           shareCurrentView = name;
@@ -20330,6 +20572,9 @@
           var doc = currentDoc();
           if (!doc) return;
           shareModalDocId = doc.id;
+          shareSettingsToken = null;
+          shareWizard = null;
+          shareFlowReturn = 'main';
           document.getElementById('shareDocName').textContent = doc.title || 'Untitled';
           document.getElementById('shareNewLink').hidden = true;
           showShareView('main');
@@ -20490,6 +20735,16 @@
             var entry = sharePanelBundles.find(function (e) { return bundleKeyOf(e.bundle) === bk; });
             if (entry) sharePanelRootPerm = entry.perm;
           }
+          /* Build -74: the link list's entries track the
+             same manifest, keyed by root token, so a set
+             mutated from its settings view reads identically
+             back in the list. */
+          if (typeof shareLinkEntries !== 'undefined') {
+            shareLinkEntries.forEach(function (le) {
+              if (le.bundle && le.token === b.rootToken) le.bundle = b;
+              else if (!le.bundle && le.token === b.rootToken && b.members.length > 1) le.bundle = b;
+            });
+          }
           return b;
         }
         function loadBundlePanel() {
@@ -20599,12 +20854,19 @@
         function renderBundleSections() {
           var wrap = document.getElementById('shareBundlePanel');
           var label = document.getElementById('shareBundleLabel');
-          if (!wrap) return;
-          wrap.innerHTML = '';
-          if (label) label.hidden = !sharePanelBundles.length;
-          sharePanelBundles.forEach(function (e) {
-            wrap.appendChild(renderBundleSection(e.bundle, e.perm));
-          });
+          if (wrap) {
+            wrap.innerHTML = '';
+            if (label) label.hidden = !sharePanelBundles.length;
+            sharePanelBundles.forEach(function (e) {
+              wrap.appendChild(renderBundleSection(e.bundle, e.perm));
+            });
+          }
+          /* Build -74: the settings view carries the visible
+             bundle section now — a mutation re-render lands
+             there too, scoped to the open link's set. */
+          if (shareCurrentView === 'settings' && typeof renderSettingsBundleArea === 'function') {
+            renderSettingsBundleArea();
+          }
         }
         /* Records a bundle as a panel entry (replacing the
            same key's entry) and re-renders the sections —
@@ -20770,7 +21032,10 @@
             addBtn.setAttribute('data-bundle-add', bk || '');
             addBtn.textContent = 'Add documents\u2026';
             addBtn.setAttribute('data-tip', 'Add more of your documents to this set');
-            addBtn.addEventListener('click', function () { openAddDocsModal(bundle); });
+            addBtn.addEventListener('click', function () {
+              shareFlowReturn = shareCurrentView === 'settings' ? 'settings' : 'main';
+              openAddDocsModal(bundle);
+            });
             actions.appendChild(addBtn);
             wrap.appendChild(actions);
             /* Watch rules (build -62): the set's watched
@@ -20835,7 +21100,10 @@
           review.textContent = 'Review ' + n + (n === 1 ? ' matching document' : ' matching documents');
           review.setAttribute('data-watch-review-count', String(n));
           review.setAttribute('data-tip', 'Choose which matching documents to add to this set');
-          review.addEventListener('click', function () { openWatchReview(bundle); });
+          review.addEventListener('click', function () {
+            shareFlowReturn = shareCurrentView === 'settings' ? 'settings' : 'main';
+            openWatchReview(bundle);
+          });
           row.appendChild(review);
           return row;
         }
@@ -20862,7 +21130,10 @@
           review.setAttribute('data-bundle-drift-review', bundleKeyOf(bundle) || '');
           review.textContent = 'Review';
           review.setAttribute('data-tip', 'Choose which linked documents to add to this set');
-          review.addEventListener('click', function () { openDriftModal(bundle); });
+          review.addEventListener('click', function () {
+            shareFlowReturn = shareCurrentView === 'settings' ? 'settings' : 'main';
+            openDriftModal(bundle);
+          });
           row.appendChild(review);
           return row;
         }
@@ -21186,11 +21457,18 @@
           main.className = 'bundle-addto-main';
           var name = document.createElement('span');
           name.className = 'bundle-addto-name';
-          name.textContent = bundleRootTitle(bundle);
+          /* Build -74: sets are labeled by alias when they
+             have one, else root title — and the meta carries
+             the permission, so multiple same-permission sets
+             are distinguishable in this picker. */
+          var bInfo = bundle.rootToken ? bundleInfoByRootToken[bundle.rootToken] : null;
+          var bAlias = (bInfo && bInfo.alias) || localAliasFor(bundle.rootToken);
+          name.textContent = bAlias || bundleRootTitle(bundle);
           main.appendChild(name);
           var meta = document.createElement('span');
           meta.className = 'bundle-addto-meta';
-          meta.textContent = bundle.members.length + (bundle.members.length === 1 ? ' document' : ' documents');
+          meta.textContent = (bInfo ? ((bInfo.perm === 'comment' ? 'Can comment' : 'View only') + ' \u00B7 ') : '') +
+            bundle.members.length + (bundle.members.length === 1 ? ' document' : ' documents');
           main.appendChild(meta);
           row.appendChild(main);
           if (bundle.wiki) {
@@ -21306,30 +21584,429 @@
           openShareModal();
           return true;
         }
+        /* ---------------- link list + per-link settings (build -74) ----------------
+           The panel's main view lists EVERY link rooted at
+           this document: each set (enumerated by its distinct
+           bundle rootToken) and each standalone link (a share
+           row carrying no bundle, or a bundle of one). Sets
+           created under -59…-73 enumerate exactly the same
+           way — no migration, no manifest is rewritten by
+           listing. Each item is a navigation row into that
+           link's settings view; creating is the wizard's job
+           and managing is the settings view's job, and the
+           two never share a surface again. */
+        var shareLinkEntries = [];
+        var shareSettingsToken = null;
         function loadShareList() {
           loadBundlePanel();
           loadAddToBundlePanel();
           loadGoToRootPanel();
+          loadLinkList();
+        }
+        function loadLinkList() {
           var listEl = document.getElementById('shareList');
-          var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
+          if (!listEl) return;
+          var forDocId = shareModalDocId;
+          var doc = lib.docs.find(function (d) { return d.id === forDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
           listEl.innerHTML = '';
           if (!sb || !sbUser || !rid) {
-            listEl.innerHTML = '<div class="list-empty">No share links yet \u2014 create one above.</div>';
+            shareLinkEntries = [];
+            listEl.innerHTML = '<div class="list-empty">No links yet \u2014 create one and it will be listed here, ready to copy, rename, and manage.</div>';
             return;
           }
-          sb.from('shares').select('token, permission, created_at').eq('document_id', rid)
-            .order('created_at', { ascending: false }).then(function (res) {
-              listEl.innerHTML = '';
-              if (res.error || !res.data || !res.data.length) {
-                listEl.innerHTML = '<div class="list-empty">No share links yet \u2014 create one above.</div>';
-                return;
-              }
-              res.data.forEach(function (s) { listEl.appendChild(shareRowEl(s)); });
-            }).catch(function () {
-              listEl.innerHTML = '<div class="list-empty">Couldn\u2019t load share links \u2014 check your connection.</div>';
+          docShares(rid).then(function (shares) {
+            return Promise.all(shares.map(function (s) {
+              noteBundleInfo(s.token, s.permission || 'view', aliasForRow(s));
+              return fetchShareBundle(s.token).then(function (b) { return { s: s, b: b }; });
+            })).then(function (results) {
+              var entries = [];
+              var seenRoot = {};
+              results.forEach(function (r) {
+                var alias = aliasForRow(r.s);
+                if (r.b && r.b.members.length > 1) {
+                  /* A set surfaces once, at its root row;
+                     member rows of a set rooted here are the
+                     set's members, not links of their own.
+                     A set rooted at ANOTHER document never
+                     lists here at all. */
+                  if (r.b.rootToken !== r.s.token || seenRoot[r.b.rootToken]) return;
+                  seenRoot[r.b.rootToken] = true;
+                  entries.push({
+                    token: r.s.token, perm: r.s.permission || 'view', alias: alias,
+                    bundle: r.b, created_at: r.s.created_at,
+                  });
+                  return;
+                }
+                if (r.b && r.b.rootToken && r.b.rootToken !== r.s.token) return;
+                entries.push({
+                  token: r.s.token, perm: r.s.permission || 'view', alias: alias,
+                  bundle: null, created_at: r.s.created_at,
+                });
+              });
+              return entries;
             });
+          }).then(function (entries) {
+            if (shareModalDocId !== forDocId) return;
+            shareLinkEntries = entries;
+            /* The panel-session bundle state follows the
+               list: one entry per set, keyed by root token. */
+            sharePanelBundles = entries.filter(function (e) { return !!e.bundle; })
+              .map(function (e) { return { bundle: e.bundle, perm: e.perm }; });
+            sharePanelBundles.forEach(function (e) {
+              sharePanelPerms[bundleKeyOf(e.bundle)] = e.perm;
+            });
+            if (sharePanelBundles.length) {
+              sharePanelBundle = sharePanelBundles[0].bundle;
+              sharePanelRootPerm = sharePanelBundles[0].perm;
+            }
+            listEl.innerHTML = '';
+            if (!entries.length) {
+              listEl.innerHTML = '<div class="list-empty">No links yet \u2014 create one and it will be listed here, ready to copy, rename, and manage.</div>';
+              return;
+            }
+            entries.forEach(function (e) { listEl.appendChild(linkListItemEl(e)); });
+            if (shareCurrentView === 'settings' && shareSettingsToken) renderLinkSettings();
+          }).catch(function () {
+            if (shareModalDocId !== forDocId) return;
+            listEl.innerHTML = '<div class="list-empty">Couldn\u2019t load share links \u2014 check your connection.</div>';
+          });
         }
+        /* A link's display heading: its alias when it has
+           one, else — for a set — "Set of N documents", for
+           a standalone link simply "Link". */
+        function linkDisplayName(entry) {
+          if (!entry) return 'Link';
+          if (entry.alias) return entry.alias;
+          if (entry.bundle) return 'Set of ' + entry.bundle.members.length + ' documents';
+          return 'Link';
+        }
+        /* A set's name wherever sets are listed for choosing
+           (Add-to-bundle picker, watch prompt): the alias
+           when set, else permission + root title, so several
+           sets at the same permission stay distinguishable. */
+        function setDisplayName(bundle) {
+          if (!bundle) return 'Set';
+          var info = bundle.rootToken ? bundleInfoByRootToken[bundle.rootToken] : null;
+          var alias = (info && info.alias) || localAliasFor(bundle.rootToken);
+          if (alias) return alias;
+          var perm = info ? info.perm : null;
+          var root = bundleRootTitle(bundle);
+          return perm ? ((perm === 'comment' ? 'Can comment' : 'View only') + ' \u00B7 ' + root) : root;
+        }
+        function linkListItemEl(entry) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'share-link-item';
+          btn.setAttribute('data-link-item', entry.token);
+          btn.setAttribute('data-link-perm', entry.perm);
+          btn.setAttribute('aria-label', 'Open settings for ' + linkDisplayName(entry));
+          var main = document.createElement('span');
+          main.className = 'share-link-item-main';
+          var head = document.createElement('span');
+          head.className = 'share-link-item-head';
+          head.textContent = linkDisplayName(entry);
+          main.appendChild(head);
+          var sub = document.createElement('span');
+          sub.className = 'share-link-item-sub';
+          var parts = [entry.perm === 'comment' ? 'Can comment' : 'View only'];
+          if (entry.bundle) {
+            parts.push(entry.bundle.members.length + (entry.bundle.members.length === 1 ? ' document' : ' documents'));
+            if (entry.bundle.wiki) parts.push('Wiki');
+          }
+          sub.textContent = parts.join(' \u00B7 ');
+          main.appendChild(sub);
+          btn.appendChild(main);
+          var chev = document.createElement('span');
+          chev.className = 'share-link-item-chev';
+          chev.setAttribute('aria-hidden', 'true');
+          chev.textContent = '\u203A';
+          btn.appendChild(chev);
+          btn.addEventListener('click', function () { openLinkSettings(entry.token); });
+          return btn;
+        }
+        function currentLinkEntry() {
+          if (!shareSettingsToken) return null;
+          return shareLinkEntries.find(function (e) { return e.token === shareSettingsToken; }) || null;
+        }
+        function openLinkSettings(token) {
+          if (!token) return;
+          shareSettingsToken = token;
+          renderLinkSettings();
+          showShareView('settings');
+        }
+        function renderLinkSettings() {
+          var entry = currentLinkEntry();
+          if (!entry) { showShareView('main'); return; }
+          document.getElementById('shareSettingsTitle').textContent = linkDisplayName(entry);
+          document.getElementById('shareSettingsPerm').textContent =
+            entry.perm === 'comment' ? 'Can comment' : 'View only';
+          document.getElementById('shareSettingsKind').textContent = entry.bundle
+            ? 'Set of ' + entry.bundle.members.length + ' documents' + (entry.bundle.wiki ? ' \u00B7 Wiki' : '')
+            : 'Single document';
+          document.getElementById('shareSettingsAlias').value = entry.alias || '';
+          document.getElementById('shareSettingsLinkInput').value = shareLinkFor(entry.token);
+          renderSettingsBundleArea();
+          loadOwnerComments();
+        }
+        /* The set half of the settings view: the bundle
+           section (member fold, Add documents, wiki switch,
+           watch editors, Review row, drift notice) rendered
+           for THIS link's bundle only — or, for a standalone
+           link, the grow-into-a-set affordance instead. */
+        function renderSettingsBundleArea() {
+          var bw = document.getElementById('shareSettingsBundle');
+          var sw = document.getElementById('shareSettingsStandalone');
+          if (!bw) return;
+          bw.innerHTML = '';
+          var entry = currentLinkEntry();
+          if (!entry) { if (sw) sw.hidden = true; return; }
+          if (entry.bundle && entry.bundle.members.length > 1) {
+            if (sw) sw.hidden = true;
+            sharePanelBundle = entry.bundle;
+            sharePanelRootPerm = entry.perm;
+            sharePanelPerms[bundleKeyOf(entry.bundle)] = entry.perm;
+            if (!sharePanelBundles.some(function (e) { return bundleKeyOf(e.bundle) === bundleKeyOf(entry.bundle); })) {
+              sharePanelBundles.push({ bundle: entry.bundle, perm: entry.perm });
+            }
+            bw.appendChild(renderBundleSection(entry.bundle, entry.perm));
+          } else {
+            if (sw) sw.hidden = false;
+          }
+        }
+        document.getElementById('shareSettingsBack').addEventListener('click', function () {
+          showShareView('main');
+          loadLinkList();
+        });
+        document.getElementById('shareSettingsClose').addEventListener('click', closeShareModal);
+        document.getElementById('shareSettingsCopy').addEventListener('click', function () {
+          copyText(document.getElementById('shareSettingsLinkInput').value, this);
+        });
+        document.getElementById('shareSettingsAliasSave').addEventListener('click', function () {
+          var entry = currentLinkEntry();
+          if (!entry) return;
+          var btn = this;
+          var v = document.getElementById('shareSettingsAlias').value.trim();
+          btn.disabled = true;
+          persistAlias(entry.token, v).then(function () {
+            btn.disabled = false;
+            entry.alias = v;
+            document.getElementById('shareSettingsTitle').textContent = linkDisplayName(entry);
+            loadLinkList();
+            if (typeof folioToast === 'function') {
+              folioToast(v ? 'Link named \u201C' + v + '\u201D \u2014 only you see this name.' : 'Link name removed.', 3200);
+            }
+          });
+        });
+        document.getElementById('shareSettingsAddDocs').addEventListener('click', function () {
+          var entry = currentLinkEntry();
+          if (!entry || entry.bundle) return;
+          var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
+          if (!doc) return;
+          var rid = remoteIdFor('docs', doc.id);
+          /* Grow a standalone link into a set rooted at THIS
+             token (build -74): a one-member bundle record
+             stands in for the set until the first Add
+             confirms, when the grown manifest (this root,
+             wiki off, no watches) is written to every row. */
+          var rootMember = {
+            token: entry.token, doc: rid || doc.id,
+            title: doc.title || 'Untitled', created: true,
+          };
+          var byTitle = {};
+          byTitle[normShareTitle(rootMember.title)] = rootMember;
+          var bundle = {
+            v: 1, id: genToken(), rootToken: entry.token,
+            wiki: false, watch: { folders: [], tags: [] },
+            members: [rootMember], byTitle: byTitle,
+          };
+          shareFlowReturn = 'settings';
+          openAddDocsModal(bundle);
+        });
+        document.getElementById('shareSettingsRevoke').addEventListener('click', function () {
+          var entry = currentLinkEntry();
+          if (!entry || !sb) return;
+          var btn = this;
+          fetchShareBundle(entry.token).then(function (b) {
+            if (b && b.rootToken === entry.token && b.members.length > 1) {
+              shareFlowReturn = 'settings';
+              openShareRevokeModal({ token: entry.token, permission: entry.perm }, b);
+              return;
+            }
+            btn.disabled = true;
+            sb.from('shares').delete().eq('token', entry.token).then(function () {
+              btn.disabled = false;
+              localAliasSet(entry.token, '');
+              shareSettingsToken = null;
+              loadShareList();
+              showShareView('main');
+              if (typeof folioToast === 'function') folioToast('Link revoked \u2014 it stops working right away.', 3600);
+            }).catch(function () { btn.disabled = false; });
+          });
+        });
+
+        /* ---------------- create link wizard (build -74) ----------------
+           Create link asks, in order: the permission, an
+           optional private alias, whether the set should be
+           a wiki (only when the document links anywhere, so
+           a set can form), and finally which of the linked
+           documents join — the bundle confirmation view.
+           Confirming ALWAYS mints fresh rows: a fresh root
+           token and one fresh share row per member, one row
+           per (document, set) membership, never reusing an
+           existing row for a new set. The new bundle is born
+           with empty watch rules; watches are managed in the
+           new link's settings, where creation lands. */
+        var shareWizard = null;
+        var wizardStep = 'perm';
+        function openShareWizard() {
+          var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
+          if (!doc) return;
+          shareWizard = {
+            docId: doc.id, perm: 'view', alias: '', wiki: false,
+            closure: computeShareClosure(doc),
+          };
+          wizardStep = 'perm';
+          document.getElementById('shareWizardAlias').value = '';
+          document.getElementById('shareWizardWiki').checked = false;
+          setWizardPerm('view');
+          renderWizardStep();
+          showShareView('wizard');
+        }
+        function setWizardPerm(perm) {
+          if (shareWizard) shareWizard.perm = perm;
+          document.querySelectorAll('.wz-perm').forEach(function (b) {
+            var on = b.getAttribute('data-wz-perm') === perm;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          });
+        }
+        function renderWizardStep() {
+          var w = shareWizard;
+          if (!w) return;
+          var hasSet = w.closure.length > 0;
+          document.getElementById('shareWizardStepPerm').hidden = wizardStep !== 'perm';
+          document.getElementById('shareWizardStepAlias').hidden = wizardStep !== 'alias';
+          document.getElementById('shareWizardStepWiki').hidden = wizardStep !== 'wiki';
+          document.getElementById('shareWizardTitle').textContent =
+            wizardStep === 'perm' ? 'Create link \u2014 permission'
+            : wizardStep === 'alias' ? 'Create link \u2014 name'
+            : 'Create link \u2014 wiki';
+          document.getElementById('shareWizardBack').textContent =
+            wizardStep === 'perm' ? '\u2039 Share' : '\u2039 Back';
+          document.getElementById('shareWizardNext').textContent =
+            (wizardStep === 'alias' && !hasSet) ? 'Create link' : 'Continue';
+        }
+        function closeShareWizard() {
+          shareWizard = null;
+          showShareView('main');
+        }
+        function wizardBack() {
+          if (!shareWizard) { showShareView('main'); return; }
+          if (wizardStep === 'alias') { wizardStep = 'perm'; renderWizardStep(); return; }
+          if (wizardStep === 'wiki') {
+            shareWizard.wiki = document.getElementById('shareWizardWiki').checked;
+            wizardStep = 'alias'; renderWizardStep(); return;
+          }
+          closeShareWizard();
+        }
+        function wizardNext() {
+          var w = shareWizard;
+          if (!w) return;
+          var doc = lib.docs.find(function (d) { return d.id === w.docId; });
+          if (!doc) { closeShareWizard(); return; }
+          if (wizardStep === 'perm') { wizardStep = 'alias'; renderWizardStep(); return; }
+          if (wizardStep === 'alias') {
+            w.alias = document.getElementById('shareWizardAlias').value.trim();
+            if (w.closure.length) { wizardStep = 'wiki'; renderWizardStep(); return; }
+            wizardCreatePlain(doc);
+            return;
+          }
+          if (wizardStep === 'wiki') {
+            w.wiki = document.getElementById('shareWizardWiki').checked;
+            openWizardMembers(doc);
+          }
+        }
+        /* The members step IS the bundle confirmation view,
+           headed by the wizard's choices. Nothing carries
+           over from any existing set: no existing-share map,
+           no carried members, no badges — membership in
+           other sets has no effect here and needs no marker. */
+        function openWizardMembers(doc) {
+          var w = shareWizard;
+          if (!w) return;
+          bundlePending = {
+            rootDoc: doc, closure: w.closure, existing: {},
+            existingSet: null, perm: w.perm, alias: w.alias,
+            wiki: w.wiki, wizard: true,
+          };
+          var wikiCb = document.getElementById('shareBundleWiki');
+          if (wikiCb) wikiCb.checked = !!w.wiki;
+          var note = document.getElementById('shareBundleUpdateNote');
+          if (note) { note.hidden = true; note.textContent = ''; }
+          var info = document.getElementById('shareBundleWizardInfo');
+          if (info) {
+            var parts = [w.perm === 'comment' ? 'Can comment' : 'View only'];
+            if (w.alias) parts.push('\u201C' + w.alias + '\u201D');
+            if (w.wiki) parts.push('Presented as a wiki');
+            info.textContent = 'New link \u00B7 ' + parts.join(' \u00B7 ');
+            info.hidden = false;
+          }
+          var listEl = document.getElementById('shareBundleList');
+          listEl.innerHTML = '';
+          listEl.appendChild(bundleRowEl(doc, null, true));
+          w.closure.forEach(function (d) { listEl.appendChild(bundleRowEl(d, null, false)); });
+          updateBundleConfirmLabel();
+          showShareView('bundle');
+          var confirmBtn = document.getElementById('shareBundleConfirm');
+          try { confirmBtn.focus(); } catch (e) {}
+        }
+        /* A link-free document's whole wizard: permission +
+           alias, then a plain link is minted and its
+           settings view opens with the link ready to copy. */
+        function wizardCreatePlain(doc) {
+          var w = shareWizard;
+          if (!w || !sb || !sbUser) return;
+          var btn = document.getElementById('shareWizardNext');
+          btn.disabled = true;
+          btn.textContent = 'Creating\u2026';
+          pushAll().then(function () {
+            var rid = remoteIdFor('docs', doc.id);
+            if (!rid) { btn.disabled = false; renderWizardStep(); return null; }
+            var token = genToken();
+            return insertShareRow({
+              token: token, document_id: rid, permission: w.perm,
+              styles: shareStylesSnapshot(), alias: w.alias || null,
+            }).then(function (res) {
+              if (res && res.error) return null;
+              return token;
+            });
+          }).then(function (token) {
+            btn.disabled = false;
+            renderWizardStep();
+            if (!token) return;
+            if (w.alias) persistAlias(token, w.alias);
+            shareWizard = null;
+            loadShareList();
+            /* The new entry joins the list asynchronously;
+               open its settings once it lands. */
+            var tries = 0;
+            (function land() {
+              var e = shareLinkEntries.find(function (x) { return x.token === token; });
+              if (e) { openLinkSettings(token); return; }
+              if (++tries < 20) setTimeout(land, 50);
+              else showShareView('main');
+            })();
+            if (typeof folioToast === 'function') folioToast('Link created \u2014 it is ready to copy.', 3600);
+          }).catch(function () { btn.disabled = false; renderWizardStep(); });
+        }
+        document.querySelectorAll('.wz-perm').forEach(function (b) {
+          b.addEventListener('click', function () { setWizardPerm(b.getAttribute('data-wz-perm')); });
+        });
+        document.getElementById('shareWizardNext').addEventListener('click', wizardNext);
+        document.getElementById('shareWizardBack').addEventListener('click', wizardBack);
+        document.getElementById('shareWizardCancel').addEventListener('click', closeShareWizard);
+        document.getElementById('shareWizardClose').addEventListener('click', closeShareWizard);
         function shareRowEl(s) {
           var row = document.createElement('div');
           row.className = 'share-row';
@@ -21407,7 +22084,15 @@
           return wrap;
         }
         function loadOwnerComments() {
-          var listEl = document.getElementById('ownerComments');
+          /* Build -74: comments live in the per-link
+             settings view, scoped to that link's token. With
+             no link's settings open there is nothing to
+             render into — the main view no longer carries a
+             comments section. */
+          var listEl = document.getElementById('shareSettingsComments');
+          if (!listEl) return;
+          if (!shareSettingsToken) { listEl.innerHTML = ''; return; }
+          var forToken = shareSettingsToken;
           var forDocId = shareModalDocId;
           var doc = lib.docs.find(function (d) { return d.id === forDocId; });
           var rid = doc ? remoteIdFor('docs', doc.id) : null;
@@ -21446,11 +22131,14 @@
               }
             });
             out.shares.forEach(function (s) {
+              if (s.token !== forToken) return;
               if (byToken[s.token] && byToken[s.token].length) {
                 listEl.appendChild(commentGroupEl(s, byToken[s.token]));
               }
             });
-            if (orphans.length) listEl.appendChild(commentGroupEl(null, orphans));
+            if (!listEl.children.length) {
+              listEl.innerHTML = '<div class="list-empty">No comments through this link yet. When someone comments through it, they show up here.</div>';
+            }
           }).catch(function () {
             if (shareModalDocId !== forDocId) return;
             listEl.innerHTML = '<div class="list-empty">Couldn\u2019t load comments \u2014 check your connection.</div>';
@@ -21463,72 +22151,21 @@
            Cancel (button, ×, backdrop, Esc) creates nothing at
            all; the shell stays on its Main view underneath. */
         var bundlePending = null;
-        /* Opens the creation review (build -73): when a set
-           already exists for this root AT the chosen
-           permission, the modal initializes FROM it instead
-           of blank — the wiki checkbox takes the set's flag,
-           the update note names what confirming will do, and
-           the set's members that aren't in the current
-           closure ride along as carried rows (no checkbox:
-           membership is the union, and a grown member is
-           never dropped by re-confirming). The other
-           permission's set, if any, is not read here at all. */
+        /* Opens the creation review. Build -74 retires the
+           -73 set-preserving initialization outright: there
+           is no re-create anymore. The wizard
+           (openWizardMembers) is the only production caller
+           and it arrives with a fresh pending — no existing
+           set is read, no members are carried, no row wears
+           a badge. This entry point remains for the harness
+           and builds the same fresh pending from the
+           document's closure. */
         function openShareBundleModal(rootDoc, closure, existingByDocId, existingSet) {
-          var exSet = existingSet || null;
-          if (!exSet) {
-            /* Fallback for callers that did not resolve the
-               set: the local copy on this device, keyed by
-               the root's share at this permission. */
-            var rootShare = existingByDocId ? existingByDocId[rootDoc.id] : null;
-            var rootToken = typeof rootShare === 'string' ? rootShare
-              : (rootShare && typeof rootShare.token === 'string' ? rootShare.token : null);
-            if (rootToken) {
-              var local = localBundleFor(rootToken);
-              if (local && local.rootToken === rootToken && local.members.length > 1) exSet = local;
-            }
-          }
-          bundlePending = {
-            rootDoc: rootDoc, closure: closure, existing: existingByDocId || {},
-            existingSet: exSet, perm: sharePermChoice,
+          shareWizard = {
+            docId: rootDoc.id, perm: sharePermChoice, alias: '', wiki: false,
+            closure: closure,
           };
-          var wikiCb = document.getElementById('shareBundleWiki');
-          if (wikiCb) wikiCb.checked = exSet ? exSet.wiki === true : false;
-          var note = document.getElementById('shareBundleUpdateNote');
-          if (note) {
-            if (exSet) {
-              note.hidden = false;
-              note.textContent = 'This updates your existing ' +
-                (bundlePending.perm === 'comment' ? 'can-comment' : 'view-only') +
-                ' set for this document \u2014 confirming keeps its link, its wiki setting, its watch rules, and every document already in it, and adds the documents below. It does not create another link.';
-            } else {
-              note.hidden = true;
-              note.textContent = '';
-            }
-          }
-          var listEl = document.getElementById('shareBundleList');
-          listEl.innerHTML = '';
-          listEl.appendChild(bundleRowEl(rootDoc, null, true));
-          closure.forEach(function (d) {
-            listEl.appendChild(bundleRowEl(d, bundlePending.existing[d.id] || null, false));
-          });
-          if (exSet) {
-            var inList = {};
-            inList[rootDoc.id] = true;
-            closure.forEach(function (d) { inList[d.id] = true; });
-            exSet.members.forEach(function (m) {
-              if (m.token === exSet.rootToken || !m.doc) return;
-              var d = lib.docs.find(function (x) {
-                return x.id === m.doc || remoteIdFor('docs', x.id) === m.doc;
-              });
-              if (!d || inList[d.id]) return;
-              inList[d.id] = true;
-              listEl.appendChild(bundleRowEl(d, null, false, 'Already in this set'));
-            });
-          }
-          updateBundleConfirmLabel();
-          showShareView('bundle');
-          var confirmBtn = document.getElementById('shareBundleConfirm');
-          try { confirmBtn.focus(); } catch (e) {}
+          openWizardMembers(rootDoc);
         }
         function bundleRowEl(doc, existingShare, isRoot, fixedBadge) {
           var row = document.createElement('label');
@@ -21611,16 +22248,24 @@
             'Share ' + n + (n === 1 ? ' document' : ' documents');
         }
         function closeShareBundleModal() {
+          var wasWizard = !!(bundlePending && bundlePending.wizard);
           bundlePending = null;
+          var info = document.getElementById('shareBundleWizardInfo');
+          if (info) info.hidden = true;
+          if (wasWizard && shareWizard) {
+            /* Backing out of the members step returns to the
+               wizard's wiki step — nothing was created. */
+            wizardStep = 'wiki';
+            renderWizardStep();
+            showShareView('wizard');
+            return;
+          }
           showShareView('main');
         }
         function confirmShareBundle() {
           if (!bundlePending || !sb || !sbUser) return;
           var pending = bundlePending;
           var selected = bundleCheckedDocs();
-          /* The permission chosen when the modal opened
-             (build -73): reuse, the set lookup, and every new
-             row all run at this one permission. */
           var perm = pending.perm || sharePermChoice;
           var btn = document.getElementById('shareBundleConfirm');
           btn.disabled = true;
@@ -21631,73 +22276,73 @@
                of the set rather than blocking the rest. */
             var usable = selected.filter(function (d) { return !!remoteIdFor('docs', d.id); });
             if (!usable.length) { btn.disabled = false; updateBundleConfirmLabel(); return null; }
-            var plan = planBundleShares(usable, pending.existing);
-            plan.forEach(function (e) { if (!e.token) e.token = genToken(); });
-            var rootEntry = plan[0];
-            var wikiCb = document.getElementById('shareBundleWiki');
-            /* Build -73: confirming over an existing
-               same-permission set UPDATES that set — same
-               bundle id, same root link (the plan reuses the
-               root's share at this permission), the modal's
-               wiki flag (initialized from the set, so it reads
-               as preservation unless the owner flips it), the
-               set's watch rules carried over untouched, and
-               membership = the checked documents UNION the
-               set's existing members (carried below). A set at
-               the OTHER permission is a different set entirely
-               and is never read or written here. */
-            var exSet = (pending.existingSet && pending.existingSet.rootToken === rootEntry.token)
-              ? pending.existingSet : null;
-            var carried = exSet ? bundleCarriedMembers(pending, usable) : [];
+            /* Build -74: creation ALWAYS mints fresh rows —
+               a fresh root token, a fresh share row for every
+               member (one row per (document, set) membership),
+               a new bundle id, the wizard's wiki choice, and
+               EMPTY watch rules (watches are managed in the
+               new link's settings). No existing row is reused
+               for a new set, at any permission, and no other
+               set's manifest is read or written. Every member
+               is bundle-created (created: true), so removal
+               and the revoke cascade know these rows belong
+               to this set alone. The alias rides only the
+               root row's alias column / local store — never
+               the manifest. */
+            var rootToken = genToken();
+            var tokensByDoc = {};
+            usable.forEach(function (d) { tokensByDoc[d.id] = genToken(); });
+            tokensByDoc[usable[0].id] = rootToken;
             var manifest = {
               v: 1,
-              id: exSet && exSet.id ? exSet.id : genToken(),
-              rootToken: rootEntry.token,
-              /* Build -60: the modal's wiki checkbox, and each
-                 member's created flag (true when this bundle
-                 mints the share, false when it reuses one) so
-                 removal later knows revoke from detach. */
-              wiki: !!(wikiCb && wikiCb.checked),
-              watch: exSet ? normalizeWatch(exSet.watch) : { folders: [], tags: [] },
-              members: plan.map(function (e) {
-                return { token: e.token, doc: remoteIdFor('docs', e.doc.id), title: e.doc.title || 'Untitled', created: e.isNew };
-              }).concat(carried.map(function (m) {
-                var out = { token: m.token, doc: m.doc || null, title: m.title };
-                if (typeof m.created === 'boolean') out.created = m.created;
-                return out;
-              })),
+              id: genToken(),
+              rootToken: rootToken,
+              wiki: pending.wiki != null ? !!pending.wiki
+                : !!((document.getElementById('shareBundleWiki') || {}).checked),
+              watch: { folders: [], tags: [] },
+              members: usable.map(function (d) {
+                return {
+                  token: tokensByDoc[d.id], doc: remoteIdFor('docs', d.id),
+                  title: d.title || 'Untitled', created: true,
+                };
+              }),
             };
             var snap = shareStylesSnapshot();
             var chain = Promise.resolve();
-            plan.forEach(function (e) {
+            usable.forEach(function (d) {
               chain = chain.then(function () {
-                if (e.isNew) {
-                  return insertShareRow({
-                    token: e.token, document_id: remoteIdFor('docs', e.doc.id),
-                    permission: perm, styles: snap, bundle: manifest,
-                  });
-                }
-                return updateShareBundle(e.token, manifest);
+                return insertShareRow({
+                  token: tokensByDoc[d.id], document_id: remoteIdFor('docs', d.id),
+                  permission: perm, styles: snap, bundle: manifest,
+                  alias: d === usable[0] ? (pending.alias || null) : null,
+                });
               });
             });
-            /* Carried members keep their links; their rows
-               get the updated manifest like everyone else's,
-               so the set reads the same from any member. */
-            carried.forEach(function (m) {
-              chain = chain.then(function () { return updateShareBundle(m.token, manifest); });
-            });
-            return chain.then(function () { return { manifest: manifest, rootToken: rootEntry.token }; });
+            return chain.then(function () { return { manifest: manifest, rootToken: rootToken }; });
           }).then(function (out) {
             btn.disabled = false;
+            updateBundleConfirmLabel();
             if (!out) return;
             saveLocalBundle(out.manifest);
-            closeShareBundleModal();
-            document.getElementById('shareNewLink').hidden = false;
-            document.getElementById('shareNewLinkInput').value = shareLinkFor(out.rootToken);
+            if (pending.alias) persistAlias(out.rootToken, pending.alias);
+            bundlePending = null;
+            shareWizard = null;
+            var info = document.getElementById('shareBundleWizardInfo');
+            if (info) info.hidden = true;
             loadShareList();
+            /* Land in the NEW link's settings (build -74):
+               the link and its Copy are right there, ready
+               for watches to be added. */
+            var tries = 0;
+            (function land() {
+              var e = shareLinkEntries.find(function (x) { return x.token === out.rootToken; });
+              if (e) { openLinkSettings(out.rootToken); return; }
+              if (++tries < 20) setTimeout(land, 50);
+              else showShareView('main');
+            })();
             if (typeof folioToast === 'function') {
               var n = out.manifest.members.length;
-              folioToast('Shared ' + n + (n === 1 ? ' document' : ' documents') + ' \u2014 the main link is ready to copy in the Share panel.', 4200);
+              folioToast('Shared ' + n + (n === 1 ? ' document' : ' documents') + ' \u2014 your new link is open in its settings.', 4200);
             }
           }).catch(function () {
             btn.disabled = false;
@@ -21792,16 +22437,23 @@
         }
         function closeAddDocsModal() {
           bundleAddPending = null;
-          showShareView('main');
+          /* Build -74: flows return to the view that launched
+             them — a link's settings, or the list. */
+          var back = shareFlowReturn;
+          shareFlowReturn = 'main';
+          showShareView(back);
+          if (back === 'settings') renderLinkSettings();
         }
         /* Growing a bundle (build -60, shared by the drift
            review in -61): push, settle remote ids, then join
-           each selected document at the bundle's permission —
-           a fresh share, or its existing active share reused —
-           and write the grown manifest to every member's row,
-           old and new, so the set reads the same from any
-           link. Resolves to { manifest, added } or null when
-           nothing could be added. */
+           each selected document at the bundle's permission
+           with a FRESH share row minted for this set alone
+           (build -74 — growing never reuses another row),
+           and write the grown manifest to every one of this
+           set's member rows, old and new, so the set reads
+           the same from any of its links. Resolves to
+           { manifest, added } or null when nothing could be
+           added. */
         function growBundleManifest(bundle, selected) {
           return pushAll().then(function () {
             var usable = selected.filter(function (d) { return !!remoteIdFor('docs', d.id); });
@@ -21830,53 +22482,43 @@
                 })
               : Promise.resolve(sharePanelRootPerm);
             return permChain.then(function (perm) {
-              /* Build -73: reuse resolves at the bundle's own
-                 permission — a document's share at the OTHER
-                 permission is not this set's to reuse, and a
-                 document with no share at this permission gets
-                 a fresh one here. The other permission's rows
-                 and manifests are never written. */
+              /* Build -74: growing a set mints a FRESH share
+                 row for every added document, at this bundle's
+                 own permission — one row per (document, set)
+                 membership. A document's rows in other sets
+                 (same permission included) are never read for
+                 reuse and never written; this set's manifest
+                 lands on this set's rows only. (Pre--74 sets
+                 may still hold reused members with
+                 created:false; growing never adds more.) */
               if (bundleKeyOf(bundle)) sharePanelPerms[bundleKeyOf(bundle)] = perm;
-              var existing = {};
-              var chain = Promise.resolve();
-              usable.forEach(function (d) {
-                chain = chain.then(function () {
-                  return docShares(remoteIdFor('docs', d.id)).then(function (shares) {
-                    existing[d.id] = shareForPerm(shares, perm);
+              var plan = planBundleAdditions(usable, {}, bundle);
+              plan.forEach(function (e) { e.token = genToken(); e.isNew = true; e.created = true; });
+              if (!plan.length) return null;
+              var manifest = bundleManifestOf(bundle);
+              plan.forEach(function (e) {
+                manifest.members.push({
+                  token: e.token, doc: remoteIdFor('docs', e.doc.id),
+                  title: e.doc.title || 'Untitled', created: true,
+                });
+              });
+              var snap = shareStylesSnapshot();
+              var ops = Promise.resolve();
+              plan.forEach(function (e) {
+                ops = ops.then(function () {
+                  return insertShareRow({
+                    token: e.token, document_id: remoteIdFor('docs', e.doc.id),
+                    permission: perm, styles: snap, bundle: manifest,
                   });
                 });
               });
-              return chain.then(function () {
-                var plan = planBundleAdditions(usable, existing, bundle);
-                plan.forEach(function (e) { if (!e.token) e.token = genToken(); });
-                if (!plan.length) return null;
-                var manifest = bundleManifestOf(bundle);
-                plan.forEach(function (e) {
-                  manifest.members.push({
-                    token: e.token, doc: remoteIdFor('docs', e.doc.id),
-                    title: e.doc.title || 'Untitled', created: e.created,
-                  });
-                });
-                var snap = shareStylesSnapshot();
-                var ops = Promise.resolve();
-                plan.forEach(function (e) {
-                  ops = ops.then(function () {
-                    if (e.isNew) {
-                      return insertShareRow({
-                        token: e.token, document_id: remoteIdFor('docs', e.doc.id),
-                        permission: perm, styles: snap, bundle: manifest,
-                      });
-                    }
-                    return updateShareBundle(e.token, manifest);
-                  });
-                });
-                /* Existing members' rows get the grown manifest
-                   too, so the set reads the same from any link. */
-                bundle.members.forEach(function (m) {
-                  ops = ops.then(function () { return updateShareBundle(m.token, manifest); });
-                });
-                return ops.then(function () { return { manifest: manifest, added: plan.length }; });
+              /* This set's existing members' rows get the
+                 grown manifest too, so the set reads the same
+                 from any of its own links. */
+              bundle.members.forEach(function (m) {
+                ops = ops.then(function () { return updateShareBundle(m.token, manifest); });
               });
+              return ops.then(function () { return { manifest: manifest, added: plan.length }; });
             });
           });
         }
@@ -21896,6 +22538,13 @@
             syncPanelBundle(out.manifest);
             closeAddDocsModal();
             refreshBundlePanel();
+            /* Build -74: reload the link list too — a
+               standalone link that just grew into a set must
+               re-enter as a set entry (its settings view
+               re-renders from the fresh list when it lands).
+               After the close, so the return render still
+               sees the entry the grow just synced. */
+            loadShareList();
             if (typeof folioToast === 'function') {
               folioToast('Added ' + out.added + (out.added === 1 ? ' document' : ' documents') + ' to the set.', 4200);
             }
@@ -21941,27 +22590,11 @@
              "Already shared" badges can render, then redraw.
              The harness passes its map in and skips this. */
           if (!existingByDocId) {
-            var pending = bundleDriftPending;
-            pending.existing = {};
-            /* Build -73: the "Already shared" badge means the
-               share this set would reuse — the document's
-               share at the BUNDLE's permission, never its
-               newest share regardless of permission. */
-            resolveBundlePerm(bundle).then(function (perm) {
-              var chain = Promise.resolve();
-              drift.forEach(function (d) {
-                chain = chain.then(function () {
-                  var rid = remoteIdFor('docs', d.id);
-                  if (!rid) { pending.existing[d.id] = null; return null; }
-                  return docShares(rid).then(function (shares) {
-                    pending.existing[d.id] = shareForPerm(shares, perm);
-                  }).catch(function () { pending.existing[d.id] = null; });
-                });
-              });
-              chain.then(function () {
-                if (bundleDriftPending === pending && shareShellViewOpen('drift')) renderDriftList();
-              });
-            });
+            /* Build -74: adding mints a fresh row for THIS
+               set, so a candidate's shares elsewhere are
+               irrelevant and no "Already shared" badge
+               applies — the map simply stays empty. */
+            bundleDriftPending.existing = {};
           }
         }
         function renderDriftList() {
@@ -22034,7 +22667,10 @@
         }
         function closeDriftModal() {
           bundleDriftPending = null;
-          showShareView('main');
+          var back = shareFlowReturn;
+          shareFlowReturn = 'main';
+          showShareView(back);
+          if (back === 'settings') renderLinkSettings();
         }
         function confirmDrift() {
           if (!bundleDriftPending || !sb || !sbUser) return;
@@ -22202,6 +22838,12 @@
              shell (the overlay-era end-state, translated). */
           var returnToMain = shareShellViewOpen('main') && shareModalDocId === doc.id;
           watchPending = { doc: doc, matches: matches, returnToMain: returnToMain };
+          /* Build -74: one prompt however many sets match,
+             each named; a single match titles the prompt
+             with that set's name, as before. */
+          document.getElementById('shareWatchTitle').textContent = matches.length === 1
+            ? 'Share this document as part of \u201C' + setDisplayName(matches[0].bundle) + '\u201D?'
+            : 'Share this document as part of the following bundles?';
           document.getElementById('shareWatchDocName').textContent = doc.title || 'Untitled';
           var listEl = document.getElementById('shareWatchList');
           listEl.innerHTML = '';
@@ -22225,7 +22867,12 @@
           main.className = 'bundle-main';
           var title = document.createElement('span');
           title.className = 'bundle-title';
-          title.textContent = bundleRootTitle(bundle);
+          /* Build -74: the row names the set as the owner
+             knows it — alias when set, else permission +
+             root title — so several sets (same permission
+             included) stay tellable apart, each with its own
+             independent checkbox. */
+          title.textContent = setDisplayName(bundle);
           main.appendChild(title);
           var why = [];
           if (m.viaFolder) {
@@ -22492,25 +23139,9 @@
              "Already shared" badges can render, then redraw.
              The harness passes its map in and skips this. */
           if (!existingByDocId) {
-            var pending = bundleSweepPending;
-            pending.existing = {};
-            /* Build -73: badge resolution at the bundle's own
-               permission, exactly as the drift review's. */
-            resolveBundlePerm(bundle).then(function (perm) {
-              var chain = Promise.resolve();
-              backlog.forEach(function (d) {
-                chain = chain.then(function () {
-                  var rid = remoteIdFor('docs', d.id);
-                  if (!rid) { pending.existing[d.id] = null; return null; }
-                  return docShares(rid).then(function (shares) {
-                    pending.existing[d.id] = shareForPerm(shares, perm);
-                  }).catch(function () { pending.existing[d.id] = null; });
-                });
-              });
-              chain.then(function () {
-                if (bundleSweepPending === pending && shareShellViewOpen('sweep')) renderSweepList();
-              });
-            });
+            /* Build -74: as in the drift review, adding mints
+               a fresh row for this set — no reuse badge. */
+            bundleSweepPending.existing = {};
           }
           return true;
         }
@@ -22584,17 +23215,20 @@
         }
         function closeWatchSweepModal() {
           bundleSweepPending = null;
-          /* The sweep is a session view (build -72): it is
-             entered from Main's Review row, so ending it —
-             Not now, the ×, back, a confirm — returns to
-             Main and does NOT close the shell. Returning
-             re-renders the bundle section from the current
-             manifest, so the member list, the drift notice,
-             and the Review row's count (or its absence, once
-             the backlog is cleared) all reflect what the
-             sweep just did. */
-          showShareView('main');
+          /* The sweep is a session view (build -72): ending
+             it — Not now, the ×, back, a confirm — returns to
+             the view that launched it (build -74: Main's list
+             or the set's settings) and does NOT close the
+             shell. Returning re-renders the bundle section
+             from the current manifest, so the member list,
+             the drift notice, and the Review row's count (or
+             its absence, once the backlog is cleared) all
+             reflect what the sweep just did. */
+          var back = shareFlowReturn;
+          shareFlowReturn = 'main';
+          showShareView(back);
           refreshBundlePanel();
+          if (back === 'settings') renderLinkSettings();
         }
         function confirmWatchSweep() {
           if (!bundleSweepPending || !sb || !sbUser) return;
@@ -22640,7 +23274,10 @@
         }
         function closeShareRevokeModal() {
           shareRevokePending = null;
-          showShareView('main');
+          var back = shareFlowReturn;
+          shareFlowReturn = 'main';
+          showShareView(back);
+          if (back === 'settings') renderLinkSettings();
         }
         document.getElementById('shareRevokeCancel').addEventListener('click', closeShareRevokeModal);
         document.getElementById('shareRevokeClose').addEventListener('click', closeShareRevokeModal);
@@ -22653,8 +23290,10 @@
           sb.from('shares').delete().eq('token', pending.share.token).then(function () {
             btn.disabled = false;
             removeLocalBundle(pending.bundle);
+            if (shareSettingsToken === pending.share.token) shareSettingsToken = null;
             closeShareRevokeModal();
             loadShareList();
+            if (!shareSettingsToken) showShareView('main');
           }).catch(function () { btn.disabled = false; });
         });
         document.getElementById('shareRevokeAllBtn').addEventListener('click', function () {
@@ -22662,12 +23301,33 @@
           var pending = shareRevokePending;
           var btn = this;
           btn.disabled = true;
-          var tokens = pending.bundle.members.map(function (m) { return m.token; });
-          sb.from('shares').delete().in('token', tokens).then(function () {
+          /* Build -74: the cascade is scoped to THIS set's
+             rows and honors per-member created flags — rows
+             this set minted are deleted; a pre-existing
+             member (a -59…-73 reused row, possibly serving
+             another set too) is only detached from this set,
+             so revoking one set can never take down another
+             set's rows or a standalone link. */
+          var toDelete = [pending.bundle.rootToken];
+          var toDetach = [];
+          pending.bundle.members.forEach(function (m) {
+            if (m.token === pending.bundle.rootToken) return;
+            if (m.created === true) toDelete.push(m.token);
+            else toDetach.push(m.token);
+          });
+          sb.from('shares').delete().in('token', toDelete).then(function () {
+            var chain = Promise.resolve();
+            toDetach.forEach(function (t) {
+              chain = chain.then(function () { return clearShareBundleRemote(t); });
+            });
+            return chain;
+          }).then(function () {
             btn.disabled = false;
             removeLocalBundle(pending.bundle);
+            if (shareSettingsToken === pending.bundle.rootToken) shareSettingsToken = null;
             closeShareRevokeModal();
             loadShareList();
+            if (shareCurrentView === 'settings' && !shareSettingsToken) showShareView('main');
           }).catch(function () { btn.disabled = false; });
         });
 
@@ -22710,6 +23370,8 @@
             case 'revoke': closeShareRevokeModal(); break;
             case 'sweep': closeWatchSweepModal(); break;
             case 'watch': closeWatchPrompt(); break;
+            case 'wizard': closeShareWizard(); break;
+            case 'settings': showShareView('main'); loadLinkList(); break;
             default: closeShareModal();
           }
         }
@@ -22720,85 +23382,16 @@
           closeShareModal();
           showAuthGate();
         });
-        document.querySelectorAll('.perm-opt').forEach(function (b) {
-          b.addEventListener('click', function () {
-            sharePermChoice = b.getAttribute('data-perm');
-            document.querySelectorAll('.perm-opt').forEach(function (x) {
-              var on = x === b;
-              x.classList.toggle('on', on);
-              x.setAttribute('aria-pressed', on ? 'true' : 'false');
-            });
-          });
-        });
-        /* The pre--59 single-document creation, unchanged: it
-           is still the whole flow for a document whose
-           wikilink closure is empty. The insert goes through
-           insertShareRow, whose ladder is the one this handler
-           used to run inline (styles snapshot, then bare). */
-        function createSingleShare(doc, btn) {
-          btn.disabled = true;
-          pushAll().then(function () {
-            var rid = remoteIdFor('docs', doc.id);
-            if (!rid) { btn.disabled = false; return; }
-            var token = genToken();
-            insertShareRow({
-              token: token, document_id: rid, permission: sharePermChoice,
-              styles: shareStylesSnapshot(),
-            }).then(function (res) {
-              btn.disabled = false;
-              if (res && res.error) return;
-              document.getElementById('shareNewLink').hidden = false;
-              document.getElementById('shareNewLinkInput').value = shareLinkFor(token);
-              loadShareList();
-            }).catch(function () { btn.disabled = false; });
-          });
-        }
+        /* Build -74: Create link opens the wizard — it is
+           the panel's only creation entry point. The -73
+           permission-resolve creation path (and the pre--59
+           single-share path it fell back to) are retired:
+           creation always mints fresh rows inside the
+           wizard, and existing links are managed from their
+           own settings views. */
         document.getElementById('createShareBtn').addEventListener('click', function () {
           if (!sb || !sbUser) return;
-          var doc = lib.docs.find(function (d) { return d.id === shareModalDocId; });
-          if (!doc) return;
-          var btn = this;
-          /* Build -59: a document with outbound wikilinks
-             confirms its transitive closure in the bundle
-             modal before anything is created. A link-free
-             document keeps the single-share flow, no modal. */
-          var closure = computeShareClosure(doc);
-          if (!closure.length) { createSingleShare(doc, btn); return; }
-          btn.disabled = true;
-          pushAll().then(function () {
-            /* Build -73: existing shares are resolved at the
-               CHOSEN permission — the bundle flow reuses a
-               document's share only when it carries the
-               permission in play, and mints a fresh one
-               otherwise. The other permission's links (and
-               its set, if the root heads one) are untouched. */
-            var perm = sharePermChoice;
-            var existing = {};
-            var chain = Promise.resolve();
-            [doc].concat(closure).forEach(function (d) {
-              chain = chain.then(function () {
-                var rid = remoteIdFor('docs', d.id);
-                if (!rid) { existing[d.id] = null; return null; }
-                return docShares(rid).then(function (shares) {
-                  existing[d.id] = shareForPerm(shares, perm);
-                });
-              });
-            });
-            return chain.then(function () {
-              /* A set the root already heads at THIS
-                 permission initializes the modal (build -73):
-                 its wiki flag, watch rules, and grown members
-                 are preserved on confirm. */
-              var rootShare = existing[doc.id];
-              if (!rootShare || !rootShare.token) return null;
-              return fetchShareBundle(rootShare.token).then(function (b) {
-                return (b && b.rootToken === rootShare.token && b.members.length > 1) ? b : null;
-              }).catch(function () { return null; });
-            }).then(function (existingSet) {
-              btn.disabled = false;
-              openShareBundleModal(doc, closure, existing, existingSet);
-            });
-          }).catch(function () { btn.disabled = false; });
+          openShareWizard();
         });
         document.getElementById('copyNewLinkBtn').addEventListener('click', function () {
           copyText(document.getElementById('shareNewLinkInput').value, this);
@@ -24270,6 +24863,392 @@
               view: shareShellOpen() ? shareCurrentView : null,
               visibleOverlays: overlays,
             };
+          },
+          /* ---- build -74: link list, wizard, settings, aliases ---- */
+          /* Installs a stub backend over an in-memory shares
+             table so the REAL panel (list, wizard, settings,
+             grow, sweep, watch prompt, revoke) can be driven
+             end-to-end in the sandbox. Rows are share rows:
+             { token, document_id, permission, bundle,
+             alias?, created_at? } — document_id may be a
+             LOCAL doc id (translated through the id map) or
+             the remote id. opts.aliasColumn === false stubs
+             the alias column ABSENT: selects naming it error,
+             inserts/updates carrying it error, and the app
+             must fail soft to the local alias store with
+             zero surfaced errors. Local docs without a
+             remote id are given one in the id map so the
+             push/creation paths can address them. */
+          installStubBackend: function (rows, opts) {
+            opts = opts || {};
+            lib.docs.forEach(function (d) {
+              if (!remoteIdFor('docs', d.id)) {
+                try { idmap.docs[d.id] = 'rid-' + d.id; } catch (e) {}
+              }
+            });
+            var state = {
+              aliasColumn: opts.aliasColumn !== false,
+              rows: (rows || []).map(function (r) {
+                var copy = JSON.parse(JSON.stringify(r));
+                var asLocal = lib.docs.find(function (d) { return d.id === copy.document_id; });
+                if (asLocal) copy.document_id = remoteIdFor('docs', asLocal.id);
+                if (!copy.created_at) copy.created_at = new Date().toISOString();
+                return copy;
+              }),
+              comments: [],
+            };
+            window.__folioStubState = state;
+            shareAliasColOk = state.aliasColumn;
+            shareBundleColOk = true;
+            shareStylesColOk = true;
+            function chain(resultFn) {
+              var c = { _f: {}, _op: null, _row: null, _obj: null, _cols: '' };
+              c.select = function (cols) { c._cols = String(cols || ''); if (!c._op) c._op = 'select'; return c; };
+              c.eq = function (k, v) { c._f[k] = v; return c; };
+              c.in = function (k, v) { c._f[k + '__in'] = v; return c; };
+              c.or = function () { return c; };
+              c.order = function () { return c; };
+              c.insert = function (row) { c._op = 'insert'; c._row = row; return c; };
+              c.update = function (obj) { c._op = 'update'; c._obj = obj; return c; };
+              c.delete = function () { c._op = 'delete'; return c; };
+              c.upsert = function () { c._op = 'upsert'; return c; };
+              c.then = function (res, rej) {
+                var p;
+                try { p = Promise.resolve(resultFn(c)); } catch (e) { p = Promise.reject(e); }
+                return p.then(res, rej);
+              };
+              c.catch = function (rej) { return c.then(null, rej); };
+              return c;
+            }
+            function sharesResult(c) {
+              var f = c._f;
+              if (c._op === 'insert') {
+                var row = c._row || {};
+                if (!state.aliasColumn && 'alias' in row && row.alias != null) {
+                  return { data: null, error: { message: 'column "alias" of relation "shares" does not exist' } };
+                }
+                var stored = JSON.parse(JSON.stringify(row));
+                if (!stored.created_at) stored.created_at = new Date().toISOString();
+                state.rows.push(stored);
+                return { data: null, error: null };
+              }
+              if (c._op === 'update') {
+                if (!state.aliasColumn && c._obj && 'alias' in c._obj && c._obj.alias != null) {
+                  return { data: null, error: { message: 'column "alias" of relation "shares" does not exist' } };
+                }
+                state.rows.forEach(function (r) {
+                  if (r.token === f.token) Object.keys(c._obj || {}).forEach(function (k) { r[k] = c._obj[k]; });
+                });
+                return { data: null, error: null };
+              }
+              if (c._op === 'delete') {
+                if (f.token) state.rows = state.rows.filter(function (r) { return r.token !== f.token; });
+                if (f['token__in']) state.rows = state.rows.filter(function (r) { return f['token__in'].indexOf(r.token) === -1; });
+                return { data: [], error: null };
+              }
+              if (!state.aliasColumn && /(^|,)\s*alias\s*(,|$)/.test(c._cols)) {
+                return { data: null, error: { message: 'column shares.alias does not exist' } };
+              }
+              var out = state.rows.slice();
+              if (f.document_id) out = out.filter(function (r) { return r.document_id === f.document_id; });
+              if (f.token) out = out.filter(function (r) { return r.token === f.token; });
+              out.sort(function (a, b) { return String(b.created_at || '') < String(a.created_at || '') ? -1 : 1; });
+              return { data: JSON.parse(JSON.stringify(out)), error: null };
+            }
+            sb = {
+              from: function (table) {
+                if (table === 'shares') return chain(sharesResult);
+                return chain(function () { return { data: [], error: null }; });
+              },
+              rpc: function (name, args) {
+                if (name === 'get_shared_document') {
+                  var row = state.rows.find(function (r) { return r.token === (args && args.t); });
+                  if (!row) return Promise.resolve({ data: [], error: null });
+                  var doc = lib.docs.find(function (d) { return remoteIdFor('docs', d.id) === row.document_id; });
+                  /* The public payload shape: title, content,
+                     permission, bundle, styles — NEVER an
+                     alias key, whatever the row carries. */
+                  return Promise.resolve({
+                    data: [{
+                      title: doc ? (doc.title || 'Untitled') : 'Untitled',
+                      content: doc ? doc.content : null,
+                      permission: row.permission || 'view',
+                      bundle: row.bundle || null,
+                      styles: row.styles || null,
+                    }],
+                    error: null,
+                  });
+                }
+                return Promise.resolve({ data: [], error: null });
+              },
+              auth: {
+                getSession: function () { return Promise.resolve({ data: { session: null } }); },
+                onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; },
+              },
+            };
+            sbUser = { id: 'folio-stub-user' };
+            return { rows: state.rows.length, aliasColumn: state.aliasColumn };
+          },
+          uninstallStubBackend: function () {
+            sb = null;
+            sbUser = null;
+            window.__folioStubState = null;
+            return true;
+          },
+          /* The stub's share rows, deep-copied (remote
+             document ids as stored). */
+          stubRows: function () {
+            var st = window.__folioStubState;
+            return st ? JSON.parse(JSON.stringify(st.rows)) : [];
+          },
+          stubState: function () {
+            var st = window.__folioStubState;
+            return st ? { aliasColumn: st.aliasColumn, aliasColOk: shareAliasColOk, rows: st.rows.length } : null;
+          },
+          /* The get_shared_document-shaped payload for a
+             token, through the stub's rpc — the alias must
+             never appear in it. */
+          publicPayloadFor: function (token) {
+            if (!sb || !sb.rpc) return Promise.resolve(null);
+            return sb.rpc('get_shared_document', { t: token }).then(function (res) {
+              return res && res.data && res.data.length ? res.data[0] : null;
+            });
+          },
+          aliasLocalFor: function (token) { return localAliasFor(token); },
+          /* Opens the real Share panel for a document (the
+             stub backend must be installed first for the
+             signed-in paths) and settles to the list state. */
+          openPanelFor: function (docId) {
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!d) return Promise.resolve(null);
+            openDoc(docId, false);
+            openShareModal();
+            return new Promise(function (res) {
+              setTimeout(function () { res(window.FolioShareBundle.linkListState()); }, 60);
+            });
+          },
+          linkListState: function () {
+            var items = [];
+            document.querySelectorAll('#shareList [data-link-item]').forEach(function (el) {
+              var head = el.querySelector('.share-link-item-head');
+              var sub = el.querySelector('.share-link-item-sub');
+              items.push({
+                token: el.getAttribute('data-link-item'),
+                perm: el.getAttribute('data-link-perm'),
+                head: head ? head.textContent : '',
+                sub: sub ? sub.textContent : '',
+              });
+            });
+            var empty = document.querySelector('#shareList .list-empty');
+            return {
+              view: shareShellOpen() ? shareCurrentView : null,
+              items: items,
+              emptyText: empty ? empty.textContent : null,
+              entries: shareLinkEntries.map(function (e) {
+                return {
+                  token: e.token, perm: e.perm, alias: e.alias || '',
+                  members: e.bundle ? e.bundle.members.length : null,
+                  wiki: e.bundle ? e.bundle.wiki === true : null,
+                  rootToken: e.bundle ? e.bundle.rootToken : null,
+                };
+              }),
+            };
+          },
+          clickCreateLink: function () {
+            document.getElementById('createShareBtn').click();
+            return window.FolioShareBundle.wizardState();
+          },
+          wizardState: function () {
+            return {
+              view: shareShellOpen() ? shareCurrentView : null,
+              step: shareWizard ? wizardStep : null,
+              perm: shareWizard ? shareWizard.perm : null,
+              hasSet: shareWizard ? shareWizard.closure.length > 0 : null,
+              nextText: document.getElementById('shareWizardNext').textContent,
+              title: document.getElementById('shareWizardTitle').textContent,
+            };
+          },
+          /* Drives the wizard's steps with real DOM events:
+             permission card, Continue, alias field, Continue,
+             wiki checkbox, Continue — landing on the members
+             step (or, for a link-free document, creating the
+             plain link and landing in its settings). */
+          wizardDrive: function (perm, alias, wiki) {
+            var btn = document.querySelector('.wz-perm[data-wz-perm="' + (perm || 'view') + '"]');
+            if (btn) btn.click();
+            document.getElementById('shareWizardNext').click();
+            var aliasEl = document.getElementById('shareWizardAlias');
+            if (aliasEl) aliasEl.value = alias || '';
+            document.getElementById('shareWizardNext').click();
+            return new Promise(function (res) {
+              setTimeout(function () {
+                var st = window.FolioShareBundle.wizardState();
+                if (st.step === 'wiki') {
+                  document.getElementById('shareWizardWiki').checked = !!wiki;
+                  document.getElementById('shareWizardNext').click();
+                  setTimeout(function () {
+                    res({
+                      wizard: window.FolioShareBundle.wizardState(),
+                      bundle: window.FolioShareBundle.bundleModalState(),
+                    });
+                  }, 30);
+                } else {
+                  setTimeout(function () {
+                    res({
+                      wizard: st,
+                      settings: window.FolioShareBundle.settingsState(),
+                      list: window.FolioShareBundle.linkListState(),
+                    });
+                  }, 500);
+                }
+              }, 30);
+            });
+          },
+          /* Unchecks members-step rows by local doc id. */
+          bundleUncheck: function (docIds) {
+            (docIds || []).forEach(function (id) {
+              var cb = document.querySelector('#shareBundleList input[type="checkbox"][data-bundle-doc="' + id + '"]');
+              if (cb && cb.checked) { cb.checked = false; cb.dispatchEvent(new Event('change')); }
+            });
+            return window.FolioShareBundle.bundleModalState();
+          },
+          confirmBundleClick: function () {
+            document.getElementById('shareBundleConfirm').click();
+            return new Promise(function (res) {
+              setTimeout(function () {
+                res({
+                  settings: window.FolioShareBundle.settingsState(),
+                  list: window.FolioShareBundle.linkListState(),
+                  rows: window.FolioShareBundle.stubRows(),
+                });
+              }, 450);
+            });
+          },
+          openSettingsFor: function (token) {
+            var el = document.querySelector('#shareList [data-link-item="' + token + '"]');
+            if (el) { el.click(); return window.FolioShareBundle.settingsState(); }
+            openLinkSettings(token);
+            return window.FolioShareBundle.settingsState();
+          },
+          settingsState: function () {
+            var bw = document.getElementById('shareSettingsBundle');
+            var sec = bw ? bw.querySelector('[data-bundle-set]') : null;
+            var wiki = sec ? sec.querySelector('[data-bundle-wiki]') : null;
+            var review = sec ? sec.querySelector('[data-bundle-watch-review]') : null;
+            return {
+              view: shareShellOpen() ? shareCurrentView : null,
+              token: shareSettingsToken,
+              title: document.getElementById('shareSettingsTitle').textContent,
+              perm: document.getElementById('shareSettingsPerm').textContent,
+              kind: document.getElementById('shareSettingsKind').textContent,
+              aliasValue: document.getElementById('shareSettingsAlias').value,
+              link: document.getElementById('shareSettingsLinkInput').value,
+              isSet: !!sec,
+              wikiOn: wiki ? wiki.getAttribute('aria-checked') === 'true' : null,
+              memberRows: sec ? sec.querySelectorAll('.share-row').length : 0,
+              watchPresent: sec ? !!sec.querySelector('[data-bundle-watch]') : false,
+              reviewCount: review ? Number(review.getAttribute('data-watch-review-count')) : null,
+              standaloneVisible: !document.getElementById('shareSettingsStandalone').hidden,
+            };
+          },
+          backToList: function () {
+            document.getElementById('shareSettingsBack').click();
+            return new Promise(function (res) {
+              setTimeout(function () { res(window.FolioShareBundle.linkListState()); }, 60);
+            });
+          },
+          /* Renames the open settings view's link through the
+             real Save name button. */
+          renameAlias: function (value) {
+            document.getElementById('shareSettingsAlias').value = value;
+            document.getElementById('shareSettingsAliasSave').click();
+            return new Promise(function (res) {
+              setTimeout(function () {
+                res({
+                  settings: window.FolioShareBundle.settingsState(),
+                  rows: window.FolioShareBundle.stubRows(),
+                  local: window.FolioShareBundle.aliasLocalFor(shareSettingsToken),
+                });
+              }, 80);
+            });
+          },
+          /* Flips the open settings view's wiki switch. */
+          flipSettingsWiki: function () {
+            var sw = document.querySelector('#shareSettingsBundle [data-bundle-wiki]');
+            if (!sw) return Promise.resolve(null);
+            sw.click();
+            return new Promise(function (res) {
+              setTimeout(function () { res(window.FolioShareBundle.settingsState()); }, 80);
+            });
+          },
+          /* Adds a watch tag to the open settings view's set
+             through the real watch editor controls. */
+          settingsWatchTag: function (tagKey) {
+            var sel = document.querySelector('#shareSettingsBundle [data-watch-tag-select]');
+            if (!sel) return Promise.resolve(null);
+            sel.value = tagKey;
+            var add = document.querySelector('#shareSettingsBundle [data-watch-add-tag]');
+            if (add) add.click();
+            return new Promise(function (res) {
+              setTimeout(function () { res(window.FolioShareBundle.settingsState()); }, 80);
+            });
+          },
+          /* From the open settings view: Add documents, check
+             the given doc ids, confirm — the real grow path. */
+          settingsAddDocs: function (docIds) {
+            var addBtn = document.querySelector('#shareSettingsBundle [data-bundle-add]') ||
+              document.getElementById('shareSettingsAddDocs');
+            if (!addBtn) return Promise.resolve(null);
+            addBtn.click();
+            (docIds || []).forEach(function (id) {
+              var cb = document.querySelector('#shareAddDocsList input[type="checkbox"][data-add-doc="' + id + '"]');
+              if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+            });
+            document.getElementById('shareAddDocsConfirm').click();
+            return new Promise(function (res) {
+              setTimeout(function () {
+                res({
+                  settings: window.FolioShareBundle.settingsState(),
+                  rows: window.FolioShareBundle.stubRows(),
+                });
+              }, 300);
+            });
+          },
+          /* From the open settings view: Revoke, accepting
+             the whole-set cascade when it is offered. */
+          settingsRevokeCascade: function () {
+            document.getElementById('shareSettingsRevoke').click();
+            return new Promise(function (res) {
+              setTimeout(function () {
+                if (shareShellViewOpen('revoke')) {
+                  document.getElementById('shareRevokeAllBtn').click();
+                }
+                setTimeout(function () {
+                  res({
+                    list: window.FolioShareBundle.linkListState(),
+                    rows: window.FolioShareBundle.stubRows(),
+                  });
+                }, 150);
+              }, 120);
+            });
+          },
+          /* Clicks the open settings view's Review row and
+             confirms the sweep with everything checked. */
+          settingsSweepConfirm: function () {
+            var btn = document.querySelector('#shareSettingsBundle [data-bundle-watch-review-btn]');
+            if (!btn) return Promise.resolve(null);
+            btn.click();
+            return new Promise(function (res) {
+              setTimeout(function () {
+                document.getElementById('shareSweepConfirm').click();
+                setTimeout(function () {
+                  res({
+                    settings: window.FolioShareBundle.settingsState(),
+                    rows: window.FolioShareBundle.stubRows(),
+                  });
+                }, 300);
+              }, 60);
+            });
           },
         };
 
