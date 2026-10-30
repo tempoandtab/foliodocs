@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261030-70" />
+    <meta name="folio-build" content="20261030-71" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2610,16 +2610,41 @@
          action row rests on the frame's bottom edge. A view
          swap changes the header and the content inside the
          frame, and nothing about the frame itself. */
-      #shareModal { overflow: hidden; overscroll-behavior: contain; }
+      #shareModal { overflow: hidden; overscroll-behavior: contain; align-items: center; }
+      /* Build -71: the frame is locked to the VIEWPORT, not
+         derived from the overlay's flex layout. Up to -70 the
+         panel's width came from width:100% + max-width inside
+         a flex row and its height from height:100% of the
+         overlay's padded content box — values every engine
+         resolved alike in Chromium, yet on the user's iPad
+         the sweep still arrived as a wider, left-shifted
+         panel than Main (frame-by-frame measurement of his
+         2026-10-30 recording: heights equal, widths and
+         horizontal positions different). The panel is now a
+         non-flexing item with an explicit inline size and
+         block size in viewport units — min(560px, 100vw
+         minus the overlay's 14px side padding) by 95dvh
+         minus the overlay's 20px bottom padding, exactly the
+         geometry -69 produced — so no view, no view content,
+         and no scrollbar state can size or position it. All
+         seven views inherit this one frame by construction. */
       #shareModal .panel {
-        height: 100%; max-height: 100%;
+        flex: 0 0 auto;
+        width: min(560px, calc(100vw - 28px));
+        height: calc(95dvh - 20px); max-height: calc(95dvh - 20px);
+        margin: auto;
         display: flex; flex-direction: column; overflow: hidden;
       }
       .share-shell-view[hidden] { display: none; }
       .share-shell-view {
         display: flex; flex-direction: column;
-        flex: 1 1 auto; min-height: 0;
+        flex: 1 1 auto; min-height: 0; min-width: 0;
         overflow-y: auto; overscroll-behavior: contain;
+        /* The gutter is reserved in every view, scrolling or
+           not, so a view swap never shifts the content width
+           either — the whole sheet, inside and out, is one
+           constant geometry. */
+        scrollbar-gutter: stable;
       }
       .share-shell-view > * { flex: 0 0 auto; }
       .share-shell-view .panel-head { flex: 0 0 auto; }
@@ -2713,6 +2738,26 @@
       .bundle-badge.is-root-badge { color: var(--accent-ink); background: var(--accent); }
       .bundle-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
       .bundle-member-note { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; margin-top: 2px; }
+      /* Fold for the bundle's shared-documents list (build
+         -71): the member rows of a large set otherwise fill
+         the whole Share panel and push the watch editor and
+         comments far down it. The fold head sits between the
+         wiki row and the rows; folding hides the rows only —
+         the wiki switch, Add documents, watch rules and the
+         drift notice stay put. The chevron follows the app's
+         other fold chevrons (rotates -90° when folded). */
+      .bundle-fold-head {
+        display: flex; align-items: center; gap: 6px;
+        width: 100%; text-align: left;
+        padding: 9px 2px 5px; min-height: 36px; border-radius: 7px;
+        font-size: 13px; font-weight: 700; color: var(--ink-2);
+      }
+      .bundle-fold-head:hover { background: var(--hover); color: var(--ink); }
+      .bundle-fold-chev { display: inline-flex; align-items: center; flex: 0 0 auto; color: var(--ink-3); }
+      .bundle-fold-chev svg { transition: transform 0.15s ease; }
+      .bundle-fold-head.is-folded .bundle-fold-chev svg { transform: rotate(-90deg); }
+      .bundle-fold-count { font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+      .bundle-members[hidden] { display: none; }
 
       /* ---------------- Bundle drift notice (build -61) ----------------
          A quiet row inside the Share panel's set section,
@@ -20256,6 +20301,13 @@
            is not repeated. The key resets on every fresh
            fetch, so each panel opening computes drift once. */
         var sharePanelDriftKey = null;
+        /* Whether the bundle's shared-documents list is
+           folded in the Share panel (build -71). Session
+           state only: it survives the panel's in-place
+           re-renders (wiki flips, watch edits, removals) so
+           a folded list never springs back open mid-task,
+           and it starts unfolded on a fresh load. */
+        var bundleDocsFolded = false;
         function panelDriftKey(doc, bundle) {
           var maxUpd = 0;
           lib.docs.forEach(function (d) { if ((d.updated || 0) > maxUpd) maxUpd = d.updated || 0; });
@@ -20372,6 +20424,50 @@
             });
             wikiRow.appendChild(wikiSwitch);
             wrap.appendChild(wikiRow);
+            /* Fold head + member container (build -71): the
+               shared-documents list can be folded away so a
+               large set's rows stop pushing the watch editor
+               and comments down the panel. The head names the
+               count; the container holds exactly the member
+               rows and nothing else, so folding never hides
+               the actions, watch rules or drift notice below. */
+            var memberCount = bundle.members.filter(function (m) { return m.token !== bundle.rootToken; }).length;
+            var memberTarget = wrap;
+            if (memberCount) {
+              var foldHead = document.createElement('button');
+              foldHead.type = 'button';
+              foldHead.className = 'bundle-fold-head' + (bundleDocsFolded ? ' is-folded' : '');
+              foldHead.id = 'shareBundleFoldHead';
+              foldHead.setAttribute('aria-expanded', bundleDocsFolded ? 'false' : 'true');
+              foldHead.setAttribute('aria-controls', 'shareBundleMembers');
+              foldHead.setAttribute('data-tip', bundleDocsFolded ? 'Show the documents in this set' : 'Fold the documents list away');
+              var foldChev = document.createElement('span');
+              foldChev.className = 'bundle-fold-chev';
+              foldChev.setAttribute('aria-hidden', 'true');
+              foldChev.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+              foldHead.appendChild(foldChev);
+              var foldLabel = document.createElement('span');
+              foldLabel.textContent = 'Documents in this set';
+              foldHead.appendChild(foldLabel);
+              var foldCount = document.createElement('span');
+              foldCount.className = 'bundle-fold-count';
+              foldCount.textContent = memberCount + (memberCount === 1 ? ' document' : ' documents');
+              foldHead.appendChild(foldCount);
+              var membersWrap = document.createElement('div');
+              membersWrap.className = 'bundle-members';
+              membersWrap.id = 'shareBundleMembers';
+              membersWrap.hidden = bundleDocsFolded;
+              foldHead.addEventListener('click', function () {
+                bundleDocsFolded = !bundleDocsFolded;
+                membersWrap.hidden = bundleDocsFolded;
+                foldHead.classList.toggle('is-folded', bundleDocsFolded);
+                foldHead.setAttribute('aria-expanded', bundleDocsFolded ? 'false' : 'true');
+                foldHead.setAttribute('data-tip', bundleDocsFolded ? 'Show the documents in this set' : 'Fold the documents list away');
+              });
+              wrap.appendChild(foldHead);
+              wrap.appendChild(membersWrap);
+              memberTarget = membersWrap;
+            }
             bundle.members.forEach(function (m) {
               if (m.token === bundle.rootToken) return;
               var row = document.createElement('div');
@@ -20408,7 +20504,7 @@
                 : 'Remove from this set \u2014 this document\u2019s own link keeps working');
               remove.addEventListener('click', function () { removeBundleMember(bundle, m, remove); });
               row.appendChild(remove);
-              wrap.appendChild(row);
+              memberTarget.appendChild(row);
             });
             var actions = document.createElement('div');
             actions.className = 'bundle-actions';
@@ -23126,6 +23222,30 @@
              manifest (null when no bundle is in play). */
           panelManifest: function () {
             return sharePanelBundle ? bundleManifestOf(sharePanelBundle) : null;
+          },
+          /* ---- build -71: bundle docs fold ---- */
+          /* Renders the real bundle panel section for a stored
+             bundle (the panel path itself needs the backend)
+             and reads back the fold state: head presence and
+             label, member row count, container visibility. */
+          previewBundlePanel: function (docId, bundleRaw, perm) {
+            var b = parseShareBundle(bundleRaw);
+            var d = lib.docs.find(function (x) { return x.id === docId; });
+            if (!b || !d) return null;
+            shareModalDocId = docId;
+            renderBundlePanel(b, perm || 'view');
+            return window.FolioShareBundle.bundlePanelState();
+          },
+          bundlePanelState: function () {
+            var head = document.getElementById('shareBundleFoldHead');
+            var members = document.getElementById('shareBundleMembers');
+            return {
+              foldHead: head ? head.textContent.replace(/\s+/g, ' ').trim() : null,
+              foldExpanded: head ? head.getAttribute('aria-expanded') : null,
+              membersHidden: members ? members.hidden : null,
+              memberRows: members ? members.querySelectorAll('.share-row').length : 0,
+              watchPresent: !!document.getElementById('shareBundleWatch'),
+            };
           },
           localFor: function (token) {
             var b = localBundleFor(token);
