@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-78" />
+    <meta name="folio-build" content="20261031-79" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3377,9 +3377,11 @@
 
       /* ---------------- file tabs: divider rail (Phase 1) ----------------
          A binding-green spine at the editor's left edge carrying
-         Finish C paper tabs with sideways names. The spine stays
+         Finish C tabs with sideways names. The spine stays
          binding green in every theme (deeper under Midnight);
-         the tabs take the theme's paper. */
+         build -79: the inactive tabs are shades of dark green
+         with cream names, furniture mounted on the binding —
+         the active tab alone keeps the page's own color. */
       .editor-body { display: flex; flex: 1; min-height: 0; }
       .editor-body .editor-scroll { flex: 1; min-width: 0; }
       .doc-session { min-height: 100%; }
@@ -3390,13 +3392,16 @@
         display: flex; flex-direction: column; min-height: 0;
       }
       :root[data-theme="midnight"] .tab-rail { background: linear-gradient(90deg, #081a13, #0c231a 55%, #0f2a1f); }
-      /* Build -78: the inactive tab shade as a plain hex per
-         theme (see .folio-tab above for why no color-mix). */
+      /* Build -79: the inactive tab face as a plain hex per
+         theme — a shade of dark green in each (see .folio-tab
+         below for why no color-mix). Paper's green is the base
+         rule; Sepia leans warm, Midnight stays deep but richer
+         than its spine. */
       :root[data-theme="sepia"] .folio-tab {
-        background: #cbc3b1;
+        background: #33523a;
       }
       :root[data-theme="midnight"] .folio-tab {
-        background: #151614;
+        background: #24513a;
       }
       :root[data-theme="midnight"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="sepia"] .folio-tab.active { background: var(--surface); }
@@ -3411,24 +3416,22 @@
       }
       .folio-tab {
         position: absolute; right: 0; width: 34px; cursor: pointer;
-        /* Build -78: the old mix shaded toward var(--ink), which
-           is the TEXT color — under Midnight that LIGHTENS the
-           tab (ink is near-white there), so the inactive tab read
-           pale and washed against the dark UI. Shade toward the
-           page surround and black instead, a direction that
-           deepens in every theme: Paper and Sepia step down from
-           the page, Midnight becomes a properly dark paper tone
-           below the active tab's exact page color. The shade is
-           a plain hex per theme (Paper here, Sepia and Midnight
-           in the overrides above), NOT a color-mix: harness
-           Chromium painted a color-mix tab background as
-           transparent — spine showing through, name unreadable
-           on light themes — while every other declaration in
-           this rule painted. The hexes are the mix's results
-           for the shipped themes (surface 50% / surround 33% /
-           black 17%), so the designed step is unchanged. */
-        background: #d3d0c6;
-        color: var(--ink); border-radius: 5px 0 0 5px;
+        /* Build -79: the inactive face leaves the paper/grey
+           family for a dark green — visibly lighter and richer
+           than the spine's ink green, so the tab reads as
+           furniture mounted on the binding, and clearly distinct
+           from the page surface the active tab wears. The name
+           turns cream: dark text on dark green is illegible.
+           The face stays a plain hex per theme (Paper here,
+           Sepia and Midnight in the overrides above), NOT a
+           color-mix: harness Chromium painted a color-mix tab
+           background as transparent — spine showing through,
+           name unreadable on light themes — while every other
+           declaration in this rule painted. The -78 tradeoff
+           stands: the hex is fixed per theme, not derived from
+           a customized Theme Styles surface color. */
+        background: #2c5a41;
+        color: #eae3cb; border-radius: 5px 0 0 5px;
         box-shadow: -2px 2px 5px rgba(0, 0, 0, 0.28);
         display: flex; align-items: center; justify-content: center;
         transition: transform 0.12s ease, width 0.12s ease;
@@ -3441,7 +3444,7 @@
       }
       .folio-tab:hover { transform: translateX(-3px); }
       .folio-tab.active {
-        width: 44px; background: var(--surface);
+        width: 44px; background: var(--surface); color: var(--ink);
         box-shadow: none; border-radius: 5px 0 0 5px; transform: none;
       }
       .tab-rail.slim .folio-tab { width: 26px; }
@@ -3456,13 +3459,18 @@
       .folio-tab-x {
         position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
         width: 18px; height: 18px; border: none; border-radius: 50%;
-        background: transparent; color: var(--ink-2); font-size: 14px; line-height: 1;
+        background: transparent; color: #eae3cb; font-size: 14px; line-height: 1;
         display: none; align-items: center; justify-content: center; cursor: pointer; padding: 0;
       }
       @media (hover: hover) {
         .folio-tab:hover .folio-tab-x { display: inline-flex; }
       }
-      .folio-tab-x:hover { background: var(--hover); color: var(--danger); }
+      /* On the green inactive face the × hovers on a cream wash
+         with a pale rose glyph; on the page-colored active tab
+         it keeps its original ink face. */
+      .folio-tab-x:hover { background: rgba(241, 234, 214, 0.22); color: #f2b8ae; }
+      .folio-tab.active .folio-tab-x { color: var(--ink-2); }
+      .folio-tab.active .folio-tab-x:hover { background: var(--hover); color: var(--danger); }
       .folio-tab.dragging { z-index: 6; box-shadow: -3px 6px 14px rgba(0,0,0,0.4); transition: none; }
       .tab-foot {
         flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 7px;
