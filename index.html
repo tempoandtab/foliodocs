@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261030-76" />
+    <meta name="folio-build" content="20261031-77" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3367,6 +3367,170 @@
         #printRoot .folio-prose blockquote.folio-callout.callout-folded > :not(.callout-title) { display: block; }
         #printRoot .folio-prose blockquote.folio-callout.callout-folded > table:not(.callout-title) { display: table; }
       }
+
+      /* ---------------- file tabs: divider rail (Phase 1) ----------------
+         A binding-green spine at the editor's left edge carrying
+         Finish C paper tabs with sideways names. The spine stays
+         binding green in every theme (deeper under Midnight);
+         the tabs take the theme's paper. */
+      .editor-body { display: flex; flex: 1; min-height: 0; }
+      .editor-body .editor-scroll { flex: 1; min-width: 0; }
+      .doc-session { min-height: 100%; }
+      .tab-rail {
+        width: 46px; flex: 0 0 46px; position: relative; z-index: 5;
+        background: linear-gradient(90deg, #0d271e, #12332a 55%, #163c30);
+        box-shadow: inset -1px 0 0 rgba(0,0,0,0.35), inset 1px 0 0 rgba(255,255,255,0.05);
+        display: flex; flex-direction: column; min-height: 0;
+      }
+      :root[data-theme="midnight"] .tab-rail { background: linear-gradient(90deg, #081a13, #0c231a 55%, #0f2a1f); }
+      .tab-rail.slim { width: 36px; flex-basis: 36px; }
+      :root[data-focus="on"] .tab-rail { display: none; }
+      .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
+      .tab-bands, .tab-strip { position: absolute; inset: 0; }
+      .tab-band {
+        position: absolute; left: 3px; right: 3px; height: 4px; border-radius: 2px;
+        background: rgba(241, 234, 214, 0.16);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+      .folio-tab {
+        position: absolute; right: 0; width: 34px; cursor: pointer;
+        background: color-mix(in srgb, var(--surface) 88%, var(--ink) 12%);
+        color: var(--ink); border-radius: 5px 0 0 5px;
+        box-shadow: -2px 2px 5px rgba(0, 0, 0, 0.28);
+        display: flex; align-items: center; justify-content: center;
+        transition: transform 0.12s ease, width 0.12s ease;
+        overflow: hidden; user-select: none; -webkit-user-select: none;
+        touch-action: none;
+      }
+      .folio-tab::after {
+        content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 4px;
+        background: var(--stripe, #b3a888);
+      }
+      .folio-tab:hover { transform: translateX(-3px); }
+      .folio-tab.active {
+        width: 44px; background: var(--surface);
+        box-shadow: none; border-radius: 5px 0 0 5px; transform: none;
+      }
+      .tab-rail.slim .folio-tab { width: 26px; }
+      .tab-rail.slim .folio-tab.active { width: 31px; }
+      .folio-tab-name {
+        writing-mode: vertical-rl; transform: rotate(180deg);
+        font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
+        max-height: calc(100% - 14px); overflow: hidden; white-space: nowrap;
+        text-overflow: ellipsis; pointer-events: none; padding-right: 3px;
+      }
+      .folio-tab.sliver .folio-tab-name { font-size: 10px; opacity: 0.85; }
+      .folio-tab-x {
+        position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
+        width: 18px; height: 18px; border: none; border-radius: 50%;
+        background: transparent; color: var(--ink-2); font-size: 14px; line-height: 1;
+        display: none; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+      }
+      @media (hover: hover) {
+        .folio-tab:hover .folio-tab-x { display: inline-flex; }
+      }
+      .folio-tab-x:hover { background: var(--hover); color: var(--danger); }
+      .folio-tab.dragging { z-index: 6; box-shadow: -3px 6px 14px rgba(0,0,0,0.4); transition: none; }
+      .tab-foot {
+        flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 7px;
+        padding: 10px 0 12px;
+      }
+      .tab-add {
+        width: 22px; height: 22px; border-radius: 50%; border: none; cursor: pointer;
+        background: #0a1f17; color: #f1ead6; font-size: 15px; line-height: 1;
+        display: inline-flex; align-items: center; justify-content: center; padding: 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12);
+      }
+      .tab-add:hover { background: #123528; }
+      .tab-book-btn {
+        border: none; background: transparent; color: #f1ead6; cursor: pointer;
+        font-size: 13px; line-height: 1; padding: 3px 6px; border-radius: 6px;
+      }
+      .tab-book-btn:hover { background: rgba(241, 234, 214, 0.14); }
+      .tab-pill {
+        display: none; align-items: center; gap: 3px; flex: 0 0 auto;
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+        border-radius: 999px; padding: 5px 10px; font-size: 13px; font-weight: 600; cursor: pointer;
+      }
+      @media (max-width: 640px) {
+        .tab-rail { display: none; }
+        .tab-pill { display: inline-flex; }
+        :root[data-focus="on"] .tab-pill { display: none; }
+      }
+      @media print { .tab-rail, .tab-pill { display: none !important; } }
+
+      /* ---------------- the Book: tab switcher ---------------- */
+      .book-cover {
+        background: linear-gradient(135deg, #0d271e, #12332a 60%, #173e31);
+        border-radius: 14px; padding: 14px; width: 100%; max-width: 860px; margin: auto;
+        box-shadow: var(--shadow);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .book-cover { animation: book-fold 0.25s ease-out; transform-origin: left center; }
+        @keyframes book-fold { from { opacity: 0; transform: perspective(1200px) rotateY(-14deg) translateX(-26px); } to { opacity: 1; transform: none; } }
+      }
+      .book-spread { display: flex; gap: 10px; }
+      .book-page {
+        flex: 1 1 0; min-width: 0; background: var(--surface); color: var(--ink);
+        border-radius: 6px; padding: 14px 16px 16px; max-height: 72dvh; overflow-y: auto;
+        box-shadow: inset 0 0 0 1px var(--line-soft);
+      }
+      .book-page-head {
+        font-family: "Newsreader", Georgia, serif; font-size: 17px; font-weight: 600;
+        margin: 0 0 10px; display: flex; align-items: center; justify-content: space-between;
+      }
+      .book-close {
+        border: none; background: transparent; color: var(--ink-2); cursor: pointer;
+        width: 30px; height: 30px; border-radius: 8px; font-size: 16px; line-height: 1;
+      }
+      .book-close:hover { background: var(--hover); color: var(--ink); }
+      .book-search {
+        width: 100%; border: 1px solid var(--line); border-radius: 9px; background: var(--bg);
+        color: var(--ink); font: inherit; font-size: 14.5px; padding: 8px 11px; margin-bottom: 10px;
+      }
+      .book-row {
+        display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+        border: none; background: transparent; color: var(--ink); cursor: pointer;
+        padding: 8px 8px; border-radius: 8px; font: inherit; font-size: 14.5px;
+      }
+      .book-row:hover, .book-row.sel { background: var(--hover); }
+      .book-row.active .book-row-name { font-weight: 700; }
+      .book-row-stripe { flex: 0 0 4px; align-self: stretch; border-radius: 2px; min-height: 18px; }
+      .book-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .book-row-here { font-size: 11.5px; color: var(--ink-3); flex: 0 0 auto; }
+      .book-row-x {
+        flex: 0 0 auto; border: none; background: transparent; color: var(--ink-3); cursor: pointer;
+        width: 24px; height: 24px; border-radius: 6px; font-size: 15px; line-height: 1; padding: 0;
+      }
+      .book-row-x:hover { background: var(--hover); color: var(--danger); }
+      .book-empty { color: var(--ink-3); font-size: 14px; padding: 10px 8px; }
+      .book-house-btn {
+        display: block; width: 100%; text-align: left; border: 1px solid var(--line);
+        background: var(--bg); color: var(--ink); border-radius: 9px; cursor: pointer;
+        font: inherit; font-size: 14.5px; padding: 10px 12px; margin-bottom: 8px;
+      }
+      .book-house-btn:hover:not(:disabled) { border-color: var(--ink-3); }
+      .book-house-btn:disabled { opacity: 0.45; cursor: default; }
+      .book-house-btn.danger { color: var(--danger); }
+      @media (max-width: 640px) {
+        #bookOverlay { padding: 0; }
+        .book-cover { max-width: none; min-height: 100dvh; border-radius: 0; }
+        .book-spread { flex-direction: column; }
+        .book-page { max-height: none; overflow-y: visible; }
+      }
+
+      /* ---------------- clipboard history ---------------- */
+      .clip-row {
+        display: block; width: 100%; text-align: left; border: none; background: transparent;
+        color: var(--ink); cursor: pointer; padding: 10px 10px; border-radius: 9px; font: inherit;
+      }
+      .clip-row:hover { background: var(--hover); }
+      .clip-row-text {
+        display: block; font-size: 14.5px; line-height: 1.45;
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        white-space: pre-wrap; word-break: break-word;
+      }
+      .clip-clear-row { color: var(--danger); font-size: 14.5px; font-weight: 600; }
     </style>
     <script>
       /* Apply the saved toolbar label scheme before first paint so
@@ -3538,6 +3702,7 @@
           <button class="icon-btn" id="docSettingsBtn" type="button" aria-label="Document settings" aria-haspopup="menu" aria-expanded="false" data-tip="Document settings — favorite, move, export, print, delete">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </button>
+          <button class="tab-pill" id="tabPill" type="button" aria-label="Open tabs" data-tip="Tab switcher">▾ <span id="tabPillCount">1</span></button>
           <button class="tb-btn share-btn" id="shareBtn" type="button" aria-label="Share this document" data-sc="share" data-tip="Share this document — create a view or comment link">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
             <span class="share-label">Share</span>
@@ -3703,9 +3868,21 @@
           </div>
         </div>
 
-        <div class="editor-scroll" id="editorScroll">
-          <div class="paper">
-            <div class="editor-mount" id="editorMount"></div>
+        <div class="editor-body">
+          <nav class="tab-rail" id="tabRail" aria-label="Open documents">
+            <div class="tab-scroll" id="tabScroll">
+              <div class="tab-bands" id="tabBands"></div>
+              <div class="tab-strip" id="tabStrip"></div>
+            </div>
+            <div class="tab-foot">
+              <button class="tab-add" id="tabAddBtn" type="button" aria-label="Open a document in a new tab" data-tip="Open a document in a new tab">+</button>
+              <button class="tab-book-btn" id="tabBookBtn" type="button" aria-label="Tab switcher" data-tip="Tab switcher">▾</button>
+            </div>
+          </nav>
+          <div class="editor-scroll" id="editorScroll">
+            <div class="paper">
+              <div class="editor-mount" id="editorMount"></div>
+            </div>
           </div>
         </div>
 
@@ -3719,6 +3896,7 @@
     <div class="menu" id="moveMenu" role="menu" aria-label="Move document to a folder"></div>
     <div class="menu" id="folderMenu" role="menu" aria-label="Folder actions"></div>
     <div class="menu" id="docMenu" role="menu" aria-label="Document actions"></div>
+    <div class="menu" id="tabMenu" role="menu" aria-label="Tab actions"></div>
     <div class="menu" id="tagMenu" role="menu" aria-label="Tag actions"></div>
     <div class="menu" id="docBarMenu" role="menu" aria-label="Document settings"></div>
     <div class="menu" id="topMenu" role="menu" aria-label="More actions"></div>
@@ -4093,6 +4271,38 @@
           <span class="spacer"></span>
           <button class="btn-primary" id="themeDoneBtn" type="button">Done</button>
         </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="bookOverlay" hidden>
+      <div class="book-cover">
+        <div class="book-spread">
+          <div class="book-page book-left">
+            <div class="book-page-head"><span>Contents</span></div>
+            <input class="book-search" id="bookSearch" type="text" placeholder="Search open tabs" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search open tabs" />
+            <div id="bookList"></div>
+          </div>
+          <div class="book-page book-right">
+            <div class="book-page-head"><span>Housekeeping</span>
+              <button class="book-close" id="bookClose" type="button" aria-label="Close tab switcher" data-tip="Close">✕</button>
+            </div>
+            <button class="book-house-btn" id="bookReopen" type="button">Reopen closed tab</button>
+            <button class="book-house-btn danger" id="bookCloseAll" type="button">Close all tabs</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="clipOverlay" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="clipTitle" style="max-width:520px">
+        <div class="panel-head">
+          <h2 id="clipTitle">Clipboard history</h2>
+          <button class="icon-btn" id="clipClose" type="button" aria-label="Close clipboard history" data-tip="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note">Copies and cuts made in FolioDocs, most recent first. Tap one to insert it at the caret.</p>
+        <div id="clipList" style="margin-top:10px"></div>
       </div>
     </div>
 
@@ -4785,6 +4995,7 @@
           { id: 'pal-bg', label: 'Page background', cssVar: '--bg', shipped: { paper: '#f4f1ea', sepia: '#ecdfc6', midnight: '#131512' } },
           { id: 'pal-surface', label: 'Surface (paper)', cssVar: '--surface', shipped: { paper: '#fffdf7', sepia: '#faf2df', midnight: '#1d1f1c' } },
           { id: 'pal-sidebar', label: 'Sidebar', cssVar: '--sidebar', shipped: { paper: '#eceade', sepia: '#e6d6b8', midnight: '#191b18' } },
+          { id: 'pal-sidebar-ink', label: 'Sidebar text', cssVar: '--sidebar-ink', shipped: { paper: '#33382f', sepia: '#4c3a26', midnight: '#d7d9d0' } },
           { id: 'pal-ink', label: 'Ink / text', cssVar: '--ink', shipped: { paper: '#22261f', sepia: '#3e2f1f', midnight: '#eceee6' } },
           { id: 'pal-ink2', label: 'Muted text', cssVar: '--ink-2', shipped: { paper: '#62665b', sepia: '#77644a', midnight: '#a3a79b' },
             note: 'Used for the default color of Subtitle and Blockquote text in documents, and for quieter interface text \u2014 outline items and the icon buttons in the topbar and context rail.' },
@@ -5415,6 +5626,16 @@
           { id: 'meadow', name: 'Meadow', blurb: 'A varied green walk — deep forest green through leaf and moss to olive, the hue travelling as the levels descend.',
             colorsLight: { h1: '#20502f', h2: '#2e6034', h3: '#3f6d2f', h4: '#5d7434', h5: '#6f7030', h6: '#7d7440', subtitle: '#61705a' },
             colorsDark: { h1: '#7ab07f', h2: '#93bd7f', h3: '#a3c172', h4: '#b3bd6d', h5: '#c2ba62', h6: '#cfc084', subtitle: '#a8b39a' } },
+          /* Binding (tabs Phase 1): BE-5's room as a preset —
+             the heading walk runs ink green down to gilt, and
+             applying ALSO writes the palette levers below
+             (sidebar and page surround in ink green, sidebar
+             text cream, the paper itself cream, gilt accent)
+             through tsSetLever, so it syncs through
+             theme_styles exactly like every other lever. */
+          { id: 'binding', name: 'Binding', blurb: 'Ink green and gilt — deep green headings warming to gold, with the sidebar and surround in binding green and a cream page.',
+            colors: { h1: '#12332a', h2: '#1d4a38', h3: '#2e6b4c', h4: '#7a6420', h5: '#a97e1f', h6: '#c9a227', subtitle: '#5f6b52' },
+            bindingPalette: { 'pal-bg': '#12332a', 'pal-sidebar': '#12332a', 'pal-sidebar-ink': '#f1ead6', 'pal-surface': '#fffaf0', 'pal-accent': '#a97e1f', 'pal-ink': '#26302a', 'pal-line': '#c9bb90' } },
         ];
         /* The color set a scheme wears on a given theme:
            the dual-set schemes pick light or Midnight;
@@ -5429,6 +5650,12 @@
             var c = cols[k];
             if (c) tsSetLever(k, 'color', c);
           });
+          if (scheme.bindingPalette) {
+            Object.keys(scheme.bindingPalette).forEach(function (pk) {
+              tsSetLever(pk, 'color', scheme.bindingPalette[pk]);
+            });
+            if (typeof applyThemedStyles === 'function') applyThemedStyles();
+          }
           buildThemeNav();
           if (typeof folioToast === 'function') folioToast(scheme.name + ' color scheme applied to the ' + currentTheme().name + ' theme — heading fonts, sizes and spacing were left as they are.', 3400);
         }
@@ -6782,6 +7009,10 @@
             closeFn();
             toggleFavorite(d.id);
           }, 'favorite');
+          item(DOC_SVG, 'Open in new tab', '', '', function () {
+            closeFn();
+            openDocInNewTab(d.id);
+          });
           item(CHECKLIST_SVG, 'Select documents', '', '', function () {
             closeFn();
             enterSelectMode(d.id);
@@ -8772,13 +9003,16 @@
             if (Date.now() - docLongPressAt < 400) return; // the long-press already opened the menu
             if (selectMode) { toggleDocSelected(d.id); return; }
             if (ev && (ev.metaKey || ev.ctrlKey)) { toggleDocSelected(d.id); return; }
-            if (ev && ev.shiftKey) { selectRangeTo(d.id); return; }
+            if (ev && ev.shiftKey) { openDocInNewTab(d.id); return; }
             openDoc(d.id, true);
           });
           btn.addEventListener('contextmenu', function (ev) {
             ev.preventDefault();
             if (Date.now() - secTapAt < 600) return; // the secondary tap already opened this menu
             openDocMenu(d.id, btn, ev.clientX, ev.clientY);
+          });
+          btn.addEventListener('auxclick', function (ev) {
+            if (ev.button === 1) { ev.preventDefault(); openDocInNewTab(d.id); }
           });
           var docLpTimer = null;
           btn.addEventListener('pointerdown', function (ev) {
@@ -9118,6 +9352,7 @@
         }
 
         function renderDocList() {
+          if (folioTabsReady) tabRender();
           docListEl.innerHTML = '';
           renderDocsViewLabel();
           if (!tagFilter && docViewMode === 'favorites') {
@@ -9812,6 +10047,14 @@
         function openDoc(id, focusEditor) {
           var doc = lib.docs.find(function (d) { return d.id === id; });
           if (!doc) return;
+          /* File tabs (Phase 1): a document already open in
+             another tab is jumped to, never duplicated — from
+             every door. Back/Forward traversal and tab-internal
+             switches are exempt: they are moves WITHIN a tab. */
+          if (folioTabsReady && !folioTabNavInternal && !navTraversing && id !== lib.currentId && tabIndexOf(id) !== -1) {
+            activateTab(id, focusEditor);
+            return;
+          }
           /* A genuine open records a history visit; a Back /
              Forward traversal replays an entry instead (it set
              navTraversing, and the pointer is already there). */
@@ -9826,23 +10069,39 @@
           fitTitleHeight();
           fitTitlePhone();
           if (editorHandle) {
-            /* The content swap drops the previous document's
-               folds (their anchors are gone) and would report
-               the empty set as a change; the restore guard
-               keeps that from erasing this document's stored
-               folds before they are applied. */
-            foldsRestoring = true;
-            editorHandle.setContent(doc.content);
-            applyStoredFolds();
-            foldsRestoring = false;
-            /* The swap is not a selection change the rail can
-               count on hearing about, so repaint it here —
-               otherwise it would keep the previous document's
-               context (and line) until the first caret move. */
-            updateContextRail();
-            scheduleSpellScan();
-            editorScroll.scrollTop = 0;
-            if (focusEditor && window.innerWidth > 900) editorHandle.focus();
+            if (folioTabsReady) {
+              /* File tabs (Phase 1): swap the visible editor to
+                 this document's parked session — its own scroll,
+                 caret and undo stack come with it. A plain
+                 in-tab navigation starts at the top, exactly as
+                 the old setContent swap did; a tab switch
+                 restores the session's scroll. */
+              foldsRestoring = true;
+              tabSwapEditorTo(id, !folioTabNavInternal);
+              applyStoredFolds();
+              foldsRestoring = false;
+              updateContextRail();
+              scheduleSpellScan();
+              if (focusEditor && window.innerWidth > 900) editorHandle.focus();
+            } else {
+              /* The content swap drops the previous document's
+                 folds (their anchors are gone) and would report
+                 the empty set as a change; the restore guard
+                 keeps that from erasing this document's stored
+                 folds before they are applied. */
+              foldsRestoring = true;
+              editorHandle.setContent(doc.content);
+              applyStoredFolds();
+              foldsRestoring = false;
+              /* The swap is not a selection change the rail can
+                 count on hearing about, so repaint it here —
+                 otherwise it would keep the previous document's
+                 context (and line) until the first caret move. */
+              updateContextRail();
+              scheduleSpellScan();
+              editorScroll.scrollTop = 0;
+              if (focusEditor && window.innerWidth > 900) editorHandle.focus();
+            }
           }
           renderDocList();
           renderOutline(doc.content);
@@ -9851,6 +10110,7 @@
           refreshShareBadge();
           if (window.innerWidth <= 900) document.body.classList.remove('nav-open');
           persist(false);
+          if (folioTabsReady && !folioTabNavInternal) tabAfterPlainOpen(id);
         }
 
         function createDoc(title) {
@@ -9911,6 +10171,7 @@
           if (lib.docs.length <= 1) return;
           recordTombstone('docs', id);
           lib.docs = lib.docs.filter(function (d) { return d.id !== id; });
+          if (folioTabsReady) tabOnDocDeleted(id);
           if (selectedDocs[id]) { delete selectedDocs[id]; renderSelBar(); }
           if (lib.currentId === id) {
             lib.currentId = sortedDocs()[0].id;
@@ -11650,7 +11911,7 @@
         var first = currentDoc();
         document.getElementById('titleInput').value = first.title;
 
-        editorHandle = window.FolioKit.createEditor({
+        var folioEditorOpts = {
           element: document.getElementById('editorMount'),
           content: first.content,
           placeholder: 'Start writing… type [[ to link a document, # for a heading.',
@@ -11764,7 +12025,8 @@
             setTagFilter(String(name).toLowerCase());
             if (window.innerWidth <= 900) document.body.classList.add('nav-open');
           },
-        });
+        };
+        editorHandle = window.FolioKit.createEditor(folioEditorOpts);
 
         /* The editor renders with the platform spellcheck
            presentation OFF: the app's own spellchecker draws
@@ -11790,6 +12052,805 @@
             if (editorHandle) { editorHandle.editor.chain().focus().toggleCode().run(); refreshToolbar(); }
           }
         });
+
+
+        /* ---------------- file tabs — Phase 1 (spec: tabs-spec.md) ----------------
+           The divider rail: open documents as Finish C paper tabs
+           on a binding-green spine at the editor's left edge, the
+           fold-out Book as switcher, per-tab state, and clipboard
+           history riding along.
+
+           Per-tab state shape: each open document owns a parked
+           editor session (its own TipTap instance in its own
+           sub-mount inside #editorMount), so switching tabs
+           restores that document's scroll, caret/selection and
+           OWN undo stack exactly — the visible `editorHandle`
+           simply points at the active session. The global
+           Back/Forward stack (navStack/navIdx) is swapped per
+           tab the same way: saved into the outgoing tab's record
+           and loaded from the incoming one. The open set persists
+           per device in localStorage (folio-tabs) and never
+           syncs. Tabs carry a `group` field that stays null —
+           groups are Phase 3. */
+        var TABS_KEY = 'folio-tabs';
+        var CLIP_KEY = 'folio-clip-history';
+        var folioTabsReady = false;
+        var folioTabNavInternal = false;
+        var omniNewTab = false;
+        var tabRecords = [];       // [{ docId, group:null, nav:{stack,idx} }]
+        var tabActiveId = null;
+        var tabClosedStack = [];   // docIds, most recent first
+        var tabMru = [];           // docIds, most recently activated first
+        var tabSessions = {};      // docId -> { mount, handle, scroll }
+        var tabDisplayedId = null;
+        var tabScrollPos = 0;
+        var tabView = { mode: 'fit', M: 0, T: 0, Z: 0 };
+        var tabLayoutCache = [];
+        var tabSuppressClick = false;
+        var tabPendingFill = false;
+        var tabRailEl = document.getElementById('tabRail');
+        var tabScrollEl = document.getElementById('tabScroll');
+        var tabStripEl = document.getElementById('tabStrip');
+        var tabBandsEl = document.getElementById('tabBands');
+
+        function tabDoc(id) {
+          return lib.docs.find(function (d) { return d.id === id; }) || null;
+        }
+        function tabIndexOf(id) {
+          for (var i = 0; i < tabRecords.length; i++) if (tabRecords[i].docId === id) return i;
+          return -1;
+        }
+        function tabRecord(id) {
+          var i = tabIndexOf(id);
+          return i < 0 ? null : tabRecords[i];
+        }
+        function tabFolderColor(d) {
+          var f = d && d.folderId ? folderById(d.folderId) : null;
+          return (f && f.color) || '#b3a888';
+        }
+        function tabSaveNav() {
+          var r = tabRecord(tabActiveId);
+          if (r) r.nav = { stack: navStack.slice(), idx: navIdx };
+        }
+        function tabLoadNav(r) {
+          var st = r.nav && Array.isArray(r.nav.stack) ? r.nav.stack.filter(function (x) { return navDocExists(x); }) : [];
+          if (!st.length) st = [r.docId];
+          navStack = st;
+          navIdx = typeof (r.nav && r.nav.idx) === 'number' ? r.nav.idx : st.length - 1;
+          if (navIdx >= navStack.length) navIdx = navStack.length - 1;
+          if (navIdx < 0) navIdx = 0;
+          navPaint();
+        }
+        function tabMruTouch(id) {
+          var i = tabMru.indexOf(id);
+          if (i !== -1) tabMru.splice(i, 1);
+          tabMru.unshift(id);
+        }
+        function tabPersist() {
+          tabSaveNav();
+          try {
+            localStorage.setItem(TABS_KEY, JSON.stringify({
+              tabs: tabRecords.map(function (r) { return { docId: r.docId, group: r.group || null, nav: r.nav }; }),
+              active: tabActiveId,
+              closed: tabClosedStack.slice(0, 25),
+            }));
+          } catch (e) {}
+        }
+
+        /* ----- editor sessions: one parked editor per open doc ----- */
+        function tabSessionFor(doc, create) {
+          var s = tabSessions[doc.id];
+          if (s || !create) return s || null;
+          var mount = document.createElement('div');
+          mount.className = 'doc-session';
+          mount.setAttribute('data-doc-id', doc.id);
+          mount.style.display = 'none';
+          document.getElementById('editorMount').appendChild(mount);
+          var handle = window.FolioKit.createEditor(Object.assign({}, folioEditorOpts, {
+            element: mount, content: doc.content,
+          }));
+          try { handle.editor.view.dom.setAttribute('spellcheck', 'false'); } catch (e) {}
+          try { attachCodeCopy(mount, handle.editor); } catch (e) {}
+          s = tabSessions[doc.id] = { mount: mount, handle: handle, scroll: 0 };
+          return s;
+        }
+        function tabAdoptInitialSession() {
+          var cur = currentDoc();
+          if (!cur || !editorHandle) return;
+          var em = document.getElementById('editorMount');
+          var mount = document.createElement('div');
+          mount.className = 'doc-session';
+          mount.setAttribute('data-doc-id', cur.id);
+          while (em.firstChild) mount.appendChild(em.firstChild);
+          em.appendChild(mount);
+          tabSessions[cur.id] = { mount: mount, handle: editorHandle, scroll: 0 };
+          tabDisplayedId = cur.id;
+        }
+        /* Swap the visible editor to doc id's session. `fresh`
+           (a plain in-tab navigation, Back/Forward included)
+           starts at the top, as openDoc always did; a tab
+           switch restores the session's own scroll. */
+        function tabSwapEditorTo(id, fresh) {
+          var doc = tabDoc(id);
+          if (!doc) return;
+          if (tabDisplayedId && tabSessions[tabDisplayedId]) {
+            tabSessions[tabDisplayedId].scroll = editorScroll.scrollTop;
+          }
+          var s = tabSessionFor(doc, true);
+          if (!s) return;
+          Object.keys(tabSessions).forEach(function (k) {
+            tabSessions[k].mount.style.display = k === id ? '' : 'none';
+          });
+          editorHandle = s.handle;
+          tabDisplayedId = id;
+          editorScroll.scrollTop = fresh ? 0 : (s.scroll || 0);
+        }
+        function tabDestroySession(id) {
+          var s = tabSessions[id];
+          if (!s) return;
+          try { if (s.handle && s.handle.destroy) s.handle.destroy(); } catch (e) {}
+          if (s.mount && s.mount.parentElement) s.mount.parentElement.removeChild(s.mount);
+          delete tabSessions[id];
+          if (tabDisplayedId === id) tabDisplayedId = null;
+        }
+
+        /* ----- opening / closing (spec §2) ----- */
+        function activateTab(id, focus) {
+          var r = tabRecord(id);
+          if (!r) return;
+          if (id === tabActiveId && id === lib.currentId) { tabEnsureVisible(id); return; }
+          tabSaveNav();
+          tabActiveId = id;
+          tabLoadNav(r);
+          tabMruTouch(id);
+          folioTabNavInternal = true;
+          navTraversing = true;
+          openDoc(id, !!focus);
+          navTraversing = false;
+          folioTabNavInternal = false;
+          tabPersist();
+          tabRender();
+          tabEnsureVisible(id);
+        }
+        function openDocInNewTab(id) {
+          if (!tabDoc(id)) return;
+          if (tabIndexOf(id) !== -1) { activateTab(id, true); return; }
+          tabSaveNav();
+          var r = { docId: id, group: null, nav: { stack: [id], idx: 0 } };
+          tabRecords.push(r);
+          tabActiveId = id;
+          tabLoadNav(r);
+          tabMruTouch(id);
+          folioTabNavInternal = true;
+          navTraversing = true;
+          openDoc(id, true);
+          navTraversing = false;
+          folioTabNavInternal = false;
+          tabPersist();
+          tabRender();
+          tabEnsureVisible(id);
+        }
+        /* A plain openDoc landed: it replaced the current tab's
+           document (the jump-to-tab case returns earlier, inside
+           openDoc itself). Keep the active record pointing at
+           the document now shown. */
+        function tabAfterPlainOpen(id) {
+          if (tabPendingFill) {
+            tabPendingFill = false;
+            if (tabIndexOf(id) === -1) tabRecords.push({ docId: id, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
+            tabActiveId = id;
+          }
+          var r = tabRecord(tabActiveId);
+          if (!r) {
+            tabRecords.push({ docId: id, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
+            tabActiveId = id;
+          } else if (r.docId !== id) {
+            r.docId = id;
+          }
+          tabSaveNav();
+          tabMruTouch(id);
+          tabPersist();
+          tabRender();
+          tabEnsureVisible(id);
+        }
+        function closeTab(id) {
+          var i = tabIndexOf(id);
+          if (i === -1) return;
+          closeTabMenu();
+          var wasActive = id === tabActiveId;
+          tabRecords.splice(i, 1);
+          if (tabDoc(id)) {
+            tabClosedStack = tabClosedStack.filter(function (x) { return x !== id; });
+            tabClosedStack.unshift(id);
+          }
+          tabMru = tabMru.filter(function (x) { return x !== id; });
+          if (wasActive) {
+            tabActiveId = null;
+            var next = tabRecords[Math.min(i, tabRecords.length - 1)];
+            if (next) { tabPersist(); activateTab(next.docId, false); return; }
+          }
+          tabPersist();
+          tabRender();
+        }
+        function closeOtherTabs(id) {
+          closeTabMenu();
+          var keep = [];
+          tabRecords.forEach(function (r) {
+            if (r.docId === id) keep.push(r);
+            else if (tabDoc(r.docId)) {
+              tabClosedStack = tabClosedStack.filter(function (x) { return x !== r.docId; });
+              tabClosedStack.unshift(r.docId);
+            }
+          });
+          tabRecords = keep;
+          tabMru = tabMru.filter(function (x) { return x === id; });
+          if (tabActiveId !== id) { tabPersist(); activateTab(id, false); return; }
+          tabPersist();
+          tabRender();
+        }
+        function closeAllTabs() {
+          tabRecords.slice().forEach(function (r) {
+            if (tabDoc(r.docId)) {
+              tabClosedStack = tabClosedStack.filter(function (x) { return x !== r.docId; });
+              tabClosedStack.unshift(r.docId);
+            }
+          });
+          tabRecords = [];
+          tabActiveId = null;
+          tabMru = [];
+          tabPersist();
+          tabRender();
+        }
+        function reopenClosedTab() {
+          while (tabClosedStack.length) {
+            var id = tabClosedStack.shift();
+            if (tabDoc(id) && tabIndexOf(id) === -1) { openDocInNewTab(id); return; }
+          }
+          tabPersist();
+          tabRender();
+        }
+        function tabStep(dir) {
+          if (tabRecords.length < 2) return;
+          var i = tabIndexOf(tabActiveId);
+          if (i === -1) i = 0;
+          var next = tabRecords[(i + dir + tabRecords.length) % tabRecords.length];
+          if (next) activateTab(next.docId, false);
+        }
+        function tabMruToggle() {
+          for (var i = 0; i < tabMru.length; i++) {
+            if (tabMru[i] !== tabActiveId && tabIndexOf(tabMru[i]) !== -1) {
+              activateTab(tabMru[i], false);
+              return;
+            }
+          }
+        }
+        function tabOnDocDeleted(id) {
+          var wasActive = tabActiveId === id;
+          var i = tabIndexOf(id);
+          if (i !== -1) tabRecords.splice(i, 1);
+          tabClosedStack = tabClosedStack.filter(function (x) { return x !== id; });
+          tabMru = tabMru.filter(function (x) { return x !== id; });
+          tabDestroySession(id);
+          if (wasActive) { tabActiveId = null; tabPendingFill = true; }
+          tabPersist();
+          tabRender();
+        }
+        function openTabPicker() {
+          omniNewTab = true;
+          openOmni();
+        }
+
+        /* ----- the tab menu (long-press / right-click) ----- */
+        var tabMenuEl = document.getElementById('tabMenu');
+        var tabMenuFor = null;
+        function closeTabMenu() {
+          if (!tabMenuEl) return;
+          tabMenuEl.className = 'menu';
+          tabMenuEl.innerHTML = '';
+          tabMenuFor = null;
+        }
+        function openTabMenu(id, x, y) {
+          if (!tabDoc(id)) return;
+          if (tabMenuFor === id && tabMenuEl.classList.contains('open')) { closeTabMenu(); return; }
+          closeDocMenu();
+          closeFolderMenu();
+          closeMoveMenu();
+          closeViewMenu();
+          closeTopMenu();
+          tabMenuFor = id;
+          tabMenuEl.innerHTML = '';
+          function item(label, cls, fn) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'menu-item' + (cls ? ' ' + cls : '');
+            b.setAttribute('role', 'menuitem');
+            b.setAttribute('data-tip', label);
+            var ic = document.createElement('span');
+            ic.className = 'm-icon';
+            b.appendChild(ic);
+            var s = document.createElement('span');
+            s.className = 'm-label';
+            s.textContent = label;
+            b.appendChild(s);
+            b.addEventListener('click', function () { closeTabMenu(); fn(); });
+            tabMenuEl.appendChild(b);
+            return b;
+          }
+          item('Close tab', 'danger', function () { closeTab(id); });
+          item('Close other tabs', 'danger', function () { closeOtherTabs(id); });
+          tabMenuEl.className = 'menu open';
+          var w = 224, h = tabMenuEl.offsetHeight;
+          tabMenuEl.style.left = Math.max(8, Math.min(x || 8, window.innerWidth - w - 8)) + 'px';
+          tabMenuEl.style.top = Math.max(8, Math.min(y || 8, window.innerHeight - h - 8)) + 'px';
+        }
+        document.addEventListener('pointerdown', function (ev) {
+          if (tabMenuFor && tabMenuEl && !tabMenuEl.contains(ev.target)) closeTabMenu();
+        }, true);
+
+        /* ----- the rail: render + stack-scroll layout (spec §3–4) ----- */
+        function tabNaturalHeight(title) {
+          var len = (title || 'Untitled').length;
+          return Math.max(64, Math.min(140, 34 + len * 7.4));
+        }
+        function tabRender() {
+          if (!tabStripEl || !tabBandsEl) return;
+          tabStripEl.innerHTML = '';
+          tabBandsEl.innerHTML = '';
+          tabLayoutCache = [];
+          tabRecords.forEach(function (r) {
+            var d = tabDoc(r.docId);
+            if (!d) return;
+            var el = document.createElement('div');
+            el.className = 'folio-tab' + (r.docId === tabActiveId ? ' active' : '');
+            el.setAttribute('role', 'tab');
+            el.setAttribute('aria-selected', r.docId === tabActiveId ? 'true' : 'false');
+            el.setAttribute('aria-label', d.title || 'Untitled');
+            el.setAttribute('data-doc-id', r.docId);
+            el.setAttribute('data-tip', d.title || 'Untitled');
+            el.style.setProperty('--stripe', tabFolderColor(d));
+            var nm = document.createElement('span');
+            nm.className = 'folio-tab-name';
+            nm.textContent = d.title || 'Untitled';
+            el.appendChild(nm);
+            var x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'folio-tab-x';
+            x.setAttribute('aria-label', 'Close tab');
+            x.setAttribute('data-tip', 'Close tab');
+            x.textContent = '×';
+            x.addEventListener('click', function (ev) { ev.stopPropagation(); closeTab(r.docId); });
+            x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+            el.appendChild(x);
+            el.addEventListener('click', function () {
+              if (tabSuppressClick) return;
+              activateTab(r.docId, false);
+            });
+            el.addEventListener('contextmenu', function (ev) {
+              ev.preventDefault();
+              openTabMenu(r.docId, ev.clientX, ev.clientY);
+            });
+            tabStripEl.appendChild(el);
+            var band = document.createElement('div');
+            band.className = 'tab-band';
+            tabBandsEl.appendChild(band);
+            tabLayoutCache.push({ rec: r, el: el, band: band, vtop: 0, vh: 0, top: 0, sh: 0 });
+          });
+          var pillCount = document.getElementById('tabPillCount');
+          if (pillCount) pillCount.textContent = String(tabRecords.length);
+          tabLayout();
+          tabSyncSlim();
+        }
+        function tabLayout() {
+          if (!tabScrollEl || !tabLayoutCache.length) return;
+          var H = tabScrollEl.clientHeight;
+          if (!H) return;
+          var gap = 12, n = tabLayoutCache.length, sum = 0, minNat = Infinity;
+          tabLayoutCache.forEach(function (c) {
+            c.vh = tabNaturalHeight(tabDoc(c.rec.docId) ? tabDoc(c.rec.docId).title : '');
+            sum += c.vh;
+            if (c.vh < minNat) minNat = c.vh;
+          });
+          var total = sum + gap * (n - 1);
+          if (total <= H) {
+            tabView = { mode: 'fit', M: H, T: total, Z: 0 };
+            tabScrollPos = 0;
+            var y = 0;
+            tabLayoutCache.forEach(function (c) { c.vtop = y; c.top = y; c.sh = c.vh; y += c.vh + gap; });
+          } else {
+            var f = (H - gap * (n - 1)) / sum;
+            if (minNat * f >= 56) {
+              tabView = { mode: 'fit', M: H, T: H, Z: 0 };
+              tabScrollPos = 0;
+              var y2 = 0;
+              tabLayoutCache.forEach(function (c) { c.vh = c.vh * f; c.vtop = y2; c.top = y2; c.sh = c.vh; y2 += c.vh + gap; });
+            } else {
+              var f2 = 56 / minNat, T = 0;
+              tabLayoutCache.forEach(function (c) { c.vh = c.vh * f2; c.vtop = T; T += c.vh + gap; });
+              T -= gap;
+              var Z = Math.max(30, Math.min(96, H * 0.22));
+              var M = Math.max(60, H - 2 * Z);
+              tabView = { mode: 'scroll', M: M, T: T, Z: Z };
+              var maxScroll = Math.max(0, T - M);
+              tabScrollPos = Math.max(0, Math.min(tabScrollPos, maxScroll));
+              var s = tabScrollPos;
+              function mapY(vy) {
+                if (vy <= s) return s === 0 ? vy : Z * (vy / s);
+                if (vy >= s + M) {
+                  var rem = T - (s + M);
+                  return rem <= 0 ? H - Z : (H - Z) + Z * ((vy - (s + M)) / rem);
+                }
+                return Z + (vy - s);
+              }
+              tabLayoutCache.forEach(function (c) {
+                c.top = mapY(c.vtop);
+                c.sh = Math.max(9, mapY(c.vtop + c.vh) - c.top - 2);
+              });
+            }
+          }
+          tabLayoutCache.forEach(function (c) {
+            c.el.style.top = c.top + 'px';
+            c.el.style.height = c.sh + 'px';
+            c.el.classList.toggle('sliver', c.sh < 26);
+            c.band.style.top = Math.max(0, c.top - 3) + 'px';
+          });
+        }
+        function tabEnsureVisible(id) {
+          if (tabView.mode !== 'scroll') return;
+          for (var i = 0; i < tabLayoutCache.length; i++) {
+            var c = tabLayoutCache[i];
+            if (c.rec.docId !== id) continue;
+            if (c.vtop < tabScrollPos) tabScrollPos = c.vtop;
+            else if (c.vtop + c.vh > tabScrollPos + tabView.M) tabScrollPos = c.vtop + c.vh - tabView.M;
+            tabScrollPos = Math.max(0, Math.min(tabScrollPos, Math.max(0, tabView.T - tabView.M)));
+            tabLayout();
+            return;
+          }
+        }
+        function tabSyncSlim() {
+          if (!tabRailEl || !editorScroll) return;
+          tabRailEl.classList.toggle('slim', editorScroll.clientWidth > 0 && editorScroll.clientWidth < 700);
+          tabLayout();
+        }
+        if (tabScrollEl) {
+          tabScrollEl.addEventListener('wheel', function (ev) {
+            if (tabView.mode !== 'scroll') return;
+            ev.preventDefault();
+            tabScrollPos += ev.deltaY;
+            tabScrollPos = Math.max(0, Math.min(tabScrollPos, Math.max(0, tabView.T - tabView.M)));
+            tabLayout();
+          }, { passive: false });
+          /* One pointer grammar for the rail: a touch drag
+             scrolls the stack; a mouse drag reorders; a hold
+             (either) opens the tab menu; a plain tap switches. */
+          var tabPtr = null;
+          tabScrollEl.addEventListener('pointerdown', function (ev) {
+            var t = ev.target.closest ? ev.target.closest('.folio-tab') : null;
+            if (!t || (ev.target.closest && ev.target.closest('.folio-tab-x'))) return;
+            var id = t.getAttribute('data-doc-id');
+            tabPtr = {
+              id: id, el: t, startY: ev.clientY, lastY: ev.clientY,
+              type: ev.pointerType, moved: false, targetIdx: -1,
+              lpTimer: setTimeout(function () {
+                if (tabPtr && !tabPtr.moved) {
+                  tabSuppressClick = true;
+                  openTabMenu(id, ev.clientX, ev.clientY);
+                  setTimeout(function () { tabSuppressClick = false; }, 450);
+                }
+              }, 550),
+            };
+          });
+          tabScrollEl.addEventListener('pointermove', function (ev) {
+            if (!tabPtr) return;
+            var dy = ev.clientY - tabPtr.lastY;
+            var totalDy = ev.clientY - tabPtr.startY;
+            if (!tabPtr.moved && Math.abs(totalDy) > 7) {
+              tabPtr.moved = true;
+              if (tabPtr.lpTimer) { clearTimeout(tabPtr.lpTimer); tabPtr.lpTimer = null; }
+            }
+            if (!tabPtr.moved) return;
+            if (tabPtr.type === 'touch' || tabPtr.type === 'pen') {
+              if (tabView.mode === 'scroll') {
+                tabScrollPos -= dy;
+                tabScrollPos = Math.max(0, Math.min(tabScrollPos, Math.max(0, tabView.T - tabView.M)));
+                tabLayout();
+              }
+            } else {
+              tabPtr.el.classList.add('dragging');
+              tabPtr.el.style.transform = 'translateY(' + totalDy + 'px)';
+              var center = tabPtr.el.offsetTop + totalDy + tabPtr.el.offsetHeight / 2;
+              var best = tabIndexOf(tabPtr.id), bestDist = Infinity;
+              tabLayoutCache.forEach(function (c, idx) {
+                var cc = c.top + c.sh / 2;
+                var dist = Math.abs(cc - center);
+                if (dist < bestDist) { bestDist = dist; best = idx; }
+              });
+              tabPtr.targetIdx = best;
+            }
+            tabPtr.lastY = ev.clientY;
+          });
+          function tabPtrEnd(commit) {
+            if (!tabPtr) return;
+            if (tabPtr.lpTimer) clearTimeout(tabPtr.lpTimer);
+            var p = tabPtr;
+            tabPtr = null;
+            p.el.classList.remove('dragging');
+            p.el.style.transform = '';
+            if (commit && p.moved && p.type !== 'touch' && p.type !== 'pen' && p.targetIdx !== -1) {
+              var from = tabIndexOf(p.id);
+              if (from !== -1 && p.targetIdx !== from) {
+                var rec = tabRecords.splice(from, 1)[0];
+                tabRecords.splice(p.targetIdx, 0, rec);
+                tabSuppressClick = true;
+                setTimeout(function () { tabSuppressClick = false; }, 60);
+                tabPersist();
+                tabRender();
+                return;
+              }
+            }
+            if (p.moved) tabLayout();
+          }
+          tabScrollEl.addEventListener('pointerup', function () { tabPtrEnd(true); });
+          tabScrollEl.addEventListener('pointercancel', function () { tabPtrEnd(false); });
+        }
+        var tabAddBtn = document.getElementById('tabAddBtn');
+        if (tabAddBtn) tabAddBtn.addEventListener('click', function () { openTabPicker(); });
+        var tabBookBtn = document.getElementById('tabBookBtn');
+        if (tabBookBtn) tabBookBtn.addEventListener('click', function () { openBook(); });
+        var tabPillBtn = document.getElementById('tabPill');
+        if (tabPillBtn) tabPillBtn.addEventListener('click', function () { openBook(); });
+        window.addEventListener('resize', function () { tabSyncSlim(); tabLayout(); });
+
+        /* ----- the Book: tab switcher (spec §8) ----- */
+        var bookOverlay = document.getElementById('bookOverlay');
+        var bookListEl = document.getElementById('bookList');
+        var bookSearchEl = document.getElementById('bookSearch');
+        var bookReopenBtn = document.getElementById('bookReopen');
+        var bookCloseAllBtn = document.getElementById('bookCloseAll');
+        var bookSel = 0;
+        function openBook() {
+          if (!bookOverlay) return;
+          closeTabMenu();
+          bookOverlay.hidden = false;
+          if (bookSearchEl) bookSearchEl.value = '';
+          bookSel = 0;
+          bookRender();
+          setTimeout(function () { if (bookSearchEl) bookSearchEl.focus(); }, 40);
+        }
+        function closeBook() {
+          if (bookOverlay) bookOverlay.hidden = true;
+        }
+        function bookRows() {
+          return bookListEl ? Array.prototype.slice.call(bookListEl.querySelectorAll('.book-row')) : [];
+        }
+        function bookRender() {
+          if (!bookListEl) return;
+          var q = (bookSearchEl && bookSearchEl.value || '').trim().toLowerCase();
+          bookListEl.innerHTML = '';
+          var shown = 0;
+          tabRecords.forEach(function (r) {
+            var d = tabDoc(r.docId);
+            if (!d) return;
+            if (q && (d.title || 'Untitled').toLowerCase().indexOf(q) === -1) return;
+            shown++;
+            var row = document.createElement('div');
+            row.className = 'book-row' + (r.docId === tabActiveId ? ' active' : '');
+            row.setAttribute('role', 'button');
+            row.setAttribute('tabindex', '-1');
+            row.setAttribute('data-doc-id', r.docId);
+            var stripe = document.createElement('span');
+            stripe.className = 'book-row-stripe';
+            stripe.style.background = tabFolderColor(d);
+            row.appendChild(stripe);
+            var nm = document.createElement('span');
+            nm.className = 'book-row-name';
+            nm.textContent = d.title || 'Untitled';
+            row.appendChild(nm);
+            if (r.docId === tabActiveId) {
+              var here = document.createElement('span');
+              here.className = 'book-row-here';
+              here.textContent = 'open here';
+              row.appendChild(here);
+            }
+            var x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'book-row-x';
+            x.setAttribute('aria-label', 'Close tab');
+            x.setAttribute('data-tip', 'Close tab');
+            x.textContent = '×';
+            x.addEventListener('click', function (ev) {
+              ev.stopPropagation();
+              closeTab(r.docId);
+              bookRender();
+            });
+            row.appendChild(x);
+            row.addEventListener('click', function () {
+              closeBook();
+              activateTab(r.docId, false);
+            });
+            row.addEventListener('contextmenu', function (ev) {
+              ev.preventDefault();
+              openTabMenu(r.docId, ev.clientX, ev.clientY);
+            });
+            bookListEl.appendChild(row);
+          });
+          if (!shown) {
+            var empty = document.createElement('div');
+            empty.className = 'book-empty';
+            empty.textContent = q ? 'No open tabs match "' + (bookSearchEl.value || '').trim() + '".' : 'No tabs are open.';
+            bookListEl.appendChild(empty);
+          }
+          if (bookReopenBtn) bookReopenBtn.disabled = !tabClosedStack.length;
+          if (bookCloseAllBtn) bookCloseAllBtn.disabled = !tabRecords.length;
+          var rows = bookRows();
+          if (bookSel >= rows.length) bookSel = Math.max(0, rows.length - 1);
+          rows.forEach(function (row, i) { row.classList.toggle('sel', i === bookSel); });
+        }
+        if (bookSearchEl) bookSearchEl.addEventListener('input', function () { bookSel = 0; bookRender(); });
+        if (bookReopenBtn) bookReopenBtn.addEventListener('click', function () { reopenClosedTab(); bookRender(); });
+        if (bookCloseAllBtn) bookCloseAllBtn.addEventListener('click', function () { closeAllTabs(); bookRender(); });
+        var bookCloseBtn = document.getElementById('bookClose');
+        if (bookCloseBtn) bookCloseBtn.addEventListener('click', function () { closeBook(); });
+        if (bookOverlay) {
+          bookOverlay.addEventListener('click', function (ev) {
+            if (ev.target === bookOverlay) closeBook();
+          });
+          bookOverlay.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape') { ev.preventDefault(); closeBook(); return; }
+            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+              ev.preventDefault();
+              var rows = bookRows();
+              if (!rows.length) return;
+              bookSel = (bookSel + (ev.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length;
+              rows.forEach(function (row, i) { row.classList.toggle('sel', i === bookSel); });
+              if (rows[bookSel].scrollIntoView) rows[bookSel].scrollIntoView({ block: 'nearest' });
+              return;
+            }
+            if (ev.key === 'Enter') {
+              var rows2 = bookRows();
+              if (rows2[bookSel]) { ev.preventDefault(); rows2[bookSel].click(); }
+              return;
+            }
+            if (ev.key && ev.key.length === 1 && document.activeElement !== bookSearchEl) {
+              if (bookSearchEl) bookSearchEl.focus();
+            }
+          });
+        }
+
+        /* ----- clipboard history (spec §12) -----
+           Copies and cuts made inside FolioDocs only — the
+           app cannot (and does not try to) read the system
+           clipboard. Entries keep the copied fragment as doc
+           JSON, so inline formatting survives the round trip;
+           inserting one is a single editor transaction, hence
+           a single undo step. Per device, never synced. */
+        var clipHist = [];
+        try {
+          var savedClip = JSON.parse(localStorage.getItem(CLIP_KEY) || '[]');
+          if (Array.isArray(savedClip)) {
+            clipHist = savedClip.filter(function (e) { return e && typeof e.text === 'string' && Array.isArray(e.nodes); }).slice(0, 25);
+          }
+        } catch (e) {}
+        function clipSave() {
+          try { localStorage.setItem(CLIP_KEY, JSON.stringify(clipHist.slice(0, 25))); } catch (e) {}
+        }
+        function clipRecordFromSelection() {
+          var sel = window.getSelection ? window.getSelection() : null;
+          if (!sel || sel.isCollapsed || !sel.anchorNode) return;
+          var node = sel.anchorNode;
+          var el = node.nodeType === 1 ? node : node.parentNode;
+          if (!el || !el.closest || !el.closest('#editorMount')) return;
+          var text = sel.toString();
+          if (!text || !text.trim()) return;
+          var nodes = null;
+          try {
+            if (editorHandle && editorHandle.editor) {
+              var slice = editorHandle.editor.state.selection.content();
+              nodes = slice.content.toJSON();
+            }
+          } catch (e) { nodes = null; }
+          if (!nodes || !nodes.length) {
+            nodes = [{ type: 'paragraph', content: [{ type: 'text', text: text }] }];
+          }
+          if (clipHist.length && clipHist[0].text === text) return;
+          clipHist.unshift({ text: text, nodes: nodes, ts: Date.now() });
+          if (clipHist.length > 25) clipHist.length = 25;
+          clipSave();
+        }
+        document.addEventListener('copy', function () { clipRecordFromSelection(); }, true);
+        document.addEventListener('cut', function () { clipRecordFromSelection(); }, true);
+        var clipOverlay = document.getElementById('clipOverlay');
+        var clipListEl = document.getElementById('clipList');
+        function openClipboardHistory() {
+          if (!clipOverlay) return;
+          clipRender();
+          clipOverlay.hidden = false;
+        }
+        function closeClipboardHistory() {
+          if (clipOverlay) clipOverlay.hidden = true;
+        }
+        function clipRender() {
+          if (!clipListEl) return;
+          clipListEl.innerHTML = '';
+          if (!clipHist.length) {
+            var empty = document.createElement('div');
+            empty.className = 'book-empty';
+            empty.textContent = 'Nothing copied yet — copy or cut something in a document and it will be kept here.';
+            clipListEl.appendChild(empty);
+            return;
+          }
+          clipHist.forEach(function (entry) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'clip-row';
+            b.setAttribute('data-tip', 'Insert at the caret');
+            var t = document.createElement('span');
+            t.className = 'clip-row-text';
+            t.textContent = entry.text;
+            b.appendChild(t);
+            b.addEventListener('click', function () {
+              closeClipboardHistory();
+              if (editorHandle && editorHandle.editor) {
+                try { editorHandle.editor.chain().focus().insertContent(entry.nodes).run(); } catch (e) {}
+              }
+            });
+            clipListEl.appendChild(b);
+          });
+          var clear = document.createElement('button');
+          clear.type = 'button';
+          clear.className = 'clip-row clip-clear-row';
+          clear.textContent = 'Clear history';
+          clear.addEventListener('click', function () {
+            clipHist = [];
+            clipSave();
+            clipRender();
+          });
+          clipListEl.appendChild(clear);
+        }
+        var clipCloseBtn = document.getElementById('clipClose');
+        if (clipCloseBtn) clipCloseBtn.addEventListener('click', function () { closeClipboardHistory(); });
+        if (clipOverlay) {
+          clipOverlay.addEventListener('click', function (ev) {
+            if (ev.target === clipOverlay) closeClipboardHistory();
+          });
+          clipOverlay.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape') { ev.preventDefault(); closeClipboardHistory(); }
+          });
+        }
+
+        /* ----- init: adopt the startup editor, restore the open set ----- */
+        (function tabInit() {
+          tabAdoptInitialSession();
+          var saved = null;
+          try { saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null'); } catch (e) {}
+          if (saved && Array.isArray(saved.tabs)) {
+            saved.tabs.forEach(function (t) {
+              if (!t || !tabDoc(t.docId) || tabIndexOf(t.docId) !== -1) return;
+              var nav = t.nav && Array.isArray(t.nav.stack)
+                ? { stack: t.nav.stack.filter(function (x) { return navDocExists(x); }), idx: typeof t.nav.idx === 'number' ? t.nav.idx : 0 }
+                : { stack: [t.docId], idx: 0 };
+              if (!nav.stack.length) nav = { stack: [t.docId], idx: 0 };
+              tabRecords.push({ docId: t.docId, group: null, nav: nav });
+            });
+            if (Array.isArray(saved.closed)) {
+              tabClosedStack = saved.closed.filter(function (x) { return !!tabDoc(x); });
+            }
+          }
+          if (lib.currentId && tabIndexOf(lib.currentId) === -1) {
+            tabRecords.push({ docId: lib.currentId, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
+          }
+          if (!tabRecords.length && lib.docs.length) {
+            tabRecords.push({ docId: lib.docs[0].id, group: null, nav: { stack: [lib.docs[0].id], idx: 0 } });
+          }
+          tabActiveId = lib.currentId;
+          var activeRec = tabRecord(tabActiveId);
+          if (activeRec && activeRec.nav && activeRec.nav.stack.length) tabLoadNav(activeRec);
+          tabMru = tabActiveId ? [tabActiveId] : [];
+          folioTabsReady = true;
+          tabPersist();
+          tabRender();
+          setTimeout(function () { tabSyncSlim(); tabLayout(); }, 60);
+        })();
+
 
         /* ---------------- surround selection on typing ---------------- */
         // Typing an opener with text selected wraps the selection in the
@@ -26106,6 +27167,23 @@
             run: function () { navPrevDoc(); } },
           { id: 'nav-next-doc', combo: 'mod+alt+arrowdown', hint: '⌘⌥↓', group: 'General', label: 'Next document',
             run: function () { navNextDoc(); } },
+          /* File tabs (Phase 1): vertical chords for a vertical
+             rail — the app claims ⌘⇧↑ / ⌘⇧↓ globally, giving up
+             the editor's select-to-document-start/end on them
+             (⌘⇧←/→ keep line-edge selection). ⌥Q toggles to the
+             previously active tab (MRU); ⌥W opens the Book. The
+             Option glyphs (œ, ∑) resolve through the
+             dispatcher's Option-character table. All four are
+             field-safe (SC_SAFE_IN_FIELD below): like Zen, the
+             chords type no text. */
+          { id: 'tab-next', combo: 'mod+shift+arrowdown', hint: '⌘⇧↓', group: 'General', label: 'Next tab',
+            run: function () { tabStep(1); } },
+          { id: 'tab-prev', combo: 'mod+shift+arrowup', hint: '⌘⇧↑', group: 'General', label: 'Previous tab',
+            run: function () { tabStep(-1); } },
+          { id: 'tab-recent', combo: 'alt+q', hint: '⌥Q', group: 'General', label: 'Switch to previous tab',
+            run: function () { tabMruToggle(); } },
+          { id: 'tab-book', combo: 'alt+w', hint: '⌥W', group: 'General', label: 'Tab switcher',
+            run: function () { openBook(); } },
           /* Collapse toggles. ⌘⌥⇧D folds the Documents
              section: D for Documents — plain ⌘⌥D is the date
              stamp, so the toggle takes the shifted sibling,
@@ -26610,7 +27688,7 @@
            screen, shortcuts stand down (the modal's own keys,
            and the legacy ⌘P fallback, still work there). */
         function scAnyOverlayOpen() {
-          var ids = ['shareModal', 'deleteModal', 'shortcutsModal', 'syncDetailsModal', 'themeModal', 'authOverlay', 'shareView'];
+          var ids = ['shareModal', 'deleteModal', 'shortcutsModal', 'syncDetailsModal', 'themeModal', 'authOverlay', 'shareView', 'bookOverlay', 'clipOverlay'];
           for (var i = 0; i < ids.length; i++) {
             var el = document.getElementById(ids[i]);
             if (el && !el.hidden) return true;
@@ -26633,7 +27711,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
+        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-recent': true, 'tab-book': true, 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
@@ -27313,6 +28391,7 @@
              own: selection mode, acting on the open document
              exactly as its menu entry does. */
           push('select-documents', 'Select documents', '', 'General', function () { enterSelectMode(lib.currentId); });
+          push('clipboard-history', 'Clipboard history', '', 'General', function () { openClipboardHistory(); });
           pushRegistry('Formatting');
           pushRegistry('Table');
           if (abInTable()) {
@@ -27393,6 +28472,7 @@
           'fold-all-sections': COLLAPSE_ALL_SVG,
           'unfold-all-sections': EXPAND_ALL_SVG,
           'select-documents': CHECKLIST_SVG,
+          'clipboard-history': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
           'button-labels': LABEL_ICONS_TEXT_SVG,
           'theme': PALETTE_SVG,
           'sync-now': SYNC_NOW_SVG,
@@ -27680,12 +28760,22 @@
         }
         function omniDocEntry(d, snippet) {
           var f = d.folderId ? folderById(d.folderId) : null;
+          /* The tab rail's + disc opens this same palette in
+             new-tab mode (omniNewTab): its picks open as tabs
+             instead of replacing the current one. The mode is
+             captured HERE, at entry build, because omniRun
+             closes the palette (resetting the flag) before it
+             runs the pick. */
+          var forTab = omniNewTab;
           return {
             icon: DOC_SVG,
             label: d.title || 'Untitled',
             sub: snippet || '',
             hint: f ? omniFolderPath(f, true) : '',
-            run: function () { openDoc(d.id, true); }
+            run: function () {
+              if (forTab) { omniNewTab = false; openDocInNewTab(d.id); }
+              else openDoc(d.id, true);
+            }
           };
         }
         function omniFolderEntry(f) {
@@ -27916,6 +29006,7 @@
         function closeOmni(restore) {
           if (!omniOpen) return;
           omniOpen = false;
+          omniNewTab = false;
           omniBarEl.hidden = true;
           if (window.visualViewport) window.visualViewport.removeEventListener('resize', omniPlace);
           if (restore) omniRestoreFocus();
