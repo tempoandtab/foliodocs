@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-86" />
+    <meta name="folio-build" content="20261031-87" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -130,7 +130,7 @@
       :root[data-theme="binding"] {
         color-scheme: light;
         --bg: #12332a;
-        --surface: #fffaf0;
+        --surface: #f2e3bd;
         --sidebar: #0f2d22;
         --sidebar-ink: #f1ead6;
         --ink: #26302a;
@@ -149,11 +149,66 @@
         --tag-ink: #6d4d0d;
         --danger: #b3372a;
         --hover: rgba(38, 48, 42, 0.07);
-        --th-bg: #f2ecd8;
+        --th-bg: #ead9a8;
         --folder-bg: rgba(241, 234, 214, 0.07);
         --active: rgba(169, 126, 31, 0.18);
         --shadow: 0 12px 40px rgba(10, 26, 19, 0.35), 0 2px 8px rgba(10, 26, 19, 0.22);
         --paper-shadow: 0 1px 2px rgba(10, 26, 19, 0.18), 0 10px 34px rgba(10, 26, 19, 0.28);
+      }
+      /* Binding Dark (build -87): the fifth base theme — Binding's
+         identity in a dark register, ADDED alongside Binding and
+         never a redefinition of it: a saved 'binding' selection
+         and any Theme Styles overlays stored under themes.binding
+         behave exactly as before. (The same build softens
+         Binding's own page family: --surface #fffaf0 -> #f2e3bd,
+         a warmer, deeper parchment, with --th-bg following, so
+         the cream sits IN the green chrome instead of glaring
+         against it; Binding's ink needed no deepening — #26302a
+         on #f2e3bd still reads at roughly 11:1.)
+         Where Binding floats a cream page on ink-green chrome,
+         Binding Dark keeps the whole world inside the green: the
+         page family is deep ink green (surface #1c3d2e over the
+         #0d2b20 chrome ground), the ink is Binding's cream, the
+         toolbars paint with the dark surface, and the accents
+         and lines are Binding's gilt brightened for a dark
+         ground — the same step Midnight's accent takes over
+         Paper's. Like Binding's block, EVERY token is set here,
+         and every dark-scoped rule in this sheet (accent
+         overrides, callout colors, marks, table tints, hover
+         filters, folder tints, doc-star, spine, active tab)
+         names this theme alongside Midnight, so no text-on-
+         surface pair can mismatch the way the retired preset's
+         did. No chrome overrides are needed of the kind Binding
+         carries below: the ink tokens are already cream, so the
+         topbar title and icons read on the green ground by
+         construction, exactly as Midnight's do. */
+      :root[data-theme="binding-dark"] {
+        color-scheme: dark;
+        --bg: #0d2b20;
+        --surface: #1c3d2e;
+        --sidebar: #09231a;
+        --sidebar-ink: #f1ead6;
+        --ink: #f1ead6;
+        --ink-2: #b3bfa5;
+        --ink-3: #87937c;
+        --line: #665a30;
+        --line-soft: #2a4234;
+        --accent: #e3b95c;
+        --accent-ink: #241a05;
+        --accent-soft: #38331c;
+        --chip-bg: #2a4632;
+        --chip-ink: #b7dcb0;
+        --missing-bg: #45301f;
+        --missing-ink: #eda76c;
+        --tag-bg: #3d3420;
+        --tag-ink: #e6c87a;
+        --danger: #e08a7d;
+        --hover: rgba(241, 234, 214, 0.08);
+        --th-bg: #244233;
+        --folder-bg: rgba(241, 234, 214, 0.06);
+        --active: rgba(227, 185, 92, 0.18);
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+        --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.35);
       }
       /* Binding chrome overrides: the surfaces that sit on
          the green --bg / --sidebar grounds but paint with the
@@ -215,7 +270,7 @@
         --chip-ink: #7c560c;
         --active: rgba(156, 109, 14, 0.15);
       }
-      :root[data-theme="midnight"][data-accent="terracotta"] {
+      :root[data-theme="midnight"][data-accent="terracotta"], :root[data-theme="binding-dark"][data-accent="terracotta"] {
         --accent: #e59a72;
         --accent-ink: #2a160b;
         --accent-soft: #3f2a1e;
@@ -223,7 +278,7 @@
         --chip-ink: #f0b48c;
         --active: rgba(229, 154, 114, 0.18);
       }
-      :root[data-theme="midnight"][data-accent="ocean"] {
+      :root[data-theme="midnight"][data-accent="ocean"], :root[data-theme="binding-dark"][data-accent="ocean"] {
         --accent: #93bde0;
         --accent-ink: #0e1f30;
         --accent-soft: #22374a;
@@ -231,7 +286,7 @@
         --chip-ink: #a9cdec;
         --active: rgba(147, 189, 224, 0.16);
       }
-      :root[data-theme="midnight"][data-accent="marigold"] {
+      :root[data-theme="midnight"][data-accent="marigold"], :root[data-theme="binding-dark"][data-accent="marigold"] {
         --accent: #e3b95c;
         --accent-ink: #2a1f05;
         --accent-soft: #3a3119;
@@ -324,7 +379,7 @@
       .side-hr { border: 0; border-top: 1px solid var(--line); margin: 6px 8px 4px; }
       .doc-star { flex: 0 0 auto; display: inline-flex; color: #b07d10; }
       .doc-star svg { width: 13px; height: 13px; }
-      :root[data-theme="midnight"] .doc-star { color: #e3b95c; }
+      :root[data-theme="midnight"] .doc-star, :root[data-theme="binding-dark"] .doc-star { color: #e3b95c; }
       .new-doc-btn {
         display: inline-flex; align-items: center; gap: 4px;
         font-size: 12px; font-weight: 600; letter-spacing: 0;
@@ -934,12 +989,12 @@
         --callout: #c62f3b; --callout-bg: rgba(198, 47, 59, 0.08);
         --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M5.4 1h5.2L15 5.4v5.2L10.6 15H5.4L1 10.6V5.4Zm1.95 3h1.3v4.6h-1.3Zm0 5.7h1.3v1.5h-1.3Z'/%3E%3C/svg%3E");
       }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-note { --callout: #6ea8fe; --callout-bg: rgba(110, 168, 254, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-info { --callout: #38bdf8; --callout-bg: rgba(56, 189, 248, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-tip { --callout: #45c07e; --callout-bg: rgba(69, 192, 126, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-important { --callout: #b392f0; --callout-bg: rgba(179, 146, 240, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-warning { --callout: #e3b341; --callout-bg: rgba(227, 179, 65, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-caution { --callout: #ff7b72; --callout-bg: rgba(255, 123, 114, 0.12); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-note, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-note { --callout: #6ea8fe; --callout-bg: rgba(110, 168, 254, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-info, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-info { --callout: #38bdf8; --callout-bg: rgba(56, 189, 248, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-tip, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-tip { --callout: #45c07e; --callout-bg: rgba(69, 192, 126, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-important, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-important { --callout: #b392f0; --callout-bg: rgba(179, 146, 240, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-warning, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-warning { --callout: #e3b341; --callout-bg: rgba(227, 179, 65, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-caution, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-caution { --callout: #ff7b72; --callout-bg: rgba(255, 123, 114, 0.12); }
       .folio-prose ul, .folio-prose ol { padding-left: 1.35em; }
       .folio-prose ul { margin: var(--ts-ul-before, 0) 0 var(--ts-ul-after, 0.9em); font-family: var(--ts-ul-font, inherit); font-size: var(--ts-ul-size, 1em); color: var(--ts-ul-color, inherit); }
       .folio-prose ol { margin: var(--ts-ol-before, 0) 0 var(--ts-ol-after, 0.9em); font-family: var(--ts-ol-font, inherit); font-size: var(--ts-ol-size, 1em); color: var(--ts-ol-color, inherit); }
@@ -1018,7 +1073,7 @@
       }
       .wiki-link:hover { filter: brightness(0.96); text-decoration: underline; }
       .wiki-link--missing { background: var(--missing-bg); color: var(--missing-ink); }
-      :root[data-theme="midnight"] .wiki-link:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .wiki-link:hover, :root[data-theme="binding-dark"] .wiki-link:hover { filter: brightness(1.15); }
 
       /* ---------------- Highlight & text color ---------------- */
       .folio-prose mark {
@@ -1031,12 +1086,12 @@
       .folio-prose mark[data-color="pink"] { background: #ffc9d6; }
       .folio-prose mark[data-color="blue"] { background: #a5d8ff; }
       .folio-prose mark[data-color="orange"] { background: #ffd8a8; }
-      :root[data-theme="midnight"] .folio-prose mark { background: var(--ts-highlight, #7a5f14); }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="yellow"] { background: #7a5f14; }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="green"] { background: #2e5b34; }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="pink"] { background: #6e3548; }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="blue"] { background: #2c4a73; }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="orange"] { background: #7a4a17; }
+      :root[data-theme="midnight"] .folio-prose mark, :root[data-theme="binding-dark"] .folio-prose mark { background: var(--ts-highlight, #7a5f14); }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="yellow"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="yellow"] { background: #7a5f14; }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="green"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="green"] { background: #2e5b34; }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="pink"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="pink"] { background: #6e3548; }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="blue"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="blue"] { background: #2c4a73; }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="orange"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="orange"] { background: #7a4a17; }
       .hl-demo {
         background: #ffe066; color: #22261f;
         padding: 1px 8px; border-radius: 4px; font-weight: 700; font-size: 15px; line-height: 1.35;
@@ -1157,12 +1212,12 @@
       .folio-prose td[data-bg="blue"], .folio-prose th[data-bg="blue"] { background: #d3ebff; }
       .folio-prose td[data-bg="orange"], .folio-prose th[data-bg="orange"] { background: #ffe8cc; }
       .folio-prose td[data-bg="gray"], .folio-prose th[data-bg="gray"] { background: #efeee8; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="yellow"], :root[data-theme="midnight"] .folio-prose th[data-bg="yellow"] { background: #6e5716; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="green"], :root[data-theme="midnight"] .folio-prose th[data-bg="green"] { background: #2c5230; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="pink"], :root[data-theme="midnight"] .folio-prose th[data-bg="pink"] { background: #653244; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="blue"], :root[data-theme="midnight"] .folio-prose th[data-bg="blue"] { background: #2a4468; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="orange"], :root[data-theme="midnight"] .folio-prose th[data-bg="orange"] { background: #6e4517; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="gray"], :root[data-theme="midnight"] .folio-prose th[data-bg="gray"] { background: #2e312b; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="yellow"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="yellow"], :root[data-theme="midnight"] .folio-prose th[data-bg="yellow"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="yellow"] { background: #6e5716; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="green"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="green"], :root[data-theme="midnight"] .folio-prose th[data-bg="green"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="green"] { background: #2c5230; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="pink"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="pink"], :root[data-theme="midnight"] .folio-prose th[data-bg="pink"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="pink"] { background: #653244; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="blue"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="blue"], :root[data-theme="midnight"] .folio-prose th[data-bg="blue"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="blue"] { background: #2a4468; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="orange"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="orange"], :root[data-theme="midnight"] .folio-prose th[data-bg="orange"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="orange"] { background: #6e4517; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="gray"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="gray"], :root[data-theme="midnight"] .folio-prose th[data-bg="gray"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="gray"] { background: #2e312b; }
       /* Cell alignment (data-align / data-valign on the cell,
          set by the table bar's alignment menu): text-align is
          inherited by the blocks inside the cell, and the
@@ -1253,7 +1308,7 @@
         font-size: 12px; font-weight: 700; color: var(--ink-2);
       }
       .tbl-swatch:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .tbl-swatch:hover { filter: brightness(1.18); }
+      :root[data-theme="midnight"] .tbl-swatch:hover, :root[data-theme="binding-dark"] .tbl-swatch:hover { filter: brightness(1.18); }
       .tbl-swatch.on { box-shadow: inset 0 0 0 2px var(--ink); }
       .tbl-swatch .bsw { width: 15px; height: 15px; border-radius: 3px; display: block; }
       .tbl-pop { width: 218px; }
@@ -1483,7 +1538,7 @@
         font-weight: 700; font-size: 16px; background: var(--surface);
       }
       .fmt-swatch:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .fmt-swatch:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .fmt-swatch:hover, :root[data-theme="binding-dark"] .fmt-swatch:hover { filter: brightness(1.15); }
       .fmt-swatch.on { box-shadow: inset 0 0 0 2px var(--ink); }
       .fmt-swatch-none { color: var(--ink-2); }
       .fmt-custom {
@@ -1631,7 +1686,7 @@
         font-size: 19px; line-height: 1; color: var(--ink);
       }
       .callout-glyph-tile:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .callout-glyph-tile:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .callout-glyph-tile:hover, :root[data-theme="binding-dark"] .callout-glyph-tile:hover { filter: brightness(1.15); }
       .callout-glyph-tile.on { box-shadow: inset 0 0 0 2px var(--ink); }
       .callout-glyph-tile .cg-mask {
         width: 20px; height: 20px; background: var(--ink);
@@ -1668,7 +1723,7 @@
         font-size: 20px; line-height: 1; color: var(--ink-2);
       }
       .fp-tile:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .fp-tile:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .fp-tile:hover, :root[data-theme="binding-dark"] .fp-tile:hover { filter: brightness(1.15); }
       .fp-tile.on { box-shadow: inset 0 0 0 2px var(--ink); }
       .fp-custom {
         display: flex; align-items: center; gap: 9px;
@@ -1741,14 +1796,14 @@
         box-decoration-break: clone; -webkit-box-decoration-break: clone;
       }
       .tag-chip:hover { filter: brightness(0.96); text-decoration: underline; }
-      :root[data-theme="midnight"] .tag-chip:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .tag-chip:hover, :root[data-theme="binding-dark"] .tag-chip:hover { filter: brightness(1.15); }
       .side-tag {
         display: inline-flex; align-items: center; gap: 6px;
         font-size: 12.5px; font-weight: 600; color: var(--tag-ink);
         background: var(--tag-bg); padding: 5px 10px; border-radius: 999px; min-height: 28px;
       }
       .side-tag:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .side-tag:hover { filter: brightness(1.12); }
+      :root[data-theme="midnight"] .side-tag:hover, :root[data-theme="binding-dark"] .side-tag:hover { filter: brightness(1.12); }
       .side-tag.on { box-shadow: inset 0 0 0 2px var(--tag-ink); }
       .side-tag-count { font-size: 11px; font-weight: 700; opacity: 0.7; }
       /* Tag favorites: a starred tag's chip carries a small
@@ -1798,7 +1853,7 @@
         background: var(--folder-bg);
       }
       .folder.tinted { background: color-mix(in srgb, var(--fb) 9%, transparent); }
-      :root[data-theme="midnight"] .folder.tinted { background: color-mix(in srgb, var(--fb) 17%, transparent); }
+      :root[data-theme="midnight"] .folder.tinted, :root[data-theme="binding-dark"] .folder.tinted { background: color-mix(in srgb, var(--fb) 17%, transparent); }
       .folder-head {
         display: flex; align-items: center; gap: 3px;
         padding: 4px 6px 4px 2px; border-radius: 9px; min-height: 38px; cursor: pointer;
@@ -1825,7 +1880,7 @@
         background: color-mix(in srgb, var(--fb) 16%, transparent);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 35%, transparent);
       }
-      :root[data-theme="midnight"] .folder-badge.tinted {
+      :root[data-theme="midnight"] .folder-badge.tinted, :root[data-theme="binding-dark"] .folder-badge.tinted {
         background: color-mix(in srgb, var(--fb) 30%, transparent);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 45%, transparent);
         color: color-mix(in srgb, var(--fb) 60%, #ffffff);
@@ -3502,6 +3557,15 @@
         --spine-bg: linear-gradient(90deg, #0f2b1f, #153a29 55%, #1a4632);
         --spine-bg-hover: linear-gradient(90deg, #163826, #1d4732 55%, #22543b);
       }
+      /* Binding Dark's spine (build -87): the binding green's
+         deeper register again — a step below even Midnight's
+         spine — so the dark page-colored active tab (var(--surface),
+         below) stands against the darkest column in the app.
+         Ghost tabs share this token, as everywhere. */
+      :root[data-theme="binding-dark"] {
+        --spine-bg: linear-gradient(90deg, #071f16, #0b2a1e 55%, #0f3325);
+        --spine-bg-hover: linear-gradient(90deg, #0d2f21, #123a29 55%, #174631);
+      }
       .editor-body { display: flex; flex: 1; min-height: 0; }
       .editor-body .editor-scroll { flex: 1; min-width: 0; }
       .doc-session { min-height: 100%; }
@@ -3514,6 +3578,7 @@
       :root[data-theme="midnight"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="sepia"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="binding"] .folio-tab.active { background: var(--surface); }
+      :root[data-theme="binding-dark"] .folio-tab.active { background: var(--surface); }
       .tab-rail.slim { width: 36px; flex-basis: 36px; }
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
@@ -4674,7 +4739,8 @@
           { id: 'paper', name: 'Paper', surface: '#fffdf7', tone: '#eceade' },
           { id: 'sepia', name: 'Sepia', surface: '#faf2df', tone: '#e6d6b8' },
           { id: 'midnight', name: 'Midnight', surface: '#1d1f1c', tone: '#131512' },
-          { id: 'binding', name: 'Binding', surface: '#fffaf0', tone: '#12332a' },
+          { id: 'binding', name: 'Binding', surface: '#f2e3bd', tone: '#12332a' },
+          { id: 'binding-dark', name: 'Binding Dark', surface: '#1c3d2e', tone: '#0d2b20' },
         ];
         var ACCENTS = [
           { id: 'forest', name: 'Forest', color: '#2e6b4c' },
@@ -5236,17 +5302,17 @@
           { id: 'highlight', label: 'Default highlight color', group: 'Inline styles', levers: ['color'], global0: false },
         ];
         var TS_PALETTE = [
-          { id: 'pal-bg', label: 'Page background', cssVar: '--bg', shipped: { paper: '#f4f1ea', sepia: '#ecdfc6', midnight: '#131512', binding: '#12332a' } },
-          { id: 'pal-surface', label: 'Surface (paper)', cssVar: '--surface', shipped: { paper: '#fffdf7', sepia: '#faf2df', midnight: '#1d1f1c', binding: '#fffaf0' } },
-          { id: 'pal-sidebar', label: 'Sidebar', cssVar: '--sidebar', shipped: { paper: '#eceade', sepia: '#e6d6b8', midnight: '#191b18', binding: '#0f2d22' } },
-          { id: 'pal-sidebar-ink', label: 'Sidebar text', cssVar: '--sidebar-ink', shipped: { paper: '#33382f', sepia: '#4c3a26', midnight: '#d7d9d0', binding: '#f1ead6' } },
-          { id: 'pal-ink', label: 'Ink / text', cssVar: '--ink', shipped: { paper: '#22261f', sepia: '#3e2f1f', midnight: '#eceee6', binding: '#26302a' } },
-          { id: 'pal-ink2', label: 'Muted text', cssVar: '--ink-2', shipped: { paper: '#62665b', sepia: '#77644a', midnight: '#a3a79b', binding: '#5f6b52' },
+          { id: 'pal-bg', label: 'Page background', cssVar: '--bg', shipped: { paper: '#f4f1ea', sepia: '#ecdfc6', midnight: '#131512', binding: '#12332a', 'binding-dark': '#0d2b20' } },
+          { id: 'pal-surface', label: 'Surface (paper)', cssVar: '--surface', shipped: { paper: '#fffdf7', sepia: '#faf2df', midnight: '#1d1f1c', binding: '#f2e3bd', 'binding-dark': '#1c3d2e' } },
+          { id: 'pal-sidebar', label: 'Sidebar', cssVar: '--sidebar', shipped: { paper: '#eceade', sepia: '#e6d6b8', midnight: '#191b18', binding: '#0f2d22', 'binding-dark': '#09231a' } },
+          { id: 'pal-sidebar-ink', label: 'Sidebar text', cssVar: '--sidebar-ink', shipped: { paper: '#33382f', sepia: '#4c3a26', midnight: '#d7d9d0', binding: '#f1ead6', 'binding-dark': '#f1ead6' } },
+          { id: 'pal-ink', label: 'Ink / text', cssVar: '--ink', shipped: { paper: '#22261f', sepia: '#3e2f1f', midnight: '#eceee6', binding: '#26302a', 'binding-dark': '#f1ead6' } },
+          { id: 'pal-ink2', label: 'Muted text', cssVar: '--ink-2', shipped: { paper: '#62665b', sepia: '#77644a', midnight: '#a3a79b', binding: '#5f6b52', 'binding-dark': '#b3bfa5' },
             note: 'Used for the default color of Subtitle and Blockquote text in documents, and for quieter interface text \u2014 outline items and the icon buttons in the topbar and context rail.' },
-          { id: 'pal-ink3', label: 'Faint text', cssVar: '--ink-3', shipped: { paper: '#969a8d', sepia: '#a68f6b', midnight: '#6f7368', binding: '#a79b7d' },
+          { id: 'pal-ink3', label: 'Faint text', cssVar: '--ink-3', shipped: { paper: '#969a8d', sepia: '#a68f6b', midnight: '#6f7368', binding: '#a79b7d', 'binding-dark': '#87937c' },
             note: 'Used only for labels, counts and hints \u2014 the placeholder text in an empty document, sidebar section labels and empty-state text, the document count, the \u201cSaved\u201d indicator, document dots, fold chevrons and the fold ellipsis, and divider colors. It never colors document text.' },
-          { id: 'pal-accent', label: 'Accent', cssVar: '--accent', shipped: { paper: '#2e6b4c', sepia: '#2e6b4c', midnight: '#8ec7a5', binding: '#a97e1f' } },
-          { id: 'pal-line', label: 'Borders', cssVar: '--line', shipped: { paper: '#ddd8c8', sepia: '#d8c69e', midnight: '#33362f', binding: '#c9bb90' } },
+          { id: 'pal-accent', label: 'Accent', cssVar: '--accent', shipped: { paper: '#2e6b4c', sepia: '#2e6b4c', midnight: '#8ec7a5', binding: '#a97e1f', 'binding-dark': '#e3b95c' } },
+          { id: 'pal-line', label: 'Borders', cssVar: '--line', shipped: { paper: '#ddd8c8', sepia: '#d8c69e', midnight: '#33362f', binding: '#c9bb90', 'binding-dark': '#665a30' } },
         ];
         var TS_ICON_DEF = { id: 'iconSet', label: 'Icon set', group: 'Icons' };
         var TS_ALL_DEFS = TS_DEFS.concat(TS_PALETTE.map(function (p) {
@@ -5256,6 +5322,11 @@
           for (var i = 0; i < TS_ALL_DEFS.length; i++) if (TS_ALL_DEFS[i].id === key) return TS_ALL_DEFS[i];
           return null;
         }
+        /* The dark base themes (build -87): Midnight and Binding
+           Dark. Every shipped default or scheme that ships light
+           and dark value sets resolves through this one check, so
+           a future dark theme joins by extending this list. */
+        function tsIsDark(tid) { return tid === 'midnight' || tid === 'binding-dark'; }
         function tsShipped(tid, key) {
           switch (key) {
             case 'h1': return { size: 34, weight: 600 };
@@ -5266,7 +5337,7 @@
             case 'h6': return { size: 15, weight: 600 };
             case 'paragraph': return { size: 19.5, weight: 400 };
             case 'bold': return { weight: 700 };
-            case 'highlight': return { color: tid === 'midnight' ? '#7a5f14' : '#ffe58a' };
+            case 'highlight': return { color: tsIsDark(tid) ? '#7a5f14' : '#ffe58a' };
             case 'iconSet': return { icon: 'folio' };
             default: break;
           }
@@ -5883,10 +5954,11 @@
              'binding' scheme id anymore. */
         ];
         /* The color set a scheme wears on a given theme:
-           the dual-set schemes pick light or Midnight;
+           the dual-set schemes pick light or a dark theme's
+           set (Midnight, Binding Dark — build -87);
            single-set schemes wear theirs everywhere. */
         function tsSchemeColors(scheme, tid) {
-          if (scheme.colorsLight && scheme.colorsDark) return tid === 'midnight' ? scheme.colorsDark : scheme.colorsLight;
+          if (scheme.colorsLight && scheme.colorsDark) return tsIsDark(tid) ? scheme.colorsDark : scheme.colorsLight;
           return scheme.colors;
         }
         function tsApplyColorScheme(scheme) {
