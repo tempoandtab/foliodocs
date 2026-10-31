@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-77" />
+    <meta name="folio-build" content="20261031-78" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1895,9 +1895,15 @@
          for text selection. The matching event guards live
          with the surfaces' own handlers in the app script.
          The popover's color input stays a real field, like
-         the sidebar's text fields. */
+         the sidebar's text fields. Build -78 adds the tab
+         rail and the tab menu to the same rules: the rail is
+         chrome, not document text, and the tab menu is a
+         right-click surface like the editor menu — without
+         these rules iPadOS merged its Writing Tools callout
+         into the tab menu and covered its first item. */
       #editorMenu, #editorMenu *, #calloutPop, #calloutPop *,
       #rcMenu, #rcMenu *, #divPop, #divPop *,
+      #tabMenu, #tabMenu *, .tab-rail, .tab-rail *,
       #insCalloutBtn, #insCalloutBtn *, #selCalloutBtn, #selCalloutBtn * {
         -webkit-touch-callout: none;
         -webkit-user-select: none;
@@ -1915,6 +1921,7 @@
       #editorMenu .m-label, #editorMenu .m-icon,
       #calloutPop .m-label, #calloutPop .pop-label, #calloutPop .menu-head,
       #rcMenu .m-label, #rcMenu .m-icon,
+      #tabMenu .m-label, #tabMenu .m-icon,
       #divPop .m-label, #divPop .pop-label, #divPop .menu-head,
       #insCalloutBtn .tb-label, #selCalloutBtn .tb-label {
         pointer-events: none;
@@ -3383,6 +3390,16 @@
         display: flex; flex-direction: column; min-height: 0;
       }
       :root[data-theme="midnight"] .tab-rail { background: linear-gradient(90deg, #081a13, #0c231a 55%, #0f2a1f); }
+      /* Build -78: the inactive tab shade as a plain hex per
+         theme (see .folio-tab above for why no color-mix). */
+      :root[data-theme="sepia"] .folio-tab {
+        background: #cbc3b1;
+      }
+      :root[data-theme="midnight"] .folio-tab {
+        background: #151614;
+      }
+      :root[data-theme="midnight"] .folio-tab.active { background: var(--surface); }
+      :root[data-theme="sepia"] .folio-tab.active { background: var(--surface); }
       .tab-rail.slim { width: 36px; flex-basis: 36px; }
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
@@ -3394,7 +3411,23 @@
       }
       .folio-tab {
         position: absolute; right: 0; width: 34px; cursor: pointer;
-        background: color-mix(in srgb, var(--surface) 88%, var(--ink) 12%);
+        /* Build -78: the old mix shaded toward var(--ink), which
+           is the TEXT color — under Midnight that LIGHTENS the
+           tab (ink is near-white there), so the inactive tab read
+           pale and washed against the dark UI. Shade toward the
+           page surround and black instead, a direction that
+           deepens in every theme: Paper and Sepia step down from
+           the page, Midnight becomes a properly dark paper tone
+           below the active tab's exact page color. The shade is
+           a plain hex per theme (Paper here, Sepia and Midnight
+           in the overrides above), NOT a color-mix: harness
+           Chromium painted a color-mix tab background as
+           transparent — spine showing through, name unreadable
+           on light themes — while every other declaration in
+           this rule painted. The hexes are the mix's results
+           for the shipped themes (surface 50% / surround 33% /
+           black 17%), so the designed step is unchanged. */
+        background: #d3d0c6;
         color: var(--ink); border-radius: 5px 0 0 5px;
         box-shadow: -2px 2px 5px rgba(0, 0, 0, 0.28);
         display: flex; align-items: center; justify-content: center;
@@ -3875,8 +3908,8 @@
               <div class="tab-strip" id="tabStrip"></div>
             </div>
             <div class="tab-foot">
-              <button class="tab-add" id="tabAddBtn" type="button" aria-label="Open a document in a new tab" data-tip="Open a document in a new tab">+</button>
-              <button class="tab-book-btn" id="tabBookBtn" type="button" aria-label="Tab switcher" data-tip="Tab switcher">▾</button>
+              <button class="tab-add" id="tabAddBtn" type="button" aria-label="Open a document in a new tab" data-tip="Open a document in a new tab" data-sc="tab-new">+</button>
+              <button class="tab-book-btn" id="tabBookBtn" type="button" aria-label="Tab switcher" data-tip="Tab switcher" data-sc="tab-book">▾</button>
             </div>
           </nav>
           <div class="editor-scroll" id="editorScroll">
@@ -12195,10 +12228,26 @@
         }
 
         /* ----- opening / closing (spec §2) ----- */
+        /* Build -78: a tab switch lands the caret in the tab it
+           shows. The parked session's own editor state still
+           holds that tab's selection, so focusing the editor is
+           what applies it — the same focus door openDoc uses,
+           under the same convention (wide screens only, so a
+           narrow touch screen never has the software keyboard
+           sprung on it by a switch it didn't ask to type into). */
+        function tabFocusEditor() {
+          if (!editorHandle) return;
+          if (window.innerWidth <= 900) return;
+          try { editorHandle.focus(); } catch (e) {}
+        }
         function activateTab(id, focus) {
           var r = tabRecord(id);
           if (!r) return;
-          if (id === tabActiveId && id === lib.currentId) { tabEnsureVisible(id); return; }
+          if (id === tabActiveId && id === lib.currentId) {
+            tabEnsureVisible(id);
+            if (focus) tabFocusEditor();
+            return;
+          }
           tabSaveNav();
           tabActiveId = id;
           tabLoadNav(r);
@@ -12267,7 +12316,7 @@
           if (wasActive) {
             tabActiveId = null;
             var next = tabRecords[Math.min(i, tabRecords.length - 1)];
-            if (next) { tabPersist(); activateTab(next.docId, false); return; }
+            if (next) { tabPersist(); activateTab(next.docId, true); return; }
           }
           tabPersist();
           tabRender();
@@ -12284,7 +12333,7 @@
           });
           tabRecords = keep;
           tabMru = tabMru.filter(function (x) { return x === id; });
-          if (tabActiveId !== id) { tabPersist(); activateTab(id, false); return; }
+          if (tabActiveId !== id) { tabPersist(); activateTab(id, true); return; }
           tabPersist();
           tabRender();
         }
@@ -12314,12 +12363,12 @@
           var i = tabIndexOf(tabActiveId);
           if (i === -1) i = 0;
           var next = tabRecords[(i + dir + tabRecords.length) % tabRecords.length];
-          if (next) activateTab(next.docId, false);
+          if (next) activateTab(next.docId, true);
         }
         function tabMruToggle() {
           for (var i = 0; i < tabMru.length; i++) {
             if (tabMru[i] !== tabActiveId && tabIndexOf(tabMru[i]) !== -1) {
-              activateTab(tabMru[i], false);
+              activateTab(tabMru[i], true);
               return;
             }
           }
@@ -12336,8 +12385,16 @@
           tabRender();
         }
         function openTabPicker() {
+          /* Already up (in either mode): a second door changes
+             nothing — and must not flip a live plain Omnisearch
+             session into new-tab mode under the user's query. */
+          if (omniOpen) return;
           omniNewTab = true;
           openOmni();
+          /* openOmni stands down while a modal owns the screen;
+             the mode flag must not leak into the next plain
+             Omnisearch if the picker never actually opened. */
+          if (!omniOpen) omniNewTab = false;
         }
 
         /* ----- the tab menu (long-press / right-click) ----- */
@@ -12357,6 +12414,18 @@
           closeMoveMenu();
           closeViewMenu();
           closeTopMenu();
+          /* Build -78: dismiss iPadOS's native edit callout the
+             way the editor menu does (see dismissNativeEditMenu
+             beside the editor menu's guards). The tab menu's
+             doors — a right-click or a timed long-press on the
+             rail — land OUTSIDE the editor, and with a live text
+             selection in the document WebKit floated its Writing
+             Tools callout over the menu this opened, covering
+             "Close tab" entirely. Collapsing the DOM selection
+             dismisses Apple's menu only: ProseMirror keeps the
+             selection in its own state and the app paint keeps
+             it visible. */
+          if (typeof dismissNativeEditMenu === 'function') dismissNativeEditMenu();
           tabMenuFor = id;
           tabMenuEl.innerHTML = '';
           function item(label, cls, fn) {
@@ -12379,6 +12448,15 @@
           item('Close tab', 'danger', function () { closeTab(id); });
           item('Close other tabs', 'danger', function () { closeOtherTabs(id); });
           tabMenuEl.className = 'menu open';
+          /* Rendered in the -70 overlay host, on top of the
+             stack, like every other menu: the host adopts .menu
+             surfaces at startup, and this explicit adopt + sync
+             raises the tab menu above whatever opened before it
+             (the Book included) instead of trusting arrival
+             order. */
+          if (window.FolioOverlayHost) {
+            try { window.FolioOverlayHost.adopt(tabMenuEl); window.FolioOverlayHost.sync(); } catch (e) {}
+          }
           var w = 224, h = tabMenuEl.offsetHeight;
           tabMenuEl.style.left = Math.max(8, Math.min(x || 8, window.innerWidth - w - 8)) + 'px';
           tabMenuEl.style.top = Math.max(8, Math.min(y || 8, window.innerHeight - h - 8)) + 'px';
@@ -12386,6 +12464,25 @@
         document.addEventListener('pointerdown', function (ev) {
           if (tabMenuFor && tabMenuEl && !tabMenuEl.contains(ev.target)) closeTabMenu();
         }, true);
+        /* Build -78: the sidebar's and editor menu's native-menu
+           suppression, carried to the tab rail, the tab menu,
+           and the Book's list (the menu's other right-click
+           door). CSS alone (the stylesheet now covers all three)
+           does not stop iPadOS presenting its callout: the
+           callout rides on the contextmenu and gesture events
+           WebKit fires for the press, so block those defaults at
+           capture on the surfaces themselves. Capture-phase
+           preventDefault only — never stopPropagation — so the
+           tabs' and rows' own contextmenu handlers still run and
+           open the app's menu. There are no text fields on any
+           of these surfaces, so no field exception is needed. */
+        [tabRailEl, tabMenuEl, document.getElementById('bookList')].forEach(function (el) {
+          if (!el) return;
+          el.addEventListener('contextmenu', function (ev) { ev.preventDefault(); }, true);
+          el.addEventListener('gesturestart', function (ev) { ev.preventDefault(); });
+          el.addEventListener('gesturechange', function (ev) { ev.preventDefault(); });
+          el.addEventListener('selectstart', function (ev) { ev.preventDefault(); }, true);
+        });
 
         /* ----- the rail: render + stack-scroll layout (spec §3–4) ----- */
         function tabNaturalHeight(title) {
@@ -12423,7 +12520,7 @@
             el.appendChild(x);
             el.addEventListener('click', function () {
               if (tabSuppressClick) return;
-              activateTab(r.docId, false);
+              activateTab(r.docId, true);
             });
             el.addEventListener('contextmenu', function (ev) {
               ev.preventDefault();
@@ -12665,7 +12762,7 @@
             row.appendChild(x);
             row.addEventListener('click', function () {
               closeBook();
-              activateTab(r.docId, false);
+              activateTab(r.docId, true);
             });
             row.addEventListener('contextmenu', function (ev) {
               ev.preventDefault();
@@ -19175,6 +19272,7 @@
             if (!document.getElementById('calloutPop').hidden) closeCalloutPop();
             if (rcMenuOpen) closeRcMenu();
             if (!divPopEl.hidden) closeDivPop();
+            closeTabMenu();
             if (typeof editorMenuOpen !== 'undefined' && editorMenuOpen) closeEditorMenu();
           }
         });
@@ -27184,6 +27282,20 @@
             run: function () { tabMruToggle(); } },
           { id: 'tab-book', combo: 'alt+w', hint: '⌥W', group: 'General', label: 'Tab switcher',
             run: function () { openBook(); } },
+          /* ⌥T (build -78): New tab… — the spine + disc's own
+             door, on a chord. It opens the SAME new-tab picker
+             the disc opens (Omnisearch in new-tab mode: a pick
+             opens its document in a new tab, and a document
+             already open jumps to its tab). Bare Alt like ⌥Q and
+             ⌥W, so the combo is 'alt+t'; on Mac layouts the press
+             reports the Option glyph †, which the dispatcher's
+             Option-character table already maps back to 't'.
+             ⌘⌥T stays Insert table, untouched — a different
+             combo. Field-safe (SC_SAFE_IN_FIELD below): the
+             chord types no text, so it fires from the title
+             field too. */
+          { id: 'tab-new', combo: 'alt+t', hint: '⌥T', group: 'General', label: 'New tab…',
+            run: function () { openTabPicker(); } },
           /* Collapse toggles. ⌘⌥⇧D folds the Documents
              section: D for Documents — plain ⌘⌥D is the date
              stamp, so the toggle takes the shifted sibling,
@@ -27711,7 +27823,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-recent': true, 'tab-book': true, 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
+        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-recent': true, 'tab-book': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
