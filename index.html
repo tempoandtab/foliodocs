@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-82" />
+    <meta name="folio-build" content="20261031-83" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12109,6 +12109,12 @@
            behavior and is deliberately left untouched. */
         if (editorHandle && editorHandle.editor && editorHandle.editor.view && editorHandle.editor.view.dom) {
           editorHandle.editor.view.dom.setAttribute('spellcheck', 'false');
+          /* Build -83: declare the editor surface out of form
+             AutoFill at the DOM level too — WebKit's AutoFill
+             family keys off the editable element itself, and an
+             explicit off is the one opt-out the element can
+             state. Autocorrect stays untouched, as above. */
+          editorHandle.editor.view.dom.setAttribute('autocomplete', 'off');
         }
 
         attachCodeCopy(document.getElementById('editorMount'), editorHandle.editor);
@@ -12224,6 +12230,7 @@
             element: mount, content: doc.content,
           }));
           try { handle.editor.view.dom.setAttribute('spellcheck', 'false'); } catch (e) {}
+          try { handle.editor.view.dom.setAttribute('autocomplete', 'off'); } catch (e) {}
           try { attachCodeCopy(mount, handle.editor); } catch (e) {}
           s = tabSessions[doc.id] = { mount: mount, handle: handle, scroll: 0 };
           return s;
@@ -16434,6 +16441,25 @@
              now — by the time a pick runs, this menu has
              already closed and its rect is gone. */
           try { editorMenuAnchorRect = editorMenuEl.getBoundingClientRect(); } catch (e) { editorMenuAnchorRect = null; }
+          /* Build -83: move DOM focus into the menu NOW, not
+             only on kbFocusFirst's setTimeout tick. While the
+             editor surface stays the focused element, WebKit
+             keeps a live text session under the open menu and
+             can still present its own (AutoFill) on top of it;
+             the deferred focus left that door open for a tick
+             after every open. Focusing the first item here is
+             the same move kbFocusFirst makes — it still runs
+             below as the backstop and re-lands on the .on item
+             when the menu marks one. The editor's selection is
+             untouched: it lives in ProseMirror's state, and a
+             pick refocuses the editor through its command. */
+          try {
+            var syncItems = scMenuItems(editorMenuEl);
+            var syncFirst = null;
+            syncItems.forEach(function (it) { if (!syncFirst && it.classList.contains('on')) syncFirst = it; });
+            syncFirst = syncFirst || syncItems[0];
+            if (syncFirst) syncFirst.focus();
+          } catch (e) {}
           kbFocusFirst(editorMenuEl);
         }
         /* ----- the link composer -----
@@ -18848,9 +18874,48 @@
         var lastEditorPointerType = null;
         editorMountEl.addEventListener('pointerdown', function (ev) {
           lastEditorPointerType = ev.pointerType || null;
+          /* Build -83: a secondary-button press is a menu
+             request, never an edit — dismiss the DOM selection
+             at PRESS START, the moment -82 established WebKit
+             makes its native-menu decision, instead of waiting
+             for the contextmenu that follows. The dismissal is
+             DOM-only: ProseMirror keeps the selection in its
+             own state, the app paint keeps it visible, and the
+             editor menu this press is about to open acts on
+             that state — the same footing dismissNativeEditMenu
+             already puts the menu on when it opens, moved to
+             the start of the gesture so no live DOM selection
+             sits under the press while WebKit decides whether
+             its own menu (the AutoFill family) presents. */
+          if (ev.button === 2 && typeof dismissNativeEditMenu === 'function') {
+            try { dismissNativeEditMenu(); } catch (e) {}
+          }
+        }, true);
+        /* Build -83: capture-phase native-menu guard for the
+           whole editor surface. Until now the only prevention
+           on this surface was the bubble-phase handler below —
+           which any descendant handler could defeat by stopping
+           propagation, and which never ran at all for a target
+           a bundle plugin claimed silently. Every tab session's
+           editor DOM lives inside this one mount (.doc-session
+           sub-mounts), so a capture listener here covers every
+           descendant target of every session — text runs, marks,
+           callout internals, table cells, handle segments — with
+           no per-session registration to miss. The guard marks
+           the event as its own so the bubble handler can tell
+           "prevented by this guard" (open the app's menu) from
+           "claimed by the editor bundle's border menu" (its
+           menu element appears during this same event — stand
+           down, exactly as the defaultPrevented check did). */
+        editorMountEl.addEventListener('contextmenu', function (ev) {
+          ev.__folioCtxGuard = true;
+          ev.__folioBorderBefore = !!document.querySelector('.folio-border-menu');
+          ev.preventDefault();
         }, true);
         editorMountEl.addEventListener('contextmenu', function (ev) {
-          if (ev.defaultPrevented) return;
+          if (ev.__folioCtxGuard) {
+            if (!ev.__folioBorderBefore && document.querySelector('.folio-border-menu')) return;
+          } else if (ev.defaultPrevented) return;
           if (lastEditorPointerType && lastEditorPointerType !== 'mouse') return;
           if (!editorHandle || !editorHandle.editor || !ev.target.closest) return;
           ev.preventDefault();
@@ -18924,9 +18989,19 @@
                 var csel = ed.state.selection;
                 if (!(csel && !csel.empty && cpos.pos >= csel.from && cpos.pos <= csel.to)) {
                   ed.chain().focus().setTextSelection(cpos.pos).run();
-                } else {
-                  ed.chain().focus().run();
                 }
+                /* Build -83: a press INSIDE the live selection
+                   no longer re-focuses the editor here. That
+                   focus() re-synced the DOM selection from
+                   ProseMirror's state in the same gesture that
+                   was trying to dismiss it — re-arming WebKit's
+                   own menu (AutoFill) at the exact moment the
+                   app's menu opens over the selection. The
+                   selection lives in the editor's state, every
+                   menu item reads it from there and refocuses
+                   when it runs, and openEditorMenu dismisses
+                   the DOM selection as it opens — nothing the
+                   menu does needed this restore. */
               }
             } catch (e) {}
           }
@@ -18980,6 +19055,41 @@
             fireEditorLongPress(press);
           }, 500);
           lpPress = press;
+          /* Build -83: when this press is one the watcher will
+             claim for the menu (the same claim fireEditorLongPress
+             judges at fire time — a discrete object, a
+             spell-flagged word, or a non-text spot), dismiss the
+             DOM selection at PRESS START rather than when the
+             menu opens 500ms later. A touch hold is exactly the
+             gesture WebKit raises its native callout for, and it
+             makes that decision during the hold; a dismissal that
+             arrives with the menu is late for it, the -82 lesson
+             on the rail. Plain-text presses are NOT claimed and
+             not dismissed — they stay selection gestures, with
+             the native selection untouched. The dismissal is
+             DOM-only, as everywhere: ProseMirror's state keeps
+             the selection and the menu acts on it. */
+          try {
+            var lpT = ev.target;
+            var lpClaim = !!(lpT.closest('.folio-handle-seg') || lpT.closest('a[data-wiki-link]') ||
+              lpT.closest('a[href]:not([data-wiki-link]):not([data-folio-tag])') ||
+              lpT.closest('[data-link-preview]') || lpT.closest('hr') || lpT.closest('.callout-icon-btn'));
+            if (!lpClaim && editorHandle && editorHandle.editor) {
+              var lpEd = editorHandle.editor;
+              var lpCp = null;
+              try { lpCp = lpEd.view.posAtCoords({ left: ev.clientX, top: ev.clientY }); } catch (e) { lpCp = null; }
+              var lpPos = lpCp && typeof lpCp.pos === 'number' ? lpCp.pos : null;
+              if (lpPos !== null) {
+                if (typeof spellHitAtPos === 'function' && spellHitAtPos(lpPos)) lpClaim = true;
+                else {
+                  var lpRes = null;
+                  try { lpRes = lpEd.state.doc.resolve(lpPos); } catch (e) { lpRes = null; }
+                  if (lpRes && lpRes.parent && lpRes.parent.content.size === 0) lpClaim = true;
+                }
+              }
+            }
+            if (lpClaim && typeof dismissNativeEditMenu === 'function') dismissNativeEditMenu();
+          } catch (e) {}
         }, true);
         document.addEventListener('pointermove', function (ev) {
           if (lpPress && ev.pointerId === lpPress.id &&
