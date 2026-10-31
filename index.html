@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-87" />
+    <meta name="folio-build" content="20261031-88" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -25466,10 +25466,55 @@
         function maybePromptWatchShare(doc, cause) {
           if (!doc || watchPending) return;
           if (!sb || !sbUser) return;
+          /* Build -88: the local bundle copies are evaluated
+             FIRST, synchronously, and the prompt opens from them
+             when they match. persistBundleManifest saves a local
+             copy on every manifest change made on this device
+             (creation, grow, watch edits, wiki flips, removals),
+             so any set whose watch was set or used here is
+             matched with no network in the path. The remote
+             enumeration used to be the ONLY path, and it chains
+             one fetch per share row the owner has, in sequence:
+             on a real connection the prompt trailed the gesture
+             by seconds, and a chain stalled — or killed outright
+             when the app left the foreground in that window, the
+             natural beat right after a drag-move — never settled
+             at all, so a move into a watched folder silently
+             prompted nothing while a create (whose author is
+             still sitting in the app, renaming the document)
+             lived long enough to be asked. The enumeration
+             still runs: when the local copies matched nothing it
+             decides alone, exactly as before (a set that exists
+             only on another device), and when the prompt is
+             already up from the local pass it contributes any
+             matches the local copies did not know about, so the
+             one prompt still names every matching set. */
+          var prompted = false;
+          var localMatches = filterWatchMatchesByCause(computeWatchMatches(doc, localBundles()), cause);
+          if (localMatches.length) { openWatchPrompt(doc, localMatches); prompted = true; }
           allOwnerBundles().then(function (bundles) {
-            if (watchPending) return;
             var matches = filterWatchMatchesByCause(computeWatchMatches(doc, bundles), cause);
-            if (matches.length) openWatchPrompt(doc, matches);
+            if (!matches.length) return;
+            if (prompted) {
+              if (!watchPending || watchPending.doc !== doc) return;
+              var have = {};
+              watchPending.matches.forEach(function (m) { have[bundleKeyOf(m.bundle)] = true; });
+              var extra = matches.filter(function (m) { return !have[bundleKeyOf(m.bundle)]; });
+              if (!extra.length) return;
+              var listEl = document.getElementById('shareWatchList');
+              extra.forEach(function (m) {
+                watchPending.matches.push(m);
+                listEl.appendChild(watchRowEl(m));
+              });
+              if (watchPending.matches.length > 1) {
+                document.getElementById('shareWatchTitle').textContent =
+                  'Share this document as part of the following bundles?';
+              }
+              updateWatchConfirmLabel();
+              return;
+            }
+            if (watchPending) return;
+            openWatchPrompt(doc, matches);
           }).catch(function () {});
         }
         /* The same evaluation over the local bundle copies,
