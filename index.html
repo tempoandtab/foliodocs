@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261030-75" />
+    <meta name="folio-build" content="20261030-76" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -6640,6 +6640,10 @@
             closeFolderMenu();
             createDocInFolder(f.id);
           });
+          item(DOWNLOAD_SVG, 'Import into folder…', '', function () {
+            closeFolderMenu();
+            folioImportIntoFolder(f.id);
+          });
           item(FOLDER_PLUS_SVG, 'New folder inside', '', function () {
             closeFolderMenu();
             createFolder(f.id);
@@ -10620,12 +10624,43 @@
 
         /* The destination every importer shares (the Markdown
            wiring below calls this too). */
-        function folioFinishImport(parsed, fallbackTitle) {
+        /* Build -76: a folder's "Import into folder…" menu item
+           arms the SAME import flow with a named destination:
+           folioImportIntoFolder records the folder here and
+           clicks the one shared file input, and the import
+           wiring consumes (and clears) the pending target when
+           a file is chosen, passing it to folioFinishImport —
+           so a folder import is the ordinary import in every
+           respect (same picker, same accepted types, same
+           converters, same creation/sync path, imported doc
+           opened afterward) except where the document lands.
+           The top-level Import button clears the pending
+           target first, so it keeps landing exactly where it
+           always has. */
+        var folioPendingImportFolderId = null;
+        function folioImportIntoFolder(folderId) {
+          var input = document.getElementById('importFile');
+          if (!input || !folderById(folderId)) return;
+          folioPendingImportFolderId = folderId;
+          input.value = '';
+          input.click();
+        }
+        function folioFinishImport(parsed, fallbackTitle, targetFolderId) {
           if (tagFilter) setTagFilter(null);
           var cur = currentDoc();
           var doc = createDoc(parsed.title || fallbackTitle);
           doc.content = parsed.content;
-          doc.folderId = cur ? cur.folderId : null;
+          if (targetFolderId && folderById(targetFolderId)) {
+            /* The folder whose menu was used is the folder the
+               document is created in — and the sidebar reveals
+               it (the folder and any collapsed ancestors
+               expand, the way per-folder creation reveals its
+               folder) before the list re-renders. */
+            doc.folderId = targetFolderId;
+            expandFolderChain(targetFolderId);
+          } else {
+            doc.folderId = cur ? cur.folderId : null;
+          }
           mdFixWikiLinks(doc.content);
           persist(false);
           openDoc(doc.id, false);
@@ -10640,7 +10675,7 @@
             reader.readAsArrayBuffer(file);
           });
         }
-        function folioImportBinary(file, fallbackTitle, converter) {
+        function folioImportBinary(file, fallbackTitle, converter, targetFolderId) {
           folioToast('Importing ' + file.name + '…');
           folioReadArrayBuffer(file).then(function (buf) {
             return converter(buf);
@@ -10650,7 +10685,7 @@
               return;
             }
             folioHideToast();
-            folioFinishImport(parsed, fallbackTitle);
+            folioFinishImport(parsed, fallbackTitle, targetFolderId);
           }).catch(function () {
             folioToast('Could not import ' + file.name + '. The file may be damaged, or the importer could not be loaded — check your connection and try again.', 9000);
           });
@@ -11087,12 +11122,18 @@
           var importFileInput = document.getElementById('importFile');
           if (importBtn && importFileInput) {
             importBtn.addEventListener('click', function () {
+              /* The top-level Import always lands where it
+                 always has: clear any folder target a folder
+                 menu armed (e.g. its picker was cancelled). */
+              folioPendingImportFolderId = null;
               importFileInput.value = '';
               importFileInput.click();
             });
             importFileInput.addEventListener('change', function () {
               var file = importFileInput.files && importFileInput.files[0];
               if (!file) return;
+              var targetFolderId = folioPendingImportFolderId || null;
+              folioPendingImportFolderId = null;
               var fallbackTitle = file.name.replace(/\.(md|markdown|mdown|txt|docx|pdf)$/i, '').trim() || 'Untitled';
               var lowerName = file.name.toLowerCase();
               /* Backstop for browsers that ignore the accept
@@ -11109,17 +11150,17 @@
                 return;
               }
               if (/\.docx$/.test(lowerName) || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                folioImportBinary(file, fallbackTitle, docxToDoc);
+                folioImportBinary(file, fallbackTitle, docxToDoc, targetFolderId);
                 return;
               }
               if (/\.pdf$/.test(lowerName) || file.type === 'application/pdf') {
-                folioImportBinary(file, fallbackTitle, pdfToDoc);
+                folioImportBinary(file, fallbackTitle, pdfToDoc, targetFolderId);
                 return;
               }
               var done = function (text) {
                 try {
                   var parsed = markdownToDoc(text);
-                  folioFinishImport(parsed, fallbackTitle);
+                  folioFinishImport(parsed, fallbackTitle, targetFolderId);
                 } catch (err) {
                   var el = document.getElementById('saveState');
                   if (el) {
@@ -15992,6 +16033,286 @@
             }
             ev.preventDefault();
             ev.stopPropagation();
+            refreshToolbar();
+          }, true);
+          /* ----- Markdown paste (build -76) -----
+             Diagnosis: the editor's stock paste path converts
+             an HTML flavor when the clipboard carries one and
+             otherwise inserts text/plain as plain paragraphs
+             (TipTap's inline paste rules are the only Markdown
+             it ever saw), and this app's only paste listener
+             claimed single URLs. Nothing ever ran the file
+             Import's Markdown converter on clipboard text, so a
+             copied .md file landed as literal "# Heading" /
+             "- item" text. This listener closes that gap by
+             REUSING that one converter (markdownToDoc +
+             mdFixWikiLinks — no second parser): when the
+             clipboard carries text only (no HTML flavor, no
+             files) and the text passes the gate below, the
+             converted document blocks are inserted at the
+             selection in a single chain transaction (one undo
+             step, flagged closeHistory so it never merges into
+             a neighbouring typing burst). A text-only paste the
+             gate REJECTS is likewise claimed when it carries
+             patterns TipTap's mark paste rules would rewrite
+             (see below) and is inserted literally instead, so
+             prose stays byte-for-byte plain. Every other paste —
+             HTML flavor, pattern-free plain text, code contexts,
+             node / multi-range / multi-cell selections — is
+             left to the existing paths untouched, and a failed
+             conversion falls back to inserting the plain text
+             rather than losing the paste.
+
+             THE GATE (mdPasteGate). Conversion is all-or-
+             nothing per paste and deliberately conservative:
+             ordinary prose must survive byte-for-byte, so
+             inline marks alone (a stray *asterisk*, an
+             _underscore_, even a [link](url) inside a sentence)
+             NEVER trigger it, and neither does any single
+             block signal on its own — with three principled
+             exceptions whose syntax has no plain-prose reading:
+             (1) a fenced code block (``` / ~~~) converts, its
+             contents staying literal in a codeBlock; (2) a
+             table with a delimiter row and at least one body
+             row converts; (3) a SINGLE ATX heading followed by
+             blank-line-separated body text converts (the
+             canonical title-plus-body Markdown file — the
+             "light Markdown" case). Otherwise conversion needs
+             corroboration: two or more distinct block-signal
+             categories among {heading, fence, table, quote,
+             list, divider}, a multi-heading text with a second
+             category or strong inline Markdown (**bold**, a
+             [text](url) link, a [[wikilink]]), a standalone
+             list whose items make up at least half the
+             non-empty lines, or a text that is entirely a
+             multi-line > quote. Lines inside a fence count for
+             nothing (they are code, not structure). Known
+             consequences, by design: several #-prefixed lines
+             with no other Markdown structure (shell comments)
+             stay literal — repeated headings alone are not a
+             document; a lone "1." line (one list item, no
+             corroboration) stays literal; multi-paragraph
+             prose, however many asterisks it contains, stays
+             literal. */
+          function mdPasteGate(rawText) {
+            var text = String(rawText || '').replace(/\r\n?/g, '\n');
+            if (text.indexOf('\n') === -1) return false;
+            var lines = text.split('\n');
+            var nonEmpty = 0, hasBlank = false;
+            var headingCount = 0, fenceCount = 0, quoteLines = 0, listItems = 0, dividerCount = 0;
+            var tableFound = false, tableRows = 0;
+            var inFence = false, fenceChar = '';
+            var proseLines = [];
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i];
+              if (/^\s*$/.test(line)) { hasBlank = true; continue; }
+              nonEmpty++;
+              var fm = /^\s*(```+|~~~+)/.exec(line);
+              if (fm) {
+                if (!inFence) { inFence = true; fenceChar = fm[1].charAt(0); fenceCount++; }
+                else if (fm[1].charAt(0) === fenceChar) inFence = false;
+                continue;
+              }
+              if (inFence) continue;
+              proseLines.push(line);
+              if (/^\s{0,3}#{1,6}\s+\S/.test(line)) headingCount++;
+              else if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) dividerCount++;
+              if (/^\s{0,3}>\s?/.test(line)) quoteLines++;
+              if (mdListItemMatch(line)) listItems++;
+              if (!tableFound && line.indexOf('|') !== -1 && i + 1 < lines.length && mdIsTableDelim(lines[i + 1])) {
+                tableFound = true;
+                var r = i + 2;
+                while (r < lines.length && !/^\s*$/.test(lines[r]) && lines[r].indexOf('|') !== -1) { tableRows++; r++; }
+              }
+            }
+            if (nonEmpty < 2) return false;
+            var joined = proseLines.join('\n');
+            var strongInline = /\*\*[^*\n]+\*\*/.test(joined) || /__[^_\n]+__/.test(joined) ||
+              /\[\[[^\]\n]+\]\]/.test(joined) || /\[[^\]\n]+\]\([^)\n]+\)/.test(joined);
+            var cats = (headingCount ? 1 : 0) + (fenceCount ? 1 : 0) + (tableFound ? 1 : 0) +
+              (quoteLines ? 1 : 0) + (listItems ? 1 : 0) + (dividerCount ? 1 : 0);
+            if (fenceCount) return true;
+            if (tableFound && tableRows >= 1) return true;
+            if (headingCount === 1 && hasBlank) return true;
+            if (headingCount >= 2 && (cats >= 2 || strongInline)) return true;
+            if (cats >= 2) return true;
+            if (listItems >= 2 && listItems * 2 >= nonEmpty) return true;
+            if (quoteLines >= 2 && quoteLines === nonEmpty) return true;
+            return false;
+          }
+          /* Container flattening: inside a table cell or a
+             blockquote (callouts are blockquotes), top-level
+             structures cannot be spliced in wholesale — a
+             table inside a cell, a heading inside a quote —
+             without risking the container. The converted
+             blocks are flattened to the paragraphs that DO
+             fit, keeping every word and inline mark: headings
+             become paragraphs, list items and quote children
+             contribute their paragraphs in order, code blocks
+             become code-marked lines joined by hard breaks,
+             a table becomes one paragraph per row with its
+             cells' text joined by " | ", and dividers (which
+             carry no text) drop. */
+          function mdPasteFlattenInto(blocks, out) {
+            (blocks || []).forEach(function (b) {
+              if (!b || !b.type) return;
+              switch (b.type) {
+                case 'paragraph':
+                  out.push(b); break;
+                case 'heading':
+                  out.push({ type: 'paragraph', content: b.content || [] }); break;
+                case 'codeBlock': {
+                  var t = (b.content && b.content[0] && b.content[0].text) || '';
+                  if (!t) break;
+                  var content = [];
+                  t.split('\n').forEach(function (ln, idx) {
+                    if (idx > 0) content.push({ type: 'hardBreak' });
+                    if (ln) content.push({ type: 'text', text: ln, marks: [{ type: 'code' }] });
+                  });
+                  if (content.length) out.push({ type: 'paragraph', content: content });
+                  break;
+                }
+                case 'bulletList': case 'orderedList':
+                  (b.content || []).forEach(function (item) { mdPasteFlattenInto(item.content || [], out); });
+                  break;
+                case 'blockquote':
+                  mdPasteFlattenInto(b.content || [], out); break;
+                case 'table':
+                  (b.content || []).forEach(function (row) {
+                    var rc = [];
+                    (row.content || []).forEach(function (cell, ci) {
+                      if (ci > 0) rc.push({ type: 'text', text: ' | ' });
+                      (cell.content || []).forEach(function (cb) {
+                        if (cb && cb.type === 'paragraph') (cb.content || []).forEach(function (n) { rc.push(n); });
+                        else if (cb) {
+                          var sub = [];
+                          mdPasteFlattenInto([cb], sub);
+                          sub.forEach(function (sp) {
+                            (sp.content || []).forEach(function (n) { if (n.type !== 'hardBreak') rc.push(n); });
+                          });
+                        }
+                      });
+                    });
+                    if (rc.length) out.push({ type: 'paragraph', content: rc });
+                  });
+                  break;
+                case 'horizontalRule':
+                  break;
+                case 'linkPreview': {
+                  var pa = b.attrs || {};
+                  var txt = pa.display || pa.href || '';
+                  if (txt) out.push({ type: 'paragraph', content: [{ type: 'text', text: txt }] });
+                  break;
+                }
+                default:
+                  if (b.content && b.content.length &&
+                      (b.content[0].type === 'text' || b.content[0].type === 'wikiLink' ||
+                       b.content[0].type === 'tag' || b.content[0].type === 'hardBreak')) {
+                    out.push({ type: 'paragraph', content: b.content });
+                  } else if (b.content) mdPasteFlattenInto(b.content, out);
+                  break;
+              }
+            });
+            return out;
+          }
+          editorMountForLinks.addEventListener('paste', function (ev) {
+            if (!editorHandle || !editorHandle.editor) return;
+            var ed = editorHandle.editor;
+            if (ed.isEditable === false) return;
+            if (suggestState.active || tagSuggestState.active) return;
+            var cd = ev.clipboardData || window.clipboardData;
+            if (!cd || !cd.getData) return;
+            if (cd.files && cd.files.length) return;
+            var html = '';
+            try { html = cd.getData('text/html') || ''; } catch (e) { html = ''; }
+            if (html && /\S/.test(html)) return; /* HTML flavor: stock paste, unchanged */
+            var raw = '';
+            try { raw = cd.getData('text/plain') || ''; } catch (e) { return; }
+            if (!raw) return;
+            var convertMd = mdPasteGate(raw);
+            /* A text-only paste the gate rejects must still land
+               BYTE-FOR-BYTE plain — but the stock path cannot
+               promise that: TipTap's mark paste rules rewrite
+               *emphasis*, **bold**, `code`, ~~strike~~ and
+               [text](url) inside otherwise ordinary prose (the
+               sentence "2 * 3 * 4" used to lose its asterisks
+               to an accidental italic span). So a rejected paste
+               carrying any of those patterns is inserted here
+               literally, in exactly the shape the stock plain
+               paste builds — one paragraph per run of lines
+               (the clipboard parser's own split), carrying the
+               caret's current marks — through the same single
+               insertContent transaction, whose paste rules are
+               off. Rejected pastes without such patterns keep
+               the stock path untouched. */
+            var literalText = false;
+            if (!convertMd) {
+              if (!/(?:\*\*[^*\n]+\*\*)|(?:__[^_\n]+__)|(?:\*[^*\n]+\*)|(?:_[^_\n]+_)|(?:~~[^~\n]+~~)|(?:`[^`\n]+`)|(?:\[[^\]\n]+\]\([^)\n]+\))|(?:==[^=\n]+==)/.test(raw)) return;
+              literalText = true;
+            }
+            var st = ed.state, sel = st.selection;
+            if (!sel || sel.node || sel.isCellSelection) return;
+            if (sel.ranges && sel.ranges.length > 1) return;
+            if (window.FolioKit && FolioKit.folioCellSelCount && FolioKit.folioCellSelCount(st) > 1) return;
+            var $from = null, $to = null;
+            try { $from = st.doc.resolve(sel.from); $to = st.doc.resolve(sel.to); } catch (e) { return; }
+            if (!$from.parent || !$from.parent.isTextblock) return;
+            if ($from.parent.type.name === 'codeBlock') return; /* code stays literal */
+            try {
+              if ($from.marks && $from.marks().some(function (m) { return m.type.name === 'code'; })) return;
+            } catch (e) {}
+            var inTable = false, inQuote = false, fromCell = null, toCell = null, fromQuote = null, toQuote = null;
+            for (var d = 1; d <= $from.depth; d++) {
+              var nd = $from.node(d);
+              if (nd.type.name === 'tableCell' || nd.type.name === 'tableHeader') { inTable = true; fromCell = nd; }
+              if (nd.type.name === 'blockquote') { inQuote = true; fromQuote = nd; }
+            }
+            for (var d2 = 1; d2 <= $to.depth; d2++) {
+              var ne = $to.node(d2);
+              if (ne.type.name === 'tableCell' || ne.type.name === 'tableHeader') toCell = ne;
+              if (ne.type.name === 'blockquote') toQuote = ne;
+            }
+            if (!sel.empty) {
+              /* A selection reaching out of the container it
+                 starts in is left to the stock paste rather
+                 than risk the container's structure. */
+              if (inTable !== !!toCell || inQuote !== !!toQuote) return;
+              if (inTable && fromCell !== toCell) return;
+              if (inQuote && fromQuote !== toQuote) return;
+            }
+            var blocks = null;
+            try {
+              if (literalText) {
+                var caretMarks = null;
+                try {
+                  var ms = $from.marks ? $from.marks() : [];
+                  if (ms && ms.length) caretMarks = ms.map(function (m) { return m.toJSON(); });
+                } catch (e) { caretMarks = null; }
+                blocks = raw.replace(/\r\n?/g, '\n').split(/\n+/).map(function (seg) {
+                  if (!seg) return { type: 'paragraph', content: [] };
+                  var tn = { type: 'text', text: seg };
+                  if (caretMarks) tn.marks = caretMarks;
+                  return { type: 'paragraph', content: [tn] };
+                });
+              } else {
+                var parsed = markdownToDoc(raw);
+                mdFixWikiLinks(parsed.content);
+                blocks = (parsed.content && parsed.content.content) || [];
+                if (inTable || inQuote) blocks = mdPasteFlattenInto(blocks, []);
+              }
+              if (!blocks.length) return;
+            } catch (e) { return; }
+            ev.preventDefault();
+            ev.stopPropagation();
+            var inserted = false;
+            try {
+              inserted = ed.chain().insertContent(blocks).setMeta('closeHistory$', true).run();
+            } catch (e) { inserted = false; }
+            if (!inserted) {
+              /* Never lose the paste: fall back to the plain
+                 text, exactly what this paste did before -76. */
+              try { ed.view.dispatch(ed.state.tr.insertText(raw)); } catch (e) {}
+            }
             refreshToolbar();
           }, true);
           /* ----- zombie list exits -----
