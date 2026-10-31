@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-81" />
+    <meta name="folio-build" content="20261031-82" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1900,10 +1900,17 @@
          chrome, not document text, and the tab menu is a
          right-click surface like the editor menu — without
          these rules iPadOS merged its Writing Tools callout
-         into the tab menu and covered its first item. */
+         into the tab menu and covered its first item.
+         Build -82 adds the Book's list to the same rules:
+         its rows are the tab menu's other right-click door
+         and were the one door the stylesheet never covered
+         (the event guards below reached it; the CSS did
+         not). The Book's search field sits OUTSIDE #bookList
+         and stays a real selectable field, like the sidebar's. */
       #editorMenu, #editorMenu *, #calloutPop, #calloutPop *,
       #rcMenu, #rcMenu *, #divPop, #divPop *,
       #tabMenu, #tabMenu *, .tab-rail, .tab-rail *,
+      #bookList, #bookList *,
       #insCalloutBtn, #insCalloutBtn *, #selCalloutBtn, #selCalloutBtn * {
         -webkit-touch-callout: none;
         -webkit-user-select: none;
@@ -1923,6 +1930,7 @@
       #rcMenu .m-label, #rcMenu .m-icon,
       #tabMenu .m-label, #tabMenu .m-icon,
       #divPop .m-label, #divPop .pop-label, #divPop .menu-head,
+      #bookList .book-row-name, #bookList .book-row-stripe, #bookList .book-row-here,
       #insCalloutBtn .tb-label, #selCalloutBtn .tb-label {
         pointer-events: none;
       }
@@ -12439,26 +12447,66 @@
           tabMenuEl.innerHTML = '';
           tabMenuFor = null;
         }
+        /* Build -82: resign the whole text session, not just
+           the selection. Build -78 (below, in this function's
+           history) collapsed the DOM selection when the tab
+           menu opened, and that did dismiss the Writing Tools
+           row — Writing Tools is the SELECTION family's menu.
+           On the device the menu came back wearing a different
+           row, "AutoFill ›": AutoFill belongs to the
+           first-responder family, and nothing in -78 ever
+           resigned first-responder status, so the editor (or
+           the title field, or — through the Book door — the
+           Book's search field) stayed the focused text element
+           through the whole gesture and WebKit presented ITS
+           edit menu over the tab menu instead. So: collapse
+           the DOM selection AND blur whatever text element
+           holds focus — the active element when it is a field
+           or the editor, plus every tab session's editor
+           surface explicitly. ProseMirror keeps the selection
+           in its own state and the app paint keeps it visible;
+           picking a menu item refocuses through activateTab,
+           and a press back into the document restores the DOM
+           selection — only Apple's menu loses its footing. */
+        function tabResignTextSession() {
+          if (typeof dismissNativeEditMenu === 'function') {
+            try { dismissNativeEditMenu(); } catch (e) {}
+          } else {
+            var domSel = window.getSelection ? window.getSelection() : null;
+            if (domSel && domSel.rangeCount) { try { domSel.removeAllRanges(); } catch (e) {} }
+          }
+          var ae = document.activeElement;
+          if (ae && ae !== document.body && typeof ae.blur === 'function') {
+            var inText = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' ||
+              ae.isContentEditable ||
+              (ae.closest && (ae.closest('#editorMount') || ae.closest('#bookOverlay')));
+            if (inText) { try { ae.blur(); } catch (e) {} }
+          }
+          try {
+            if (editorHandle && editorHandle.editor && editorHandle.editor.view &&
+                editorHandle.editor.view.dom) editorHandle.editor.view.dom.blur();
+          } catch (e) {}
+          try {
+            Object.keys(tabSessions || {}).forEach(function (k) {
+              var h = tabSessions[k] && tabSessions[k].handle;
+              if (h && h.editor && h.editor.view && h.editor.view.dom) h.editor.view.dom.blur();
+            });
+          } catch (e) {}
+        }
         function openTabMenu(id, x, y) {
           if (!tabDoc(id)) return;
+          /* -82: resign BEFORE the toggle check and before
+             anything renders, so no invocation path — tab
+             right-click, rail long-press, Book-row right-click
+             — leaves a live selection or a focused text element
+             behind for iPadOS to build its own menu from. */
+          tabResignTextSession();
           if (tabMenuFor === id && tabMenuEl.classList.contains('open')) { closeTabMenu(); return; }
           closeDocMenu();
           closeFolderMenu();
           closeMoveMenu();
           closeViewMenu();
           closeTopMenu();
-          /* Build -78: dismiss iPadOS's native edit callout the
-             way the editor menu does (see dismissNativeEditMenu
-             beside the editor menu's guards). The tab menu's
-             doors — a right-click or a timed long-press on the
-             rail — land OUTSIDE the editor, and with a live text
-             selection in the document WebKit floated its Writing
-             Tools callout over the menu this opened, covering
-             "Close tab" entirely. Collapsing the DOM selection
-             dismisses Apple's menu only: ProseMirror keeps the
-             selection in its own state and the app paint keeps
-             it visible. */
-          if (typeof dismissNativeEditMenu === 'function') dismissNativeEditMenu();
           tabMenuFor = id;
           tabMenuEl.innerHTML = '';
           function item(label, cls, fn) {
@@ -12516,6 +12564,33 @@
           el.addEventListener('gesturechange', function (ev) { ev.preventDefault(); });
           el.addEventListener('selectstart', function (ev) { ev.preventDefault(); }, true);
         });
+        /* Build -82: resign at PRESS START on the rail, not
+           only when the menu opens. The long-press door holds
+           the press for ~550ms before openTabMenu runs, and
+           WebKit makes its native-menu decision during that
+           hold — a dismissal that arrives with the menu is
+           late for the gesture family (AutoFill) that keys
+           off the still-focused editor. A capture pointerdown
+           on the rail covers every element a press can land
+           on — tab face, name span, folder stripe, the ×,
+           bands and rail gaps — and precedes both doors
+           (the contextmenu that follows a right-click, and
+           the long-press timer). Plain tab taps resign too:
+           the tap's own click switches the tab and
+           activateTab refocuses the editor, so nothing the
+           user can see changes. The Book's rows get the same
+           press-start resign (scoped to a row press): the
+           Book door's focused element is its search field,
+           and a row press is never a search-field press. */
+        if (tabRailEl) {
+          tabRailEl.addEventListener('pointerdown', function () { tabResignTextSession(); }, true);
+        }
+        var tabBookListEl = document.getElementById('bookList');
+        if (tabBookListEl) {
+          tabBookListEl.addEventListener('pointerdown', function (ev) {
+            if (ev.target.closest && ev.target.closest('.book-row')) tabResignTextSession();
+          }, true);
+        }
 
         /* ----- the rail: render + stack-scroll layout (spec §3–4) ----- */
         function tabNaturalHeight(title) {
