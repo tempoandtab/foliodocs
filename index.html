@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-85" />
+    <meta name="folio-build" content="20261031-86" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12525,10 +12525,40 @@
           }
           var r = tabRecord(tabActiveId);
           if (!r) {
-            tabRecords.push({ docId: id, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
+            /* Build -86: the active pointer names no record.
+               Adopt the record that already owns this document
+               if there is one — pushing a second record for an
+               already-open doc is how phantom tabs were born —
+               and mint a record only when the doc has none. */
+            r = tabRecord(id);
+            if (!r) {
+              tabRecords.push({ docId: id, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
+              r = tabRecord(id);
+            }
             tabActiveId = id;
           } else if (r.docId !== id) {
+            /* A plain in-tab navigation replaced this tab's
+               document: rename the record AND move the active
+               pointer with it. Build -86: the rename used to
+               leave tabActiveId naming the OLD doc, which no
+               longer had a record — so the next plain open
+               found no active record and PUSHED a new tab
+               instead of replacing this one (probe-proven:
+               New document in-tab, then a sidebar open of the
+               previous doc, spawned a third tab), and a reopen
+               of the current doc (the sync merge's openDoc, a
+               tag edit's finish) pushed a duplicate record for
+               it. Undo/redo took the blame because an edit's
+               persist/sync cycle is what most often lands that
+               next open right after undoing. If the incoming
+               doc already owns another record (a Back/Forward
+               landing on a doc opened in its own tab since),
+               drop that record: the doc lives in this tab now,
+               one tab per doc. */
+            var dupIdx = tabIndexOf(id);
+            if (dupIdx !== -1 && tabRecords[dupIdx] !== r) tabRecords.splice(dupIdx, 1);
             r.docId = id;
+            tabActiveId = id;
           }
           tabSaveNav();
           tabMruTouch(id);
@@ -12674,9 +12704,9 @@
           }
           var ae = document.activeElement;
           if (ae && ae !== document.body && typeof ae.blur === 'function') {
-            var inText = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' ||
+            var inText = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' ||
               ae.isContentEditable ||
-              (ae.closest && (ae.closest('#editorMount') || ae.closest('#bookOverlay')));
+              (ae.closest && (ae.closest('#editorMount') || ae.closest('#bookOverlay') || ae.closest('#refPane')));
             if (inText) { try { ae.blur(); } catch (e) {} }
           }
           try {
@@ -12687,6 +12717,35 @@
             Object.keys(tabSessions || {}).forEach(function (k) {
               var h = tabSessions[k] && tabSessions[k].handle;
               if (h && h.editor && h.editor.view && h.editor.view.dom) h.editor.view.dom.blur();
+            });
+          } catch (e) {}
+          /* Build -86: the surfaces -82's resign never reached.
+             The reference pane's read-only editor is NOT a tab
+             session and NOT editorHandle, its mount sits outside
+             #editorMount, and read-only ProseMirror reports
+             isContentEditable false — so a focus/selection
+             resting in the pane survived every resign above
+             (door × prior-focus: any tab-menu door × reference
+             pane). Blur it explicitly, and likewise blur every
+             named text field the app owns by id — title, Book
+             search, Omnisearch, action bar, the wiki-link pop
+             fields, the tag modal, the share alias fields, the
+             comment composer, the auth fields — so the resign
+             no longer depends on which element happens to be
+             document.activeElement at press time. Blurring a
+             field that is not focused is a no-op. */
+          try {
+            if (typeof refHandle !== 'undefined' && refHandle && refHandle.editor &&
+                refHandle.editor.view && refHandle.editor.view.dom) refHandle.editor.view.dom.blur();
+          } catch (e) {}
+          try {
+            ['titleInput', 'bookSearch', 'omniInput', 'actionInput',
+             'wikiLinkInput', 'wikiDisplayInput', 'tagModalInput',
+             'shareWizardAlias', 'shareSettingsAlias', 'shareNewLinkInput', 'shareSettingsLinkInput',
+             'commentName', 'commentBody', 'authEmail', 'authPassword', 'fmtCustomColor'
+            ].forEach(function (fid) {
+              var f = document.getElementById(fid);
+              if (f && typeof f.blur === 'function') f.blur();
             });
           } catch (e) {}
         }
@@ -12738,6 +12797,22 @@
               var menuRec = tabRecord(id);
               if (menuRec && menuRec.refId) {
                 item('Remove reference', '', function () { refRemove(id); });
+              } else {
+                /* Build -86: self-reference from the menu. The
+                   spec's model always allowed a tab to reference
+                   its own primary doc (a second viewport onto
+                   the same text at an independent scroll), but
+                   -85 wired it only to the drag-a-tab-onto-the-
+                   editor door; the menu offered the item on
+                   every tab EXCEPT the current one. Same label,
+                   same refSet path: choosing it sets this tab's
+                   reference to its own doc (replacing any other
+                   reference is the else-branch's job — here none
+                   is set), the pane renders through the existing
+                   refSync/refLiveUpdate path, and the header's
+                   "Open its tab" lands on this same tab, which
+                   activateTab already treats as a stay. */
+                item('Show as reference here', '', function () { refSet(tabActiveId, id); });
               }
             } else {
               item('Show as reference here', '', function () { refSet(tabActiveId, id); });
@@ -12806,6 +12881,56 @@
         if (tabBookListEl) {
           tabBookListEl.addEventListener('pointerdown', function (ev) {
             if (ev.target.closest && ev.target.closest('.book-row')) tabResignTextSession();
+          }, true);
+        }
+        /* Build -86: the "sometimes" in Andrew's report, closed
+           by enumeration. The -82 press-start resign above is a
+           POINTERDOWN listener, and two delivery paths reach the
+           tab menu without it ever firing:
+           (1) A secondary-button press that WebKit delivers as
+               mousedown/contextmenu only (the trackpad/mouse
+               right-click path varies by input device and OS
+               build; when pointerdown is skipped, the first
+               event the page sees is the contextmenu itself, and
+               the only resign left was openTabMenu's — at menu
+               time, a full gesture after WebKit's decision, the
+               exact lateness -85 proved fatal on the editor).
+           (2) A press anywhere in the Book overlay outside a
+               .book-row (the row-scoped listener above never
+               fires), while the Book's search field — focused by
+               openBook 40ms after opening — stays first
+               responder behind the gesture.
+           So the resign now also rides mousedown (any button;
+           it is idempotent, and neither surface holds a text
+           field of its own) and the contextmenu event itself in
+           capture phase — the earliest moment of the menu's own
+           event, before the tabs'/rows' bubble handlers open
+           the menu — on both the rail and the Book's list, plus
+           a pointerdown resign across the whole Book overlay
+           (the search field itself excepted: a press INTO the
+           field is typing, not a menu door). Combined with the
+           widened tabResignTextSession (reference pane + every
+           named field blurred by id), every door × prior-focus
+           combination now resigns at or before the menu event:
+           rail right-click/long-press and Book-row right-click,
+           against the active editor, a parked session, the
+           title field, the Book search, the reference pane,
+           Omnisearch/action inputs, share alias fields, and
+           the comment composer. */
+        [tabRailEl, tabBookListEl].forEach(function (el) {
+          if (!el) return;
+          el.addEventListener('mousedown', function () { tabResignTextSession(); }, true);
+          el.addEventListener('contextmenu', function () { tabResignTextSession(); }, true);
+        });
+        var tabBookOverlayEl = document.getElementById('bookOverlay');
+        if (tabBookOverlayEl) {
+          tabBookOverlayEl.addEventListener('pointerdown', function (ev) {
+            if (ev.target && ev.target.id === 'bookSearch') return;
+            tabResignTextSession();
+          }, true);
+          tabBookOverlayEl.addEventListener('mousedown', function (ev) {
+            if (ev.target && ev.target.id === 'bookSearch') return;
+            tabResignTextSession();
           }, true);
         }
 
