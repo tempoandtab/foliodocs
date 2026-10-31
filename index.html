@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-79" />
+    <meta name="folio-build" content="20261031-80" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3378,30 +3378,40 @@
       /* ---------------- file tabs: divider rail (Phase 1) ----------------
          A binding-green spine at the editor's left edge carrying
          Finish C tabs with sideways names. The spine stays
-         binding green in every theme (deeper under Midnight);
-         build -79: the inactive tabs are shades of dark green
-         with cream names, furniture mounted on the binding —
-         the active tab alone keeps the page's own color. */
+         binding green in every theme (deeper under Midnight).
+         Build -80 (palette P4 "Ghost", picked over the -79 dark
+         greens): the inactive tabs are segments OF the spine —
+         they wear the spine's own background through the shared
+         --spine-bg token below, at the rail's full width, so a
+         tab can never drift from the column it sits in, in any
+         theme or in slim mode. What separates a ghost tab from
+         the spine is only its cream sideways name, its 4px
+         folder stripe on the page-facing edge, a 1px darker
+         hairline on the edges that meet the spine, and the
+         raised sewing band showing in the gap at its head.
+         The active tab alone keeps the page's own color. */
+      /* The spine's background lives in ONE token, painted by
+         BOTH the rail and every inactive tab: because a ghost
+         tab spans the rail's full width, its gradient box aligns
+         with the rail's at every x, so tab face and bare spine
+         sample identically. --spine-bg-hover is the same
+         gradient lifted one small step, for the hover face. */
+      :root {
+        --spine-bg: linear-gradient(90deg, #0d271e, #12332a 55%, #163c30);
+        --spine-bg-hover: linear-gradient(90deg, #143a2d, #184233 55%, #1c4a3a);
+      }
+      :root[data-theme="midnight"] {
+        --spine-bg: linear-gradient(90deg, #081a13, #0c231a 55%, #0f2a1f);
+        --spine-bg-hover: linear-gradient(90deg, #0d241a, #122f22 55%, #163827);
+      }
       .editor-body { display: flex; flex: 1; min-height: 0; }
       .editor-body .editor-scroll { flex: 1; min-width: 0; }
       .doc-session { min-height: 100%; }
       .tab-rail {
         width: 46px; flex: 0 0 46px; position: relative; z-index: 5;
-        background: linear-gradient(90deg, #0d271e, #12332a 55%, #163c30);
+        background: var(--spine-bg);
         box-shadow: inset -1px 0 0 rgba(0,0,0,0.35), inset 1px 0 0 rgba(255,255,255,0.05);
         display: flex; flex-direction: column; min-height: 0;
-      }
-      :root[data-theme="midnight"] .tab-rail { background: linear-gradient(90deg, #081a13, #0c231a 55%, #0f2a1f); }
-      /* Build -79: the inactive tab face as a plain hex per
-         theme — a shade of dark green in each (see .folio-tab
-         below for why no color-mix). Paper's green is the base
-         rule; Sepia leans warm, Midnight stays deep but richer
-         than its spine. */
-      :root[data-theme="sepia"] .folio-tab {
-        background: #33523a;
-      }
-      :root[data-theme="midnight"] .folio-tab {
-        background: #24513a;
       }
       :root[data-theme="midnight"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="sepia"] .folio-tab.active { background: var(--surface); }
@@ -3415,26 +3425,24 @@
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
       }
       .folio-tab {
-        position: absolute; right: 0; width: 34px; cursor: pointer;
-        /* Build -79: the inactive face leaves the paper/grey
-           family for a dark green — visibly lighter and richer
-           than the spine's ink green, so the tab reads as
-           furniture mounted on the binding, and clearly distinct
-           from the page surface the active tab wears. The name
-           turns cream: dark text on dark green is illegible.
-           The face stays a plain hex per theme (Paper here,
-           Sepia and Midnight in the overrides above), NOT a
-           color-mix: harness Chromium painted a color-mix tab
-           background as transparent — spine showing through,
-           name unreadable on light themes — while every other
-           declaration in this rule painted. The -78 tradeoff
-           stands: the hex is fixed per theme, not derived from
-           a customized Theme Styles surface color. */
-        background: #2c5a41;
-        color: #eae3cb; border-radius: 5px 0 0 5px;
-        box-shadow: -2px 2px 5px rgba(0, 0, 0, 0.28);
+        position: absolute; right: 0; width: 46px; cursor: pointer;
+        /* Build -80 Ghost: full rail width, flush on both
+           sides (no radius, no drop shadow), wearing the
+           spine's own --spine-bg so the face IS the spine.
+           The separation from the column is the hairline: a
+           1px darker inset outline on every edge — the right
+           edge's line is covered by the folder stripe (::after)
+           that rides over it, the other three meet the spine.
+           Stack slivers are this same element compressed, so
+           they inherit the treatment whole: full width,
+           spine-identical face, cream name bites, ribbing
+           from the bands behind them. The name is cream
+           (#eae3cb, as -79): the only text a ghost tab has. */
+        background: var(--spine-bg);
+        color: #eae3cb; border-radius: 0;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
         display: flex; align-items: center; justify-content: center;
-        transition: transform 0.12s ease, width 0.12s ease;
+        transition: width 0.12s ease;
         overflow: hidden; user-select: none; -webkit-user-select: none;
         touch-action: none;
       }
@@ -3442,12 +3450,20 @@
         content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 4px;
         background: var(--stripe, #b3a888);
       }
-      .folio-tab:hover { transform: translateX(-3px); }
+      /* Hover no longer slides the tab — at full width there
+         is nowhere to slide. The face lifts one small step
+         lighter instead (the × still appears at its foot,
+         below). */
+      .folio-tab:hover { background: var(--spine-bg-hover); }
       .folio-tab.active {
         width: 44px; background: var(--surface); color: var(--ink);
         box-shadow: none; border-radius: 5px 0 0 5px; transform: none;
       }
-      .tab-rail.slim .folio-tab { width: 26px; }
+      /* The active tab is ratified exactly as-is — the picked
+         design has the inactives 2px WIDER than it (46 vs 44),
+         and its page-colored face does not lift on hover. */
+      .folio-tab.active:hover { background: var(--surface); }
+      .tab-rail.slim .folio-tab { width: 36px; }
       .tab-rail.slim .folio-tab.active { width: 31px; }
       .folio-tab-name {
         writing-mode: vertical-rl; transform: rotate(180deg);
