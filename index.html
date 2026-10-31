@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-80" />
+    <meta name="folio-build" content="20261031-81" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3396,13 +3396,19 @@
          with the rail's at every x, so tab face and bare spine
          sample identically. --spine-bg-hover is the same
          gradient lifted one small step, for the hover face. */
+      /* Build -81: the whole spine lifted one shade brighter in
+         every theme (same hue family, same gradient shape), so
+         the page-colored active tab — unchanged — pops harder
+         against the rail. Ghost tabs follow automatically: they
+         paint with this same --spine-bg token. Hover lifts
+         correspondingly, preserving its step above the base. */
       :root {
-        --spine-bg: linear-gradient(90deg, #0d271e, #12332a 55%, #163c30);
-        --spine-bg-hover: linear-gradient(90deg, #143a2d, #184233 55%, #1c4a3a);
+        --spine-bg: linear-gradient(90deg, #153a2c, #1b4636 55%, #205243);
+        --spine-bg-hover: linear-gradient(90deg, #1d4a38, #235743 55%, #28604e);
       }
       :root[data-theme="midnight"] {
-        --spine-bg: linear-gradient(90deg, #081a13, #0c231a 55%, #0f2a1f);
-        --spine-bg-hover: linear-gradient(90deg, #0d241a, #122f22 55%, #163827);
+        --spine-bg: linear-gradient(90deg, #0f2b1f, #153a29 55%, #1a4632);
+        --spine-bg-hover: linear-gradient(90deg, #163826, #1d4732 55%, #22543b);
       }
       .editor-body { display: flex; flex: 1; min-height: 0; }
       .editor-body .editor-scroll { flex: 1; min-width: 0; }
@@ -3421,8 +3427,11 @@
       .tab-bands, .tab-strip { position: absolute; inset: 0; }
       .tab-band {
         position: absolute; left: 3px; right: 3px; height: 4px; border-radius: 2px;
-        background: rgba(241, 234, 214, 0.16);
-        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        /* -81: cream ridge lifted 0.16 -> 0.20 and its drop
+           shadow deepened slightly so the sewing stations
+           still read against the one-shade-brighter spine. */
+        background: rgba(241, 234, 214, 0.2);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
       }
       .folio-tab {
         position: absolute; right: 0; width: 46px; cursor: pointer;
