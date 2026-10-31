@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-83" />
+    <meta name="folio-build" content="20261031-85" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -105,6 +105,90 @@
         --active: rgba(142, 199, 165, 0.16);
         --shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
         --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.35);
+      }
+      /* Binding (build -84): the fourth base theme, promoted
+         from the Phase 1 color-scheme preset. The preset's
+         failure is the lesson this block is built from: it
+         repainted seven palette levers over Midnight and
+         left every other token mismatched — the topbar
+         paints its title and icons in the ink tokens over
+         the --bg ground, so a green --bg with a dark --ink
+         made the document title nearly invisible, and the
+         sidebar's secondary text (the --ink-2/--ink-3
+         children) went dark-on-green with it. A base theme
+         owes EVERY token a value chosen for its own grounds:
+         here the chrome (sidebar, topbar, statusbar, the
+         surround the cream paper floats on) is deep ink
+         green and the page family (paper, menus, modals,
+         toolbars) is cream, so the token set below is the
+         preset's seven values completed — gilt accent and
+         lines, a faint tone (#a79b7d) picked to read as
+         quiet text on BOTH the green chrome and the cream
+         page, since --ink-3 serves both — plus the scoped
+         overrides after it for the children that paint ink
+         tokens over a chrome ground. */
+      :root[data-theme="binding"] {
+        color-scheme: light;
+        --bg: #12332a;
+        --surface: #fffaf0;
+        --sidebar: #0f2d22;
+        --sidebar-ink: #f1ead6;
+        --ink: #26302a;
+        --ink-2: #5f6b52;
+        --ink-3: #a79b7d;
+        --line: #c9bb90;
+        --line-soft: #ddd2b0;
+        --accent: #a97e1f;
+        --accent-ink: #14231b;
+        --accent-soft: #eee3c0;
+        --chip-bg: #e7e3cb;
+        --chip-ink: #2e5638;
+        --missing-bg: #f8e9dc;
+        --missing-ink: #a34d21;
+        --tag-bg: #efe3ba;
+        --tag-ink: #6d4d0d;
+        --danger: #b3372a;
+        --hover: rgba(38, 48, 42, 0.07);
+        --th-bg: #f2ecd8;
+        --folder-bg: rgba(241, 234, 214, 0.07);
+        --active: rgba(169, 126, 31, 0.18);
+        --shadow: 0 12px 40px rgba(10, 26, 19, 0.35), 0 2px 8px rgba(10, 26, 19, 0.22);
+        --paper-shadow: 0 1px 2px rgba(10, 26, 19, 0.18), 0 10px 34px rgba(10, 26, 19, 0.28);
+      }
+      /* Binding chrome overrides: the surfaces that sit on
+         the green --bg / --sidebar grounds but paint with the
+         cream-page ink tokens. Everything here is scoped to
+         the theme, so the other three themes never see it. */
+      :root[data-theme="binding"] .topbar { color: #f1ead6; }
+      :root[data-theme="binding"] .topbar .title-input { color: #f7f1dc; }
+      :root[data-theme="binding"] .topbar .title-input:focus { background: rgba(241, 234, 214, 0.12); }
+      :root[data-theme="binding"] .topbar .icon-btn { color: rgba(241, 234, 214, 0.82); }
+      :root[data-theme="binding"] .topbar .icon-btn:hover { background: rgba(241, 234, 214, 0.12); color: #fff8e7; }
+      :root[data-theme="binding"] .topbar .icon-btn:disabled:hover { background: none; color: rgba(241, 234, 214, 0.82); }
+      :root[data-theme="binding"] .topbar #focusBtn.on { background: rgba(241, 234, 214, 0.16); color: #e9c767; }
+      :root[data-theme="binding"] .topbar .save-state { color: #bdb08a; }
+      :root[data-theme="binding"] .statusbar { color: #bdb08a; }
+      :root[data-theme="binding"] .sidebar .doc-item.current { color: #f7f1dc; }
+      :root[data-theme="binding"] .sidebar .doc-act { color: rgba(241, 234, 214, 0.75); }
+      :root[data-theme="binding"] .sidebar .doc-act:hover { background: rgba(241, 234, 214, 0.13); color: #fff8e7; }
+      :root[data-theme="binding"] .sidebar .folder-badge { color: rgba(241, 234, 214, 0.78); }
+      :root[data-theme="binding"] .sidebar .folder-menu-btn { color: rgba(241, 234, 214, 0.75); }
+      :root[data-theme="binding"] .sidebar .folder-menu-btn:hover { background: rgba(241, 234, 214, 0.13); color: #fff8e7; }
+      :root[data-theme="binding"] .sidebar .doc-item:hover,
+      :root[data-theme="binding"] .sidebar .folder-head:hover,
+      :root[data-theme="binding"] .sidebar .theme-btn:hover,
+      :root[data-theme="binding"] .sidebar .mini-btn:hover,
+      :root[data-theme="binding"] .sidebar .docs-view-btn:hover { background: rgba(241, 234, 214, 0.09); }
+      :root[data-theme="binding"] .doc-star { color: #e3b95c; }
+      /* The theme popover paints with the cream page surface but lives inside
+         the green sidebar, whose cream ink it would otherwise inherit. */
+      :root[data-theme="binding"] .theme-pop { color: var(--ink); }
+      :root[data-theme="binding"] .theme-pop .pop-label { color: var(--ink-2); }
+      :root[data-theme="binding"] .folder.tinted { background: color-mix(in srgb, var(--fb) 17%, transparent); }
+      :root[data-theme="binding"] .folder-badge.tinted {
+        background: color-mix(in srgb, var(--fb) 30%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 45%, transparent);
+        color: color-mix(in srgb, var(--fb) 60%, #ffffff);
       }
       /* Accent choices — light values, then Midnight overrides */
       :root[data-accent="terracotta"] {
@@ -3429,6 +3513,7 @@
       }
       :root[data-theme="midnight"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="sepia"] .folio-tab.active { background: var(--surface); }
+      :root[data-theme="binding"] .folio-tab.active { background: var(--surface); }
       .tab-rail.slim { width: 36px; flex-basis: 36px; }
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
@@ -3532,6 +3617,77 @@
         :root[data-focus="on"] .tab-pill { display: none; }
       }
       @media print { .tab-rail, .tab-pill { display: none !important; } }
+
+      /* ---------------- file tabs: reference pane (Phase 2) ----------------
+         Split view (spec §7): the active tab's reference doc
+         as a live read view beside the primary doc, inside the
+         same tab. The pane is a flex sibling of the primary
+         scroll area, so the primary paper simply narrows; its
+         width is the per-tab divider fraction. The reference
+         renders on the same paper material as the page, under
+         a slim header carrying the doc's name, its tab door,
+         and the remove ×. The divider is a 12px grab strip on
+         the pane's left edge; dragging it to the body's right
+         edge (the pane squeezed shut) removes the reference.
+         No pane on phone (§11): the media rule below is the
+         hard guarantee, and the script also stands down there. */
+      .ref-pane {
+        position: relative; flex: 0 0 42%; min-width: 0; min-height: 0;
+        display: flex; flex-direction: column;
+        background: var(--bg); border-left: 1px solid var(--line);
+        -webkit-touch-callout: none;
+      }
+      .ref-pane[hidden] { display: none; }
+      .ref-head {
+        flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+        padding: 9px 10px 9px 16px;
+        background: var(--surface); border-bottom: 1px solid var(--line-soft);
+      }
+      .ref-title {
+        flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        font-family: "Newsreader", Georgia, serif; font-size: 16.5px; font-weight: 600; color: var(--ink);
+      }
+      .ref-open {
+        flex: 0 0 auto; border: 1px solid var(--line); background: transparent; color: var(--ink-2);
+        border-radius: 999px; padding: 4px 11px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+      }
+      .ref-open:hover { background: var(--hover); color: var(--ink); }
+      .ref-x {
+        flex: 0 0 auto; width: 28px; height: 28px; border: none; border-radius: 8px;
+        background: transparent; color: var(--ink-2); font-size: 16px; line-height: 1; cursor: pointer; padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .ref-x:hover { background: var(--hover); color: var(--danger); }
+      .ref-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+      .ref-paper {
+        background: var(--surface); border: 1px solid var(--line-soft); border-radius: 6px;
+        box-shadow: var(--paper-shadow);
+        margin: 18px 16px 60px; padding: 30px 32px 48px; min-height: 50dvh;
+      }
+      .ref-mount { outline: none; }
+      .ref-divider {
+        position: absolute; left: -6px; top: 0; bottom: 0; width: 12px;
+        cursor: col-resize; z-index: 8; touch-action: none;
+      }
+      .ref-divider::after {
+        content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: transparent;
+      }
+      .ref-divider:hover::after, .ref-divider.dragging::after { background: var(--accent); opacity: 0.55; }
+      .ref-divider:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      /* While the reference pane is open, the floating outline
+         toggle (anchored to the main column's top-right corner)
+         would sit on the pane's header and cover its × — so it
+         shifts left by the pane's width (--refw, set by refSync
+         as the same fraction the pane's flex-basis uses; both
+         measure against the main column's width) and goes back
+         to overlaying the primary paper's corner, its home. */
+      :root[data-ref="on"] .outline-pop { right: calc(var(--refw, 42%) + 14px); }
+      /* Drag-a-tab-over-the-editor affordance (spec §7 door 2):
+         the primary area takes an accent outline while a dragged
+         tab hovers it, so the drop reads before it lands. */
+      .editor-scroll.ref-drop { outline: 2px solid var(--accent); outline-offset: -2px; }
+      @media (max-width: 640px) { .ref-pane { display: none !important; } }
+      @media print { .ref-pane { display: none !important; } }
 
       /* ---------------- the Book: tab switcher ---------------- */
       .book-cover {
@@ -3958,6 +4114,19 @@
               <div class="editor-mount" id="editorMount"></div>
             </div>
           </div>
+          <aside class="ref-pane" id="refPane" hidden aria-label="Reference document">
+            <div class="ref-divider" id="refDivider" role="separator" aria-orientation="vertical" aria-label="Resize reference pane" tabindex="0" data-tip="Drag to resize · drag to the edge to close"></div>
+            <div class="ref-head">
+              <span class="ref-title" id="refTitle"></span>
+              <button class="ref-open" id="refOpenTab" type="button" data-tip="Jump to this document's own tab to edit it">Open its tab</button>
+              <button class="ref-x" id="refClose" type="button" aria-label="Remove reference" data-tip="Remove reference">×</button>
+            </div>
+            <div class="ref-scroll" id="refScroll">
+              <div class="ref-paper">
+                <div class="ref-mount" id="refMount"></div>
+              </div>
+            </div>
+          </aside>
         </div>
 
         <div class="statusbar">
@@ -4505,6 +4674,7 @@
           { id: 'paper', name: 'Paper', surface: '#fffdf7', tone: '#eceade' },
           { id: 'sepia', name: 'Sepia', surface: '#faf2df', tone: '#e6d6b8' },
           { id: 'midnight', name: 'Midnight', surface: '#1d1f1c', tone: '#131512' },
+          { id: 'binding', name: 'Binding', surface: '#fffaf0', tone: '#12332a' },
         ];
         var ACCENTS = [
           { id: 'forest', name: 'Forest', color: '#2e6b4c' },
@@ -5066,17 +5236,17 @@
           { id: 'highlight', label: 'Default highlight color', group: 'Inline styles', levers: ['color'], global0: false },
         ];
         var TS_PALETTE = [
-          { id: 'pal-bg', label: 'Page background', cssVar: '--bg', shipped: { paper: '#f4f1ea', sepia: '#ecdfc6', midnight: '#131512' } },
-          { id: 'pal-surface', label: 'Surface (paper)', cssVar: '--surface', shipped: { paper: '#fffdf7', sepia: '#faf2df', midnight: '#1d1f1c' } },
-          { id: 'pal-sidebar', label: 'Sidebar', cssVar: '--sidebar', shipped: { paper: '#eceade', sepia: '#e6d6b8', midnight: '#191b18' } },
-          { id: 'pal-sidebar-ink', label: 'Sidebar text', cssVar: '--sidebar-ink', shipped: { paper: '#33382f', sepia: '#4c3a26', midnight: '#d7d9d0' } },
-          { id: 'pal-ink', label: 'Ink / text', cssVar: '--ink', shipped: { paper: '#22261f', sepia: '#3e2f1f', midnight: '#eceee6' } },
-          { id: 'pal-ink2', label: 'Muted text', cssVar: '--ink-2', shipped: { paper: '#62665b', sepia: '#77644a', midnight: '#a3a79b' },
+          { id: 'pal-bg', label: 'Page background', cssVar: '--bg', shipped: { paper: '#f4f1ea', sepia: '#ecdfc6', midnight: '#131512', binding: '#12332a' } },
+          { id: 'pal-surface', label: 'Surface (paper)', cssVar: '--surface', shipped: { paper: '#fffdf7', sepia: '#faf2df', midnight: '#1d1f1c', binding: '#fffaf0' } },
+          { id: 'pal-sidebar', label: 'Sidebar', cssVar: '--sidebar', shipped: { paper: '#eceade', sepia: '#e6d6b8', midnight: '#191b18', binding: '#0f2d22' } },
+          { id: 'pal-sidebar-ink', label: 'Sidebar text', cssVar: '--sidebar-ink', shipped: { paper: '#33382f', sepia: '#4c3a26', midnight: '#d7d9d0', binding: '#f1ead6' } },
+          { id: 'pal-ink', label: 'Ink / text', cssVar: '--ink', shipped: { paper: '#22261f', sepia: '#3e2f1f', midnight: '#eceee6', binding: '#26302a' } },
+          { id: 'pal-ink2', label: 'Muted text', cssVar: '--ink-2', shipped: { paper: '#62665b', sepia: '#77644a', midnight: '#a3a79b', binding: '#5f6b52' },
             note: 'Used for the default color of Subtitle and Blockquote text in documents, and for quieter interface text \u2014 outline items and the icon buttons in the topbar and context rail.' },
-          { id: 'pal-ink3', label: 'Faint text', cssVar: '--ink-3', shipped: { paper: '#969a8d', sepia: '#a68f6b', midnight: '#6f7368' },
+          { id: 'pal-ink3', label: 'Faint text', cssVar: '--ink-3', shipped: { paper: '#969a8d', sepia: '#a68f6b', midnight: '#6f7368', binding: '#a79b7d' },
             note: 'Used only for labels, counts and hints \u2014 the placeholder text in an empty document, sidebar section labels and empty-state text, the document count, the \u201cSaved\u201d indicator, document dots, fold chevrons and the fold ellipsis, and divider colors. It never colors document text.' },
-          { id: 'pal-accent', label: 'Accent', cssVar: '--accent', shipped: { paper: '#2e6b4c', sepia: '#2e6b4c', midnight: '#8ec7a5' } },
-          { id: 'pal-line', label: 'Borders', cssVar: '--line', shipped: { paper: '#ddd8c8', sepia: '#d8c69e', midnight: '#33362f' } },
+          { id: 'pal-accent', label: 'Accent', cssVar: '--accent', shipped: { paper: '#2e6b4c', sepia: '#2e6b4c', midnight: '#8ec7a5', binding: '#a97e1f' } },
+          { id: 'pal-line', label: 'Borders', cssVar: '--line', shipped: { paper: '#ddd8c8', sepia: '#d8c69e', midnight: '#33362f', binding: '#c9bb90' } },
         ];
         var TS_ICON_DEF = { id: 'iconSet', label: 'Icon set', group: 'Icons' };
         var TS_ALL_DEFS = TS_DEFS.concat(TS_PALETTE.map(function (p) {
@@ -5700,16 +5870,17 @@
           { id: 'meadow', name: 'Meadow', blurb: 'A varied green walk — deep forest green through leaf and moss to olive, the hue travelling as the levels descend.',
             colorsLight: { h1: '#20502f', h2: '#2e6034', h3: '#3f6d2f', h4: '#5d7434', h5: '#6f7030', h6: '#7d7440', subtitle: '#61705a' },
             colorsDark: { h1: '#7ab07f', h2: '#93bd7f', h3: '#a3c172', h4: '#b3bd6d', h5: '#c2ba62', h6: '#cfc084', subtitle: '#a8b39a' } },
-          /* Binding (tabs Phase 1): BE-5's room as a preset —
-             the heading walk runs ink green down to gilt, and
-             applying ALSO writes the palette levers below
-             (sidebar and page surround in ink green, sidebar
-             text cream, the paper itself cream, gilt accent)
-             through tsSetLever, so it syncs through
-             theme_styles exactly like every other lever. */
-          { id: 'binding', name: 'Binding', blurb: 'Ink green and gilt — deep green headings warming to gold, with the sidebar and surround in binding green and a cream page.',
-            colors: { h1: '#12332a', h2: '#1d4a38', h3: '#2e6b4c', h4: '#7a6420', h5: '#a97e1f', h6: '#c9a227', subtitle: '#5f6b52' },
-            bindingPalette: { 'pal-bg': '#12332a', 'pal-sidebar': '#12332a', 'pal-sidebar-ink': '#f1ead6', 'pal-surface': '#fffaf0', 'pal-accent': '#a97e1f', 'pal-ink': '#26302a', 'pal-line': '#c9bb90' } },
+          /* Binding RETIRED from this list in build -84: it
+             graduated to a fourth base theme (see the
+             data-theme="binding" token block), because a
+             color scheme — heading colors plus a handful of
+             palette levers — cannot coherently re-skin the
+             whole chrome (applied over Midnight it left the
+             topbar title dark-on-green). Style sets a user
+             already saved from the old preset stay stored in
+             their theme's overlays and simply go on applying
+             as ordinary lever values; nothing here reads the
+             'binding' scheme id anymore. */
         ];
         /* The color set a scheme wears on a given theme:
            the dual-set schemes pick light or Midnight;
@@ -12008,6 +12179,12 @@
                through onUpdate, and reseed via openDoc) can
                never prompt. */
             checkTagTrigger(doc);
+            /* File tabs Phase 2: a self-reference (the active
+               tab referencing the doc being edited) mirrors the
+               edit live in its read view. Cross-tab references
+               need no push: doc.content is already current, and
+               the pane reloads from it when its tab is shown. */
+            if (typeof refLiveUpdate === 'function') refLiveUpdate(doc);
           },
           onSelectionChange: function () { refreshToolbar(); },
           onNavigate: function (title) { navigateToTitle(title); },
@@ -12210,7 +12387,16 @@
           tabSaveNav();
           try {
             localStorage.setItem(TABS_KEY, JSON.stringify({
-              tabs: tabRecords.map(function (r) { return { docId: r.docId, group: r.group || null, nav: r.nav }; }),
+              tabs: tabRecords.map(function (r) {
+                return {
+                  docId: r.docId, group: r.group || null, nav: r.nav,
+                  /* Phase 2: the tab's reference — doc id, the
+                     reference's own scroll, the divider fraction. */
+                  ref: r.refId || null,
+                  refW: typeof r.refW === 'number' ? r.refW : null,
+                  refScroll: typeof r.refScroll === 'number' ? r.refScroll : 0,
+                };
+              }),
               active: tabActiveId,
               closed: tabClosedStack.slice(0, 25),
             }));
@@ -12423,6 +12609,10 @@
         }
         function tabOnDocDeleted(id) {
           var wasActive = tabActiveId === id;
+          /* Phase 2: a deleted doc stops being any tab's
+             reference — the pane has nothing left to show. */
+          tabRecords.forEach(function (r) { if (r.refId === id) r.refId = null; });
+          if (typeof refShownId !== 'undefined' && refShownId === id) refShownId = null;
           var i = tabIndexOf(id);
           if (i !== -1) tabRecords.splice(i, 1);
           tabClosedStack = tabClosedStack.filter(function (x) { return x !== id; });
@@ -12533,6 +12723,26 @@
             tabMenuEl.appendChild(b);
             return b;
           }
+          /* Phase 2 (spec §6–§7): the reference doors. "Show
+             as reference here" sits on every tab except the
+             current one and makes THIS tab's doc the CURRENT
+             tab's reference; the current tab's own menu trades
+             it for "Remove reference" while one is set. The
+             items render inside this same menu element, so the
+             -78/-82 native-suppression treatment (the resign
+             above, this surface's capture guards) covers them
+             whole. On phone there is no split view (§11), so
+             the menu never offers what the layout can't show. */
+          if (!refPhoneWidth()) {
+            if (id === tabActiveId) {
+              var menuRec = tabRecord(id);
+              if (menuRec && menuRec.refId) {
+                item('Remove reference', '', function () { refRemove(id); });
+              }
+            } else {
+              item('Show as reference here', '', function () { refSet(tabActiveId, id); });
+            }
+          }
           item('Close tab', 'danger', function () { closeTab(id); });
           item('Close other tabs', 'danger', function () { closeOtherTabs(id); });
           tabMenuEl.className = 'menu open';
@@ -12599,6 +12809,205 @@
           }, true);
         }
 
+        /* ----- split view: the reference pane (Phase 2, spec §7) -----
+           A tab's record gains three per-tab fields, persisted
+           with the open set (tabPersist / tabInit) and never
+           synced: refId (the reference doc, or null), refScroll
+           (the pane's own scroll position), refW (the divider
+           fraction of the editor body's width). The pane is ONE
+           shared read-only editor, reloaded from the reference
+           doc's stored content whenever the shown tab or the
+           doc's updated stamp changes: doc.content is written
+           by the owning session's onUpdate on every edit, so a
+           reference is already current the moment its tab is
+           switched to — and a self-reference, edited in this
+           very tab, is mirrored live through refLiveUpdate
+           (hooked in folioEditorOpts.onUpdate). The reference
+           editor is setEditable(false): no caret, no editing,
+           and its transactions can never fire the primary
+           onUpdate that would write into the wrong doc. */
+        var refPaneEl = document.getElementById('refPane');
+        var refTitleEl = document.getElementById('refTitle');
+        var refScrollEl = document.getElementById('refScroll');
+        var refMountEl = document.getElementById('refMount');
+        var refDividerEl = document.getElementById('refDivider');
+        var refHandle = null;
+        var refShownId = null;
+        var refShownUpdated = 0;
+        var refLiveTimer = null;
+        var refScrollSaveTimer = null;
+        function refPhoneWidth() { return window.innerWidth <= 640; }
+        function refSet(tabId, refDocId) {
+          if (!tabId || !tabDoc(refDocId) || refPhoneWidth()) return;
+          var r = tabRecord(tabId);
+          if (!r) return;
+          r.refId = refDocId;
+          if (typeof r.refW !== 'number' || !(r.refW > 0)) r.refW = 0.42;
+          if (typeof r.refScroll !== 'number') r.refScroll = 0;
+          refShownId = null; /* force the pane to load the new doc */
+          tabPersist();
+          if (tabId === tabActiveId) refSync();
+        }
+        function refRemove(tabId) {
+          var r = tabRecord(tabId || tabActiveId);
+          if (!r) return;
+          r.refId = null;
+          tabPersist();
+          refSync();
+        }
+        function refEnsureHandle(doc) {
+          if (refHandle || !refMountEl) return refHandle;
+          refHandle = window.FolioKit.createEditor({
+            element: refMountEl,
+            content: doc.content,
+            placeholder: '',
+            existsTitle: function (title) { return !!findDocByTitle(title); },
+            onNavigate: function (title) { navigateToTitle(title); },
+            onTagClick: function (name) {
+              setTagFilter(String(name).toLowerCase());
+              if (window.innerWidth <= 900) document.body.classList.add('nav-open');
+            },
+          });
+          try { refHandle.editor.setEditable(false); } catch (e) {}
+          try {
+            var rdom = refHandle.editor.view.dom;
+            rdom.setAttribute('spellcheck', 'false');
+            /* The -83 opt-out, carried to the read view: the
+               pane is never a form field, and it says so. */
+            rdom.setAttribute('autocomplete', 'off');
+          } catch (e) {}
+          try { attachCodeCopy(refMountEl, refHandle.editor); } catch (e) {}
+          return refHandle;
+        }
+        function refSync() {
+          if (!refPaneEl) return;
+          var r = tabRecord(tabActiveId);
+          var doc = r && r.refId ? tabDoc(r.refId) : null;
+          if (!r || !doc || refPhoneWidth()) {
+            refPaneEl.hidden = true;
+            rootEl.removeAttribute('data-ref');
+            rootEl.style.removeProperty('--refw');
+            return;
+          }
+          refPaneEl.hidden = false;
+          var refFrac = typeof r.refW === 'number' && r.refW > 0 ? r.refW : 0.42;
+          refPaneEl.style.flexBasis = (refFrac * 100) + '%';
+          rootEl.setAttribute('data-ref', 'on');
+          rootEl.style.setProperty('--refw', (refFrac * 100) + '%');
+          if (refTitleEl) {
+            refTitleEl.textContent = doc.title || 'Untitled';
+            refTitleEl.setAttribute('data-tip', doc.title || 'Untitled');
+          }
+          if (!refEnsureHandle(doc)) return;
+          if (refShownId !== doc.id || refShownUpdated !== doc.updated) {
+            var sameDoc = refShownId === doc.id;
+            var keepTop = sameDoc && refScrollEl ? refScrollEl.scrollTop : 0;
+            try { refHandle.setContent(doc.content); } catch (e) {}
+            refShownId = doc.id;
+            refShownUpdated = doc.updated;
+            if (refScrollEl) refScrollEl.scrollTop = sameDoc ? keepTop : (r.refScroll || 0);
+          }
+        }
+        /* Self-reference live mirror: the doc being edited IS
+           the active tab's reference. Debounced a beat so a
+           typing burst reloads the read view once, not per
+           keystroke; the pane's own scroll is preserved. */
+        function refLiveUpdate(doc) {
+          var r = tabRecord(tabActiveId);
+          if (!r || r.refId !== doc.id || !refHandle || !refPaneEl || refPaneEl.hidden) return;
+          if (refLiveTimer) clearTimeout(refLiveTimer);
+          refLiveTimer = setTimeout(function () {
+            refLiveTimer = null;
+            var rr = tabRecord(tabActiveId);
+            if (!rr || rr.refId !== doc.id) return;
+            var keepTop = refScrollEl ? refScrollEl.scrollTop : 0;
+            try { refHandle.setContent(doc.content); } catch (e) {}
+            refShownId = doc.id;
+            refShownUpdated = doc.updated;
+            if (refScrollEl) refScrollEl.scrollTop = keepTop;
+          }, 140);
+        }
+        if (refScrollEl) {
+          refScrollEl.addEventListener('scroll', function () {
+            var r = tabRecord(tabActiveId);
+            if (!r || !r.refId) return;
+            r.refScroll = refScrollEl.scrollTop;
+            if (refScrollSaveTimer) clearTimeout(refScrollSaveTimer);
+            refScrollSaveTimer = setTimeout(function () { refScrollSaveTimer = null; tabPersist(); }, 300);
+          });
+        }
+        var refOpenBtn = document.getElementById('refOpenTab');
+        if (refOpenBtn) refOpenBtn.addEventListener('click', function () {
+          var r = tabRecord(tabActiveId);
+          if (!r || !r.refId) return;
+          if (tabIndexOf(r.refId) !== -1) activateTab(r.refId, true);
+          else openDocInNewTab(r.refId);
+        });
+        var refCloseBtn = document.getElementById('refClose');
+        if (refCloseBtn) refCloseBtn.addEventListener('click', function () { refRemove(tabActiveId); });
+        /* The pane's native-menu suppression: the same capture
+           treatment the tab surfaces carry (-78) and the editor
+           carries (-83). The read view's right-click / long-press
+           must not summon iPadOS's own callout (the AutoFill
+           family keys off any focused editable; this surface is
+           read-only, states autocomplete off, and claims its
+           contextmenu outright). Text selection for reading and
+           copying stays untouched. */
+        if (refPaneEl) {
+          refPaneEl.addEventListener('contextmenu', function (ev) { ev.preventDefault(); }, true);
+          refPaneEl.addEventListener('gesturestart', function (ev) { ev.preventDefault(); });
+          refPaneEl.addEventListener('gesturechange', function (ev) { ev.preventDefault(); });
+        }
+        /* The divider: drag resizes the pane (fraction of the
+           editor body's width, clamped so the primary always
+           keeps a working width); dragging it to the right edge
+           — the pane squeezed under ~56px — removes the
+           reference on release, per spec §7. Arrow keys nudge
+           the same fraction for keyboard users. */
+        if (refDividerEl) {
+          refDividerEl.addEventListener('pointerdown', function (ev) {
+            ev.preventDefault();
+            var bodyEl = refPaneEl.parentElement;
+            if (!bodyEl) return;
+            var br = bodyEl.getBoundingClientRect();
+            if (!br.width) return;
+            var r = tabRecord(tabActiveId);
+            if (!r || !r.refId) return;
+            var pending = typeof r.refW === 'number' && r.refW > 0 ? r.refW : 0.42;
+            var remove = false;
+            refDividerEl.classList.add('dragging');
+            function onMove(e2) {
+              var w = br.right - e2.clientX;
+              remove = w < 56;
+              pending = Math.max(0.06, Math.min(0.78, w / br.width));
+              refPaneEl.style.flexBasis = (pending * 100) + '%';
+              rootEl.style.setProperty('--refw', (pending * 100) + '%');
+            }
+            function onUp() {
+              document.removeEventListener('pointermove', onMove);
+              refDividerEl.classList.remove('dragging');
+              if (remove) { refRemove(tabActiveId); return; }
+              var rr = tabRecord(tabActiveId);
+              if (rr) { rr.refW = pending; tabPersist(); }
+              refSync();
+            }
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp, { once: true });
+            document.addEventListener('pointercancel', onUp, { once: true });
+          });
+          refDividerEl.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+            var r = tabRecord(tabActiveId);
+            if (!r || !r.refId) return;
+            ev.preventDefault();
+            var cur = typeof r.refW === 'number' && r.refW > 0 ? r.refW : 0.42;
+            r.refW = Math.max(0.16, Math.min(0.78, cur + (ev.key === 'ArrowLeft' ? 0.04 : -0.04)));
+            tabPersist();
+            refSync();
+          });
+        }
+        window.addEventListener('resize', function () { refSync(); });
+
         /* ----- the rail: render + stack-scroll layout (spec §3–4) ----- */
         function tabNaturalHeight(title) {
           var len = (title || 'Untitled').length;
@@ -12651,6 +13060,7 @@
           if (pillCount) pillCount.textContent = String(tabRecords.length);
           tabLayout();
           tabSyncSlim();
+          refSync();
         }
         function tabLayout() {
           if (!tabScrollEl || !tabLayoutCache.length) return;
@@ -12803,6 +13213,44 @@
           }
           tabScrollEl.addEventListener('pointerup', function () { tabPtrEnd(true); });
           tabScrollEl.addEventListener('pointercancel', function () { tabPtrEnd(false); });
+          /* Phase 2, door 2 (spec §7): dragging a tab onto the
+             editor area makes the dragged doc the CURRENT tab's
+             reference (its own tab stays in the rail). The rail's
+             own pointer handlers only see the press while it
+             stays over the rail, so the drop watch lives on the
+             document: it tracks a mouse drag's position, paints
+             the drop affordance on the editor area, and claims
+             a release that lands there before the reorder commit
+             can run. Touch/pen drags keep their Phase 1 meaning
+             (stack scroll / reorder) — the real touch door is
+             Andrew's on-device verdict, as with every gesture. */
+          document.addEventListener('pointermove', function (ev) {
+            if (!tabPtr || tabPtr.type === 'touch' || tabPtr.type === 'pen') return;
+            tabPtr.lastX = ev.clientX;
+            tabPtr.lastY = ev.clientY;
+            if (!editorScroll) return;
+            var r = editorScroll.getBoundingClientRect();
+            var over = tabPtr.moved && ev.clientX >= r.left && ev.clientX <= r.right &&
+              ev.clientY >= r.top && ev.clientY <= r.bottom;
+            editorScroll.classList.toggle('ref-drop', !!over);
+          }, true);
+          document.addEventListener('pointerup', function (ev) {
+            if (editorScroll) editorScroll.classList.remove('ref-drop');
+            if (!tabPtr || tabPtr.type === 'touch' || tabPtr.type === 'pen' || !tabPtr.moved) return;
+            if (!editorScroll || refPhoneWidth()) return;
+            var r = editorScroll.getBoundingClientRect();
+            var over = ev.clientX >= r.left && ev.clientX <= r.right &&
+              ev.clientY >= r.top && ev.clientY <= r.bottom;
+            if (!over) return;
+            var draggedId = tabPtr.id;
+            tabPtrEnd(false);
+            tabSuppressClick = true;
+            setTimeout(function () { tabSuppressClick = false; }, 120);
+            refSet(tabActiveId, draggedId);
+          }, true);
+          document.addEventListener('pointercancel', function () {
+            if (editorScroll) editorScroll.classList.remove('ref-drop');
+          }, true);
         }
         var tabAddBtn = document.getElementById('tabAddBtn');
         if (tabAddBtn) tabAddBtn.addEventListener('click', function () { openTabPicker(); });
@@ -13041,7 +13489,12 @@
                 ? { stack: t.nav.stack.filter(function (x) { return navDocExists(x); }), idx: typeof t.nav.idx === 'number' ? t.nav.idx : 0 }
                 : { stack: [t.docId], idx: 0 };
               if (!nav.stack.length) nav = { stack: [t.docId], idx: 0 };
-              tabRecords.push({ docId: t.docId, group: null, nav: nav });
+              tabRecords.push({
+                docId: t.docId, group: null, nav: nav,
+                refId: t.ref && tabDoc(t.ref) ? t.ref : null,
+                refW: typeof t.refW === 'number' && t.refW > 0 ? Math.min(0.78, Math.max(0.16, t.refW)) : 0.42,
+                refScroll: typeof t.refScroll === 'number' ? t.refScroll : 0,
+              });
             });
             if (Array.isArray(saved.closed)) {
               tabClosedStack = saved.closed.filter(function (x) { return !!tabDoc(x); });
@@ -18889,6 +19342,60 @@
              its own menu (the AutoFill family) presents. */
           if (ev.button === 2 && typeof dismissNativeEditMenu === 'function') {
             try { dismissNativeEditMenu(); } catch (e) {}
+          }
+          /* Build -85 (AutoFill repair round 2): resign
+             first-responder status at the same press start.
+             -83 dismissed the DOM selection here and moved DOM
+             focus into the menu when it opened, yet on the
+             device the AutoFill pill still presented over the
+             editor menu after a right-click on selected text
+             (Andrew, stamp-verified -83; the gesture was a
+             right-click, so the long-press branch is not in
+             play). The assumption -83 kept — that the editor
+             had to stay first responder through the gesture
+             because the selection lived there — is the one -82
+             already falsified for the tab menus: the selection
+             lives in ProseMirror's state, the app paint keeps
+             it visible, and every menu pick refocuses through
+             its command chain (chain().focus()…), restoring
+             the DOM selection from that state when it runs.
+             What no editor build had closed is the FOCUS
+             foothold at the moment WebKit makes its decision:
+             openEditorMenu's focus move happens in the
+             contextmenu handler, a full event later than the
+             press; between press and menu the contenteditable
+             sat focused with first-responder status — the
+             exact state -82 proved summons the AutoFill family
+             on its own (selection collapsed, focus retained,
+             AutoFill appeared over the tab menu). The other
+             suspect, ProseMirror re-syncing the DOM selection
+             mid-gesture, is cleared by the bundle itself: PM's
+             mouse machinery returns immediately for any
+             button !== 0, so a secondary press never moves,
+             focuses, or re-syncs anything. So blur here, at
+             press start, in capture phase — before PM's own
+             handlers and a full event before the contextmenu —
+             using -82's own test for what counts as a text
+             session, plus the current session's editor surface
+             explicitly. If the press opens no menu (a bundle
+             border-menu claim), nothing is lost: the editor
+             was not going to be typed into mid-right-click,
+             and the next primary press or command refocuses
+             it as always. */
+          if (ev.button === 2) {
+            try {
+              var ae = document.activeElement;
+              if (ae && ae !== document.body && typeof ae.blur === 'function') {
+                var inText = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' ||
+                  ae.isContentEditable ||
+                  (ae.closest && ae.closest('#editorMount'));
+                if (inText) ae.blur();
+              }
+            } catch (e) {}
+            try {
+              if (editorHandle && editorHandle.editor && editorHandle.editor.view &&
+                  editorHandle.editor.view.dom) editorHandle.editor.view.dom.blur();
+            } catch (e) {}
           }
         }, true);
         /* Build -83: capture-phase native-menu guard for the
