@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261031-88" />
+    <meta name="folio-build" content="20261101-89" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3522,138 +3522,143 @@
         #printRoot .folio-prose blockquote.folio-callout.callout-folded > table:not(.callout-title) { display: table; }
       }
 
-      /* ---------------- file tabs: divider rail (Phase 1) ----------------
-         A binding-green spine at the editor's left edge carrying
-         Finish C tabs with sideways names. The spine stays
-         binding green in every theme (deeper under Midnight).
-         Build -80 (palette P4 "Ghost", picked over the -79 dark
-         greens): the inactive tabs are segments OF the spine —
-         they wear the spine's own background through the shared
-         --spine-bg token below, at the rail's full width, so a
-         tab can never drift from the column it sits in, in any
-         theme or in slim mode. What separates a ghost tab from
-         the spine is only its cream sideways name, its 4px
-         folder stripe on the page-facing edge, a 1px darker
-         hairline on the edges that meet the spine, and the
-         raised sewing band showing in the gap at its head.
-         The active tab alone keeps the page's own color. */
-      /* The spine's background lives in ONE token, painted by
-         BOTH the rail and every inactive tab: because a ghost
-         tab spans the rail's full width, its gradient box aligns
-         with the rail's at every x, so tab face and bare spine
-         sample identically. --spine-bg-hover is the same
-         gradient lifted one small step, for the hover face. */
-      /* Build -81: the whole spine lifted one shade brighter in
-         every theme (same hue family, same gradient shape), so
-         the page-colored active tab — unchanged — pops harder
-         against the rail. Ghost tabs follow automatically: they
-         paint with this same --spine-bg token. Hover lifts
-         correspondingly, preserving its step above the base. */
-      :root {
-        --spine-bg: linear-gradient(90deg, #153a2c, #1b4636 55%, #205243);
-        --spine-bg-hover: linear-gradient(90deg, #1d4a38, #235743 55%, #28604e);
-      }
-      :root[data-theme="midnight"] {
-        --spine-bg: linear-gradient(90deg, #0f2b1f, #153a29 55%, #1a4632);
-        --spine-bg-hover: linear-gradient(90deg, #163826, #1d4732 55%, #22543b);
-      }
-      /* Binding Dark's spine (build -87): the binding green's
-         deeper register again — a step below even Midnight's
-         spine — so the dark page-colored active tab (var(--surface),
-         below) stands against the darkest column in the app.
-         Ghost tabs share this token, as everywhere. */
-      :root[data-theme="binding-dark"] {
-        --spine-bg: linear-gradient(90deg, #071f16, #0b2a1e 55%, #0f3325);
-        --spine-bg-hover: linear-gradient(90deg, #0d2f21, #123a29 55%, #174631);
-      }
+      /* ---------------- file tabs: the Stack (build -89) ----------------
+         Build -89 replaces the Ghost divider rail (builds
+         -77…-88) as the tab presentation, per Andrew's own
+         Freeform mockup: open documents are a close-packed
+         stack of full sheets at the editor's left edge. The
+         sheets behind the front one show only as fine parallel
+         page-edge lines ~2px apart along that edge (the
+         .tab-stack-edge strips in the bands layer, full height,
+         left side only — no fan, no bottom staircase). Every
+         tab's LEFT edge aligns on one vertical line (the
+         --tab-l gutter the layout sets per tab); each tab
+         stretches right from that line to meet its own sheet's
+         edge, so tab lengths vary by ~2px per sheet of depth.
+         Tab order never changes; the ACTIVE doc is the front
+         sheet and its tab is page-colored (var(--surface) at
+         full strength — deeper sheets are the same paper mixed
+         a few points toward the ink, set per tab as --tab-face
+         by tabRender), merging into the front sheet's edge at
+         the column's right side. Names stay sideways. Sheets
+         are blank. NO folder stripes in Stack v1.
+         Hover (mouse/trackpad): a tab stretches LEFT past the
+         aligned line to the column's edge, revealing an × at
+         its TOP-left corner (close) and a ⋯ at its BOTTOM-left
+         corner (the tab menu) in the revealed strip; at rest
+         no buttons show. Touch has no hover: tap switches and
+         long-press opens the menu, exactly as the rail did.
+         The column reserves the hover strip at rest (--tab-x:
+         22px; 14px in the slim treatment), so the expansion
+         never shifts the page or a neighbour.
+         Slim treatment (narrow windows, editor < 700px — the
+         old tabSyncSlim trigger): the column narrows to 44px,
+         the hover strip to 14px, names shrink a step; the
+         geometry (aligned left line, 2px depth steps, page
+         edges) is unchanged. Phone (<=640px) hides the column
+         entirely, as before: the count pill + Book remain the
+         phone tab interface. */
       .editor-body { display: flex; flex: 1; min-height: 0; }
       .editor-body .editor-scroll { flex: 1; min-width: 0; }
       .doc-session { min-height: 100%; }
       .tab-rail {
-        width: 46px; flex: 0 0 46px; position: relative; z-index: 5;
-        background: var(--spine-bg);
-        box-shadow: inset -1px 0 0 rgba(0,0,0,0.35), inset 1px 0 0 rgba(255,255,255,0.05);
+        --tab-x: 22px;
+        width: 64px; flex: 0 0 64px; position: relative; z-index: 5;
+        background: transparent;
         display: flex; flex-direction: column; min-height: 0;
       }
       :root[data-theme="midnight"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="sepia"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="binding"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="binding-dark"] .folio-tab.active { background: var(--surface); }
-      .tab-rail.slim { width: 36px; flex-basis: 36px; }
+      .tab-rail.slim { --tab-x: 14px; width: 44px; flex-basis: 44px; }
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
       .tab-bands, .tab-strip { position: absolute; inset: 0; }
-      .tab-band {
-        position: absolute; left: 3px; right: 3px; height: 4px; border-radius: 2px;
-        /* -81: cream ridge lifted 0.16 -> 0.20 and its drop
-           shadow deepened slightly so the sewing stations
-           still read against the one-shade-brighter spine. */
-        background: rgba(241, 234, 214, 0.2);
-        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      /* The old sewing bands are gone: the bands layer now
+         carries the stack's page edges. A band element is still
+         created per tab by tabRender (the layout cache pairs
+         one with each tab) but never paints. */
+      .tab-band { display: none; }
+      /* One sheet edge: a 2px-wide strip of blank paper running
+         the full height of the tab column at its sheet's x
+         (set by tabLayout) — its left hairline is the sheet's
+         edge, and the strips together are the packed pile the
+         tabs meet. Deeper sheets are dimmed a step by the
+         inline opacity tabLayout sets. */
+      .tab-stack-edge {
+        position: absolute; top: 0; bottom: 0; width: 2px;
+        background: var(--surface);
+        border-left: 1px solid var(--line);
+        box-shadow: -1px 0 2px rgba(0, 0, 0, 0.07);
+        pointer-events: none;
       }
       .folio-tab {
-        position: absolute; right: 0; width: 46px; cursor: pointer;
-        /* Build -80 Ghost: full rail width, flush on both
-           sides (no radius, no drop shadow), wearing the
-           spine's own --spine-bg so the face IS the spine.
-           The separation from the column is the hairline: a
-           1px darker inset outline on every edge — the right
-           edge's line is covered by the folder stripe (::after)
-           that rides over it, the other three meet the spine.
-           Stack slivers are this same element compressed, so
-           they inherit the treatment whole: full width,
-           spine-identical face, cream name bites, ribbing
-           from the bands behind them. The name is cream
-           (#eae3cb, as -79): the only text a ghost tab has. */
-        background: var(--spine-bg);
-        color: #eae3cb; border-radius: 0;
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+        position: absolute; left: var(--tab-l, var(--tab-x, 22px)); right: auto;
+        width: var(--tab-w, 40px); cursor: pointer;
+        /* The tab is one piece with its sheet: the sheet's own
+           paper (var(--tab-face), full-strength on the front
+           sheet, shaded a few points per depth behind it), a
+           hairline outline, rounded on the free (left) side
+           and flush on the right where it meets its page edge.
+           At rest its left edge sits on the shared line
+           (--tab-l = --tab-x, the reserved hover strip); the
+           name is ink on paper, as on the sheet itself. */
+        background: var(--tab-face, var(--surface));
+        color: var(--ink); border-radius: 7px 0 0 7px;
+        box-shadow: inset 0 0 0 1px var(--line), -1px 1px 3px rgba(0, 0, 0, 0.13);
         display: flex; align-items: center; justify-content: center;
-        transition: width 0.12s ease;
+        transition: left 0.12s ease, width 0.12s ease;
         overflow: hidden; user-select: none; -webkit-user-select: none;
         touch-action: none;
       }
-      .folio-tab::after {
-        content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 4px;
-        background: var(--stripe, #b3a888);
+      /* No folder stripe in Stack v1 (Andrew's mockup carries
+         none); if stripes return they belong on this free left
+         edge, per his standing ruling — never on the seam. */
+      .folio-tab::after { content: none; }
+      /* Hover stretches the tab LEFT to the column's edge —
+         its right edge (and its page) never moves — and the
+         revealed strip carries the × / ⋯ buttons below. */
+      .folio-tab:hover {
+        left: 0; width: calc(var(--tab-w, 40px) + var(--tab-x, 22px));
+        z-index: 7; filter: brightness(1.04);
       }
-      /* Hover no longer slides the tab — at full width there
-         is nowhere to slide. The face lifts one small step
-         lighter instead (the × still appears at its foot,
-         below). */
-      .folio-tab:hover { background: var(--spine-bg-hover); }
       .folio-tab.active {
-        width: 44px; background: var(--surface); color: var(--ink);
-        box-shadow: none; border-radius: 5px 0 0 5px; transform: none;
+        background: var(--surface); color: var(--ink);
+        transform: none;
       }
-      /* The active tab is ratified exactly as-is — the picked
-         design has the inactives 2px WIDER than it (46 vs 44),
-         and its page-colored face does not lift on hover. */
       .folio-tab.active:hover { background: var(--surface); }
-      .tab-rail.slim .folio-tab { width: 36px; }
-      .tab-rail.slim .folio-tab.active { width: 31px; }
       .folio-tab-name {
         writing-mode: vertical-rl; transform: rotate(180deg);
         font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
         max-height: calc(100% - 14px); overflow: hidden; white-space: nowrap;
         text-overflow: ellipsis; pointer-events: none; padding-right: 3px;
       }
+      .tab-rail.slim .folio-tab-name { font-size: 11.5px; }
       .folio-tab.sliver .folio-tab-name { font-size: 10px; opacity: 0.85; }
-      .folio-tab-x {
-        position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
+      /* The hover-strip buttons: × closes (TOP-left corner),
+         ⋯ opens the tab's context menu (BOTTOM-left corner).
+         Both live in the strip hover reveals, so both are
+         hidden at rest and on touch (no hover), where tap /
+         long-press keep their rail meanings. Compressed
+         slivers have no room for either — the menu stays on
+         long-press / right-click and closing moves to the
+         Book there. */
+      .folio-tab-x, .folio-tab-menu {
+        position: absolute; left: 1px;
         width: 18px; height: 18px; border: none; border-radius: 50%;
-        background: transparent; color: #eae3cb; font-size: 14px; line-height: 1;
+        background: transparent; color: var(--ink-2); font-size: 14px; line-height: 1;
         display: none; align-items: center; justify-content: center; cursor: pointer; padding: 0;
       }
+      .folio-tab-x { top: 1px; }
+      .folio-tab-menu { bottom: 1px; font-size: 12px; letter-spacing: 0.5px; }
+      .tab-rail.slim .folio-tab-x, .tab-rail.slim .folio-tab-menu { width: 13px; height: 13px; font-size: 11px; left: 0; }
       @media (hover: hover) {
-        .folio-tab:hover .folio-tab-x { display: inline-flex; }
+        .folio-tab:hover .folio-tab-x, .folio-tab:hover .folio-tab-menu { display: inline-flex; }
+        .folio-tab.sliver:hover .folio-tab-x, .folio-tab.sliver:hover .folio-tab-menu { display: none; }
       }
-      /* On the green inactive face the × hovers on a cream wash
-         with a pale rose glyph; on the page-colored active tab
-         it keeps its original ink face. */
-      .folio-tab-x:hover { background: rgba(241, 234, 214, 0.22); color: #f2b8ae; }
-      .folio-tab.active .folio-tab-x { color: var(--ink-2); }
-      .folio-tab.active .folio-tab-x:hover { background: var(--hover); color: var(--danger); }
+      .folio-tab-x:hover, .folio-tab-menu:hover { background: var(--hover); color: var(--danger); }
+      .folio-tab-menu:hover { color: var(--ink); }
       .folio-tab.dragging { z-index: 6; box-shadow: -3px 6px 14px rgba(0,0,0,0.4); transition: none; }
       .tab-foot {
         flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 7px;
@@ -3666,11 +3671,14 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12);
       }
       .tab-add:hover { background: #123528; }
+      /* The foot doors sit on the desk (the column has no
+         spine ground anymore), so the Book opener takes the
+         desk's ink instead of the spine's cream. */
       .tab-book-btn {
-        border: none; background: transparent; color: #f1ead6; cursor: pointer;
+        border: none; background: transparent; color: var(--ink-2); cursor: pointer;
         font-size: 13px; line-height: 1; padding: 3px 6px; border-radius: 6px;
       }
-      .tab-book-btn:hover { background: rgba(241, 234, 214, 0.14); }
+      .tab-book-btn:hover { background: var(--hover); color: var(--ink); }
       .tab-pill {
         display: none; align-items: center; gap: 3px; flex: 0 0 auto;
         border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
@@ -12384,10 +12392,15 @@
 
 
         /* ---------------- file tabs — Phase 1 (spec: tabs-spec.md) ----------------
-           The divider rail: open documents as Finish C paper tabs
-           on a binding-green spine at the editor's left edge, the
+           The Stack (build -89, replacing the divider rail):
+           open documents as close-packed sheets at the editor's
+           left edge, each sheet's tab one piece with it, the
            fold-out Book as switcher, per-tab state, and clipboard
-           history riding along.
+           history riding along. The presentation lives in the
+           stylesheet's Stack block and in tabRender/tabLayout
+           below (aligned left line, 2px depth steps, page-edge
+           strips, hover stretch); everything here — the model —
+           is the rail's model unchanged.
 
            Per-tab state shape: each open document owns a parked
            editor session (its own TipTap instance in its own
@@ -13205,7 +13218,17 @@
         }
         window.addEventListener('resize', function () { refSync(); });
 
-        /* ----- the rail: render + stack-scroll layout (spec §3–4) ----- */
+        /* ----- the stack: render + stack-scroll layout (spec §3–4) -----
+           Build -89 geometry: each tab's depth rank is its
+           distance behind the front sheet — the active tab is
+           rank 0, the other sheets rank 1, 2, … in tab order
+           (tab order itself never changes; activation only
+           re-ranks the depths). tabLayout turns a rank into
+           the tab's right edge (column width − rank × 2px,
+           capped at 6 steps so a deep pile never eats the tab)
+           and into the sheet's page-edge strip at that same x.
+           Every tab shares one left line: the column's --tab-x
+           hover strip, set as --tab-l by tabLayout. */
         function tabNaturalHeight(title) {
           var len = (title || 'Untitled').length;
           return Math.max(64, Math.min(140, 34 + len * 7.4));
@@ -13215,17 +13238,25 @@
           tabStripEl.innerHTML = '';
           tabBandsEl.innerHTML = '';
           tabLayoutCache = [];
+          var nextRank = 1;
           tabRecords.forEach(function (r) {
             var d = tabDoc(r.docId);
             if (!d) return;
+            var isActive = r.docId === tabActiveId;
+            var rank = isActive ? 0 : nextRank++;
+            var effRank = Math.min(rank, 6);
             var el = document.createElement('div');
-            el.className = 'folio-tab' + (r.docId === tabActiveId ? ' active' : '');
+            el.className = 'folio-tab' + (isActive ? ' active' : '');
             el.setAttribute('role', 'tab');
-            el.setAttribute('aria-selected', r.docId === tabActiveId ? 'true' : 'false');
+            el.setAttribute('aria-selected', isActive ? 'true' : 'false');
             el.setAttribute('aria-label', d.title || 'Untitled');
             el.setAttribute('data-doc-id', r.docId);
             el.setAttribute('data-tip', d.title || 'Untitled');
-            el.style.setProperty('--stripe', tabFolderColor(d));
+            /* The sheet's paper, shaded a few points toward the
+               ink per depth step (front sheet at full strength).
+               No folder stripe in Stack v1. */
+            el.style.setProperty('--tab-face',
+              'color-mix(in srgb, var(--surface) ' + (100 - effRank * 4) + '%, var(--ink))');
             var nm = document.createElement('span');
             nm.className = 'folio-tab-name';
             nm.textContent = d.title || 'Untitled';
@@ -13239,6 +13270,22 @@
             x.addEventListener('click', function (ev) { ev.stopPropagation(); closeTab(r.docId); });
             x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
             el.appendChild(x);
+            /* Build -89: the ⋯ in the hover strip's bottom-left
+               corner — the mouse/trackpad door to the same tab
+               menu long-press and right-click open. */
+            var dots = document.createElement('button');
+            dots.type = 'button';
+            dots.className = 'folio-tab-menu';
+            dots.setAttribute('aria-label', 'Tab menu');
+            dots.setAttribute('data-tip', 'Tab menu');
+            dots.textContent = '···';
+            dots.addEventListener('click', function (ev) {
+              ev.stopPropagation();
+              var br = dots.getBoundingClientRect();
+              openTabMenu(r.docId, br.left, br.bottom + 4);
+            });
+            dots.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+            el.appendChild(dots);
             el.addEventListener('click', function () {
               if (tabSuppressClick) return;
               activateTab(r.docId, true);
@@ -13251,7 +13298,11 @@
             var band = document.createElement('div');
             band.className = 'tab-band';
             tabBandsEl.appendChild(band);
-            tabLayoutCache.push({ rec: r, el: el, band: band, vtop: 0, vh: 0, top: 0, sh: 0 });
+            var edge = document.createElement('div');
+            edge.className = 'tab-stack-edge';
+            edge.setAttribute('aria-hidden', 'true');
+            tabBandsEl.appendChild(edge);
+            tabLayoutCache.push({ rec: r, el: el, band: band, edge: edge, rank: rank, vtop: 0, vh: 0, top: 0, sh: 0 });
           });
           var pillCount = document.getElementById('tabPillCount');
           if (pillCount) pillCount.textContent = String(tabRecords.length);
@@ -13311,6 +13362,28 @@
             c.el.style.height = c.sh + 'px';
             c.el.classList.toggle('sliver', c.sh < 26);
             c.band.style.top = Math.max(0, c.top - 3) + 'px';
+            /* Build -89 stack geometry: the shared left line is
+               the column's hover strip (--tab-x, read off the
+               rail element so the slim treatment's narrower
+               strip applies itself); the tab stretches right to
+               its own sheet's edge — the column's right side
+               stepped 2px left per depth rank — and the sheet's
+               page-edge strip stands at that same x, dimmed a
+               step per rank behind the front sheet. */
+            var railW = tabRailEl && tabRailEl.clientWidth ? tabRailEl.clientWidth : 64;
+            var gutter = 22;
+            if (tabRailEl) {
+              var gx = parseFloat(getComputedStyle(tabRailEl).getPropertyValue('--tab-x'));
+              if (gx > 0) gutter = gx;
+            }
+            var effRank = Math.min(c.rank || 0, 6);
+            var rightEdge = railW - effRank * 2;
+            c.el.style.setProperty('--tab-l', gutter + 'px');
+            c.el.style.setProperty('--tab-w', Math.max(16, rightEdge - gutter) + 'px');
+            if (c.edge) {
+              c.edge.style.left = (rightEdge - 2) + 'px';
+              c.edge.style.opacity = String(1 - effRank * 0.07);
+            }
           });
         }
         function tabEnsureVisible(id) {
@@ -13344,7 +13417,7 @@
           var tabPtr = null;
           tabScrollEl.addEventListener('pointerdown', function (ev) {
             var t = ev.target.closest ? ev.target.closest('.folio-tab') : null;
-            if (!t || (ev.target.closest && ev.target.closest('.folio-tab-x'))) return;
+            if (!t || (ev.target.closest && ev.target.closest('.folio-tab-x, .folio-tab-menu'))) return;
             var id = t.getAttribute('data-doc-id');
             tabPtr = {
               id: id, el: t, startY: ev.clientY, lastY: ev.clientY,
