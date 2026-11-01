@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-90" />
+    <meta name="folio-build" content="20261101-91" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3587,7 +3587,17 @@
          reserve IS the gutter, so the stack still lands
          against the page instead of off the edge or over the
          sidebar. The reserve drops wherever the rail itself
-         is hidden (phone, focus mode, print). */
+         is hidden (phone, focus mode, print).
+         Build -91 vertical placement (the -90 horizontal
+         anchor above is unchanged and confirmed): the cluster
+         is anchored to the page vertically too. The tab zone
+         starts ~25px BELOW the paper's top edge and runs to
+         the paper's bottom edge — tabPaperGeom() measures the
+         paper's span inside the editor body in scroll-invariant
+         content coordinates, tabLayout fits/compresses the
+         tabs within that zone, and the sheet-edge lines span
+         the paper's FULL height, top edge to bottom edge,
+         exactly as in Andrew's Freeform mockup. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3613,6 +3623,16 @@
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
       .tab-bands, .tab-strip { position: absolute; inset: 0; }
+      /* Build -91: the sheet edges live on their own rail-level
+         layer (a sibling of the tab-scroll area, not a child of
+         it), so the tab-scroll area's overflow clipping and its
+         foot can never cut them short: tabAnchor / tabLayout set
+         each edge's top and height from the paper's measured
+         span, and the lines run the page's full height — paper
+         top to paper bottom — passing beside the + disc and the
+         Book opener (which paint above this layer) rather than
+         ending where the foot begins. */
+      .tab-edges { position: absolute; inset: 0; pointer-events: none; }
       /* The old sewing bands are gone: the bands layer now
          carries the stack's page edges. A band element is still
          created per tab by tabRender (the layout cache pairs
@@ -3625,7 +3645,10 @@
          tabs meet. Deeper sheets are dimmed a step by the
          inline opacity tabLayout sets. */
       .tab-stack-edge {
-        position: absolute; top: 0; bottom: 0; width: 2px;
+        /* Top and height are set inline from the paper's
+           measured span (build -91): the line runs from the
+           paper's top edge to its bottom edge, no further. */
+        position: absolute; width: 2px;
         background: var(--surface);
         border-left: 1px solid var(--line);
         box-shadow: -1px 0 2px rgba(0, 0, 0, 0.07);
@@ -4212,6 +4235,7 @@
 
         <div class="editor-body">
           <nav class="tab-rail" id="tabRail" aria-label="Open documents">
+            <div class="tab-edges" id="tabEdges" aria-hidden="true"></div>
             <div class="tab-scroll" id="tabScroll">
               <div class="tab-bands" id="tabBands"></div>
               <div class="tab-strip" id="tabStrip"></div>
@@ -12473,6 +12497,7 @@
         var tabScrollEl = document.getElementById('tabScroll');
         var tabStripEl = document.getElementById('tabStrip');
         var tabBandsEl = document.getElementById('tabBands');
+        var tabEdgesEl = document.getElementById('tabEdges');
         /* Build -90: the stack's anchor points — the editor
            body (the rail's offset parent) and the primary
            paper whose left edge the stack touches. */
@@ -13287,6 +13312,7 @@
           if (!tabStripEl || !tabBandsEl) return;
           tabStripEl.innerHTML = '';
           tabBandsEl.innerHTML = '';
+          if (tabEdgesEl) tabEdgesEl.innerHTML = '';
           tabLayoutCache = [];
           var nextRank = 1;
           tabRecords.forEach(function (r) {
@@ -13351,7 +13377,10 @@
             var edge = document.createElement('div');
             edge.className = 'tab-stack-edge';
             edge.setAttribute('aria-hidden', 'true');
-            tabBandsEl.appendChild(edge);
+            /* Build -91: edges live on the rail-level layer, not
+               inside the tab-scroll area, so neither its overflow
+               clipping nor its foot can shorten them. */
+            (tabEdgesEl || tabBandsEl).appendChild(edge);
             tabLayoutCache.push({ rec: r, el: el, band: band, edge: edge, rank: rank, vtop: 0, vh: 0, top: 0, sh: 0 });
           });
           var pillCount = document.getElementById('tabPillCount');
@@ -13360,9 +13389,60 @@
           tabSyncSlim();
           refSync();
         }
+        /* ----- build -91: the paper's vertical span -----
+           The paper's top and bottom inside the editor body,
+           measured in scroll-invariant content coordinates
+           (rect delta plus the scroll area's scrollTop), so
+           the span names where the page itself sits however
+           far the reader has scrolled: the tab zone and the
+           sheet-edge lines are anchored to the PAGE, not to
+           the viewport. Returns null until a paper exists. */
+        function tabPaperGeom() {
+          var paper = tabPaper();
+          if (!paper || !editorBodyEl || !editorScroll) return null;
+          var br = editorBodyEl.getBoundingClientRect();
+          var sr = editorScroll.getBoundingClientRect();
+          var pr = paper.getBoundingClientRect();
+          if (!pr.height) return null;
+          var top = (sr.top - br.top) + (pr.top - sr.top) + (editorScroll.scrollTop || 0);
+          return { top: top, bottom: top + pr.height, height: pr.height };
+        }
+        /* One sheet edge's vertical span: the paper's full
+           height, top edge to bottom edge, clamped only to the
+           rail itself (a page taller than the window runs its
+           edges to the rail's ends, as before). The edges live
+           on the rail-level layer, whose top is the editor
+           body's top — the same origin tabPaperGeom measures
+           from. */
+        function tabEdgeSpan(edge, geom) {
+          if (!edge) return;
+          var g = geom || tabPaperGeom();
+          if (!g || !tabRailEl) { edge.style.top = '0px'; edge.style.height = '0px'; return; }
+          var railH = tabRailEl.clientHeight || 0;
+          var top = Math.max(0, g.top);
+          var bottom = railH ? Math.min(g.bottom, railH) : g.bottom;
+          edge.style.top = top + 'px';
+          edge.style.height = Math.max(0, bottom - top) + 'px';
+        }
         function tabLayout() {
           if (!tabScrollEl || !tabLayoutCache.length) return;
-          var H = tabScrollEl.clientHeight;
+          /* Build -91: the tab zone is the paper's span, not
+             the column's full height: it starts ~25px below
+             the paper's top edge and runs to the paper's
+             bottom edge (never past the tab-scroll area, so
+             the tabs always clear the foot). The fit /
+             compression / stack-scroll maths below operates
+             within that zone exactly as it used to operate
+             within the column. */
+          var geom = tabPaperGeom();
+          var scrollH = tabScrollEl.clientHeight;
+          var zoneTop = 0, zoneBottom = scrollH;
+          if (geom) {
+            zoneTop = Math.max(0, geom.top + 25);
+            zoneBottom = Math.min(geom.bottom, scrollH);
+            if (zoneBottom - zoneTop < 48) zoneBottom = Math.min(scrollH, zoneTop + 48);
+          }
+          var H = zoneBottom - zoneTop;
           if (!H) return;
           var gap = 12, n = tabLayoutCache.length, sum = 0, minNat = Infinity;
           tabLayoutCache.forEach(function (c) {
@@ -13407,6 +13487,11 @@
               });
             }
           }
+          /* The branches above compute zone-local tops; shift
+             them into tab-scroll coordinates (build -91), so
+             c.top stays the tab's rendered top everywhere it
+             is consumed (drag centres included). */
+          if (zoneTop) tabLayoutCache.forEach(function (c) { c.top += zoneTop; });
           tabLayoutCache.forEach(function (c) {
             c.el.style.top = c.top + 'px';
             c.el.style.height = c.sh + 'px';
@@ -13433,6 +13518,7 @@
             if (c.edge) {
               c.edge.style.left = (rightEdge - 2) + 'px';
               c.edge.style.opacity = String(1 - effRank * 0.07);
+              tabEdgeSpan(c.edge, geom);
             }
           });
           tabAnchor();
@@ -13464,6 +13550,15 @@
           if (!pr.width) return;
           var br = editorBodyEl.getBoundingClientRect();
           tabRailEl.style.left = (pr.left - br.left - tabRailEl.offsetWidth) + 'px';
+          /* Build -91: the same measurement drives the sheet
+             edges' vertical span (paper top to paper bottom),
+             so the lines track the page through every move the
+             horizontal anchor already rides. The horizontal
+             placement above is untouched. */
+          var geomA = tabPaperGeom();
+          if (geomA) {
+            for (var ei = 0; ei < tabLayoutCache.length; ei++) tabEdgeSpan(tabLayoutCache[ei].edge, geomA);
+          }
         }
         var tabAnchorRideUntil = 0;
         function tabAnchorRide() {
@@ -13642,7 +13737,7 @@
            covers the frames of the sidebar's slide transition
            itself. */
         if (window.ResizeObserver && editorBodyEl) {
-          var tabAnchorRO = new ResizeObserver(function () { tabAnchor(); });
+          var tabAnchorRO = new ResizeObserver(function () { tabLayout(); tabAnchor(); });
           if (editorScroll) tabAnchorRO.observe(editorScroll);
           var tabPaperObs = tabPaper();
           if (tabPaperObs) tabAnchorRO.observe(tabPaperObs);
