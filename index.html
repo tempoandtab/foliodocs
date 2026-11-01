@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-91" />
+    <meta name="folio-build" content="20261101-92" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3597,7 +3597,19 @@
          content coordinates, tabLayout fits/compresses the
          tabs within that zone, and the sheet-edge lines span
          the paper's FULL height, top edge to bottom edge,
-         exactly as in Andrew's Freeform mockup. */
+         exactly as in Andrew's Freeform mockup.
+         Build -92: the sheet edges no longer read that
+         content-coordinate span — they read the paper's
+         RENDERED span (vtop/vbottom in tabPaperGeom), because
+         in rail space the content span's bottom sits a
+         scrollTop too low and the rail clamp pinned the
+         overshoot to the window's bottom. A scroll listener
+         re-anchors the edges as the rendered span moves; the
+         tabs keep the content-anchored zone, unmoved by
+         scrolling, as shipped. The edge strips also carry
+         the page's 6px border radius on their left corners,
+         so the pile's silhouette follows the page's rounded
+         corners. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3647,10 +3659,22 @@
       .tab-stack-edge {
         /* Top and height are set inline from the paper's
            measured span (build -91): the line runs from the
-           paper's top edge to its bottom edge, no further. */
+           paper's top edge to its bottom edge, no further.
+           Build -92: the strip's left corners carry the
+           page's own border radius (.paper: 6px), so each
+           sheet edge follows the page's corner curve at the
+           top-left and bottom-left instead of ending square
+           where the page rounds. The right corners stay
+           square: that side is covered by the next sheet (or
+           the page itself), exactly as a real sheet's is.
+           Because each deeper sheet is offset 2px further
+           left, the strips' in-box arc segments tile into
+           parallel corner curves — the multiplied silhouette
+           of the same rounded sheets. */
         position: absolute; width: 2px;
         background: var(--surface);
         border-left: 1px solid var(--line);
+        border-radius: 6px 0 0 6px;
         box-shadow: -1px 0 2px rgba(0, 0, 0, 0.07);
         pointer-events: none;
       }
@@ -13405,22 +13429,52 @@
           var pr = paper.getBoundingClientRect();
           if (!pr.height) return null;
           var top = (sr.top - br.top) + (pr.top - sr.top) + (editorScroll.scrollTop || 0);
-          return { top: top, bottom: top + pr.height, height: pr.height };
+          /* Build -92: ALSO return the paper's rendered span in
+             rail (viewport) coordinates — vtop / vbottom are
+             where the paper's border-box actually sits on
+             screen right now, measured straight off its rect
+             against the editor body's rect (the rail's own
+             origin). The content-coordinate top / bottom above
+             stay as they are: the tab zone is anchored to the
+             paper's content position so scrolling never shifts
+             the tabs. The sheet edges are a different thing —
+             they must hug the paper's RENDERED left edge, so
+             they read vtop / vbottom, never the content span. */
+          var vtop = pr.top - br.top;
+          return { top: top, bottom: top + pr.height, height: pr.height, vtop: vtop, vbottom: vtop + pr.height };
         }
-        /* One sheet edge's vertical span: the paper's full
+        /* One sheet edge's vertical span: the paper's rendered
            height, top edge to bottom edge, clamped only to the
            rail itself (a page taller than the window runs its
            edges to the rail's ends, as before). The edges live
            on the rail-level layer, whose top is the editor
-           body's top — the same origin tabPaperGeom measures
-           from. */
+           body's top — the same origin vtop / vbottom measure
+           from.
+           Build -92 overshoot fix: build -91 fed this the
+           CONTENT-coordinate span (top/bottom, which add
+           scrollTop back). In rail space that places the
+           span's bottom at rendered-bottom + scrollTop, and
+           the rail-height clamp then pins it to the editor's
+           bottom whenever the paper is scrolled at all — the
+           lines ran past the page's bottom edge to the bottom
+           of the window, further the deeper the scroll. At
+           scrollTop 0 the two spans coincide, which is why
+           the -91 probe (top of doc, viewport-filling paper)
+           measured Δ0 and could not see it. Reading the
+           rendered span (vtop/vbottom) makes the lines end
+           at the paper's actual bottom in every scroll state:
+           short page (bottom mid-window), long page scrolled
+           to its end (bottom mid-window), and long page
+           mid-scroll (bottom past the rail, clamped). */
         function tabEdgeSpan(edge, geom) {
           if (!edge) return;
           var g = geom || tabPaperGeom();
           if (!g || !tabRailEl) { edge.style.top = '0px'; edge.style.height = '0px'; return; }
           var railH = tabRailEl.clientHeight || 0;
-          var top = Math.max(0, g.top);
-          var bottom = railH ? Math.min(g.bottom, railH) : g.bottom;
+          var vtop = typeof g.vtop === 'number' ? g.vtop : g.top - (editorScroll ? (editorScroll.scrollTop || 0) : 0);
+          var vbottom = typeof g.vbottom === 'number' ? g.vbottom : vtop + g.height;
+          var top = Math.max(0, vtop);
+          var bottom = railH ? Math.min(vbottom, railH) : vbottom;
           edge.style.top = top + 'px';
           edge.style.height = Math.max(0, bottom - top) + 'px';
         }
@@ -13726,6 +13780,23 @@
         var tabPillBtn = document.getElementById('tabPill');
         if (tabPillBtn) tabPillBtn.addEventListener('click', function () { openBook(); });
         window.addEventListener('resize', function () { tabSyncSlim(); tabLayout(); tabAnchor(); });
+        /* Build -92: scrolling moves the paper's RENDERED span
+           (what the sheet edges hug) while its content span —
+           and so the tabs — stay put, so a scroll re-anchors
+           the edges only: tabAnchor refreshes the edges'
+           vtop/vbottom spans (and re-checks the horizontal
+           anchor, which scrolling cannot change). Coalesced
+           to one run per frame. Without this the edges kept
+           whatever span they were last laid out with and the
+           overshoot returned as soon as the reader scrolled. */
+        if (editorScroll) {
+          var tabScrollTicking = false;
+          editorScroll.addEventListener('scroll', function () {
+            if (tabScrollTicking) return;
+            tabScrollTicking = true;
+            requestAnimationFrame(function () { tabScrollTicking = false; tabAnchor(); });
+          }, { passive: true });
+        }
         /* Build -90 anchor tracking: the page moves whenever
            the scroll area, the paper or the reference pane
            changes size (sidebar slide, pane open/close/drag,
