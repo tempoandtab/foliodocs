@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-93" />
+    <meta name="folio-build" content="20261101-94" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3641,7 +3641,26 @@
          before, pixel-stable while the page scrolls beneath
          them. Confirmed geometry unchanged: rail right edge
          Δ0 against the paper's left edge, tab zone starting
-         ~25px below the paper's top. */
+         ~25px below the paper's top.
+         Build -94 (the -93 architecture above is untouched):
+         the -89 hover reveal — a tab stretches LEFT on hover,
+         × at its top-left corner, ⋯ at its bottom-left — was
+         pure CSS (:hover for the stretch, an @media
+         (hover:hover) gate for the buttons). It probe-verified
+         on desktop and was exercised in -90, but on Andrew's
+         iPad it never engages: his -93 screenshot shows the
+         trackpad pointer resting on a tab, this app's own
+         pointerover-driven tooltip up, yet the tab unstretched
+         and buttonless — the pointer events arrive, but
+         iPadOS Safari does not match :hover / (hover:hover)
+         for that pointer over these tabs. The hover state is
+         therefore ALSO driven from the channel that provably
+         reaches the device: tabHoverTrack in the tabs module
+         mirrors the pointer (mouse/pen only) into a .tab-hover
+         class that paints exactly the same stretch and reveal.
+         CSS :hover remains the desktop path; touch never gets
+         the class, so tap / long-press keep their meanings,
+         and at rest no buttons render, as before. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3741,7 +3760,7 @@
       /* Hover stretches the tab LEFT to the column's edge —
          its right edge (and its page) never moves — and the
          revealed strip carries the × / ⋯ buttons below. */
-      .folio-tab:hover {
+      .folio-tab:hover, .folio-tab.tab-hover {
         left: 0; width: calc(var(--tab-w, 40px) + var(--tab-x, 22px));
         z-index: 7; filter: brightness(1.04);
       }
@@ -3749,7 +3768,7 @@
         background: var(--surface); color: var(--ink);
         transform: none;
       }
-      .folio-tab.active:hover { background: var(--surface); }
+      .folio-tab.active:hover, .folio-tab.active.tab-hover { background: var(--surface); }
       .folio-tab-name {
         writing-mode: vertical-rl; transform: rotate(180deg);
         font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
@@ -3779,6 +3798,15 @@
         .folio-tab:hover .folio-tab-x, .folio-tab:hover .folio-tab-menu { display: inline-flex; }
         .folio-tab.sliver:hover .folio-tab-x, .folio-tab.sliver:hover .folio-tab-menu { display: none; }
       }
+      /* Build -94: the JS-driven twin of the reveal above.
+         tabHoverTrack (tabs module) puts .tab-hover on the
+         tab under a mouse/pen pointer — the channel that
+         reaches these tabs on iPadOS, where :hover and the
+         (hover:hover) gate never engage for the trackpad
+         pointer. The class is only ever set for mouse/pen
+         pointers, so touch never reveals the buttons. */
+      .folio-tab.tab-hover .folio-tab-x, .folio-tab.tab-hover .folio-tab-menu { display: inline-flex; }
+      .folio-tab.sliver.tab-hover .folio-tab-x, .folio-tab.sliver.tab-hover .folio-tab-menu { display: none; }
       .folio-tab-x:hover, .folio-tab-menu:hover { background: var(--hover); color: var(--danger); }
       .folio-tab-menu:hover { color: var(--ink); }
       .folio-tab.dragging { z-index: 6; box-shadow: -3px 6px 14px rgba(0,0,0,0.4); transition: none; }
@@ -13459,6 +13487,11 @@
           tabLayout();
           tabSyncSlim();
           refSync();
+          /* Build -94: the render just recreated every tab
+             element, dropping .tab-hover with the old ones —
+             re-apply it to the element now under a stationary
+             mouse/pen pointer. */
+          tabHoverSync();
         }
         /* ----- build -91: the paper's vertical span -----
            The paper's top and bottom inside the editor body,
@@ -13668,6 +13701,67 @@
           }
           tabLayout();
           tabAnchor();
+        }
+        /* ----- build -94: JS hover tracking for the stack tabs -----
+           The -89 hover reveal (stretch + × / ⋯) shipped as
+           pure CSS: :hover stretched the tab and an @media
+           (hover:hover) gate revealed the buttons. That probe-
+           verified on desktop and was exercised in -90, but on
+           Andrew's iPad it never engages — his -93 screenshot
+           shows the trackpad pointer resting on a tab with this
+           app's own pointerover-driven tooltip up: the pointer
+           events arrive, yet the tab sits unstretched and
+           buttonless, because iPadOS Safari does not match
+           :hover / (hover:hover) for that pointer over these
+           tabs. So the hover state is also driven from the
+           channel that provably reaches the device: pointer
+           tracking on the rail mirrors a mouse/pen pointer's
+           tab into a .tab-hover class that paints the identical
+           stretch and reveal (see the Stack CSS block). Touch
+           pointers never set it — tap switches and long-press
+           opens the menu, exactly as before — and a touch press
+           anywhere clears a stale hover. The class clears when
+           the pointer leaves the tab or the window; tabRender
+           calls tabHoverSync so a stationary pointer's tab
+           keeps its hover face across the re-render its own
+           click causes. CSS :hover stays as the desktop path. */
+        var tabHoverEl = null;
+        var tabHoverPoint = null;
+        function tabHoverSet(el) {
+          if (tabHoverEl === el) return;
+          if (tabHoverEl) tabHoverEl.classList.remove('tab-hover');
+          tabHoverEl = el;
+          if (tabHoverEl) tabHoverEl.classList.add('tab-hover');
+        }
+        function tabHoverSync() {
+          if (!tabHoverPoint) return;
+          var hit = document.elementFromPoint(tabHoverPoint.x, tabHoverPoint.y);
+          tabHoverSet(hit && hit.closest ? hit.closest('.folio-tab') : null);
+        }
+        if (tabScrollEl) {
+          tabScrollEl.addEventListener('pointerover', function (ev) {
+            if (ev.pointerType === 'touch') return;
+            tabHoverPoint = { x: ev.clientX, y: ev.clientY };
+            tabHoverSet(ev.target.closest ? ev.target.closest('.folio-tab') : null);
+          });
+          tabScrollEl.addEventListener('pointermove', function (ev) {
+            if (ev.pointerType === 'touch') return;
+            tabHoverPoint = { x: ev.clientX, y: ev.clientY };
+          });
+          tabScrollEl.addEventListener('pointerout', function (ev) {
+            var t = ev.target.closest ? ev.target.closest('.folio-tab') : null;
+            if (t && t === tabHoverEl && !(ev.relatedTarget && t.contains(ev.relatedTarget))) {
+              tabHoverPoint = null;
+              tabHoverSet(null);
+            }
+          });
+          document.addEventListener('pointerdown', function (ev) {
+            if (ev.pointerType === 'touch') { tabHoverPoint = null; tabHoverSet(null); }
+          }, true);
+          document.addEventListener('mouseleave', function () {
+            tabHoverPoint = null;
+            tabHoverSet(null);
+          });
         }
         if (tabScrollEl) {
           tabScrollEl.addEventListener('wheel', function (ev) {
