@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-98" />
+    <meta name="folio-build" content="20261101-99" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3710,7 +3710,37 @@
          bottoms form a staircase of rounded corners and each
          gilt left edge ends at its own sheet's corner —
          superseding the -91 "lines end at the paper's
-         bottom" framing for the sheets behind the front one. */
+         bottom" framing for the sheets behind the front one.
+         Build -99 (supersedes the -96 connector): the
+         per-tab BANDS ARE REMOVED. Probe ground truth in the
+         failing configuration (Binding Dark, four tabs)
+         showed why -98's junction fix did not land on the
+         device: each inactive tab's band painted the tab's
+         own face shade in one unbroken run from the tab's
+         right edge all the way to the FRONT page's left
+         edge, capped at its left by a 2px gilt border —
+         4 device px on the iPad — plus top/bottom hairlines
+         and a drop shadow. The tab BOXES were always right
+         (right edges on their own sheets' edge x, as -98
+         measured), but the band's FILL extended every tab
+         to the top page, and the gilt cap + shadow + the
+         page border 3px later read as one thick right bar.
+         The -98 scan missed it because it scanned for
+         edge-coloured runs and never for face-coloured
+         paint past the tab's edge. The bands were also
+         redundant: since -98 a tab's right edge already
+         coincides with its own sheet's gilt edge line, so
+         the tab now simply TERMINATES there. Between a tab
+         and the front page, only the recessed sheets' own
+         slivers show — their 1px gilt left edges stepping
+         back at 4px per rank, exactly as they already did
+         between tabs. tabRender no longer creates band
+         elements, tabLayout no longer positions any, and
+         the .tab-band rule below is a display:none guard so
+         no band can ever paint again. Everything else is
+         untouched: the 4px X steps, the 3px Y scoot, the
+         -97 stacking invariant, no tab right borders, the
+         hover × / ⋯ reveal. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3736,39 +3766,23 @@
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
       .tab-bands, .tab-strip { position: absolute; inset: 0; }
-      /* Build -96: the bands layer is the per-tab page-edge
-         connector layer. One band per INACTIVE tab (positioned
-         by tabLayout in the tab's own slot): it fills the gap
-         from the tab's right edge to the page's left edge, at
-         exactly the tab's height, painted in that tab's sheet
-         face — so the tab visually runs INTO the side of its
-         own sheet instead of ending against the desk. Its left
-         edge is a 2px gilt line (var(--stack-edge), the tabs'
-         border colour warmed toward the accent): the side edge
-         of that tab's sheet, standing at the tab's right edge.
-         Its top and bottom hairlines are the tab's own border
-         colour (var(--line)) extended rightward to the page,
-         continuing the tab's outline into the sheet. A faint
-         shadow under its left edge gives the junction depth.
-         The band is rail furniture anchored to the TAB (which
-         never moves on scroll), never to the page's rendered
-         span — no scroll listener positions it, so the -93
-         no-lag architecture is untouched. The active tab gets
-         no band: it already merges with the page directly.
-         Build -98: since the tab's own right border is now
-         gone on every tab (see .folio-tab), this band's gilt
-         left edge is the ONE line at each inactive tab's
-         junction — before -98 it stood immediately right of
-         the tab's right inset ring, and the two (plus the
-         sheet's gilt edge behind) compounded into the thick
-         bar Andrew saw on inactive tabs. */
-      .tab-band {
-        position: absolute; display: none; pointer-events: none;
-        border-top: 1px solid var(--line);
-        border-bottom: 1px solid var(--line);
-        border-left: 2px solid var(--stack-edge);
-        box-shadow: -1px 1px 3px rgba(0, 0, 0, 0.18);
-      }
+      /* Build -99: the bands layer is EMPTY, permanently.
+         Build -96 gave every inactive tab a connector band
+         here — a face-filled strip from the tab's right edge
+         to the front page's left edge, with a 2px gilt left
+         border, top/bottom hairlines and a drop shadow. On
+         the device that fill read as the tab itself extending
+         to the top page, and its gilt cap compounded with the
+         sheet edge and page border into the thick right bar
+         Andrew kept reporting (see the Build -99 note in the
+         Stack block comment above for the probe evidence).
+         The bands are removed: tabRender creates none and
+         tabLayout positions none, so the #tabBands layer
+         stays empty and each tab terminates at its own
+         sheet's gilt edge line. This rule remains only as a
+         guard — if a band element ever reappeared, it could
+         not paint. */
+      .tab-band { display: none !important; }
       /* Build -93: the paper wrapper and the sheet layers.
          The wrapper is exactly the paper's old layout box —
          same max-width and the same margins (base and both
@@ -13691,9 +13705,16 @@
               openTabMenu(r.docId, ev.clientX, ev.clientY);
             });
             tabStripEl.appendChild(el);
-            var band = document.createElement('div');
-            band.className = 'tab-band';
-            tabBandsEl.appendChild(band);
+            /* Build -99: NO connector band is created for
+               this tab (build -96 created one per tab and
+               tabLayout stretched it from the tab's right
+               edge to the front page's edge; that fill is
+               what made every tab read as extending to the
+               top page behind a thick gilt-capped bar — see
+               the Stack CSS notes). The cache's band field
+               stays, always null, so tabLayout's shape is
+               unchanged; the #tabBands layer renders empty. */
+            var band = null;
             /* Build -93: one sheet-shaped layer per sheet
                BEHIND the front one (rank >= 1), created in the
                scroll content behind the paper. The front sheet
@@ -13819,8 +13840,8 @@
             c.el.style.top = c.top + 'px';
             c.el.style.height = c.sh + 'px';
             c.el.classList.toggle('sliver', c.sh < 26);
-            /* Build -96: the band's geometry is set below,
-               once this tab's right edge is known. */
+            /* Build -99: no band geometry follows — the tab's
+               right edge computed below is where the tab ends. */
             /* Build -89 stack geometry: the shared left line is
                the column's hover strip (--tab-x, read off the
                rail element so the slim treatment's narrower
@@ -13894,31 +13915,15 @@
               c.sheet.style.background =
                 'color-mix(in srgb, var(--surface) ' + (100 - effRank * 4) + '%, var(--ink))';
             }
-            /* Build -96: the per-tab page-edge connector (the
-               band, see .tab-band): for an inactive tab it
-               spans from the tab's right edge (rightEdge, its
-               own sheet's edge x) to the column's right side —
-               the page's left edge — at exactly the tab's top
-               and height, in the sheet's own face shade, so
-               the tab runs into the side of its page. The
-               active tab (rank 0) already touches the page and
-               gets no band. The band is positioned from the
-               tab's layout slot only — the same numbers that
-               position the tab itself — never from the page's
-               rendered span, so scrolling cannot move it. */
-            if (c.band) {
-              if (effRank >= 1) {
-                c.band.style.display = 'block';
-                c.band.style.left = rightEdge + 'px';
-                c.band.style.width = Math.max(0, railW - rightEdge) + 'px';
-                c.band.style.top = c.top + 'px';
-                c.band.style.height = c.sh + 'px';
-                c.band.style.background =
-                  'color-mix(in srgb, var(--surface) ' + (100 - effRank * 4) + '%, var(--ink))';
-              } else {
-                c.band.style.display = 'none';
-              }
-            }
+            /* Build -99: the -96 connector band that used to
+               be positioned here is REMOVED (c.band is always
+               null now — tabRender creates none). Nothing
+               paints between the tab's right edge and the
+               page anymore: the tab terminates at its own
+               sheet's gilt edge line (rightEdge, the same x
+               its sheet stands at), and the only paint in the
+               remaining gap is the recessed sheets' own
+               slivers in the scroll content behind the rail. */
           });
           tabAnchor();
         }
