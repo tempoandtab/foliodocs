@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-89" />
+    <meta name="folio-build" content="20261101-90" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3557,13 +3557,51 @@
          geometry (aligned left line, 2px depth steps, page
          edges) is unchanged. Phone (<=640px) hides the column
          entirely, as before: the count pill + Book remain the
-         phone tab interface. */
-      .editor-body { display: flex; flex: 1; min-height: 0; }
-      .editor-body .editor-scroll { flex: 1; min-width: 0; }
+         phone tab interface.
+         Build -90 placement correction: the stack no longer
+         occupies a flex column at the editor area's left edge
+         (the rail's old slot, hard against the sidebar, with a
+         wide band of empty gutter between the column and the
+         page). The rail is now absolutely positioned and
+         ANCHORED TO THE PAGE: tabAnchor() measures the primary
+         paper's left edge and sets the rail's left so the
+         rail's right edge — the active tab's right edge and
+         the front sheet-edge strip — meets the page's left
+         edge exactly, zero gap. The whole cluster (tabs,
+         sheet-edge lines, the + disc and the Book opener in
+         the foot) rides that one position, and it re-measures
+         whenever the page can move: window resize, sidebar
+         open/close, focus (Zen) exit, and the reference pane
+         opening, closing or being dragged (a ResizeObserver
+         on the scroll area, paper and reference pane, plus an
+         attribute watch on <html>, plus a short rAF ride
+         across the sidebar's slide transition). There is no
+         tab column beside the sidebar anymore: the space
+         between the sidebar and the stack is plain editor
+         background. So the page always has a gutter to sit
+         in, the scroll area reserves one on its left
+         (--stack-reserve: the rail's width + 14px; the slim
+         rail reserves its own width + 14px) — the paper
+         centres in the remaining width, and where the window
+         is too narrow for centring to leave a gutter, the
+         reserve IS the gutter, so the stack still lands
+         against the page instead of off the edge or over the
+         sidebar. The reserve drops wherever the rail itself
+         is hidden (phone, focus mode, print). */
+      .editor-body {
+        display: flex; flex: 1; min-height: 0; position: relative;
+        --stack-reserve: 78px;
+      }
+      .editor-body.stack-slim { --stack-reserve: 58px; }
+      .editor-body .editor-scroll {
+        flex: 1; min-width: 0;
+        padding-left: var(--stack-reserve);
+      }
+      :root[data-focus="on"] .editor-body .editor-scroll { padding-left: 0; }
       .doc-session { min-height: 100%; }
       .tab-rail {
         --tab-x: 22px;
-        width: 64px; flex: 0 0 64px; position: relative; z-index: 5;
+        width: 64px; position: absolute; top: 0; bottom: 0; left: 0; z-index: 20;
         background: transparent;
         display: flex; flex-direction: column; min-height: 0;
       }
@@ -3686,10 +3724,11 @@
       }
       @media (max-width: 640px) {
         .tab-rail { display: none; }
+        .editor-body .editor-scroll { padding-left: 0; }
         .tab-pill { display: inline-flex; }
         :root[data-focus="on"] .tab-pill { display: none; }
       }
-      @media print { .tab-rail, .tab-pill { display: none !important; } }
+      @media print { .tab-rail, .tab-pill { display: none !important; } .editor-body .editor-scroll { padding-left: 0; } }
 
       /* ---------------- file tabs: reference pane (Phase 2) ----------------
          Split view (spec §7): the active tab's reference doc
@@ -12434,6 +12473,17 @@
         var tabScrollEl = document.getElementById('tabScroll');
         var tabStripEl = document.getElementById('tabStrip');
         var tabBandsEl = document.getElementById('tabBands');
+        /* Build -90: the stack's anchor points — the editor
+           body (the rail's offset parent) and the primary
+           paper whose left edge the stack touches. */
+        var editorBodyEl = tabRailEl && tabRailEl.parentElement ? tabRailEl.parentElement : null;
+        var tabPaperEl = null;
+        function tabPaper() {
+          if (!tabPaperEl || !tabPaperEl.isConnected) {
+            tabPaperEl = document.querySelector('#editorScroll .paper');
+          }
+          return tabPaperEl;
+        }
 
         function tabDoc(id) {
           return lib.docs.find(function (d) { return d.id === id; }) || null;
@@ -13385,6 +13435,44 @@
               c.edge.style.opacity = String(1 - effRank * 0.07);
             }
           });
+          tabAnchor();
+        }
+        /* ----- build -90: anchor the stack to the page -----
+           The rail is absolutely positioned inside the editor
+           body; this sets its left from MEASUREMENT, not from
+           a layout assumption: the rail's right edge must equal
+           the primary paper's left edge, so the active tab
+           (whose right edge is the rail's right edge) merges
+           with the page and the sheet-edge strips stand
+           immediately left of it as the page block's own
+           multiplied left edge — zero gap, wherever the page
+           happens to sit. Called from tabLayout (every render
+           and stack scroll), from the resize/observer wiring
+           below, and on a short rAF ride across animated
+           moves (the sidebar's slide), so the cluster tracks
+           the page through sidebar open/close, window resizes,
+           focus-mode exit and reference-pane changes. Hidden
+           states (phone, focus mode) skip: there is no rail
+           to place, and leaving focus re-anchors via the
+           attribute watch. */
+        function tabAnchor() {
+          if (!tabRailEl || !editorBodyEl) return;
+          if (!tabRailEl.offsetWidth) return;
+          var paper = tabPaper();
+          if (!paper) return;
+          var pr = paper.getBoundingClientRect();
+          if (!pr.width) return;
+          var br = editorBodyEl.getBoundingClientRect();
+          tabRailEl.style.left = (pr.left - br.left - tabRailEl.offsetWidth) + 'px';
+        }
+        var tabAnchorRideUntil = 0;
+        function tabAnchorRide() {
+          tabAnchorRideUntil = Date.now() + 420;
+          var step = function () {
+            tabAnchor();
+            if (Date.now() < tabAnchorRideUntil) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
         }
         function tabEnsureVisible(id) {
           if (tabView.mode !== 'scroll') return;
@@ -13400,8 +13488,22 @@
         }
         function tabSyncSlim() {
           if (!tabRailEl || !editorScroll) return;
-          tabRailEl.classList.toggle('slim', editorScroll.clientWidth > 0 && editorScroll.clientWidth < 700);
+          /* Build -90: the rail no longer takes width out of
+             the scroll area, so the page's own width is the
+             scroll width minus the gutter reserve the scroll
+             area carries (--stack-reserve, mirrored here).
+             Slim below a 700px page width, as in -89, with a
+             small hysteresis band so the reserve change that
+             slimming itself causes cannot flap the state. */
+          var isSlim = tabRailEl.classList.contains('slim');
+          var pageW = editorScroll.clientWidth - (isSlim ? 58 : 78);
+          var slim = isSlim ? pageW < 740 : pageW < 700;
+          if (slim !== isSlim) {
+            tabRailEl.classList.toggle('slim', slim);
+            if (editorBodyEl) editorBodyEl.classList.toggle('stack-slim', slim);
+          }
           tabLayout();
+          tabAnchor();
         }
         if (tabScrollEl) {
           tabScrollEl.addEventListener('wheel', function (ev) {
@@ -13528,7 +13630,32 @@
         if (tabBookBtn) tabBookBtn.addEventListener('click', function () { openBook(); });
         var tabPillBtn = document.getElementById('tabPill');
         if (tabPillBtn) tabPillBtn.addEventListener('click', function () { openBook(); });
-        window.addEventListener('resize', function () { tabSyncSlim(); tabLayout(); });
+        window.addEventListener('resize', function () { tabSyncSlim(); tabLayout(); tabAnchor(); });
+        /* Build -90 anchor tracking: the page moves whenever
+           the scroll area, the paper or the reference pane
+           changes size (sidebar slide, pane open/close/drag,
+           window resize all land there), and whenever <html>
+           flips the attributes that re-lay the editor out
+           (sidebar preference, focus mode, reference state).
+           The observer pair keeps the stack glued to the
+           page's left edge through all of it; the rAF ride
+           covers the frames of the sidebar's slide transition
+           itself. */
+        if (window.ResizeObserver && editorBodyEl) {
+          var tabAnchorRO = new ResizeObserver(function () { tabAnchor(); });
+          if (editorScroll) tabAnchorRO.observe(editorScroll);
+          var tabPaperObs = tabPaper();
+          if (tabPaperObs) tabAnchorRO.observe(tabPaperObs);
+          var refPaneObs = document.getElementById('refPane');
+          if (refPaneObs) tabAnchorRO.observe(refPaneObs);
+          tabAnchorRO.observe(editorBodyEl);
+        }
+        if (window.MutationObserver) {
+          new MutationObserver(function () { tabAnchorRide(); }).observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-sidebar', 'data-focus', 'data-ref', 'data-toolbars'],
+          });
+        }
 
         /* ----- the Book: tab switcher (spec §8) ----- */
         var bookOverlay = document.getElementById('bookOverlay');
