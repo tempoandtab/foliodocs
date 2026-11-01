@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-95" />
+    <meta name="folio-build" content="20261101-96" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -55,6 +55,15 @@
         --active: rgba(46, 107, 76, 0.14);
         --shadow: 0 12px 40px rgba(34, 38, 31, 0.18), 0 2px 8px rgba(34, 38, 31, 0.1);
         --paper-shadow: 0 1px 2px rgba(34, 38, 31, 0.05), 0 10px 34px rgba(34, 38, 31, 0.06);
+        /* Build -96: the stack's page-edge line colour — the
+           tabs' border colour (var(--line)) warmed toward the
+           theme accent, so a sheet's edge reads as the same
+           gilt line the tabs are outlined in (bright gold in
+           Binding Dark, sage in Midnight) at device scale,
+           where the raw --line tone is too close to the sheet
+           faces to define an edge. Resolved per theme from
+           that theme's own --line / --accent. */
+        --stack-edge: color-mix(in srgb, var(--line) 42%, var(--accent) 58%);
       }
       :root[data-theme="sepia"] {
         color-scheme: light;
@@ -3660,7 +3669,22 @@
          class that paints exactly the same stretch and reveal.
          CSS :hover remains the desktop path; touch never gets
          the class, so tap / long-press keep their meanings,
-         and at rest no buttons render, as before. */
+         and at rest no buttons render, as before.
+         Build -96 (the -93 architecture above is untouched —
+         sheets still live in the scroll content, no scroll
+         listener returns): the pile now RENDERS as a pile.
+         Sheets paint front-to-back (z-index descending with
+         depth) instead of creation order, so each sheet's own
+         gilt left edge line and shaded sliver show instead of
+         the deepest sheet's face smearing over all of them;
+         each sheet casts a faint shadow onto the sheet behind
+         it; every sheet's corner radius is the page's exact
+         6px; and each inactive tab gets a connector in the
+         bands layer (see .tab-band) that runs from the tab's
+         right edge to the page at the tab's own height, edged
+         in the gilt line colour, so the tab meets the side of
+         its own sheet. See the .paper-sheet / .tab-band rules
+         and tabLayout for the details. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3686,10 +3710,33 @@
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
       .tab-bands, .tab-strip { position: absolute; inset: 0; }
-      /* The old sewing bands are gone: a band element is still
-         created per tab by tabRender (the layout cache pairs
-         one with each tab) but never paints. */
-      .tab-band { display: none; }
+      /* Build -96: the bands layer is the per-tab page-edge
+         connector layer. One band per INACTIVE tab (positioned
+         by tabLayout in the tab's own slot): it fills the gap
+         from the tab's right edge to the page's left edge, at
+         exactly the tab's height, painted in that tab's sheet
+         face — so the tab visually runs INTO the side of its
+         own sheet instead of ending against the desk. Its left
+         edge is a 2px gilt line (var(--stack-edge), the tabs'
+         border colour warmed toward the accent): the side edge
+         of that tab's sheet, standing at the tab's right edge.
+         Its top and bottom hairlines are the tab's own border
+         colour (var(--line)) extended rightward to the page,
+         continuing the tab's outline into the sheet. A faint
+         shadow under its left edge gives the junction depth.
+         The band is rail furniture anchored to the TAB (which
+         never moves on scroll), never to the page's rendered
+         span — no scroll listener positions it, so the -93
+         no-lag architecture is untouched. The active tab gets
+         no band: it already merges with the page directly
+         (build -95 removed its right border for that reason). */
+      .tab-band {
+        position: absolute; display: none; pointer-events: none;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        border-left: 2px solid var(--stack-edge);
+        box-shadow: -1px 1px 3px rgba(0, 0, 0, 0.18);
+      }
       /* Build -93: the paper wrapper and the sheet layers.
          The wrapper is exactly the paper's old layout box —
          same max-width and the same margins (base and both
@@ -3721,11 +3768,35 @@
       }
       #editorScroll .paper-wrap > .paper { margin: 0; }
       .paper-sheets { position: absolute; inset: 0; pointer-events: none; }
+      /* Build -96: three fixes to how the pile renders.
+         (1) PAINT ORDER: tabLayout now gives each sheet an
+         inline z-index DESCENDING with depth (rank 1 highest),
+         so the sheet nearest the front paints over the ones
+         behind it. Before this, the sheets painted in creation
+         order — deepest last, on top — so the deepest sheet's
+         opaque face covered every shallower sheet's left border
+         and face across the whole sliver strip, and the pile
+         read as one undifferentiated smear: the "blurry void"
+         the tabs appeared to attach to. With the order fixed,
+         each sheet's own sliver — its gilt left edge line and
+         its depth-shaded face — is the part that shows.
+         (2) DEFINED EDGE + DEPTH: the left border is the gilt
+         edge colour (var(--stack-edge)), and each sheet casts
+         a faint shadow leftward onto the sheet behind it and
+         downward onto the pile, so the layers read as paper
+         with air between them, not a flat gradient.
+         (3) RADIUS: every sheet's corner radius is the page's
+         own 6px exactly (tabLayout sets the same inline), NOT
+         6px grown by the offset as -93 had it — the stack
+         area's silhouette at the top and bottom now carries
+         the page's exact corner curve, offset with the sheet. */
       .paper-sheet {
         position: absolute; top: 0; bottom: 0; width: 100%;
         background: var(--surface);
         border: 1px solid var(--line);
-        box-shadow: -1px 0 2px rgba(0, 0, 0, 0.07);
+        border-left: 1px solid var(--stack-edge);
+        border-radius: 6px;
+        box-shadow: -2px 0 3px rgba(0, 0, 0, 0.20), 0 2px 5px rgba(0, 0, 0, 0.10);
         pointer-events: none;
       }
       /* The sheets are stack UI, not page furniture: wherever
@@ -13680,7 +13751,8 @@
             c.el.style.top = c.top + 'px';
             c.el.style.height = c.sh + 'px';
             c.el.classList.toggle('sliver', c.sh < 26);
-            c.band.style.top = Math.max(0, c.top - 3) + 'px';
+            /* Build -96: the band's geometry is set below,
+               once this tab's right edge is known. */
             /* Build -89 stack geometry: the shared left line is
                the column's hover strip (--tab-x, read off the
                rail element so the slim treatment's narrower
@@ -13702,18 +13774,51 @@
             /* Build -93: the tab's sheet, in the scroll
                content behind the paper — offset left by the
                same 2px-per-rank step its tab's right edge
-               takes, corner radius concentric with the page's
-               (6px + the offset), paper shaded per depth
-               exactly like the tab's own face. Its size and
-               vertical span are pure CSS (the wrapper's box),
-               so nothing here — or anywhere — repositions it
-               on scroll. */
+               takes, paper shaded per depth exactly like the
+               tab's own face. Its size and vertical span are
+               pure CSS (the wrapper's box), so nothing here —
+               or anywhere — repositions it on scroll.
+               Build -96: the corner radius is the page's own
+               6px exactly (not 6px + the offset), so the stack
+               area's top and bottom silhouettes carry the
+               page's exact corner curve; and the sheet's
+               z-index descends with depth (rank 1 highest), so
+               the pile paints front-to-back — before this the
+               deepest sheet painted last, on top, and its
+               opaque face buried every shallower sheet's edge
+               line and sliver under one flat smear. */
             if (c.sheet) {
               var sheetOff = effRank * 2;
               c.sheet.style.left = (-sheetOff) + 'px';
-              c.sheet.style.borderRadius = (6 + sheetOff) + 'px';
+              c.sheet.style.borderRadius = '6px';
+              c.sheet.style.zIndex = String(60 - effRank);
               c.sheet.style.background =
                 'color-mix(in srgb, var(--surface) ' + (100 - effRank * 4) + '%, var(--ink))';
+            }
+            /* Build -96: the per-tab page-edge connector (the
+               band, see .tab-band): for an inactive tab it
+               spans from the tab's right edge (rightEdge, its
+               own sheet's edge x) to the column's right side —
+               the page's left edge — at exactly the tab's top
+               and height, in the sheet's own face shade, so
+               the tab runs into the side of its page. The
+               active tab (rank 0) already touches the page and
+               gets no band. The band is positioned from the
+               tab's layout slot only — the same numbers that
+               position the tab itself — never from the page's
+               rendered span, so scrolling cannot move it. */
+            if (c.band) {
+              if (effRank >= 1) {
+                c.band.style.display = 'block';
+                c.band.style.left = rightEdge + 'px';
+                c.band.style.width = Math.max(0, railW - rightEdge) + 'px';
+                c.band.style.top = c.top + 'px';
+                c.band.style.height = c.sh + 'px';
+                c.band.style.background =
+                  'color-mix(in srgb, var(--surface) ' + (100 - effRank * 4) + '%, var(--ink))';
+              } else {
+                c.band.style.display = 'none';
+              }
             }
           });
           tabAnchor();
