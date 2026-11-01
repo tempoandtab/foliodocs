@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-107" />
+    <meta name="folio-build" content="20261101-108" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4271,6 +4271,27 @@
         width: calc(var(--tab-w, 40px) + var(--tab-strip, 22px));
         z-index: 7;
       }
+      /* Build -108: a GROUPED tab's stretch stops AT its
+         group bar. tabRender marks every member of an
+         expanded group .is-grouped; for those tabs the
+         reveal strip is exactly the 12px of clear air
+         between the bar's right edge and the tab line
+         (barLeft = gutter − 34, bar width 22, so the bar's
+         right edge sits at gutter − 12 in BOTH the full
+         and the slim rail — see tabLayout's bar block), so
+         the stretched tab's left edge lands precisely on
+         the bar's right edge and never paints over the
+         bar. Ungrouped tabs keep the rail's full strip
+         (22px / 14px slim). The × / ⋯ stay at their
+         4px inset inside the tab box: in the clamped
+         stretch they simply seat 10px further into the
+         tab's own left region, still fully inside the
+         tab and tappable — the tab never widens past
+         the bar to make room for them. The menu-pinned
+         hover (.tab-hover, tabHoverPinSet) resolves
+         through this same variable, so a pinned grouped
+         tab holds the clamped stretch too. */
+      .folio-tab.is-grouped { --tab-strip: 12px; }
       /* Build -107: while a tab/group drag is live (the
          rail carries .tabs-dragging, set by the drag code
          the moment a press crosses the drag threshold),
@@ -13505,7 +13526,7 @@
            workspace indicator — a quiet label at that row's
            far right end (see .ws-indicator). Synced from tabRender
            (which every switch path ends in: Book rows,
-           ⌥⇧W cycling, create/delete) and from
+           ⌘⌥W cycling, create/delete) and from
            renameWorkspace, so it always names the live
            workspace the moment a switch lands. */
         function wsIndicatorSync() {
@@ -15220,6 +15241,15 @@
             el.setAttribute('aria-label', d.title || 'Untitled');
             el.setAttribute('data-doc-id', r.docId);
             el.setAttribute('data-tip', d.title || 'Untitled');
+            /* Build -108: a member of an EXPANDED group is
+               marked .is-grouped, whose --tab-strip override
+               (see the Stack CSS) clamps its hover stretch
+               to the 12px air gap so it stops at the group
+               bar's right edge instead of covering the bar.
+               Members of a collapsed group render nothing,
+               and the collapsed group tab itself is not a
+               member — neither takes the clamp. */
+            if (r.group && wsGroupById(r.group) && !groupIsCollapsed(r.group)) el.classList.add('is-grouped');
             /* Build -101: if a mouse/pen pointer is resting
                on this doc's tab, the new element is BORN
                with .tab-hover (tabHoverDocId survives the
@@ -16113,7 +16143,21 @@
              THAT one instead.) Dropping onto a collapsed
              group's tab still files into it (ontoGid), and
              a group drag moves its block with every
-             membership untouched. While the drag moves, the
+             membership untouched. Build -108: that test
+             degenerates for a ONE-member group — with the
+             member as the whole post-removal span, no j is
+             ever strictly inside (hIdx === lIdx), and when
+             the dragged tab IS that member the span vanishes
+             from others altogether, so a drop back onto its
+             own group unfiled it and an outside tab could
+             never join a one-member group. Membership for a
+             group whose post-removal span has fewer than two
+             members is therefore judged in tabPtrEnd by the
+             drop CENTRE against the group's span AS IT
+             STANDS (the dragged tab's own member cache is
+             still in tabLayoutCache at commit), while the
+             insertion ORDER still comes from j on the
+             post-removal list, exactly as below. While the drag moves, the
              neighbours PART at j (tabDragGapApply) and the
              ghost tab sits in the parted slot (build -105):
              the landing slot is visibly between two tabs,
@@ -16351,7 +16395,7 @@
             if (!id) return;
             tabPtr = {
               id: id, el: t, startY: ev.clientY, lastY: ev.clientY,
-              type: ev.pointerType, moved: false, insertIdx: -1, othersCache: null, ontoGid: null,
+              type: ev.pointerType, moved: false, insertIdx: -1, othersCache: null, ontoGid: null, dropCenterY: null,
               lpTimer: setTimeout(function () {
                 if (tabPtr && !tabPtr.moved) {
                   tabSuppressClick = true;
@@ -16431,6 +16475,10 @@
                that centre would land it. */
             tabPtr.el.classList.add('drag-source');
             var center = tabPtr.el.offsetTop + totalDy + tabPtr.el.offsetHeight / 2;
+            /* Build -108: the commit judges one-member
+               group membership against this centre (see
+               tabPtrEnd), so it is kept on the drag state. */
+            tabPtr.dropCenterY = center;
             var comp = tabDragCompute(tabPtr, center);
             tabPtr.insertIdx = comp.j;
             tabPtr.othersCache = comp.others;
@@ -16445,11 +16493,30 @@
              at or before its last member) files it; the
              span's boundaries and everywhere else unfiles
              it; dropping onto a collapsed group's tab files
-             it there. A dragged tab that was its group's
-             SOLE member keeps its membership wherever it
-             lands — its group has no post-removal span to
-             fall outside of, and the group travels with it.
-             No other record's group field is touched, ever. */
+             it there. No other record's group field is
+             touched, ever.
+             Build -108: the strictly-inside test above is
+             kept verbatim for groups with TWO OR MORE
+             members in the post-removal list. For a group
+             with fewer, the test can never fire (see the
+             insertion-model note), so membership is judged
+             by the drop centre (p.dropCenterY) against the
+             group's span AS IT STANDS in tabLayoutCache:
+             (a) a sole member dropped back with its centre
+             inside its own tab's span keeps its membership;
+             (b) an outside tab whose centre lands inside a
+             one-member group's member span joins it;
+             (c) a sole member dragged clearly away — centre
+             outside its own span — unfiles, as any member
+             dragged outside its group's span does. A
+             two-member group whose one member is being
+             dragged is judged the same way, against the
+             two-member span as it stands, so an internal
+             swap keeps its membership. This supersedes
+             -104's "a sole member keeps its membership
+             wherever it lands" fallback, which is removed:
+             it made drag-away from a one-member group
+             impossible. */
           function tabPtrEnd(commit) {
             if (!tabPtr) return;
             if (tabPtr.lpTimer) clearTimeout(tabPtr.lpTimer);
@@ -16498,14 +16565,45 @@
                   k = om.length ? rest.indexOf(om[om.length - 1]) + 1 : tabDragTranslate(others, j, rest);
                 } else {
                   k = tabDragTranslate(others, j, rest);
+                  /* Build -108: group spans with 2+ members
+                     in others take the -104 strictly-inside
+                     j test verbatim; spans with fewer are
+                     judged by the drop centre against the
+                     group as it stands (see the commit note
+                     above). Only the dragged tab's membership
+                     is ever decided here. */
+                  var dropCY = typeof p.dropCenterY === 'number' ? p.dropCenterY : null;
                   wsDef().groups.forEach(function (g) {
-                    var hIdx = -1, lIdx = -1;
-                    others.forEach(function (c, ci) {
-                      if (c.gid === g.id) { if (hIdx === -1) hIdx = ci; lIdx = ci; }
-                    });
-                    if (hIdx !== -1 && j > hIdx && j <= lIdx) newGroup = g.id;
+                    var idxs = [];
+                    others.forEach(function (c, ci) { if (c.gid === g.id) idxs.push(ci); });
+                    if (idxs.length >= 2) {
+                      if (j > idxs[0] && j <= idxs[idxs.length - 1]) newGroup = g.id;
+                    } else if (idxs.length === 1) {
+                      if (dropCY === null) return;
+                      if (rec.group === g.id) {
+                        /* The dragged tab is the group's other
+                           member: the span as it stands is every
+                           cache of this group, the dragged tab's
+                           own cache included. */
+                        var fTop = Infinity, fBot = -Infinity;
+                        tabLayoutCache.forEach(function (c) {
+                          if (c.gid === g.id) { if (c.top < fTop) fTop = c.top; if (c.top + c.sh > fBot) fBot = c.top + c.sh; }
+                        });
+                        if (fTop !== Infinity && dropCY >= fTop && dropCY <= fBot) newGroup = g.id;
+                      } else {
+                        var soleC = others[idxs[0]];
+                        if (soleC && dropCY >= soleC.top && dropCY <= soleC.top + soleC.sh) newGroup = g.id;
+                      }
+                    } else if (rec.group === g.id && dropCY !== null) {
+                      /* No member of the dragged tab's own group
+                         survives in others — it was the sole
+                         member, and its own cache is its group's
+                         whole standing span. */
+                      var dragC2 = null;
+                      tabLayoutCache.forEach(function (c) { if (c.rec && c.rec.docId === p.id) dragC2 = c; });
+                      if (dragC2 && dropCY >= dragC2.top && dropCY <= dragC2.top + dragC2.sh) newGroup = g.id;
+                    }
                   });
-                  if (newGroup === null && rec.group && !groupMembersIn(rest, rec.group).length) newGroup = rec.group;
                 }
                 rest.splice(k, 0, rec);
                 rec.group = newGroup;
@@ -31598,12 +31696,22 @@
             run: function () { tabMruToggle(); } },
           { id: 'tab-book', combo: 'alt+w', hint: '⌥W', group: 'General', label: 'Tab switcher',
             run: function () { openBook(); } },
-          /* Phase 3 (spec §9–§10): ⌥⇧W cycles workspaces.
-             The Option glyph for W with Shift resolves through
-             the dispatcher's Option-character table like ⌥W's
-             own ∑. Field-safe for the same reason: the chord
-             types no text. */
-          { id: 'tab-ws-cycle', combo: 'alt+shift+w', hint: '⌥⇧W', group: 'General', label: 'Cycle workspaces',
+          /* Phase 3 (spec §9–§10): ⌘⌥W cycles workspaces.
+             Build -108: REBOUND from its old Option+Shift+W
+             chord — too hard to strike one-handed; ⌘⌥W is an
+             easy one-hand chord in the proven ⌘⌥ family
+             (⌘⌥Z Zen, ⌘⌥O Outline, ⌘⌥L library) and was
+             unbound here. This registry entry is the single
+             binding: the old combo is gone, not kept as an
+             alias. Plain ⌘W stays the browser's own (the
+             dispatcher only ever sees the combo with Alt
+             held). The press resolves like ⌥W's own: the
+             dispatcher's code-first path names KeyW directly
+             and its Option-character table maps ∑ back to
+             'w', with meta + alt held giving mod+alt+w.
+             Field-safe for the same reason as before: the
+             chord types no text. */
+          { id: 'tab-ws-cycle', combo: 'mod+alt+w', hint: '⌘⌥W', group: 'General', label: 'Cycle workspaces',
             run: function () { cycleWorkspaces(); } },
           /* ⌥T (build -78): New tab… — the spine + disc's own
              door, on a chord. It opens the SAME new-tab picker
