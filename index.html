@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-101" />
+    <meta name="folio-build" content="20261101-102" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3792,7 +3792,51 @@
          wider active --tab-w is set in the same layout
          pass, so the stretch resolves straight into the
          active geometry) or the tab was already active.
-         See tabRender / tabHoverSet. */
+         See tabRender / tabHoverSet.
+         Build -102 (Andrew: no gilt between a tab and its
+         own page — the tab bleeds straight into its page's
+         edge; plus a folder-colour spine on the tabs' left
+         edge): (1) THE GILT GAPS. Each sheet's gilt left
+         edge now GAPS across its own tab's vertical span
+         and resumes immediately above and below it: the
+         sheet carries a face-toned cover strip (a child
+         element positioned inline by tabLayout from the
+         tab's rendered span, clamped clear of the sheet's
+         6px corners) painted over its gilt column in
+         exactly that span, and the front page gets the same
+         treatment from a dedicated cover strip in the
+         wrap (.paper-gilt-gap) behind the ACTIVE tab's
+         span only. The OTHER sheets' gilt lines inside a
+         tab's height band are untouched — the recessed
+         slivers to the tab's right keep their lines and
+         tone steps, which is what still articulates the
+         pile at that height; a tab's ownership reads by
+         alignment, its right edge sitting at exactly its
+         own sheet's line x with the line resuming above
+         and below. For the bleed to be seamless the tab
+         takes its SHEET's face tone: tabRender's
+         --tab-face is now the sheets' own mix (6% toward
+         black per rank, build -101's deepening) instead
+         of the old 4%-toward-ink tab shading, and the
+         hover brightness filter is gone, so the junction
+         holds in the hover-stretched state too (the
+         stretch is still leftward, × / ⋯ as before).
+         (2) THE LEFT SPINE: every tab's left edge is now
+         a 3px spine (was the 1px var(--line) inset). Its
+         colour is the document's FOLDER colour where the
+         folder has one assigned (folderById(d.folderId)
+         .color, set by tabRender as --tab-lc); a document
+         whose folder has no colour, or that sits at the
+         root, gets the same 3px in the gilt --stack-edge
+         — same width, no invented colours (tabFolderColor's
+         #b3a888 Book-stripe fallback is NOT used here).
+         Top/bottom hairlines are unchanged, and the
+         spine holds at rest, hover-stretched (it rides
+         the tab's left edge; the × / ⋯ reveal shifts 3px
+         right on spined tabs so it stays clear) and
+         active. Geometry, the -101 shadows, the -97
+         prose invariant and the 4px/3px pile steps are
+         untouched. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3914,6 +3958,31 @@
         border-left: 1px solid var(--stack-edge);
         box-shadow: -4px 2px 10px rgba(0, 0, 0, 0.09), -1px 0 3px rgba(0, 0, 0, 0.06), var(--paper-shadow);
       }
+      /* Build -102: the front page's gilt gap behind the
+         ACTIVE tab. A face-toned strip in the wrap, painted
+         above the wrapped paper's gilt border-left (z-index
+         2 over the paper's 1) and spanning exactly the
+         active tab's rendered vertical span (top/height set
+         inline by tabLayout, in paper-content coordinates,
+         clamped clear of the page's 6px corners), so within
+         that span the active tab bleeds straight into the
+         page with no gilt in between; the page's gilt line
+         runs everywhere else. 2px wide: the 1px gilt column
+         plus the 1px of page face beside it, which is the
+         same --surface tone, so the strip is invisible
+         except where it covers the gilt. It sits at the
+         page's extreme left edge, far outside the prose
+         padding, and scrolls with the page because it IS
+         scroll content, like the sheets. Hidden wherever
+         the tab cluster itself stands down. */
+      .paper-gilt-gap {
+        position: absolute; left: 0; top: 0; width: 2px; height: 0;
+        background: var(--surface);
+        z-index: 2; pointer-events: none; display: none;
+      }
+      :root[data-focus="on"] .paper-gilt-gap { display: none !important; }
+      @media (max-width: 640px) { .paper-gilt-gap { display: none !important; } }
+      @media print { .paper-gilt-gap { display: none !important; } }
       .paper-sheets { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
       /* Build -96: three fixes to how the pile renders.
          (1) PAINT ORDER: tabLayout now gives each sheet an
@@ -3975,6 +4044,45 @@
         box-shadow: -3px 0 6px rgba(0, 0, 0, 0.10), -1px 0 2px rgba(0, 0, 0, 0.08), 0 3px 7px rgba(0, 0, 0, 0.09), 0 1px 2px rgba(0, 0, 0, 0.06);
         pointer-events: none;
       }
+      /* Build -102: this sheet's gilt gap behind ITS OWN
+         tab. A face-toned strip over the sheet's gilt
+         left column, spanning exactly the tab's rendered
+         vertical span (--gap-top/--gap-h set by tabLayout
+         in sheet-local coordinates, clamped clear of the
+         sheet's 6px corners): within the span the tab and
+         its sheet read as one continuous face — tabLayout
+         gives the tab the sheet's own --sheet-face tone —
+         and the gilt resumes immediately above and below.
+         2px wide for the same reason as .paper-gilt-gap:
+         the gilt column plus one pixel of the identical
+         face tone beside it. Other sheets' strips are
+         independent: a sheet's gap never touches another
+         sheet's line. */
+      /* Build -102 (revised in-build): the cover is a real
+         child element of the sheet (.paper-sheet-gap),
+         positioned and painted ENTIRELY inline by
+         tabLayout (top/height/background), mirroring the
+         front page's .paper-gilt-gap — an ::after keyed to
+         custom properties was tried first and never
+         painted over the sheet's border in the probe's
+         engine, while the real-element strip on the paper
+         verifiably did. */
+      .paper-sheet-gap {
+        /* left: -1px, NOT 0: an absolutely positioned child
+           is placed against the sheet's PADDING box, whose
+           origin sits 1px inside the sheet's border — at
+           left:0 the strip covered x+1..x+2 and left the
+           gilt border column itself (x) exposed, which is
+           exactly what the -102 probe sampling caught
+           (gilt still present at each sheet's own x within
+           its tab's span, while the wrap-level strip —
+           whose containing block has no border — gapped
+           the front page correctly). -1px puts the strip's
+           2px over the border column and the face pixel
+           beside it. */
+        position: absolute; left: -1px; top: 0; width: 2px; height: 0;
+        pointer-events: none; display: none;
+      }
       /* The sheets are stack UI, not page furniture: wherever
          the tab cluster itself stands down (phone pill mode,
          focus mode, print), the pile stands down with it. */
@@ -4021,22 +4129,37 @@
            arm) and nothing edge-like is added to the tab:
            the darker-edges compensation lives on the
            sheets only. */
-        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09), -1px 1px 2px rgba(0, 0, 0, 0.07);
+        /* Build -102: the left inset is now the tab's SPINE
+           — 3px wide on EVERY tab (--tab-lw fixed at 3px in
+           this rule's var fallback chain): its colour is
+           the document's folder colour where one is
+           assigned (tabRender sets --tab-lc per tab), and
+           the gilt var(--stack-edge) everywhere else. The
+           top/bottom hairlines keep var(--line) as before. */
+        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset var(--tab-lw, 3px) 0 0 var(--tab-lc, var(--stack-edge)), -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09), -1px 1px 2px rgba(0, 0, 0, 0.07);
         display: flex; align-items: center; justify-content: center;
         transition: left 0.12s ease, width 0.12s ease;
         overflow: hidden; user-select: none; -webkit-user-select: none;
         touch-action: none;
       }
-      /* No folder stripe in Stack v1 (Andrew's mockup carries
-         none); if stripes return they belong on this free left
-         edge, per his standing ruling — never on the seam. */
+      /* Build -102: the folder stripe returned — as the
+         3px left spine in the base rule's box-shadow above
+         (folder colour, gilt fallback), on this free left
+         edge per Andrew's standing ruling, never on the
+         seam. ::after stays unused. */
       .folio-tab::after { content: none; }
       /* Hover stretches the tab LEFT to the column's edge —
          its right edge (and its page) never moves — and the
-         revealed strip carries the × / ⋯ buttons below. */
+         revealed strip carries the × / ⋯ buttons below.
+         Build -102: the old brightness(1.04) hover filter
+         is GONE: it lightened the tab's face 4% over its
+         sheet's, which would reopen a tone step at the
+         now-gilt-free junction; without it the seamless
+         tab-to-sheet bleed holds in the stretched state
+         exactly as at rest. */
       .folio-tab:hover, .folio-tab.tab-hover {
         left: 0; width: calc(var(--tab-w, 40px) + var(--tab-x, 22px));
-        z-index: 7; filter: brightness(1.04);
+        z-index: 7;
       }
       .folio-tab.active {
         background: var(--surface); color: var(--ink);
@@ -4069,14 +4192,16 @@
          long-press / right-click and closing moves to the
          Book there. */
       .folio-tab-x, .folio-tab-menu {
-        position: absolute; left: 1px;
+        /* Build -102: left 4px (was 1px) so the revealed
+           glyphs sit clear of the tab's 3px left spine. */
+        position: absolute; left: 4px;
         width: 18px; height: 18px; border: none; border-radius: 50%;
         background: transparent; color: var(--ink-2); font-size: 14px; line-height: 1;
         display: none; align-items: center; justify-content: center; cursor: pointer; padding: 0;
       }
       .folio-tab-x { top: 1px; }
       .folio-tab-menu { bottom: 1px; font-size: 12px; letter-spacing: 0.5px; }
-      .tab-rail.slim .folio-tab-x, .tab-rail.slim .folio-tab-menu { width: 13px; height: 13px; font-size: 11px; left: 0; }
+      .tab-rail.slim .folio-tab-x, .tab-rail.slim .folio-tab-menu { width: 13px; height: 13px; font-size: 11px; left: 3px; }
       @media (hover: hover) {
         .folio-tab:hover .folio-tab-x, .folio-tab:hover .folio-tab-menu { display: inline-flex; }
         .folio-tab.sliver:hover .folio-tab-x, .folio-tab.sliver:hover .folio-tab-menu { display: none; }
@@ -4092,7 +4217,7 @@
       .folio-tab.sliver.tab-hover .folio-tab-x, .folio-tab.sliver.tab-hover .folio-tab-menu { display: none; }
       .folio-tab-x:hover, .folio-tab-menu:hover { background: var(--hover); color: var(--danger); }
       .folio-tab-menu:hover { color: var(--ink); }
-      .folio-tab.dragging { z-index: 6; box-shadow: -3px 6px 14px rgba(0,0,0,0.4); transition: none; }
+      .folio-tab.dragging { z-index: 6; box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset var(--tab-lw, 3px) 0 0 var(--tab-lc, var(--stack-edge)), -3px 6px 14px rgba(0,0,0,0.4); transition: none; }
       .tab-foot {
         flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 7px;
         padding: 10px 0 12px;
@@ -4628,6 +4753,7 @@
           <div class="editor-scroll" id="editorScroll">
             <div class="paper-wrap" id="paperWrap">
               <div class="paper-sheets" id="paperSheets" aria-hidden="true"></div>
+              <div class="paper-gilt-gap" id="paperGiltGap" aria-hidden="true"></div>
               <div class="paper">
                 <div class="editor-mount" id="editorMount"></div>
               </div>
@@ -12883,6 +13009,11 @@
         /* Build -93: the sheet layers live in the scroll
            content, in the wrapper behind the paper. */
         var paperSheetsEl = document.getElementById('paperSheets');
+        /* Build -102: the front page's gilt-gap strip (see
+           .paper-gilt-gap); tabLayout positions it over the
+           wrapped paper's gilt border-left behind the active
+           tab's span. */
+        var paperGiltGapEl = document.getElementById('paperGiltGap');
         /* Build -90: the stack's anchor points — the editor
            body (the rail's offset parent) and the primary
            paper whose left edge the stack touches. */
@@ -13780,11 +13911,28 @@
                stretch resolves straight into the active
                geometry instead of bouncing through rest. */
             if (tabHoverPoint && tabHoverDocId === r.docId) el.classList.add('tab-hover');
-            /* The sheet's paper, shaded a few points toward the
-               ink per depth step (front sheet at full strength).
-               No folder stripe in Stack v1. */
+            /* Build -102: the tab's face IS its sheet's face —
+               the sheets' own mix (build -101: 6% toward black
+               per depth rank; the front sheet at full strength),
+               replacing the old 4%-toward-ink tab shading, so
+               with the gilt gapped behind the tab's span (see
+               the sheet cover in tabLayout and .paper-gilt-gap)
+               no seam, line or tone step shows between the tab
+               and its page: the tab reads as a tongue of it. */
             el.style.setProperty('--tab-face',
-              'color-mix(in srgb, var(--surface) ' + (100 - effRank * 4) + '%, var(--ink))');
+              'color-mix(in srgb, var(--surface) ' + (100 - effRank * 6) + '%, black)');
+            /* Build -102: the tab's left SPINE colour. Where
+               the document's folder has a colour assigned, the
+               spine takes it (--tab-lc; the spine's 3px width
+               comes from the .folio-tab rule and is the same
+               for every tab). Where the folder has NO colour —
+               or the document sits at the root — --tab-lc is
+               left unset and the rule's gilt var(--stack-edge)
+               fallback paints the same 3px spine. No invented
+               colours: tabFolderColor's #b3a888 Book-stripe
+               fallback is deliberately NOT used here. */
+            var tabFolder = d && d.folderId ? folderById(d.folderId) : null;
+            if (tabFolder && tabFolder.color) el.style.setProperty('--tab-lc', tabFolder.color);
             var nm = document.createElement('span');
             nm.className = 'folio-tab-name';
             nm.textContent = d.title || 'Untitled';
@@ -13859,13 +14007,22 @@
                none. tabLayout sets each sheet's left offset,
                concentric corner radius and paper shade. */
             var sheet = null;
+            var gapEl = null;
             if (rank >= 1 && paperSheetsEl) {
               sheet = document.createElement('div');
               sheet.className = 'paper-sheet';
               sheet.setAttribute('aria-hidden', 'true');
+              /* Build -102: the sheet's gilt-gap cover strip
+                 (see .paper-sheet-gap); tabLayout positions
+                 and paints it inline over the sheet's gilt
+                 column behind this tab's span. */
+              gapEl = document.createElement('div');
+              gapEl.className = 'paper-sheet-gap';
+              gapEl.setAttribute('aria-hidden', 'true');
+              sheet.appendChild(gapEl);
               paperSheetsEl.appendChild(sheet);
             }
-            tabLayoutCache.push({ rec: r, el: el, band: band, sheet: sheet, rank: rank, vtop: 0, vh: 0, top: 0, sh: 0 });
+            tabLayoutCache.push({ rec: r, el: el, band: band, sheet: sheet, gapEl: gapEl, rank: rank, vtop: 0, vh: 0, top: 0, sh: 0 });
           });
           var pillCount = document.getElementById('tabPillCount');
           if (pillCount) pillCount.textContent = String(tabRecords.length);
@@ -14069,10 +14226,47 @@
                  (not ink) so the step darkens in the dark
                  themes too, where the old toward-ink mix
                  lightened deeper sheets toward the cream
-                 ink. The tabs keep their own 4%-toward-ink
-                 faces; nothing is added to them. */
-              c.sheet.style.background =
+                 ink. (Build -102 supersedes this note's
+                 last sentence: the tabs now take THIS mix
+                 as their face too — see tabRender — so a
+                 tab and its sheet share one tone across
+                 the gilt-free junction.) */
+              var sheetFace =
                 'color-mix(in srgb, var(--surface) ' + (100 - effRank * 6) + '%, black)';
+              c.sheet.style.background = sheetFace;
+              /* Build -102: the sheet's gilt gap behind its
+                 own tab. The sheet's child cover strip paints
+                 in this same tone (tabRender gives the tab
+                 the identical mix, so the junction is
+                 tonally seamless), and its span is the tab's
+                 RENDERED span (c.top/c.sh, compression and
+                 slivers included) converted to sheet-local
+                 coordinates: the tab's top in the shared
+                 paper-content frame, minus the paper's top
+                 (geom.top), minus the sheet's own downward
+                 scoot (sheetDown). Both ends are clamped
+                 clear of the sheet's 6px corners, so the
+                 cover never squares off a rounded corner;
+                 the gilt resumes immediately above and below
+                 the clamped span. No geometry is available
+                 (geom null) => a zero-height gap: full gilt. */
+              if (c.gapEl) {
+                if (geom) {
+                  var gapTop = c.top - geom.top - sheetDown;
+                  var gapEnd = Math.min(gapTop + c.sh, geom.height - 7);
+                  gapTop = Math.max(gapTop, 7);
+                  if (gapEnd > gapTop) {
+                    c.gapEl.style.top = gapTop + 'px';
+                    c.gapEl.style.height = (gapEnd - gapTop) + 'px';
+                    c.gapEl.style.background = sheetFace;
+                    c.gapEl.style.display = 'block';
+                  } else {
+                    c.gapEl.style.display = 'none';
+                  }
+                } else {
+                  c.gapEl.style.display = 'none';
+                }
+              }
             }
             /* Build -99: the -96 connector band that used to
                be positioned here is REMOVED (c.band is always
@@ -14084,6 +14278,33 @@
                remaining gap is the recessed sheets' own
                slivers in the scroll content behind the rail. */
           });
+          /* Build -102: the front page's gilt gap behind the
+             ACTIVE tab (the recessed sheets gap their own
+             gilt per sheet, above). The cover strip lives in
+             the wrap at the paper's left edge; its span is
+             the active tab's rendered span converted to
+             paper-local coordinates (tab top in the shared
+             paper-content frame minus the paper's top), with
+             both ends clamped clear of the page's 6px
+             corners so the strip never squares a corner off.
+             No active tab or no geometry => no gap. */
+          if (paperGiltGapEl) {
+            var activeC = null;
+            tabLayoutCache.forEach(function (c) { if ((c.rank || 0) === 0) activeC = c; });
+            if (activeC && geom) {
+              var pGapTop = Math.max(activeC.top - geom.top, 7);
+              var pGapEnd = Math.min(activeC.top - geom.top + activeC.sh, geom.height - 7);
+              if (pGapEnd > pGapTop) {
+                paperGiltGapEl.style.top = pGapTop + 'px';
+                paperGiltGapEl.style.height = (pGapEnd - pGapTop) + 'px';
+                paperGiltGapEl.style.display = 'block';
+              } else {
+                paperGiltGapEl.style.display = 'none';
+              }
+            } else {
+              paperGiltGapEl.style.display = 'none';
+            }
+          }
           tabAnchor();
         }
         /* ----- build -90: anchor the stack to the page -----
