@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-108" />
+    <meta name="folio-build" content="20261101-109" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -618,9 +618,12 @@
          a plain block handle. The buttons stack VERTICALLY,
          one button wide: the gutter only ever fits a single
          button across, so a horizontal pill spilled onto the
-         text it serves. The script anchors the stack's left
-         edge to the measured text column on every update, so
-         its right edge never crosses into the text; the
+         text it serves. The script anchors the stack to the
+         page's own left edge on every update (build -109) —
+         the pill hugs the far left of the margin, just
+         inside the page edge — so it sits fully in the
+         margin, clear of the text column to its right and
+         clear of the tab stack outside the page's edge; the
          stack may grow up or down the gutter beside
          neighbouring lines, never across them. Non-editable
          chrome: its press claims pointerdown, so the
@@ -5536,8 +5539,27 @@
         </div>
         <div class="theme-modal-foot">
           <button class="btn-ghost btn-danger-ghost" id="themeResetBtn" type="button">Reset to Theme defaults</button>
+          <button class="btn-ghost" id="themeExportBtn" type="button" data-tip="Download every theme&rsquo;s styles as one JSON file">Export theme settings</button>
+          <button class="btn-ghost" id="themeImportBtn" type="button" data-tip="Replace theme settings from an exported JSON file">Import theme settings</button>
           <span class="spacer"></span>
           <button class="btn-primary" id="themeDoneBtn" type="button">Done</button>
+        </div>
+        <input type="file" id="themeImportFile" accept=".json,application/json" hidden />
+      </div>
+    </div>
+
+    <div class="overlay" id="tsImportModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="tsImportTitle" style="max-width:440px">
+        <div class="panel-head">
+          <h2 id="tsImportTitle">Replace theme settings?</h2>
+          <button class="icon-btn" id="tsImportClose" type="button" aria-label="Cancel import" data-tip="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note" id="tsImportText"></p>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+          <button class="btn-ghost" id="tsImportCancel" type="button">Cancel</button>
+          <button class="btn-primary" id="tsImportConfirm" type="button">Replace settings</button>
         </div>
       </div>
     </div>
@@ -6816,6 +6838,81 @@
           else { r = c; b = x; }
           return { r: Math.round((r + m) * 255), g: Math.round((g + m) * 255), b: Math.round((b + m) * 255) };
         }
+        /* ---------------- heading contrast (build -109) ----------------
+           A color scheme's heading colors must stay legible on
+           EVERY base theme, not just the one they were tuned
+           for: graded schemes lighten toward H6 (which sinks
+           below readable contrast even on light paper), and
+           the single-set schemes were tuned on light grounds
+           and nearly vanish on Midnight / Binding Dark. So a
+           scheme's colors are ADAPTED per theme at the one
+           choke point everything reads them through —
+           tsSchemeColors (nav swatches, previews and Apply
+           alike): any H1–H6 color whose WCAG contrast against
+           that theme's page surface (the shipped pal-surface
+           the headings actually render on) falls below 4.5 is
+           shifted in LIGHTNESS ONLY — hue and saturation, the
+           preset's character, are untouched — stepping away
+           from the surface (darker on a light page, lighter
+           on a dark one) until it clears the floor. A color
+           that already clears 4.5 on a theme is returned
+           exactly as shipped, so a scheme under the theme it
+           suits changes little or not at all. Subtitle is out
+           of scope (the floor covers H1–H6) and passes through
+           unadapted. Type presets carry no colors at all —
+           their headings wear the theme's own ink, which
+           clears the floor on every theme by a wide margin. */
+        function tsRgbToHsl(r, g, b) {
+          r /= 255; g /= 255; b /= 255;
+          var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+          var h = 0;
+          if (d) {
+            if (max === r) h = ((g - b) / d) % 6;
+            else if (max === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+            h *= 60; if (h < 0) h += 360;
+          }
+          var l = (max + min) / 2;
+          var s = d ? (l > 0.5 ? d / (2 - max - min) : d / (max + min)) : 0;
+          return { h: h, s: s, l: l };
+        }
+        function tsHslToRgb(h, s, l) {
+          var c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+          var r = 0, g = 0, b = 0;
+          if (h < 60) { r = c; g = x; }
+          else if (h < 120) { r = x; g = c; }
+          else if (h < 180) { g = c; b = x; }
+          else if (h < 240) { g = x; b = c; }
+          else if (h < 300) { r = x; b = c; }
+          else { r = c; b = x; }
+          return { r: Math.round((r + m) * 255), g: Math.round((g + m) * 255), b: Math.round((b + m) * 255) };
+        }
+        function tsLuminance(hex) {
+          var rgb = tsHexToRgb(hex);
+          function f(c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+          return 0.2126 * f(rgb.r) + 0.7152 * f(rgb.g) + 0.0722 * f(rgb.b);
+        }
+        function tsContrastRatio(a, b) {
+          var x = tsLuminance(a), y = tsLuminance(b);
+          return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+        }
+        var TS_CONTRAST_FLOOR = 4.5;
+        function tsAdaptHeadingColor(hex, tid) {
+          var surf = tsShipped(tid, 'pal-surface').color;
+          if (!surf || tsContrastRatio(hex, surf) >= TS_CONTRAST_FLOOR) return hex;
+          var rgb = tsHexToRgb(hex);
+          var hsl = tsRgbToHsl(rgb.r, rgb.g, rgb.b);
+          var dir = tsLuminance(surf) >= 0.18 ? -1 : 1;
+          var L = hsl.l;
+          for (var i = 0; i < 60; i++) {
+            L = Math.max(0, Math.min(1, L + dir * 0.02));
+            var c = tsHslToRgb(hsl.h, hsl.s, L);
+            var out = tsRgbToHex(c.r, c.g, c.b);
+            if (tsContrastRatio(out, surf) >= TS_CONTRAST_FLOOR || L === 0 || L === 1) return out;
+          }
+          var end = tsHslToRgb(hsl.h, hsl.s, dir < 0 ? 0 : 1);
+          return tsRgbToHex(end.r, end.g, end.b);
+        }
         /* Set while a color picker is open; buildThemeDetail
            and closeThemeModal run it so a rebuilt or closed
            modal never leaves a live dismissal listener. */
@@ -6921,8 +7018,21 @@
            set (Midnight, Binding Dark — build -87);
            single-set schemes wear theirs everywhere. */
         function tsSchemeColors(scheme, tid) {
-          if (scheme.colorsLight && scheme.colorsDark) return tsIsDark(tid) ? scheme.colorsDark : scheme.colorsLight;
-          return scheme.colors;
+          var raw = (scheme.colorsLight && scheme.colorsDark)
+            ? (tsIsDark(tid) ? scheme.colorsDark : scheme.colorsLight)
+            : scheme.colors;
+          /* Build -109: the picked set is contrast-adapted to
+             THIS theme before anyone sees or applies it (see
+             tsAdaptHeadingColor above) — H1–H6 only, lightness
+             only, colors already clearing 4.5 on this theme's
+             surface returned untouched. A fresh object every
+             call: the shipped sets are never mutated. */
+          var out = {};
+          Object.keys(raw).forEach(function (k) { out[k] = raw[k]; });
+          ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(function (k) {
+            if (out[k]) out[k] = tsAdaptHeadingColor(out[k], tid);
+          });
+          return out;
         }
         function tsApplyColorScheme(scheme) {
           var cols = tsSchemeColors(scheme, themeId);
@@ -7526,6 +7636,146 @@
           buildThemeNav();
           buildThemeDetail();
           if (typeof folioToast === 'function') folioToast(name + ' is back to its shipped styles. Other themes and shared (Global) values were not touched.');
+        });
+        /* ---------------- theme settings export / import (build -109) ----------------
+           Export downloads ONE self-describing, versioned JSON
+           file holding the COMPLETE theme-styles configuration:
+           the store itself (every theme's overlays, the shared
+           Global slot, the share-default flags) in its canonical
+           normalized form, PLUS each base theme's full EFFECTIVE
+           style set — every setting resolved over that theme's
+           shipped defaults — so the file can be read, diffed, or
+           baked in as shipped defaults later without re-running
+           the resolver. Import validates the file's shape,
+           normalizes it through the same tsNormalizeStore every
+           other write passes through, and — only after an
+           in-app confirm, because it REPLACES the whole
+           configuration — applies it through tsTouchAndPersist,
+           the exact storage/sync path a manual lever edit takes.
+           Round-trip is exact by construction: the exported
+           store is already normalized, and normalizing a
+           normalized store is the identity, so export → import
+           restores identical styles. A malformed or wrong-shape
+           file gets a friendly toast and changes nothing — the
+           store is not touched until the confirm lands. */
+        function tsExportPayload() {
+          var st = tsNormalizeStore(tsStore());
+          var effective = {};
+          THEMES.forEach(function (t) {
+            var per = {};
+            TS_ALL_DEFS.forEach(function (def) {
+              per[def.id] = tsResolvedIn(st, t.id, def.id, tsExpandedShipped(t.id, def.id));
+            });
+            effective[t.id] = per;
+          });
+          var build = '';
+          var bm = document.querySelector('meta[name="folio-build"]');
+          if (bm) build = bm.getAttribute('content') || '';
+          return {
+            app: 'FolioDocs',
+            kind: 'folio-theme-settings',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            build: build,
+            themes: THEMES.map(function (t) { return t.id; }),
+            store: st,
+            effective: effective,
+          };
+        }
+        var themeExportBtn = document.getElementById('themeExportBtn');
+        if (themeExportBtn) themeExportBtn.addEventListener('click', function () {
+          try {
+            folioDownload('FolioDocs theme settings.json', JSON.stringify(tsExportPayload(), null, 2), 'application/json');
+            if (typeof folioToast === 'function') folioToast('Theme settings exported — the file holds every theme\u2019s complete styles.', 3600);
+          } catch (e) {
+            if (typeof folioToast === 'function') folioToast('Couldn\u2019t export theme settings — nothing was downloaded.', 4200);
+          }
+        });
+        function tsValidateThemeSettingsFile(p) {
+          var bad = 'That file doesn\u2019t look like FolioDocs theme settings — your current settings are unchanged.';
+          if (!p || typeof p !== 'object' || Array.isArray(p)) return bad;
+          if (p.kind && p.kind !== 'folio-theme-settings') return bad;
+          if (typeof p.version === 'number' && p.version > 1) return 'That theme-settings file came from a newer version of FolioDocs — your current settings are unchanged.';
+          var s = p.store;
+          if (!s || typeof s !== 'object' || Array.isArray(s)) return bad;
+          if (!('global' in s) && !('themes' in s) && !('shareDefault' in s)) return bad;
+          if (s.global !== undefined && (typeof s.global !== 'object' || s.global === null || Array.isArray(s.global))) return bad;
+          if (s.themes !== undefined && (typeof s.themes !== 'object' || s.themes === null || Array.isArray(s.themes))) return bad;
+          if (s.shareDefault !== undefined && (typeof s.shareDefault !== 'object' || s.shareDefault === null || Array.isArray(s.shareDefault))) return bad;
+          return null;
+        }
+        var tsPendingImport = null;
+        var tsImportModalEl = document.getElementById('tsImportModal');
+        function tsCloseImportConfirm() {
+          if (tsImportModalEl) tsImportModalEl.hidden = true;
+          tsPendingImport = null;
+        }
+        function tsOpenImportConfirm(store) {
+          tsPendingImport = store;
+          var nThemes = 0;
+          Object.keys(store.themes || {}).forEach(function (tid) {
+            var e = store.themes[tid];
+            if (e && ((e.vals && Object.keys(e.vals).length) || (e.g && Object.keys(e.g).length))) nThemes++;
+          });
+          var nGlobal = Object.keys(store.global || {}).length;
+          var txt = document.getElementById('tsImportText');
+          if (txt) txt.textContent = 'This replaces ALL of your current theme settings — every theme\u2019s styles, the shared (Global) values, and the share/print defaults — with the file\u2019s ('
+            + nThemes + (nThemes === 1 ? ' theme' : ' themes') + ' with settings, ' + nGlobal + ' shared value' + (nGlobal === 1 ? '' : 's') + '). '
+            + 'If you might want your current settings back, cancel now and use \u201CExport theme settings\u201D first to save a backup.';
+          if (tsImportModalEl) tsImportModalEl.hidden = false;
+          var cf = document.getElementById('tsImportConfirm');
+          if (cf) cf.focus();
+        }
+        var tsImportConfirmBtn = document.getElementById('tsImportConfirm');
+        if (tsImportConfirmBtn) tsImportConfirmBtn.addEventListener('click', function () {
+          if (!tsPendingImport) { tsCloseImportConfirm(); return; }
+          var store = tsPendingImport;
+          tsCloseImportConfirm();
+          lib.themeStyles = tsNormalizeStore(store);
+          tsTouchAndPersist();
+          buildThemeNav();
+          buildThemeDetail();
+          if (typeof folioToast === 'function') folioToast('Theme settings imported — all themes now use the file\u2019s styles.', 3600);
+        });
+        var tsImportCancelBtn = document.getElementById('tsImportCancel');
+        if (tsImportCancelBtn) tsImportCancelBtn.addEventListener('click', tsCloseImportConfirm);
+        var tsImportCloseBtn = document.getElementById('tsImportClose');
+        if (tsImportCloseBtn) tsImportCloseBtn.addEventListener('click', tsCloseImportConfirm);
+        if (tsImportModalEl) tsImportModalEl.addEventListener('click', function (ev) { if (ev.target === this) tsCloseImportConfirm(); });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && tsImportModalEl && !tsImportModalEl.hidden) {
+            ev.stopPropagation();
+            tsCloseImportConfirm();
+          }
+        }, true);
+        var themeImportFileEl = document.getElementById('themeImportFile');
+        var themeImportBtn = document.getElementById('themeImportBtn');
+        if (themeImportBtn && themeImportFileEl) themeImportBtn.addEventListener('click', function () {
+          themeImportFileEl.value = '';
+          themeImportFileEl.click();
+        });
+        if (themeImportFileEl) themeImportFileEl.addEventListener('change', function () {
+          var file = themeImportFileEl.files && themeImportFileEl.files[0];
+          themeImportFileEl.value = '';
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function () {
+            var payload = null;
+            try { payload = JSON.parse(String(reader.result || '')); } catch (e) {
+              if (typeof folioToast === 'function') folioToast('That file isn\u2019t valid JSON — your current settings are unchanged.', 6000);
+              return;
+            }
+            var problem = tsValidateThemeSettingsFile(payload);
+            if (problem) {
+              if (typeof folioToast === 'function') folioToast(problem, 6000);
+              return;
+            }
+            tsOpenImportConfirm(tsNormalizeStore(payload.store));
+          };
+          reader.onerror = function () {
+            if (typeof folioToast === 'function') folioToast('Couldn\u2019t read that file — your current settings are unchanged.', 6000);
+          };
+          reader.readAsText(file);
         });
         /* Theme switches re-resolve every variable for the
            newly active theme's set. */
@@ -8244,6 +8494,7 @@
           docMenuAnchor = null;
         }
         var DOWNLOAD_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="m7 9.5 5 5 5-5"/><path d="M4 20h16"/></svg>';
+        var COPY_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
         var PRINT_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
         var SHARE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>';
         /* One item list behind both document menus: the ⋮ menu on
@@ -8310,6 +8561,10 @@
             closeFn();
             exportDocPDF(d.id);
           }, 'export-pdf');
+          item(COPY_SVG, 'Copy document text', '', '', function () {
+            closeFn();
+            copyDocText(d.id);
+          }, 'copy-doc-text');
           item(PRINT_SVG, 'Print', '', hintFor('print'), function () {
             closeFn();
             printDocById(d.id);
@@ -11658,6 +11913,124 @@
           var d = lib.docs.find(function (x) { return x.id === id; });
           if (!d) return;
           folioDownload(folioSafeFileName(d.title) + '.md', docToMarkdown(d), 'text/markdown');
+        }
+
+        /* ----- document JSON -> plain text (build -109) -----
+           "Copy document text" walks the same document JSON as
+           the Markdown exporter but keeps NO markup: headings
+           and paragraphs are plain lines, lists keep a "- " /
+           "1. " marker per item with two-space nesting (task
+           items carry their [x] / [ ] state), blockquotes and
+           callouts flatten to their text, code blocks stay
+           verbatim, a divider reads as ---, a link preview as
+           its visible text, and a TABLE becomes tab-separated
+           rows, one row per line, header row first — the plain
+           form that pastes cleanly into a spreadsheet or a
+           plain-text note. Blocks are separated by a blank
+           line, exactly as in the Markdown form. */
+        function ptInline(nodes) {
+          var out = '';
+          (nodes || []).forEach(function (n) {
+            if (n.type === 'text') out += n.text || '';
+            else if (n.type === 'wikiLink') out += (n.attrs && (n.attrs.display || n.attrs.title)) || '';
+            else if (n.type === 'tag') out += '#' + ((n.attrs && n.attrs.name) || '');
+            else if (n.type === 'hardBreak') out += '\n';
+            else if (n.content) out += ptInline(n.content);
+          });
+          return out;
+        }
+        function ptList(list, indent) {
+          var ordered = list.type === 'orderedList';
+          var n = ordered ? ((list.attrs && list.attrs.start) || 1) : 0;
+          var lines = [];
+          (list.content || []).forEach(function (item) {
+            var marker = ordered ? (n++) + '. ' : '- ';
+            if (item.type === 'taskItem') marker = '- [' + (item.attrs && item.attrs.checked ? 'x' : ' ') + '] ';
+            var blocks = item.content || [];
+            if (!blocks.length) { lines.push(indent + marker.trim()); return; }
+            blocks.forEach(function (blk, idx) {
+              if (idx === 0 && blk.type === 'paragraph') {
+                lines.push(indent + marker + ptInline(blk.content));
+              } else if (blk.type === 'bulletList' || blk.type === 'orderedList') {
+                lines.push(ptList(blk, indent + '  '));
+              } else {
+                ptBlock(blk).split('\n').forEach(function (l) { lines.push(indent + '  ' + l); });
+              }
+            });
+          });
+          return lines.join('\n');
+        }
+        function ptTableCell(cell) {
+          var parts = (cell.content || []).map(function (blk) {
+            return blk.type === 'paragraph' ? ptInline(blk.content) : ptBlock(blk);
+          });
+          return parts.join(' ').replace(/\s*\n\s*/g, ' ').trim();
+        }
+        function ptTable(table) {
+          var rows = (table.content || []).map(function (r) { return r.content || []; });
+          if (!rows.length) return '';
+          var cols = 0;
+          rows.forEach(function (r) { cols = Math.max(cols, r.length); });
+          if (!cols) return '';
+          return rows.map(function (cells) {
+            var out = [];
+            for (var i = 0; i < cols; i++) out.push(cells[i] ? ptTableCell(cells[i]) : '');
+            return out.join('\t');
+          }).join('\n');
+        }
+        function ptBlock(b) {
+          switch (b.type) {
+            case 'heading':
+            case 'paragraph':
+              return ptInline(b.content);
+            case 'blockquote': {
+              return (b.content || []).map(function (x) { return ptBlock(x); }).filter(function (s) { return s !== ''; }).join('\n\n');
+            }
+            case 'bulletList':
+            case 'orderedList':
+              return ptList(b, '');
+            case 'codeBlock':
+              return (b.content || []).map(function (t) { return t.text || ''; }).join('').replace(/\n+$/, '');
+            case 'horizontalRule':
+              return '---';
+            case 'linkPreview': {
+              var pa = b.attrs || {};
+              return pa.display || pa.href || '';
+            }
+            case 'table':
+              return ptTable(b);
+            default:
+              return b.content ? b.content.map(function (x) { return ptBlock(x); }).filter(function (s) { return s !== ''; }).join('\n\n') : '';
+          }
+        }
+        function docToPlainText(doc) {
+          var blocks = (doc.content && doc.content.content) || [];
+          var parts = blocks.map(function (b) { return ptBlock(b); }).filter(function (s) { return s !== ''; });
+          return parts.join('\n\n') + '\n';
+        }
+        /* Copy the document's full plain text to the clipboard.
+           Runs from a user gesture (a menu pick or the action
+           bar): the async clipboard API first, the app's
+           textarea fallback (fallbackCopyText, the selection
+           copy's own) when it is unavailable or refused — the
+           iPad path. The OPEN document copies from the live
+           editor, so an edit made a fraction of a second ago
+           is never missed; any other document (a sidebar row's
+           menu) copies from its stored JSON, like Export. */
+        function copyDocText(id) {
+          var d = lib.docs.find(function (x) { return x.id === id; });
+          if (!d) return;
+          var json = d.content;
+          if (id === lib.currentId && editorHandle && typeof editorHandle.getJSON === 'function') {
+            try { json = editorHandle.getJSON(); } catch (e) {}
+          }
+          var text = docToPlainText({ content: json });
+          var done = function () {
+            if (typeof folioToast === 'function') folioToast('Copied \u201C' + (d.title || 'Untitled') + '\u201D as plain text.', 2600);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () { fallbackCopyText(text, done); });
+          } else fallbackCopyText(text, done);
         }
 
         /* ----- Markdown -> document JSON ----- */
@@ -18477,9 +18850,14 @@
            the block menu. A long press on any of them — or a
            right-click, the mouse/trackpad door — opens that
            same block menu for the caret's block. The stack
-           lives entirely in the gutter: its right edge is
-           anchored short of the text column on every update,
-           so it is never painted over text. Tables keep their
+           lives entirely in the gutter: it is anchored to
+           the page's left edge on every update — hugging
+           the far left of the margin, just inside the page
+           edge (build -109) — so it is never painted over
+           text, and never over the tab stack either (the
+           tabs live outside the page's left edge and end
+           at it; the pill's slot begins just inside it).
+           Tables keep their
            handle bars — the rail never shows there — and Zen
            keeps it: the rail is editor chrome, not a toolbar.
            The press claims pointerdown with preventDefault —
@@ -18839,24 +19217,45 @@
           /* Position last, from the stack's real size, now
              that its buttons are set: the stack is centered
              on the caret's line, growing up and down the
-             gutter from there, and its left is derived from
-             the measured text column — the prose element's
-             own left edge — so the stack's right edge stops
-             a few pixels short of the text at any viewport
-             width, in every context, however tall the stack
-             stands. (The paper's gutter is guaranteed at
-             least 48px wide wherever the rail can appear —
-             see the stylesheet — so the clamp below is a
-             backstop, not the mechanism.) */
+             gutter from there, and its left hugs the page's
+             own left edge (see the placement block below) —
+             fully inside the margin at any viewport width,
+             in every context, however tall the stack stands.
+             (The paper's gutter is guaranteed at least 48px
+             wide wherever the rail can appear — see the
+             stylesheet — so the text-clearance backstop
+             below should never actually engage.) */
           var railH = railEl.offsetHeight || 38, railW = railEl.offsetWidth || 38;
           var railTop = coords.top - pr.top + (coords.bottom - coords.top - railH) / 2;
           railTop = Math.max(4, Math.min(railTop, Math.max(4, pr.height - railH - 4)));
           railEl.style.top = Math.round(railTop) + 'px';
+          /* Build -109: the pill HUGS THE PAGE'S LEFT EDGE.
+             Its left sits a fixed 4px inside the paper's
+             padding box — 5px from the page's outer edge,
+             border included — at every width, in every
+             context: as far left as the page area allows, so
+             the whole margin lies between the pill and the
+             text (21px of clear paper at desktop padding,
+             5px at the narrow rail-capable padding, whose
+             48px guarantee below keeps the fit exact). The
+             slot is the pill's own on both sides: the text
+             column is far to its right, and the tab stack
+             lives OUTSIDE the page's left edge — tabs end at
+             the edge, the pill begins just inside it — so it
+             can never paint over a tab either. The measured
+             text column survives only as a backstop: at a
+             width genuinely too narrow for the edge slot
+             (none exists while the stylesheet's 48px gutter
+             guarantee holds), the pill falls back to sitting
+             just clear of the text, as it did before. */
+          var railLeft = 4;
           var textLeft = null;
           try { textLeft = ed.view.dom.getBoundingClientRect().left - pr.left - (paper.clientLeft || 0); } catch (e) { textLeft = null; }
           if (textLeft != null && isFinite(textLeft)) {
-            railEl.style.left = Math.max(2, Math.round(textLeft - railW - 5)) + 'px';
+            var clearLeft = Math.round(textLeft - railW - 2);
+            if (clearLeft < railLeft) railLeft = Math.max(2, clearLeft);
           }
+          railEl.style.left = railLeft + 'px';
         }
         (function buildContextRail() {
           var paper = document.querySelector('.paper');
@@ -32231,7 +32630,7 @@
            screen, shortcuts stand down (the modal's own keys,
            and the legacy ⌘P fallback, still work there). */
         function scAnyOverlayOpen() {
-          var ids = ['shareModal', 'deleteModal', 'shortcutsModal', 'syncDetailsModal', 'themeModal', 'authOverlay', 'shareView', 'bookOverlay', 'clipOverlay'];
+          var ids = ['shareModal', 'deleteModal', 'shortcutsModal', 'syncDetailsModal', 'themeModal', 'tsImportModal', 'authOverlay', 'shareView', 'bookOverlay', 'clipOverlay'];
           for (var i = 0; i < ids.length; i++) {
             var el = document.getElementById(ids[i]);
             if (el && !el.hidden) return true;
@@ -32935,6 +33334,7 @@
              exactly as its menu entry does. */
           push('select-documents', 'Select documents', '', 'General', function () { enterSelectMode(lib.currentId); });
           push('clipboard-history', 'Clipboard history', '', 'General', function () { openClipboardHistory(); });
+          push('copy-doc-text', 'Copy document text', '', 'General', function () { copyDocText(lib.currentId); });
           pushRegistry('Formatting');
           pushRegistry('Table');
           if (abInTable()) {
@@ -33015,7 +33415,8 @@
           'fold-all-sections': COLLAPSE_ALL_SVG,
           'unfold-all-sections': EXPAND_ALL_SVG,
           'select-documents': CHECKLIST_SVG,
-          'clipboard-history': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
+          'clipboard-history': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
+          'copy-doc-text': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
           'button-labels': LABEL_ICONS_TEXT_SVG,
           'theme': PALETTE_SVG,
           'sync-now': SYNC_NOW_SVG,
