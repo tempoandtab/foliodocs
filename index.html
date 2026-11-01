@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-94" />
+    <meta name="folio-build" content="20261101-95" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3767,8 +3767,20 @@
       .folio-tab.active {
         background: var(--surface); color: var(--ink);
         transform: none;
+        /* Build -95: no right border on the active tab — its
+           outline is the inset box-shadow ring on .folio-tab,
+           so the active face re-states that ring as top,
+           bottom and left insets only (plus the drop shadow),
+           letting the tab merge with the page as one
+           silhouette. Inactive tabs keep the full ring: they
+           meet their own recessed sheets. The same face holds
+           in the hover-stretched state (the rules below). */
+        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -1px 1px 3px rgba(0, 0, 0, 0.13);
       }
-      .folio-tab.active:hover, .folio-tab.active.tab-hover { background: var(--surface); }
+      .folio-tab.active:hover, .folio-tab.active.tab-hover {
+        background: var(--surface);
+        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -1px 1px 3px rgba(0, 0, 0, 0.13);
+      }
       .folio-tab-name {
         writing-mode: vertical-rl; transform: rotate(180deg);
         font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
@@ -3898,6 +3910,15 @@
       }
       .ref-divider:hover::after, .ref-divider.dragging::after { background: var(--accent); opacity: 0.55; }
       .ref-divider:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      /* Build -95: while the reference divider is being
+         dragged, neither editor surface may start or extend
+         a text selection. The divider's pointerdown handler
+         puts .ref-divider-dragging on <body> for the drag's
+         duration and clears any selection that forms anyway;
+         this rule is the belt to that handler's braces. */
+      body.ref-divider-dragging, body.ref-divider-dragging * {
+        user-select: none !important; -webkit-user-select: none !important;
+      }
       /* While the reference pane is open, the floating outline
          toggle (anchored to the main column's top-right corner)
          would sit on the pane's header and cover its × — so it
@@ -13344,34 +13365,82 @@
            the same fraction for keyboard users. */
         if (refDividerEl) {
           refDividerEl.addEventListener('pointerdown', function (ev) {
+            /* Build -95: a divider drag must never start or
+               extend a text selection in either editor. The
+               preventDefault below is the first line; the
+               .ref-divider-dragging body class (user-select:
+               none on everything, see the stylesheet) holds
+               for the whole drag, any selection that forms
+               anyway is cleared on every move, and onUp
+               restores selection and clears once more. The
+               existing mousedown compatibility path is also
+               claimed so a mouse drag cannot select through
+               the pointer events' shadow. */
             ev.preventDefault();
+            if (ev.stopPropagation) ev.stopPropagation();
+            var clearSel = function () {
+              try {
+                var sel = window.getSelection ? window.getSelection() : null;
+                if (sel && sel.rangeCount) sel.removeAllRanges();
+              } catch (e) {}
+            };
+            clearSel();
+            if (document.body) document.body.classList.add('ref-divider-dragging');
+            var onMouseDownCapture = function (e2) { e2.preventDefault(); };
+            document.addEventListener('mousedown', onMouseDownCapture, true);
             var bodyEl = refPaneEl.parentElement;
-            if (!bodyEl) return;
+            if (!bodyEl) {
+              if (document.body) document.body.classList.remove('ref-divider-dragging');
+              document.removeEventListener('mousedown', onMouseDownCapture, true);
+              return;
+            }
             var br = bodyEl.getBoundingClientRect();
-            if (!br.width) return;
+            if (!br.width) {
+              if (document.body) document.body.classList.remove('ref-divider-dragging');
+              document.removeEventListener('mousedown', onMouseDownCapture, true);
+              return;
+            }
             var r = tabRecord(tabActiveId);
-            if (!r || !r.refId) return;
+            if (!r || !r.refId) {
+              if (document.body) document.body.classList.remove('ref-divider-dragging');
+              document.removeEventListener('mousedown', onMouseDownCapture, true);
+              return;
+            }
             var pending = typeof r.refW === 'number' && r.refW > 0 ? r.refW : 0.42;
             var remove = false;
+            var finished = false;
             refDividerEl.classList.add('dragging');
             function onMove(e2) {
+              if (e2 && e2.preventDefault) e2.preventDefault();
+              clearSel();
               var w = br.right - e2.clientX;
               remove = w < 56;
               pending = Math.max(0.06, Math.min(0.78, w / br.width));
               refPaneEl.style.flexBasis = (pending * 100) + '%';
               rootEl.style.setProperty('--refw', (pending * 100) + '%');
+              clearSel();
             }
             function onUp() {
+              if (finished) return;
+              finished = true;
               document.removeEventListener('pointermove', onMove);
+              document.removeEventListener('mousedown', onMouseDownCapture, true);
+              if (document.body) document.body.classList.remove('ref-divider-dragging');
               refDividerEl.classList.remove('dragging');
+              clearSel();
               if (remove) { refRemove(tabActiveId); return; }
               var rr = tabRecord(tabActiveId);
               if (rr) { rr.refW = pending; tabPersist(); }
               refSync();
+              clearSel();
             }
             document.addEventListener('pointermove', onMove);
             document.addEventListener('pointerup', onUp, { once: true });
             document.addEventListener('pointercancel', onUp, { once: true });
+            /* Safety: if the pointerup lands outside the
+               document's pointer stream, a mouseup still ends
+               the drag cleanly with selection restored. */
+            document.addEventListener('mouseup', onUp, { once: true });
           });
           refDividerEl.addEventListener('keydown', function (ev) {
             if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
@@ -13455,9 +13524,28 @@
             });
             dots.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
             el.appendChild(dots);
-            el.addEventListener('click', function () {
+            el.addEventListener('click', function (ev) {
+              if (ev && typeof ev.button === 'number' && ev.button !== 0) return;
               if (tabSuppressClick) return;
               activateTab(r.docId, true);
+            });
+            /* Build -95: middle-click closes this tab, through
+               the same closeTab path as the hover × (pile
+               re-ranks; closing the active tab activates the
+               neighbour per closeTab's rules). mousedown is
+               claimed so no autoscroll starts; the close itself
+               fires on auxclick, the middle button's click
+               event. This is the tab surface only — middle /
+               ⇧-click opening docs from the sidebar is
+               untouched. */
+            el.addEventListener('mousedown', function (ev) {
+              if (ev.button === 1) { ev.preventDefault(); ev.stopPropagation(); }
+            });
+            el.addEventListener('auxclick', function (ev) {
+              if (ev.button !== 1) return;
+              ev.preventDefault();
+              ev.stopPropagation();
+              closeTab(r.docId);
             });
             el.addEventListener('contextmenu', function (ev) {
               ev.preventDefault();
@@ -13776,6 +13864,11 @@
              (either) opens the tab menu; a plain tap switches. */
           var tabPtr = null;
           tabScrollEl.addEventListener('pointerdown', function (ev) {
+            /* Build -95: a middle-button press is a close
+               (handled on the tab's own mousedown/auxclick),
+               never the start of a drag, a stack scroll or a
+               long-press — claim it and start nothing. */
+            if (typeof ev.button === 'number' && ev.button === 1) { ev.preventDefault(); return; }
             var t = ev.target.closest ? ev.target.closest('.folio-tab') : null;
             if (!t || (ev.target.closest && ev.target.closest('.folio-tab-x, .folio-tab-menu'))) return;
             var id = t.getAttribute('data-doc-id');
