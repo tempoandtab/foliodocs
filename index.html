@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-96" />
+    <meta name="folio-build" content="20261101-97" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3767,12 +3767,40 @@
         #editorScroll .paper-wrap { margin: 12px 8px 60px; }
       }
       #editorScroll .paper-wrap > .paper { margin: 0; }
-      .paper-sheets { position: absolute; inset: 0; pointer-events: none; }
+      /* Build -97 REGRESSION FIX (the blank-documents bug):
+         build -96 gave each sheet an inline z-index of
+         60 − rank so the pile would paint front-to-back — but
+         .paper-sheets carried NO z-index, so the layer was not
+         a stacking context and those z-indexes escaped into
+         the wrap's context, where the paper itself is a
+         positioned element with z-index auto. Any positive
+         z-index paints above every z-auto sibling, so the
+         topmost sheet — a full-size OPAQUE box — painted over
+         the paper and buried all its prose: every document
+         rendered blank (data intact), and with the covering
+         sheet hiding the pile's own edges, every tab's band
+         appeared to land on that one covering face. The fix
+         restores the -93 invariant structurally: the layer
+         gets z-index 0, making it a stacking context that
+         TRAPS the sheets' z-indexes inside itself (their
+         front-to-back order within the pile is unchanged),
+         and the paper gets an explicit z-index 1 in the wrap,
+         so the paper and its prose paint above the WHOLE
+         layer by construction, not by DOM-order luck. Only
+         the sheets' left slivers and corner arcs can show. */
+      #editorScroll .paper-wrap > .paper { z-index: 1; }
+      .paper-sheets { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
       /* Build -96: three fixes to how the pile renders.
          (1) PAINT ORDER: tabLayout now gives each sheet an
          inline z-index DESCENDING with depth (rank 1 highest),
          so the sheet nearest the front paints over the ones
-         behind it. Before this, the sheets painted in creation
+         behind it. Build -97: those z-indexes are only safe
+         because .paper-sheets is a stacking context (its own
+         z-index 0, above) that traps them inside the layer —
+         uncontained, they escaped and painted an opaque sheet
+         over the paper's prose (the blank-documents bug); the
+         paper's explicit z-index 1 in the wrap is the other
+         half of that fix. Never remove either. Before this, the sheets painted in creation
          order — deepest last, on top — so the deepest sheet's
          opaque face covered every shallower sheet's left border
          and face across the whole sliver strip, and the pile
@@ -13786,7 +13814,14 @@
                the pile paints front-to-back — before this the
                deepest sheet painted last, on top, and its
                opaque face buried every shallower sheet's edge
-               line and sliver under one flat smear. */
+               line and sliver under one flat smear.
+               Build -97: this z-index only orders sheets
+               WITHIN the .paper-sheets layer — that layer is a
+               stacking context (z-index 0) and the paper sits
+               at z-index 1 in the wrap, so no value set here
+               can ever paint a sheet over the paper's prose
+               again (the -96 blank-documents regression came
+               from these values escaping an uncontained layer). */
             if (c.sheet) {
               var sheetOff = effRank * 2;
               c.sheet.style.left = (-sheetOff) + 'px';
