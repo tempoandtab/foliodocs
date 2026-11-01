@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-99" />
+    <meta name="folio-build" content="20261101-100" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3740,7 +3740,23 @@
          no band can ever paint again. Everything else is
          untouched: the 4px X steps, the 3px Y scoot, the
          -97 stacking invariant, no tab right borders, the
-         hover × / ⋯ reveal. */
+         hover × / ⋯ reveal.
+         Build -100 (two refinements from Andrew's -99 look,
+         geometry untouched): (1) the TOP page joins the gilt
+         — the wrapped .paper carries the sheets' own 1px
+         var(--stack-edge) hairline on its left border, so
+         the whole pile reads uniformly gilt-edged; the line
+         is the page's own edge, no tab right border returns,
+         and inactive junctions stay -99's single hairlines.
+         (2) The shadows are made REAL: -96's faint sheet
+         shadows and the tabs' 0.13 whisper never registered
+         on the device in Binding Dark, so each sheet's cast
+         shadow (leftward onto the next sheet's sliver,
+         downward onto its bottom step), the front paper's
+         cast shadow onto the first sheet, and each tab's
+         cast shadow onto the desk behind it are all tuned
+         up to soft-but-measurable blurred layers — see the
+         .paper-sheet, wrapped-.paper and .folio-tab rules. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3835,6 +3851,28 @@
          layer by construction, not by DOM-order luck. Only
          the sheets' left slivers and corner arcs can show. */
       #editorScroll .paper-wrap > .paper { z-index: 1; }
+      /* Build -100 (1) GILT EDGE FOR THE TOP PAGE: every
+         recessed sheet shows its gilt left edge (var(--stack-
+         edge), the .paper-sheet rule below), but the front
+         page's own left border was the plain --line-soft of
+         the base .paper rule, so the pile's top sheet read
+         un-gilted. The wrapped paper now carries the SAME
+         1px gilt hairline on its left edge — border-left in
+         the stack-edge colour, following the page's exact
+         6px radius corners by construction (it IS the page's
+         border). Scoped to the wrapped paper only: the share
+         view's standalone .paper keeps its plain border, and
+         no tab regains a right border — this line belongs to
+         the page, and the active tab still merges into it.
+         Build -100 (2) THE TOP PAGE'S OWN CAST SHADOW: the
+         paper also leads the pile's shadows — a soft leftward
+         layer so its edge darkens the first recessed sheet's
+         sliver behind it, ahead of the theme's ambient
+         var(--paper-shadow), which is preserved verbatim. */
+      #editorScroll .paper-wrap > .paper {
+        border-left: 1px solid var(--stack-edge);
+        box-shadow: -7px 4px 18px rgba(0, 0, 0, 0.30), -2px 0 6px rgba(0, 0, 0, 0.22), var(--paper-shadow);
+      }
       .paper-sheets { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
       /* Build -96: three fixes to how the pile renders.
          (1) PAINT ORDER: tabLayout now gives each sheet an
@@ -3870,7 +3908,21 @@
         border: 1px solid var(--line);
         border-left: 1px solid var(--stack-edge);
         border-radius: 6px;
-        box-shadow: -2px 0 3px rgba(0, 0, 0, 0.20), 0 2px 5px rgba(0, 0, 0, 0.10);
+        /* Build -100: the cast shadows are TUNED UP from
+           -96's "faint" values (-2px 0 3px / 0.20 and 0 2px
+           5px / 0.10), which were invisible on the device in
+           Binding Dark — a whisper of black over an already
+           near-black ground does not register. Each sheet now
+           casts a DISCERNIBLE soft shadow onto the sheet
+           behind it along BOTH exposed edges: two leftward
+           layers (a tight 3px one that concentrates the
+           darkening on the 4px sliver the next sheet exposes,
+           and a wider 10px wash behind it) and two downward
+           layers doing the same work on the 3px bottom step.
+           Still blurred paper shadows, never hard bars: the
+           tight layers carry the measurable step, the wide
+           layers keep the falloff soft. */
+        box-shadow: -5px 0 10px rgba(0, 0, 0, 0.40), -1px 0 3px rgba(0, 0, 0, 0.28), 0 5px 12px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.22);
         pointer-events: none;
       }
       /* The sheets are stack UI, not page furniture: wherever
@@ -3903,7 +3955,16 @@
            the band's 2px gilt line (and the sheet's gilt edge
            behind it) into the thick right bar Andrew saw.
            Top, bottom and left insets stay, as before. */
-        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -1px 1px 3px rgba(0, 0, 0, 0.13);
+        /* Build -100: the outer cast shadow is tuned up
+           with the sheets' (see .paper-sheet): -96's single
+           -1px 1px 3px at 0.13 never registered on the dark
+           desk. Each tab now throws a soft shadow leftward
+           and downward onto the surface behind it — a wide
+           blurred wash plus a tighter layer for a measurable
+           step at the tab's left/bottom edges — while the
+           three inset ring arms above stay exactly as -98
+           left them (still NO right arm). */
+        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -3px 3px 10px rgba(0, 0, 0, 0.36), 0 4px 12px rgba(0, 0, 0, 0.28), -1px 1px 3px rgba(0, 0, 0, 0.24);
         display: flex; align-items: center; justify-content: center;
         transition: left 0.12s ease, width 0.12s ease;
         overflow: hidden; user-select: none; -webkit-user-select: none;
