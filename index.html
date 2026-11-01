@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-92" />
+    <meta name="folio-build" content="20261101-93" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3609,7 +3609,39 @@
          scrolling, as shipped. The edge strips also carry
          the page's 6px border radius on their left corners,
          so the pile's silhouette follows the page's rounded
-         corners. */
+         corners.
+         Build -93 (supersedes the -92 edge mechanism): on the
+         device the strips still ended square and they swam
+         against the page while scrolling — a 2px-wide strip
+         clamps a 6px radius down to ~2px (invisible), and
+         ANY rail-space element re-anchored from a scroll
+         listener trails iOS's compositor-driven momentum
+         scroll by a frame or more. Both defects are now
+         structural, not parametric. The sheet edges are no
+         longer strips in the rail at all: each sheet behind
+         the front one is a full SHEET-SHAPED layer (.paper-
+         sheet) living INSIDE the page's own scroll content,
+         in a wrapper (.paper-wrap) that shrink-wraps the
+         paper and carries the margins the paper used to.
+         Each sheet is the paper's own box offset 2px further
+         left per depth rank, carrying the page's border
+         radius PLUS its offset (concentric corners), and the
+         paper itself — painted above them, opaque — hides
+         everything but the left sliver and the corner arcs
+         that hook around the page's rounded corners. Because
+         the sheets sit in the scroll content, they composite
+         with the page in the same frame at every scroll
+         position: no scroll listener positions anything in
+         the cluster anymore (the -92 listener is deleted),
+         and their top/bottom ARE the paper's top/bottom by
+         construction, so the -91/-92 span arithmetic and its
+         overshoot class of bug are gone with the strips.
+         The tabs stay in the fixed rail zone, anchored to the
+         paper's scroll-invariant content span exactly as
+         before, pixel-stable while the page scrolls beneath
+         them. Confirmed geometry unchanged: rail right edge
+         Δ0 against the paper's left edge, tab zone starting
+         ~25px below the paper's top. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3635,49 +3667,54 @@
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
       .tab-bands, .tab-strip { position: absolute; inset: 0; }
-      /* Build -91: the sheet edges live on their own rail-level
-         layer (a sibling of the tab-scroll area, not a child of
-         it), so the tab-scroll area's overflow clipping and its
-         foot can never cut them short: tabAnchor / tabLayout set
-         each edge's top and height from the paper's measured
-         span, and the lines run the page's full height — paper
-         top to paper bottom — passing beside the + disc and the
-         Book opener (which paint above this layer) rather than
-         ending where the foot begins. */
-      .tab-edges { position: absolute; inset: 0; pointer-events: none; }
-      /* The old sewing bands are gone: the bands layer now
-         carries the stack's page edges. A band element is still
+      /* The old sewing bands are gone: a band element is still
          created per tab by tabRender (the layout cache pairs
          one with each tab) but never paints. */
       .tab-band { display: none; }
-      /* One sheet edge: a 2px-wide strip of blank paper running
-         the full height of the tab column at its sheet's x
-         (set by tabLayout) — its left hairline is the sheet's
-         edge, and the strips together are the packed pile the
-         tabs meet. Deeper sheets are dimmed a step by the
-         inline opacity tabLayout sets. */
-      .tab-stack-edge {
-        /* Top and height are set inline from the paper's
-           measured span (build -91): the line runs from the
-           paper's top edge to its bottom edge, no further.
-           Build -92: the strip's left corners carry the
-           page's own border radius (.paper: 6px), so each
-           sheet edge follows the page's corner curve at the
-           top-left and bottom-left instead of ending square
-           where the page rounds. The right corners stay
-           square: that side is covered by the next sheet (or
-           the page itself), exactly as a real sheet's is.
-           Because each deeper sheet is offset 2px further
-           left, the strips' in-box arc segments tile into
-           parallel corner curves — the multiplied silhouette
-           of the same rounded sheets. */
-        position: absolute; width: 2px;
+      /* Build -93: the paper wrapper and the sheet layers.
+         The wrapper is exactly the paper's old layout box —
+         same max-width and the same margins (base and both
+         breakpoint overrides the .paper rules carry) — with
+         the paper itself marginless inside it, so the page's
+         size, centring and scroll span are unchanged. The
+         sheets layer fills the wrapper behind the paper; each
+         sheet is a full paper-shaped box (top/bottom/width
+         100% of the wrapper, i.e. of the paper) shifted left
+         by its depth offset (inline left, set by tabLayout),
+         with the page's 6px radius grown by that same offset
+         on every corner (concentric with the page's corner;
+         the right corners are hidden under the page anyway).
+         Only the sliver left of the paper's edge — and the
+         arcs hooking around its top-left and bottom-left
+         corners — can ever show, because the opaque paper
+         paints above the whole layer. The sheets scroll with
+         the page because they ARE scroll content: nothing
+         positions them after layout. */
+      #editorScroll .paper-wrap {
+        position: relative;
+        max-width: 780px; margin: 26px auto 90px;
+      }
+      @media (max-width: 1100px) {
+        #editorScroll .paper-wrap { margin: 18px 14px 70px; }
+      }
+      @media (max-width: 900px) {
+        #editorScroll .paper-wrap { margin: 12px 8px 60px; }
+      }
+      #editorScroll .paper-wrap > .paper { margin: 0; }
+      .paper-sheets { position: absolute; inset: 0; pointer-events: none; }
+      .paper-sheet {
+        position: absolute; top: 0; bottom: 0; width: 100%;
         background: var(--surface);
-        border-left: 1px solid var(--line);
-        border-radius: 6px 0 0 6px;
+        border: 1px solid var(--line);
         box-shadow: -1px 0 2px rgba(0, 0, 0, 0.07);
         pointer-events: none;
       }
+      /* The sheets are stack UI, not page furniture: wherever
+         the tab cluster itself stands down (phone pill mode,
+         focus mode, print), the pile stands down with it. */
+      :root[data-focus="on"] .paper-sheets { display: none; }
+      @media (max-width: 640px) { .paper-sheets { display: none; } }
+      @media print { .paper-sheets { display: none !important; } }
       .folio-tab {
         position: absolute; left: var(--tab-l, var(--tab-x, 22px)); right: auto;
         width: var(--tab-w, 40px); cursor: pointer;
@@ -4259,7 +4296,6 @@
 
         <div class="editor-body">
           <nav class="tab-rail" id="tabRail" aria-label="Open documents">
-            <div class="tab-edges" id="tabEdges" aria-hidden="true"></div>
             <div class="tab-scroll" id="tabScroll">
               <div class="tab-bands" id="tabBands"></div>
               <div class="tab-strip" id="tabStrip"></div>
@@ -4270,8 +4306,11 @@
             </div>
           </nav>
           <div class="editor-scroll" id="editorScroll">
-            <div class="paper">
-              <div class="editor-mount" id="editorMount"></div>
+            <div class="paper-wrap" id="paperWrap">
+              <div class="paper-sheets" id="paperSheets" aria-hidden="true"></div>
+              <div class="paper">
+                <div class="editor-mount" id="editorMount"></div>
+              </div>
             </div>
           </div>
           <aside class="ref-pane" id="refPane" hidden aria-label="Reference document">
@@ -12521,7 +12560,9 @@
         var tabScrollEl = document.getElementById('tabScroll');
         var tabStripEl = document.getElementById('tabStrip');
         var tabBandsEl = document.getElementById('tabBands');
-        var tabEdgesEl = document.getElementById('tabEdges');
+        /* Build -93: the sheet layers live in the scroll
+           content, in the wrapper behind the paper. */
+        var paperSheetsEl = document.getElementById('paperSheets');
         /* Build -90: the stack's anchor points — the editor
            body (the rail's offset parent) and the primary
            paper whose left edge the stack touches. */
@@ -13336,7 +13377,7 @@
           if (!tabStripEl || !tabBandsEl) return;
           tabStripEl.innerHTML = '';
           tabBandsEl.innerHTML = '';
-          if (tabEdgesEl) tabEdgesEl.innerHTML = '';
+          if (paperSheetsEl) paperSheetsEl.innerHTML = '';
           tabLayoutCache = [];
           var nextRank = 1;
           tabRecords.forEach(function (r) {
@@ -13398,14 +13439,20 @@
             var band = document.createElement('div');
             band.className = 'tab-band';
             tabBandsEl.appendChild(band);
-            var edge = document.createElement('div');
-            edge.className = 'tab-stack-edge';
-            edge.setAttribute('aria-hidden', 'true');
-            /* Build -91: edges live on the rail-level layer, not
-               inside the tab-scroll area, so neither its overflow
-               clipping nor its foot can shorten them. */
-            (tabEdgesEl || tabBandsEl).appendChild(edge);
-            tabLayoutCache.push({ rec: r, el: el, band: band, edge: edge, rank: rank, vtop: 0, vh: 0, top: 0, sh: 0 });
+            /* Build -93: one sheet-shaped layer per sheet
+               BEHIND the front one (rank >= 1), created in the
+               scroll content behind the paper. The front sheet
+               is the paper itself, so the active record gets
+               none. tabLayout sets each sheet's left offset,
+               concentric corner radius and paper shade. */
+            var sheet = null;
+            if (rank >= 1 && paperSheetsEl) {
+              sheet = document.createElement('div');
+              sheet.className = 'paper-sheet';
+              sheet.setAttribute('aria-hidden', 'true');
+              paperSheetsEl.appendChild(sheet);
+            }
+            tabLayoutCache.push({ rec: r, el: el, band: band, sheet: sheet, rank: rank, vtop: 0, vh: 0, top: 0, sh: 0 });
           });
           var pillCount = document.getElementById('tabPillCount');
           if (pillCount) pillCount.textContent = String(tabRecords.length);
@@ -13429,54 +13476,16 @@
           var pr = paper.getBoundingClientRect();
           if (!pr.height) return null;
           var top = (sr.top - br.top) + (pr.top - sr.top) + (editorScroll.scrollTop || 0);
-          /* Build -92: ALSO return the paper's rendered span in
-             rail (viewport) coordinates — vtop / vbottom are
-             where the paper's border-box actually sits on
-             screen right now, measured straight off its rect
-             against the editor body's rect (the rail's own
-             origin). The content-coordinate top / bottom above
-             stay as they are: the tab zone is anchored to the
-             paper's content position so scrolling never shifts
-             the tabs. The sheet edges are a different thing —
-             they must hug the paper's RENDERED left edge, so
-             they read vtop / vbottom, never the content span. */
-          var vtop = pr.top - br.top;
-          return { top: top, bottom: top + pr.height, height: pr.height, vtop: vtop, vbottom: vtop + pr.height };
-        }
-        /* One sheet edge's vertical span: the paper's rendered
-           height, top edge to bottom edge, clamped only to the
-           rail itself (a page taller than the window runs its
-           edges to the rail's ends, as before). The edges live
-           on the rail-level layer, whose top is the editor
-           body's top — the same origin vtop / vbottom measure
-           from.
-           Build -92 overshoot fix: build -91 fed this the
-           CONTENT-coordinate span (top/bottom, which add
-           scrollTop back). In rail space that places the
-           span's bottom at rendered-bottom + scrollTop, and
-           the rail-height clamp then pins it to the editor's
-           bottom whenever the paper is scrolled at all — the
-           lines ran past the page's bottom edge to the bottom
-           of the window, further the deeper the scroll. At
-           scrollTop 0 the two spans coincide, which is why
-           the -91 probe (top of doc, viewport-filling paper)
-           measured Δ0 and could not see it. Reading the
-           rendered span (vtop/vbottom) makes the lines end
-           at the paper's actual bottom in every scroll state:
-           short page (bottom mid-window), long page scrolled
-           to its end (bottom mid-window), and long page
-           mid-scroll (bottom past the rail, clamped). */
-        function tabEdgeSpan(edge, geom) {
-          if (!edge) return;
-          var g = geom || tabPaperGeom();
-          if (!g || !tabRailEl) { edge.style.top = '0px'; edge.style.height = '0px'; return; }
-          var railH = tabRailEl.clientHeight || 0;
-          var vtop = typeof g.vtop === 'number' ? g.vtop : g.top - (editorScroll ? (editorScroll.scrollTop || 0) : 0);
-          var vbottom = typeof g.vbottom === 'number' ? g.vbottom : vtop + g.height;
-          var top = Math.max(0, vtop);
-          var bottom = railH ? Math.min(vbottom, railH) : vbottom;
-          edge.style.top = top + 'px';
-          edge.style.height = Math.max(0, bottom - top) + 'px';
+          /* Build -93: this content-coordinate span is now the
+             geometry's ONLY consumer story — it anchors the
+             tab zone (scroll-invariant, so the tabs never move
+             while the page scrolls). The sheet layers need no
+             span at all: they are the paper's own box, in the
+             scroll content, so their rendered span is the
+             paper's by construction. The -92 rendered span
+             (vtop/vbottom) and the tabEdgeSpan() clamp that
+             fed the old rail strips are deleted with them. */
+          return { top: top, bottom: top + pr.height, height: pr.height };
         }
         function tabLayout() {
           if (!tabScrollEl || !tabLayoutCache.length) return;
@@ -13569,10 +13578,21 @@
             var rightEdge = railW - effRank * 2;
             c.el.style.setProperty('--tab-l', gutter + 'px');
             c.el.style.setProperty('--tab-w', Math.max(16, rightEdge - gutter) + 'px');
-            if (c.edge) {
-              c.edge.style.left = (rightEdge - 2) + 'px';
-              c.edge.style.opacity = String(1 - effRank * 0.07);
-              tabEdgeSpan(c.edge, geom);
+            /* Build -93: the tab's sheet, in the scroll
+               content behind the paper — offset left by the
+               same 2px-per-rank step its tab's right edge
+               takes, corner radius concentric with the page's
+               (6px + the offset), paper shaded per depth
+               exactly like the tab's own face. Its size and
+               vertical span are pure CSS (the wrapper's box),
+               so nothing here — or anywhere — repositions it
+               on scroll. */
+            if (c.sheet) {
+              var sheetOff = effRank * 2;
+              c.sheet.style.left = (-sheetOff) + 'px';
+              c.sheet.style.borderRadius = (6 + sheetOff) + 'px';
+              c.sheet.style.background =
+                'color-mix(in srgb, var(--surface) ' + (100 - effRank * 4) + '%, var(--ink))';
             }
           });
           tabAnchor();
@@ -13604,15 +13624,10 @@
           if (!pr.width) return;
           var br = editorBodyEl.getBoundingClientRect();
           tabRailEl.style.left = (pr.left - br.left - tabRailEl.offsetWidth) + 'px';
-          /* Build -91: the same measurement drives the sheet
-             edges' vertical span (paper top to paper bottom),
-             so the lines track the page through every move the
-             horizontal anchor already rides. The horizontal
-             placement above is untouched. */
-          var geomA = tabPaperGeom();
-          if (geomA) {
-            for (var ei = 0; ei < tabLayoutCache.length; ei++) tabEdgeSpan(tabLayoutCache[ei].edge, geomA);
-          }
+          /* Build -93: nothing else rides this anchor anymore —
+             the sheet layers are in the scroll content and
+             track the page by construction. The horizontal
+             placement above is untouched (confirmed Δ0). */
         }
         var tabAnchorRideUntil = 0;
         function tabAnchorRide() {
@@ -13780,23 +13795,17 @@
         var tabPillBtn = document.getElementById('tabPill');
         if (tabPillBtn) tabPillBtn.addEventListener('click', function () { openBook(); });
         window.addEventListener('resize', function () { tabSyncSlim(); tabLayout(); tabAnchor(); });
-        /* Build -92: scrolling moves the paper's RENDERED span
-           (what the sheet edges hug) while its content span —
-           and so the tabs — stay put, so a scroll re-anchors
-           the edges only: tabAnchor refreshes the edges'
-           vtop/vbottom spans (and re-checks the horizontal
-           anchor, which scrolling cannot change). Coalesced
-           to one run per frame. Without this the edges kept
-           whatever span they were last laid out with and the
-           overshoot returned as soon as the reader scrolled. */
-        if (editorScroll) {
-          var tabScrollTicking = false;
-          editorScroll.addEventListener('scroll', function () {
-            if (tabScrollTicking) return;
-            tabScrollTicking = true;
-            requestAnimationFrame(function () { tabScrollTicking = false; tabAnchor(); });
-          }, { passive: true });
-        }
+        /* Build -93: there is deliberately NO scroll listener
+           on the editor scroll area anymore. The -92 build
+           re-anchored the rail-space sheet strips from one;
+           even coalesced to a frame it trailed iOS's
+           compositor-driven momentum scrolling, and the pile
+           visibly swam against the page (Andrew's recording).
+           The sheets now live in the scroll content and need
+           no positioning at all, and the tabs' zone is
+           scroll-invariant content geometry — so nothing in
+           the tab cluster is repositioned by scroll-event JS,
+           and nothing can lag a frame behind the page. */
         /* Build -90 anchor tracking: the page moves whenever
            the scroll area, the paper or the reference pane
            changes size (sidebar slide, pane open/close/drag,
