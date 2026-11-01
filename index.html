@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-106" />
+    <meta name="folio-build" content="20261101-107" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3898,6 +3898,20 @@
       .doc-session { min-height: 100%; }
       .tab-rail {
         --tab-x: 22px;
+        /* Build -107: the hover reveal's width, decoupled
+           from --tab-x. --tab-x is the tab line's distance
+           from the rail's left edge, which the group bars
+           widen (build -106: +28px, build -107: +34px) —
+           and because the hover stretch used to run to
+           left:0, a hovered tab stretched by the FULL
+           --tab-x (50px with bars up) to cover the bar and
+           rungs: the "pretty ridiculous widths" Andrew
+           reported. The reveal only ever needs to uncover
+           the × / ⋯ cluster (18px glyphs at a 4px inset =
+           22px; 13px at 3px in the slim rail = 14px,
+           matching its long-standing strip), so the stretch
+           is now exactly --tab-strip in every rail state. */
+        --tab-strip: 22px;
         width: 64px; position: absolute; top: 0; bottom: 0; left: 0; z-index: 20;
         background: transparent;
         display: flex; flex-direction: column; min-height: 0;
@@ -3906,7 +3920,7 @@
       :root[data-theme="sepia"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="binding"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="binding-dark"] .folio-tab.active { background: var(--surface); }
-      .tab-rail.slim { --tab-x: 14px; width: 44px; flex-basis: 44px; }
+      .tab-rail.slim { --tab-x: 14px; --tab-strip: 14px; width: 44px; flex-basis: 44px; }
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
       .tab-bands, .tab-strip { position: absolute; inset: 0; }
@@ -4127,9 +4141,48 @@
            whose containing block has no border — gapped
            the front page correctly). -1px puts the strip's
            2px over the border column and the face pixel
-           beside it. */
+           beside it.
+           Build -107: RETIRED as the painting path — a
+           strip inside the sheet is scroll content, so the
+           gap it cut in the gilt scrolled WITH the page
+           while the tab stayed fixed (Andrew's -106 note:
+           after scrolling, the hole sat where the tab WAS).
+           The gaps now paint from the rail-side layer
+           (.tab-gilt-gaps below), anchored to the tabs;
+           tabRender creates no .paper-sheet-gap children
+           anymore and this rule remains only as a guard,
+           the pattern the retired bands/plates set. The
+           wrap's .paper-gilt-gap retired with it, same
+           build, same reason. */
         position: absolute; left: -1px; top: 0; width: 2px; height: 0;
         pointer-events: none; display: none;
+      }
+      /* Build -107: the gilt gaps, re-anchored to the TABS.
+         Each sheet's gilt column (and the front page's)
+         still needs its hole exactly behind its tab — but
+         the sheets are scroll content and the tabs are not,
+         so a cover painted on the sheet can only ever be
+         right at one scroll offset. The covers therefore
+         live HERE, in the rail (which never scrolls): one
+         2px strip per sheet plus one for the front page,
+         created by tabRender in this layer and positioned
+         by tabLayout at the tab's own rendered span and
+         its sheet's gilt column x (the rail's right edge,
+         which tabAnchor keeps on the page's left edge,
+         stepped left by the sheet's rank offset). At any
+         scroll offset the strip covers the gilt column
+         segment behind the tab — the gilt is a uniform
+         line, so whichever part of it currently sits
+         behind the tab is interrupted, and the line runs
+         continuous everywhere else. Still no scroll
+         listener and nothing repaints per frame: the
+         strips move only when tabLayout runs, exactly
+         like the tabs they mirror. The layer stands down
+         with the rail itself (focus mode, phone, print —
+         the rail is display:none in all three). */
+      .tab-gilt-gaps { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+      .tab-gilt-strip {
+        position: absolute; width: 2px; pointer-events: none; display: none;
       }
       /* The sheets are stack UI, not page furniture: wherever
          the tab cluster itself stands down (phone pill mode,
@@ -4196,18 +4249,48 @@
          edge per Andrew's standing ruling, never on the
          seam. ::after stays unused. */
       .folio-tab::after { content: none; }
-      /* Hover stretches the tab LEFT to the column's edge —
-         its right edge (and its page) never moves — and the
-         revealed strip carries the × / ⋯ buttons below.
+      /* Hover stretches the tab LEFT — its right edge (and
+         its page) never moves — and the revealed strip
+         carries the × / ⋯ buttons below.
          Build -102: the old brightness(1.04) hover filter
          is GONE: it lightened the tab's face 4% over its
          sheet's, which would reopen a tone step at the
          now-gilt-free junction; without it the seamless
          tab-to-sheet bleed holds in the stretched state
-         exactly as at rest. */
+         exactly as at rest.
+         Build -107: the stretch is CAPPED at the reveal
+         strip (--tab-strip, 22px / 14px slim) instead of
+         running to the rail's left edge: left stops at
+         --tab-l − --tab-strip, so with group bars up the
+         tab no longer swallows the bar, its rungs and the
+         air gap on its way to left:0 (the old rule's
+         stretch was the full --tab-x: 22px plain, 50px
+         with bars; now 22px in both, 14px slim in both). */
       .folio-tab:hover, .folio-tab.tab-hover {
-        left: 0; width: calc(var(--tab-w, 40px) + var(--tab-x, 22px));
+        left: calc(var(--tab-l, var(--tab-x, 22px)) - var(--tab-strip, 22px));
+        width: calc(var(--tab-w, 40px) + var(--tab-strip, 22px));
         z-index: 7;
+      }
+      /* Build -107: while a tab/group drag is live (the
+         rail carries .tabs-dragging, set by the drag code
+         the moment a press crosses the drag threshold),
+         the PURE-CSS hover channel stands down too — no
+         stretch and no × / ⋯ reveal on any tab for the
+         drag's duration. The JS channel (.tab-hover) is
+         gated in tabHoverSet; these rules outrank the
+         stretch rule and the (hover:hover) reveal above. */
+      .tab-rail.tabs-dragging .folio-tab:hover {
+        left: var(--tab-l, var(--tab-x, 22px)); width: var(--tab-w, 40px);
+      }
+      /* Build -107: while a tab's menu is open, that tab is
+         PINNED in its hovered state (.tab-hover, held by
+         tabHoverPinSet in the tabs module) — and the pure
+         CSS channel must not stretch any OTHER tab the
+         pointer wanders onto meanwhile. :not(.tab-hover)
+         exempts the pinned tab itself, whose stretch is
+         the class's, not :hover's. */
+      .tab-rail.tab-menu-pin .folio-tab:hover:not(.tab-hover) {
+        left: var(--tab-l, var(--tab-x, 22px)); width: var(--tab-w, 40px);
       }
       .folio-tab.active {
         background: var(--surface); color: var(--ink);
@@ -4263,6 +4346,15 @@
          pointers, so touch never reveals the buttons. */
       .folio-tab.tab-hover .folio-tab-x, .folio-tab.tab-hover .folio-tab-menu { display: inline-flex; }
       .folio-tab.sliver.tab-hover .folio-tab-x, .folio-tab.sliver.tab-hover .folio-tab-menu { display: none; }
+      /* Build -107: the reveal's stand-downs, matching the
+         stretch stand-downs above — no × / ⋯ on any tab
+         while a drag is live (.tabs-dragging), and none on
+         an unpinned tab while a tab menu pins another
+         tab's hover (.tab-menu-pin). */
+      @media (hover: hover) {
+        .tab-rail.tabs-dragging .folio-tab:hover .folio-tab-x, .tab-rail.tabs-dragging .folio-tab:hover .folio-tab-menu,
+        .tab-rail.tab-menu-pin .folio-tab:hover:not(.tab-hover) .folio-tab-x, .tab-rail.tab-menu-pin .folio-tab:hover:not(.tab-hover) .folio-tab-menu { display: none; }
+      }
       .folio-tab-x:hover, .folio-tab-menu:hover { background: var(--hover); color: var(--danger); }
       .folio-tab-menu:hover { color: var(--ink); }
       .folio-tab.dragging { z-index: 6; box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset var(--tab-lw, 3px) 0 0 var(--tab-lc, var(--stack-edge)), -3px 6px 14px rgba(0,0,0,0.4); transition: none; }
@@ -4530,15 +4622,22 @@
          guard the retired bands layer set the pattern for. */
       .tab-plates { position: absolute; inset: 0; }
       .tab-plate { display: none !important; }
-      .tab-rail.has-bars { width: 92px; --tab-x: 50px; }
-      .tab-rail.slim.has-bars { width: 72px; --tab-x: 42px; }
+      /* Build -107: the bar strip widened from 28px to
+         34px — the bar pill itself grew 16px → 22px (below)
+         and grows LEFTWARD, so the tab line's --tab-x (and
+         with it every tab's right edge and sheet) is pushed
+         the same +6 and the 12px of clear air between the
+         bar's right edge and the tab line is unchanged,
+         rungs spanning exactly what they spanned. */
+      .tab-rail.has-bars { width: 98px; --tab-x: 56px; }
+      .tab-rail.slim.has-bars { width: 78px; --tab-x: 48px; }
       /* The foot doors stay centred over the TAB column,
          not over the widened rail, so they never drift when
          the bar strip comes and goes. */
-      .tab-rail.has-bars .tab-foot { padding-left: 28px; }
+      .tab-rail.has-bars .tab-foot { padding-left: 34px; }
       .tab-bars { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
       .tab-group-bar {
-        position: absolute; width: 16px; border-radius: 999px;
+        position: absolute; width: 22px; border-radius: 999px;
         border: 1px solid var(--gt-bd, var(--stack-edge));
         background: var(--gt-bg, color-mix(in srgb, var(--surface) 84%, black));
         box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09);
@@ -5004,6 +5103,7 @@
               <div class="tab-strip" id="tabStrip"></div>
               <div class="tab-bars" id="tabBars"></div>
             </div>
+            <div class="tab-gilt-gaps" id="tabGiltGaps" aria-hidden="true"></div>
             <div class="tab-foot">
               <button class="tab-add" id="tabAddBtn" type="button" aria-label="Open a document in a new tab" data-tip="Open a document in a new tab" data-sc="tab-new">+</button>
               <button class="tab-book-btn" id="tabBookBtn" type="button" aria-label="Tab switcher" data-tip="Tab switcher" data-sc="tab-book">▾</button>
@@ -11292,7 +11392,13 @@
           var doc = createDoc('Untitled');
           doc.folderId = folderId;
           persist(false);
-          openDoc(doc.id, false);
+          /* Build -107: a newly created document opens in a
+             NEW tab and becomes the active tab (Andrew's
+             standing rule for creation doors) — the current
+             tab keeps its document. Before tabs are ready
+             the plain open stands. */
+          if (folioTabsReady) openDocInNewTab(doc.id);
+          else openDoc(doc.id, false);
           titleInput.focus();
           titleInput.select();
           /* Watch rules (build -62): a document created in a
@@ -11322,7 +11428,11 @@
           if (existing) { openDoc(existing.id, true); return; }
           if (tagFilter) setTagFilter(null);
           var doc = createDoc(String(title).trim() || 'Untitled');
-          openDoc(doc.id, true);
+          /* Build -107: a wikilink that CREATES its target
+             is a creation door — the new document opens in a
+             new tab (existing targets keep the plain jump). */
+          if (folioTabsReady) openDocInNewTab(doc.id);
+          else openDoc(doc.id, true);
           if (editorHandle) editorHandle.focus();
         }
 
@@ -13313,8 +13423,18 @@
         /* Build -102: the front page's gilt-gap strip (see
            .paper-gilt-gap); tabLayout positions it over the
            wrapped paper's gilt border-left behind the active
-           tab's span. */
+           tab's span.
+           Build -107: that element is retired (kept in the
+           wrap, never painted again) — as scroll content its
+           gap scrolled away from the fixed active tab. The
+           gaps now live in the rail-side #tabGiltGaps layer:
+           one .tab-gilt-strip per sheet (created by
+           tabRender on the cache as giltEl) plus one for the
+           front page (tabGiltFrontEl), all positioned by
+           tabLayout from the tabs' own spans. */
         var paperGiltGapEl = document.getElementById('paperGiltGap');
+        var tabGiltEl = document.getElementById('tabGiltGaps');
+        var tabGiltFrontEl = null;
         /* Build -90: the stack's anchor points — the editor
            body (the rail's offset parent) and the primary
            paper whose left edge the stack touches. */
@@ -14220,6 +14340,14 @@
           tabMenuEl.className = 'menu';
           tabMenuEl.innerHTML = '';
           tabMenuFor = null;
+          /* Build -107: closing the menu (any door: item
+             pick, outside press, toggle) releases the tab
+             hover pin — normal hover rules resume from the
+             pointer's current spot. Menu builders that swap
+             this surface's contents (group picker, group
+             color) re-pin as they open, so the pin survives
+             those in-menu navigations. */
+          tabHoverPinClear();
         }
         /* Phase 3 menus (group picker + group menu) ride the
            same #tabMenu surface and the same native-menu
@@ -14265,6 +14393,9 @@
           tabResignTextSession();
           closeDocMenu(); closeFolderMenu(); closeMoveMenu(); closeViewMenu(); closeTopMenu();
           tabMenuFor = docId;
+          /* Build -107: re-pin (the menu item that led here
+             closed the menu first, releasing the pin). */
+          tabHoverPinSet({ docId: docId });
           tabMenuEl.innerHTML = '';
           var rec = tabRecord(docId);
           tabMenuHead('Move to group');
@@ -14293,6 +14424,12 @@
           tabResignTextSession();
           closeDocMenu(); closeFolderMenu(); closeMoveMenu(); closeViewMenu(); closeTopMenu();
           tabMenuFor = 'group:' + gid;
+          /* Build -107: pin the group's tab hover while its
+             menu is open — resolves to the collapsed group
+             tab when one is rendered; from the expanded
+             group's bar there is no tab to hold and the pin
+             simply freezes hover until the menu closes. */
+          tabHoverPinSet({ gid: gid });
           tabMenuEl.innerHTML = '';
           tabMenuHead(g.name + ' · ' + groupMembers(gid).length);
           if (groupIsCollapsed(gid)) tabMenuItem('Expand group', '', function () { expandGroup(gid); });
@@ -14318,6 +14455,8 @@
           tabResignTextSession();
           closeDocMenu(); closeFolderMenu(); closeMoveMenu(); closeViewMenu(); closeTopMenu();
           tabMenuFor = 'group:' + gid;
+          /* Build -107: re-pin (see openGroupMenu). */
+          tabHoverPinSet({ gid: gid });
           tabMenuEl.innerHTML = '';
           tabMenuHead('Group color');
           var sw = document.createElement('div');
@@ -14435,6 +14574,11 @@
           closeViewMenu();
           closeTopMenu();
           tabMenuFor = id;
+          /* Build -107: pin this tab's hover for the menu's
+             whole life — the tab stays in its stretched,
+             hovered state even if the pointer moves off it,
+             until the menu closes (see tabHoverPinSet). */
+          tabHoverPinSet({ docId: id });
           tabMenuEl.innerHTML = '';
           function item(label, cls, fn) {
             var b = document.createElement('button');
@@ -14885,6 +15029,17 @@
           tabPlates = [];
           if (tabBarsEl) tabBarsEl.innerHTML = '';
           tabBars = [];
+          /* Build -107: the gilt-gap strips are rebuilt with
+             the rest of the stack — one per sheet below (on
+             the cache as giltEl), plus the front page's own,
+             kept on tabGiltFrontEl for tabLayout. */
+          if (tabGiltEl) {
+            tabGiltEl.innerHTML = '';
+            tabGiltFrontEl = document.createElement('div');
+            tabGiltFrontEl.className = 'tab-gilt-strip';
+            tabGiltFrontEl.setAttribute('aria-hidden', 'true');
+            tabGiltEl.appendChild(tabGiltFrontEl);
+          }
           /* Phase 3 (build -103): the rendered item list —
              one entry per visible tab. Build -106 (presentation
              C): an EXPANDED group contributes NO head item —
@@ -14961,9 +15116,10 @@
             if (g0 && groupIsCollapsed(g0.id)) return;
             tabItems.push({ kind: 'tab', rec: r0 });
           });
-          /* The rail widens by the bar strip's 28px while any
+          /* The rail widens by the bar strip's 34px while any
              expanded group is on the stack (see the Phase 3
-             CSS note): set BEFORE tabLayout reads --tab-x, so
+             CSS note; 28px in -106, the bar's +6 growth in
+             -107): set BEFORE tabLayout reads --tab-x, so
              the layout below resolves in the new frame. */
           if (tabRailEl) tabRailEl.classList.toggle('has-bars', anyExpanded);
           var nextRank = 1;
@@ -15030,18 +15186,24 @@
                  sheet in the group's own register (see the
                  ghead sheet-face branch there). */
               var hSheet = null;
-              var hGapEl = null;
+              var hGiltEl = null;
               if (hrank >= 1 && paperSheetsEl) {
                 hSheet = document.createElement('div');
                 hSheet.className = 'paper-sheet';
                 hSheet.setAttribute('aria-hidden', 'true');
-                hGapEl = document.createElement('div');
-                hGapEl.className = 'paper-sheet-gap';
-                hGapEl.setAttribute('aria-hidden', 'true');
-                hSheet.appendChild(hGapEl);
                 paperSheetsEl.appendChild(hSheet);
+                /* Build -107: the sheet's gilt-gap strip
+                   lives in the rail layer now (see the doc
+                   tabs' creation below), not inside the
+                   scrolling sheet. */
+                if (tabGiltEl) {
+                  hGiltEl = document.createElement('div');
+                  hGiltEl.className = 'tab-gilt-strip';
+                  hGiltEl.setAttribute('aria-hidden', 'true');
+                  tabGiltEl.appendChild(hGiltEl);
+                }
               }
-              var hCache = { rec: null, ghead: true, gid: hg.id, groupCollapsed: !!it.collapsed, unitLabel: hg.name + ' · ' + hcount, el: hel, band: null, sheet: hSheet, gapEl: hGapEl, rank: hrank, gColor: hg.color || null, recIdx: hmembers.length ? tabIndexOf(hmembers[0].docId) : 0, vtop: 0, vh: 0, top: 0, sh: 0 };
+              var hCache = { rec: null, ghead: true, gid: hg.id, groupCollapsed: !!it.collapsed, unitLabel: hg.name + ' · ' + hcount, el: hel, band: null, sheet: hSheet, giltEl: hGiltEl, rank: hrank, gColor: hg.color || null, recIdx: hmembers.length ? tabIndexOf(hmembers[0].docId) : 0, vtop: 0, vh: 0, top: 0, sh: 0 };
               tabLayoutCache.push(hCache);
               return;
             }
@@ -15077,6 +15239,12 @@
                stretch resolves straight into the active
                geometry instead of bouncing through rest. */
             if (tabHoverPoint && tabHoverDocId === r.docId) el.classList.add('tab-hover');
+            /* Build -107: a tab whose menu is open is born
+               with its pinned hover too (and never during a
+               drag — the gate owns those frames); the
+               end-of-render tabHoverSync re-points the pin
+               at the new element either way. */
+            if (!tabDragActive && tabHoverPin && tabHoverPin.docId === r.docId) el.classList.add('tab-hover');
             /* Build -102: the tab's face IS its sheet's face —
                the sheets' own mix (build -101: 6% toward black
                per depth rank; the front sheet at full strength),
@@ -15173,22 +15341,29 @@
                none. tabLayout sets each sheet's left offset,
                concentric corner radius and paper shade. */
             var sheet = null;
-            var gapEl = null;
+            var giltEl = null;
             if (rank >= 1 && paperSheetsEl) {
               sheet = document.createElement('div');
               sheet.className = 'paper-sheet';
               sheet.setAttribute('aria-hidden', 'true');
-              /* Build -102: the sheet's gilt-gap cover strip
-                 (see .paper-sheet-gap); tabLayout positions
-                 and paints it inline over the sheet's gilt
-                 column behind this tab's span. */
-              gapEl = document.createElement('div');
-              gapEl.className = 'paper-sheet-gap';
-              gapEl.setAttribute('aria-hidden', 'true');
-              sheet.appendChild(gapEl);
               paperSheetsEl.appendChild(sheet);
+              /* Build -102 created the sheet's gilt-gap
+                 cover as a child of the sheet; build -107
+                 moves it to the rail-side #tabGiltGaps layer
+                 (see .tab-gilt-gaps): the sheet is scroll
+                 content, so its cover scrolled with the page
+                 while the tab stayed fixed. tabLayout
+                 positions this strip over the sheet's gilt
+                 column at the tab's own span, in the rail's
+                 fixed frame. */
+              if (tabGiltEl) {
+                giltEl = document.createElement('div');
+                giltEl.className = 'tab-gilt-strip';
+                giltEl.setAttribute('aria-hidden', 'true');
+                tabGiltEl.appendChild(giltEl);
+              }
             }
-            var cacheEntry = { rec: r, el: el, band: band, sheet: sheet, gapEl: gapEl, rank: rank, gid: (r.group && wsGroupById(r.group) && !groupIsCollapsed(r.group)) ? r.group : null, recIdx: tabIndexOf(r.docId), vtop: 0, vh: 0, top: 0, sh: 0 };
+            var cacheEntry = { rec: r, el: el, band: band, sheet: sheet, giltEl: giltEl, rank: rank, gid: (r.group && wsGroupById(r.group) && !groupIsCollapsed(r.group)) ? r.group : null, recIdx: tabIndexOf(r.docId), vtop: 0, vh: 0, top: 0, sh: 0 };
             tabLayoutCache.push(cacheEntry);
             if (cacheEntry.gid && barByGid[cacheEntry.gid]) barByGid[cacheEntry.gid].caches.push(cacheEntry);
           });
@@ -15251,6 +15426,12 @@
              within that zone exactly as it used to operate
              within the column. */
           var geom = tabPaperGeom();
+          /* Build -107: the gilt-gap strips live in the rail
+             layer, whose frame is the rail's — a tab's
+             rendered top in that frame is its tab-scroll top
+             (c.top) plus the tab-scroll area's own offset
+             within the rail. */
+          var stripTopBase = tabScrollEl.offsetTop || 0;
           var scrollH = tabScrollEl.clientHeight;
           var zoneTop = 0, zoneBottom = scrollH;
           if (geom) {
@@ -15435,37 +15616,44 @@
                   : 'color-mix(in srgb, var(--surface) 84%, black)';
               }
               c.sheet.style.background = sheetFace;
-              /* Build -102: the sheet's gilt gap behind its
-                 own tab. The sheet's child cover strip paints
-                 in this same tone (tabRender gives the tab
-                 the identical mix, so the junction is
-                 tonally seamless), and its span is the tab's
+              /* Build -107: the sheet's gilt gap behind its
+                 own tab, painted from the RAIL layer (the
+                 strip is c.giltEl, created by tabRender in
+                 #tabGiltGaps). It spans exactly the tab's
                  RENDERED span (c.top/c.sh, compression and
-                 slivers included) converted to sheet-local
-                 coordinates: the tab's top in the shared
-                 paper-content frame, minus the paper's top
-                 (geom.top), minus the sheet's own downward
-                 scoot (sheetDown). Both ends are clamped
-                 clear of the sheet's 6px corners, so the
-                 cover never squares off a rounded corner;
-                 the gilt resumes immediately above and below
-                 the clamped span. No geometry is available
-                 (geom null) => a zero-height gap: full gilt. */
-              if (c.gapEl) {
+                 slivers included) at the sheet's gilt column
+                 x — railW − off, the same x the tab's right
+                 edge lands on — in this same sheetFace tone
+                 (tabRender gives the tab the identical mix,
+                 so the junction is tonally seamless). The
+                 -102 version painted the cover INSIDE the
+                 sheet, in sheet-local coordinates: as scroll
+                 content it scrolled with the page while the
+                 tab stayed fixed, so after scrolling the
+                 hole sat where the tab WAS. In the rail
+                 frame both the span and the column are
+                 scroll-invariant, so the gap sits behind
+                 the tab at any scroll offset and the gilt
+                 runs continuous everywhere else; no scroll
+                 listener was reintroduced to do it. The old
+                 7px corner clamps are subsumed in this
+                 frame: the tab zone starts 25px below the
+                 page's top while the deepest sheet scoots
+                 only 18px down, so a tab's span always
+                 clears its sheet's top corner, and the
+                 bottom corner reaches a span only once the
+                 sheet's end has scrolled past that tab
+                 altogether (where no gilt remains to gap).
+                 No geometry (geom null) => no gap. */
+              if (c.giltEl) {
                 if (geom) {
-                  var gapTop = c.top - geom.top - sheetDown;
-                  var gapEnd = Math.min(gapTop + c.sh, geom.height - 7);
-                  gapTop = Math.max(gapTop, 7);
-                  if (gapEnd > gapTop) {
-                    c.gapEl.style.top = gapTop + 'px';
-                    c.gapEl.style.height = (gapEnd - gapTop) + 'px';
-                    c.gapEl.style.background = sheetFace;
-                    c.gapEl.style.display = 'block';
-                  } else {
-                    c.gapEl.style.display = 'none';
-                  }
+                  c.giltEl.style.left = (railW - off) + 'px';
+                  c.giltEl.style.top = (stripTopBase + c.top) + 'px';
+                  c.giltEl.style.height = c.sh + 'px';
+                  c.giltEl.style.background = sheetFace;
+                  c.giltEl.style.display = 'block';
                 } else {
-                  c.gapEl.style.display = 'none';
+                  c.giltEl.style.display = 'none';
                 }
               }
             }
@@ -15479,31 +15667,30 @@
                remaining gap is the recessed sheets' own
                slivers in the scroll content behind the rail. */
           });
-          /* Build -102: the front page's gilt gap behind the
+          /* Build -107: the front page's gilt gap behind the
              ACTIVE tab (the recessed sheets gap their own
-             gilt per sheet, above). The cover strip lives in
-             the wrap at the paper's left edge; its span is
-             the active tab's rendered span converted to
-             paper-local coordinates (tab top in the shared
-             paper-content frame minus the paper's top), with
-             both ends clamped clear of the page's 6px
-             corners so the strip never squares a corner off.
+             gilt per sheet, above) — the same restructure:
+             the cover strip rides the RAIL layer
+             (tabGiltFrontEl in #tabGiltGaps) at the active
+             tab's rendered span, its 2px over the rail's
+             right edge, which tabAnchor keeps exactly on
+             the page's gilt border-left column, in the
+             page's own --surface tone. Build -102 painted
+             it in the wrap as scroll content, where it
+             scrolled away from the fixed tab with the page.
              No active tab or no geometry => no gap. */
-          if (paperGiltGapEl) {
+          if (tabGiltFrontEl) {
             var activeC = null;
             tabLayoutCache.forEach(function (c) { if ((c.rank || 0) === 0) activeC = c; });
             if (activeC && geom) {
-              var pGapTop = Math.max(activeC.top - geom.top, 7);
-              var pGapEnd = Math.min(activeC.top - geom.top + activeC.sh, geom.height - 7);
-              if (pGapEnd > pGapTop) {
-                paperGiltGapEl.style.top = pGapTop + 'px';
-                paperGiltGapEl.style.height = (pGapEnd - pGapTop) + 'px';
-                paperGiltGapEl.style.display = 'block';
-              } else {
-                paperGiltGapEl.style.display = 'none';
-              }
+              var railWF = tabRailEl && tabRailEl.clientWidth ? tabRailEl.clientWidth : 64;
+              tabGiltFrontEl.style.left = railWF + 'px';
+              tabGiltFrontEl.style.top = (stripTopBase + activeC.top) + 'px';
+              tabGiltFrontEl.style.height = activeC.sh + 'px';
+              tabGiltFrontEl.style.background = 'var(--surface)';
+              tabGiltFrontEl.style.display = 'block';
             } else {
-              paperGiltGapEl.style.display = 'none';
+              tabGiltFrontEl.style.display = 'none';
             }
           }
           /* Build -106: the group BARS. Each bar pill spans
@@ -15513,20 +15700,26 @@
              member tab to bottom of the last, no padding.
              It floats LEFT of the tab line with 12px of clear
              air: the rail's .has-bars widening puts the tab
-             line (gutter) 28px into the rail, and the 16px
-             bar sits at gutter − 28, so bar-right to tab-left
+             line (gutter) 34px into the rail, and the bar
+             sits at gutter − 34, so bar-right to tab-left
              measures exactly 12px. One RUNG per member runs
              from the bar's right edge to that member tab's
              left edge, landing at the tab's mid-height.
              Nothing is positioned on or behind any tab, so
-             every sheet's gilt edge column stays visible. */
+             every sheet's gilt edge column stays visible.
+             Build -107: the bar is 22px wide (was 16px),
+             grown LEFTWARD — the strip is 34px (was 28px),
+             barLeft = gutter − 34 in both eras, so the bar's
+             RIGHT edge, the 12px air and every rung's span
+             are exactly where -106 put them; only the bar's
+             left edge (and the rail's) moved 6px out. */
           if (tabBars.length) {
             var barGutter = 22;
             if (tabRailEl) {
               var bgx = parseFloat(getComputedStyle(tabRailEl).getPropertyValue('--tab-x'));
               if (bgx > 0) barGutter = bgx;
             }
-            var barLeft = Math.max(0, barGutter - 28);
+            var barLeft = Math.max(0, barGutter - 34);
             tabBars.forEach(function (bar) {
               if (!bar.caches.length) { bar.el.style.display = 'none'; bar.rungs.forEach(function (rel) { rel.style.display = 'none'; }); return; }
               var bTop = Infinity, bBottom = -Infinity;
@@ -15542,9 +15735,9 @@
                 var rel = bar.rungs[ci];
                 if (!rel) return;
                 rel.style.display = 'block';
-                rel.style.left = (barLeft + 16) + 'px';
+                rel.style.left = (barLeft + 22) + 'px';
                 rel.style.top = (c.top + c.sh / 2 - 1) + 'px';
-                rel.style.width = Math.max(0, barGutter - barLeft - 16) + 'px';
+                rel.style.width = Math.max(0, barGutter - barLeft - 22) + 'px';
               });
             });
           }
@@ -15654,7 +15847,85 @@
         var tabHoverEl = null;
         var tabHoverDocId = null;
         var tabHoverPoint = null;
+        /* Build -107: two states now outrank the pointer in
+           tabHoverSet. (1) DRAG GATE: while a tab or group
+           drag is live (tabDragGate, called by the drag code
+           the moment a press crosses the threshold, and
+           released in tabPtrEnd), no tab may take or keep a
+           hover — the pointer roams the whole stack mid-drag
+           and every tab it crossed used to stretch under it.
+           The rail's .tabs-dragging class stands the pure
+           CSS :hover channel down in parallel. (2) MENU PIN:
+           while a tab's menu is open, tabHoverPin names that
+           tab ({docId} for a document tab, {gid} for the
+           collapsed group tab) and its hover is HELD — the
+           tab stays stretched with its × / ⋯ up even when
+           the pointer moves off it — until closeTabMenu
+           releases the pin. The rail's .tab-menu-pin class
+           keeps the CSS channel from stretching any other
+           tab meanwhile. */
+        var tabDragActive = false;
+        var tabHoverPin = null;
+        function tabHoverPinEl() {
+          if (!tabHoverPin || !tabStripEl) return null;
+          try {
+            if (tabHoverPin.docId) return tabStripEl.querySelector('.folio-tab[data-doc-id="' + tabHoverPin.docId + '"]');
+            if (tabHoverPin.gid) return tabStripEl.querySelector('.folio-tab[data-group-id="' + tabHoverPin.gid + '"]');
+          } catch (e) {}
+          return null;
+        }
+        function tabHoverPinSet(pin) {
+          tabHoverPin = pin;
+          if (tabRailEl) tabRailEl.classList.toggle('tab-menu-pin', !!pin);
+          if (!pin) return;
+          var el = tabHoverPinEl();
+          if (el) {
+            if (tabHoverEl && tabHoverEl !== el) tabHoverEl.classList.remove('tab-hover');
+            tabHoverEl = el;
+            tabHoverDocId = pin.docId || null;
+            el.classList.add('tab-hover');
+          }
+        }
+        function tabHoverPinClear() {
+          if (!tabHoverPin) return;
+          tabHoverPinSet(null);
+          tabHoverSync();
+        }
+        function tabDragGate(on) {
+          tabDragActive = !!on;
+          if (tabRailEl) tabRailEl.classList.toggle('tabs-dragging', tabDragActive);
+          if (tabDragActive) {
+            tabHoverPoint = null;
+            if (tabHoverEl) { tabHoverEl.classList.remove('tab-hover'); tabHoverEl = null; tabHoverDocId = null; }
+          }
+        }
         function tabHoverSet(el) {
+          /* Build -107: the drag gate and the menu pin (see
+             the state note above) — during a drag every set
+             is refused and any held hover is dropped; while
+             a menu pins a tab, the hover is forced back to
+             the pinned tab whatever the pointer is over. */
+          if (tabDragActive) {
+            if (tabHoverEl) { tabHoverEl.classList.remove('tab-hover'); tabHoverEl = null; tabHoverDocId = null; }
+            return;
+          }
+          if (tabHoverPin) {
+            var pinEl = tabHoverPinEl();
+            if (!pinEl) {
+              /* The menu's owner has no rendered tab (the
+                 expanded group's bar): nothing to hold, and
+                 no other tab keeps a hover under the menu. */
+              if (tabHoverEl) { tabHoverEl.classList.remove('tab-hover'); tabHoverEl = null; tabHoverDocId = null; }
+              return;
+            }
+            if (pinEl !== tabHoverEl) {
+              if (tabHoverEl) tabHoverEl.classList.remove('tab-hover');
+              tabHoverEl = pinEl;
+              tabHoverDocId = tabHoverPin.docId || null;
+              pinEl.classList.add('tab-hover');
+            }
+            return;
+          }
           /* Build -104: the group tab never took the member
              hover stretch (it was already wide, its geometry
              pinned by tabLayout) — a pointer over it tracked
@@ -15676,6 +15947,13 @@
           if (tabHoverEl) tabHoverEl.classList.add('tab-hover');
         }
         function tabHoverSync() {
+          /* Build -107: a live drag freezes the hover where
+             the gate left it (none); a menu pin re-asserts
+             the pinned tab (a re-render may have recreated
+             its element). Only an unpinned, undragged stack
+             re-tracks the pointer. */
+          if (tabDragActive) return;
+          if (tabHoverPin) { tabHoverSet(null); return; }
           if (!tabHoverPoint) return;
           var hit = document.elementFromPoint(tabHoverPoint.x, tabHoverPoint.y);
           tabHoverSet(hit && hit.closest ? hit.closest('.folio-tab') : null);
@@ -16100,8 +16378,10 @@
               if (!tabPtr.moved && Math.abs(totalDy) > 7) {
                 tabPtr.moved = true;
                 if (tabPtr.lpTimer) { clearTimeout(tabPtr.lpTimer); tabPtr.lpTimer = null; }
-                tabHoverPoint = null;
-                tabHoverSet(null);
+                /* Build -107: the drag gate — hover stands
+                   down on every tab for the drag's duration
+                   (see tabDragGate). */
+                tabDragGate(true);
               }
               if (tabPtr.moved) {
                 /* Build -105: the block no longer follows the
@@ -16134,9 +16414,13 @@
                  stretch (tracked by doc id) must not fight
                  it, so the tracked hover is dropped for the
                  drag's duration; the next pointermove after
-                 the drop re-tracks it. */
-              tabHoverPoint = null;
-              tabHoverSet(null);
+                 the drop re-tracks it. Build -107: this is
+                 now the drag GATE (tabDragGate) — the drop
+                 also REFUSES every hover set for the whole
+                 drag, not just the one live at its start,
+                 and stands the CSS :hover channel down via
+                 the rail's .tabs-dragging class. */
+              tabDragGate(true);
             }
             if (!tabPtr.moved) return;
             /* Build -105: the dragged tab stays at its origin
@@ -16171,6 +16455,11 @@
             if (tabPtr.lpTimer) clearTimeout(tabPtr.lpTimer);
             var p = tabPtr;
             tabPtr = null;
+            /* Build -107: the drag is over — release the
+               hover gate before any commit render, so the
+               re-render's tabHoverSync can re-track the
+               pointer normally. */
+            tabDragGate(false);
             tabDragGapClear();
             if (p.scrollOnly) return;
             p.el.classList.remove('dragging');
@@ -23013,7 +23302,11 @@
           var targetFolderId = newDocTargetFolderId();
           if (targetFolderId) { createDocInFolder(targetFolderId); return; }
           var doc = createDoc('Untitled');
-          openDoc(doc.id, false);
+          /* Build -107: New opens the document in a NEW tab
+             (see createDocInFolder); the folder path above
+             already lands there. */
+          if (folioTabsReady) openDocInNewTab(doc.id);
+          else openDoc(doc.id, false);
           titleInput.focus();
           titleInput.select();
         });
