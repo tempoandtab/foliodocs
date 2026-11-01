@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-100" />
+    <meta name="folio-build" content="20261101-101" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3756,7 +3756,43 @@
          cast shadow onto the first sheet, and each tab's
          cast shadow onto the desk behind it are all tuned
          up to soft-but-measurable blurred layers — see the
-         .paper-sheet, wrapped-.paper and .folio-tab rules. */
+         .paper-sheet, wrapped-.paper and .folio-tab rules.
+         Build -101 (Andrew's -100 verdict: the polish is
+         right, the shadows overshot, and a click makes the
+         hover stretch bounce): (1) The cast shadows are
+         dialled WELL down again — roughly a quarter of
+         -100's strength, tighter blur — back to subtle
+         depth only:
+         present in pixel samples as a small darkening step,
+         no longer the ~40% sliver crush or the desk pool.
+         (2) The separation the shadows used to provide now
+         comes from the sheets' EDGES instead: each recessed
+         sheet's face deepens toward black by 6% per rank
+         (tabLayout's sheet background), so every exposed
+         sliver and bottom step is a slightly darker tone
+         than the sheet in front of it, in every theme — in
+         the dark themes this reverses the old toward-ink
+         mix, which lightened deeper sheets there. The gilt
+         hairlines (the sheets' and the top page's) are
+         unchanged, and nothing is added to the tabs — no
+         border or edge treatment returns there. (3) The
+         hover flicker on click: tabRender used to rebuild
+         the hovered tab bare and let tabHoverSync re-apply
+         .tab-hover at the end — but tabLayout's layout
+         reads resolve the new element's REST geometry
+         first, so the re-applied hover started a 0.12s
+         transition from the un-stretched state and the
+         first painted frame caught the stretch bounced
+         OFF before it animated back ON. The hover state
+         is now tracked by DOC ID (tabHoverDocId) and a
+         re-created tab for the hovered doc is BORN with
+         .tab-hover, before any layout read can resolve a
+         rest state: no rest frame paints and no transition
+         runs, whether the click activates the tab (its
+         wider active --tab-w is set in the same layout
+         pass, so the stretch resolves straight into the
+         active geometry) or the tab was already active.
+         See tabRender / tabHoverSet. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3868,10 +3904,15 @@
          paper also leads the pile's shadows — a soft leftward
          layer so its edge darkens the first recessed sheet's
          sliver behind it, ahead of the theme's ambient
-         var(--paper-shadow), which is preserved verbatim. */
+         var(--paper-shadow), which is preserved verbatim.
+         Build -101: that cast layer is dialled well down
+         with the rest of the pile's shadows (see the Stack
+         block note) — a gentle darkening of the first
+         sliver, most of whose definition now comes from
+         the sheets' own deepened edge tones. */
       #editorScroll .paper-wrap > .paper {
         border-left: 1px solid var(--stack-edge);
-        box-shadow: -7px 4px 18px rgba(0, 0, 0, 0.30), -2px 0 6px rgba(0, 0, 0, 0.22), var(--paper-shadow);
+        box-shadow: -4px 2px 10px rgba(0, 0, 0, 0.09), -1px 0 3px rgba(0, 0, 0, 0.06), var(--paper-shadow);
       }
       .paper-sheets { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
       /* Build -96: three fixes to how the pile renders.
@@ -3921,8 +3962,17 @@
            layers doing the same work on the 3px bottom step.
            Still blurred paper shadows, never hard bars: the
            tight layers carry the measurable step, the wide
-           layers keep the falloff soft. */
-        box-shadow: -5px 0 10px rgba(0, 0, 0, 0.40), -1px 0 3px rgba(0, 0, 0, 0.28), 0 5px 12px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.22);
+           layers keep the falloff soft.
+           Build -101: OVERSHOT — Andrew's word. The layers
+           keep -100's two-per-edge structure but at roughly
+           a quarter of its strength and with tighter blur:
+           subtle depth only. The layer separation they used
+           to carry now comes from the sheets' own deepened
+           edge tones (tabLayout shades each sheet's face 6%
+           deeper toward black per rank), so the slivers and
+           steps still read as distinct sheets with the cast
+           shadow reduced to a whisper-plus. */
+        box-shadow: -3px 0 6px rgba(0, 0, 0, 0.10), -1px 0 2px rgba(0, 0, 0, 0.08), 0 3px 7px rgba(0, 0, 0, 0.09), 0 1px 2px rgba(0, 0, 0, 0.06);
         pointer-events: none;
       }
       /* The sheets are stack UI, not page furniture: wherever
@@ -3963,8 +4013,15 @@
            blurred wash plus a tighter layer for a measurable
            step at the tab's left/bottom edges — while the
            three inset ring arms above stay exactly as -98
-           left them (still NO right arm). */
-        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -3px 3px 10px rgba(0, 0, 0, 0.36), 0 4px 12px rgba(0, 0, 0, 0.28), -1px 1px 3px rgba(0, 0, 0, 0.24);
+           left them (still NO right arm).
+           Build -101: dialled well down with the rest of
+           the pile's shadows — same three-layer structure
+           at roughly a third of -100's strength, tighter
+           blur. The insets are untouched (still NO right
+           arm) and nothing edge-like is added to the tab:
+           the darker-edges compensation lives on the
+           sheets only. */
+        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09), -1px 1px 2px rgba(0, 0, 0, 0.07);
         display: flex; align-items: center; justify-content: center;
         transition: left 0.12s ease, width 0.12s ease;
         overflow: hidden; user-select: none; -webkit-user-select: none;
@@ -13704,6 +13761,25 @@
             el.setAttribute('aria-label', d.title || 'Untitled');
             el.setAttribute('data-doc-id', r.docId);
             el.setAttribute('data-tip', d.title || 'Untitled');
+            /* Build -101: if a mouse/pen pointer is resting
+               on this doc's tab, the new element is BORN
+               with .tab-hover (tabHoverDocId survives the
+               rebuild; the old element did not). Previously
+               the element was created bare and tabHoverSync
+               re-applied the class at the END of the render —
+               after tabLayout's layout reads had already
+               resolved the element's rest geometry, so the
+               re-applied stretch ran the 0.12s left/width
+               transition FROM the un-stretched state: on
+               click the hover visibly bounced off, then back
+               on. Born with the class, the element's first
+               resolved style IS the hover geometry — no rest
+               frame ever paints, no transition runs — and
+               when the click makes this tab active, its new
+               --tab-w is set in the same layout pass, so the
+               stretch resolves straight into the active
+               geometry instead of bouncing through rest. */
+            if (tabHoverPoint && tabHoverDocId === r.docId) el.classList.add('tab-hover');
             /* The sheet's paper, shaded a few points toward the
                ink per depth step (front sheet at full strength).
                No folder stripe in Stack v1. */
@@ -13799,7 +13875,12 @@
           /* Build -94: the render just recreated every tab
              element, dropping .tab-hover with the old ones —
              re-apply it to the element now under a stationary
-             mouse/pen pointer. */
+             mouse/pen pointer. Build -101: the tab for the
+             hovered doc was already born with the class
+             (above), so this sync now only re-points
+             tabHoverEl at the new element (and covers a
+             pointer resting over a different tab than the
+             tracked one); the visible state never dropped. */
           tabHoverSync();
         }
         /* ----- build -91: the paper's vertical span -----
@@ -13937,8 +14018,10 @@
                content behind the paper — offset left by the
                same per-rank step its tab's right edge takes
                (build -98: the shared capped offset, off),
-               paper shaded per depth exactly like the tab's
-               own face. Its size is the wrapper's box, so
+               paper shaded per depth (build -101: deeper
+               than the tab's own face, and toward black —
+               see the background assignment below). Its
+               size is the wrapper's box, so
                nothing here — or anywhere — repositions it on
                scroll. Build -98 also scoots each sheet DOWN
                3px per rank (top/bottom set as a matched pair,
@@ -13973,8 +14056,23 @@
               c.sheet.style.bottom = (-sheetDown) + 'px';
               c.sheet.style.borderRadius = '6px';
               c.sheet.style.zIndex = String(60 - effRank);
+              /* Build -101: the sheet's face deepens toward
+                 BLACK by 6% per rank (was: toward var(--ink)
+                 by 4%, the same shading as the tab's face).
+                 Andrew's -100 verdict traded cast shadow for
+                 edge tone: with the pile's shadows dialled
+                 well down, each sheet's exposed sliver and
+                 bottom step still has to read as its own
+                 layer, and that reading now comes from this
+                 tone step — every sliver measurably darker
+                 than the sheet in front of it. Toward black
+                 (not ink) so the step darkens in the dark
+                 themes too, where the old toward-ink mix
+                 lightened deeper sheets toward the cream
+                 ink. The tabs keep their own 4%-toward-ink
+                 faces; nothing is added to them. */
               c.sheet.style.background =
-                'color-mix(in srgb, var(--surface) ' + (100 - effRank * 4) + '%, var(--ink))';
+                'color-mix(in srgb, var(--surface) ' + (100 - effRank * 6) + '%, black)';
             }
             /* Build -99: the -96 connector band that used to
                be positioned here is REMOVED (c.band is always
@@ -14082,13 +14180,28 @@
            the pointer leaves the tab or the window; tabRender
            calls tabHoverSync so a stationary pointer's tab
            keeps its hover face across the re-render its own
-           click causes. CSS :hover stays as the desktop path. */
+           click causes. CSS :hover stays as the desktop path.
+           Build -101: the class is additionally tracked by
+           doc id (tabHoverDocId), and tabRender hands it to
+           a re-created tab at birth — a click's re-render no
+           longer drops the stretch for the frames the old
+           end-of-render re-application needed to restore it
+           (the bounce Andrew recorded); see tabRender. */
         var tabHoverEl = null;
+        var tabHoverDocId = null;
         var tabHoverPoint = null;
         function tabHoverSet(el) {
           if (tabHoverEl === el) return;
           if (tabHoverEl) tabHoverEl.classList.remove('tab-hover');
           tabHoverEl = el;
+          /* Build -101: the hover is also remembered by DOC
+             ID, not only by element. tabRender destroys and
+             recreates every tab element on each click; the
+             element pointer dies with the old node, but the
+             doc id survives, and tabRender uses it to hand
+             the new element its .tab-hover class at birth —
+             see the note in tabRender. */
+          tabHoverDocId = el ? el.getAttribute('data-doc-id') : null;
           if (tabHoverEl) tabHoverEl.classList.add('tab-hover');
         }
         function tabHoverSync() {
