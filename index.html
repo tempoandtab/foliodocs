@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-102" />
+    <meta name="folio-build" content="20261101-103" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3836,7 +3836,27 @@
          right on spined tabs so it stays clear) and
          active. Geometry, the -101 shadows, the -97
          prose invariant and the 4px/3px pile steps are
-         untouched. */
+         untouched.
+         Build -103 (Tabs Phase 3 — groups + workspaces, on
+         the settled stack; the -89…-102 geometry, bleed,
+         spines, shadows and hover model are untouched):
+         (1) GROUPS: a tab's record group field goes live.
+         An expanded group renders as a backing plate in the
+         rail (.tab-plate, positioned by tabLayout from its
+         members' rendered spans, rim left of the tab line);
+         members pack at a 2px gap, everything else keeps
+         12px. A collapsed group renders as one stack unit;
+         its tabs stay open (sessions parked), filed inside
+         it. (2) WORKSPACES: named open sets; the Book's
+         right page lists them, switching auto-saves the
+         outgoing set; definitions sync fail-soft through
+         the theme_styles key/value store while open sets
+         and the live pointer stay per-device. (3) DRAG:
+         the Phase 1 drag is re-proven and completed — see
+         the tabs module's drag note: threshold, follow,
+         drop-slot preview, group filing by adjacency, and
+         touch drags now reorder too (the stack-scroll they
+         used to own moves to the plate rims / rail gaps). */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -4323,10 +4343,10 @@
          measure against the main column's width) and goes back
          to overlaying the primary paper's corner, its home. */
       :root[data-ref="on"] .outline-pop { right: calc(var(--refw, 42%) + 14px); }
-      /* Drag-a-tab-over-the-editor affordance (spec §7 door 2):
-         the primary area takes an accent outline while a dragged
-         tab hovers it, so the drop reads before it lands. */
-      .editor-scroll.ref-drop { outline: 2px solid var(--accent); outline-offset: -2px; }
+      /* Build -103: the drag-a-tab-over-the-editor affordance
+         is REMOVED with the door itself (see the tabs module's
+         drag note): a tab drag is reorder-only now, so the
+         editor area never advertises a reference drop. */
       @media (max-width: 640px) { .ref-pane { display: none !important; } }
       @media print { .ref-pane { display: none !important; } }
 
@@ -4402,6 +4422,65 @@
         white-space: pre-wrap; word-break: break-word;
       }
       .clip-clear-row { color: var(--danger); font-size: 14.5px; font-weight: 600; }
+
+      /* ---------------- file tabs: Phase 3 — groups + workspaces (build -103) ----------------
+         Groups in the STACK presentation (Andrew's Freeform
+         mockup): an expanded group is a backing PLATE behind
+         its member tabs — gilt-edged, the page's exact 6px
+         radius, its rim showing on the left, top and bottom
+         of the member run and extending further left than the
+         tab line. It uses the stack's own vocabulary only:
+         the gilt var(--stack-edge), the sheets' deepened-face
+         mix, the dialled-down -101 shadows. A collapsed group
+         is ONE stack unit (.folio-tab.group-unit) carrying
+         "Name · N" sideways; its tabs are filed inside it,
+         still open. Workspaces live in the Book's right page
+         and in these group headers on the Contents page. */
+      .tab-plates { position: absolute; inset: 0; }
+      .tab-plate {
+        position: absolute; border: 1px solid var(--stack-edge); border-radius: 6px;
+        background: color-mix(in srgb, var(--surface) 90%, black);
+        box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09);
+        cursor: pointer;
+      }
+      .folio-tab.group-unit {
+        background: color-mix(in srgb, var(--surface) 82%, black);
+        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset var(--tab-lw, 3px) 0 0 var(--stack-edge), inset -7px 0 0 -5px var(--stack-edge), -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09);
+      }
+      .folio-tab.group-unit .folio-tab-name { font-weight: 700; }
+      /* The prospective drop slot while a tab is dragged:
+         a gilt outline in the gap the drop would occupy. */
+      .tab-drop-slot {
+        position: absolute; border: 1.5px dashed var(--stack-edge); border-radius: 7px 0 0 7px;
+        background: color-mix(in srgb, var(--stack-edge) 14%, transparent);
+        pointer-events: none; z-index: 5;
+      }
+      .book-ws-name { font-family: "Public Sans", sans-serif; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+      .book-group-head {
+        display: flex; align-items: center; gap: 7px; width: 100%; text-align: left;
+        border: none; background: transparent; color: var(--ink-2); cursor: pointer;
+        padding: 9px 8px 5px; font: inherit; font-size: 12.5px; font-weight: 700;
+        letter-spacing: 0.06em; text-transform: uppercase;
+      }
+      .book-group-head:hover { color: var(--ink); }
+      .book-group-chev { flex: 0 0 auto; font-size: 10px; color: var(--stack-edge); }
+      .book-group-count { font-weight: 600; color: var(--ink-3); letter-spacing: 0; text-transform: none; }
+      .book-row.grouped { padding-left: 22px; }
+      .book-ws-row {
+        display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+        border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer;
+        padding: 9px 11px; border-radius: 9px; font: inherit; font-size: 14.5px; margin-bottom: 8px;
+      }
+      .book-ws-row:hover { border-color: var(--ink-3); }
+      .book-ws-row.current { border-color: var(--stack-edge); box-shadow: inset 3px 0 0 var(--stack-edge); }
+      .book-ws-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+      .book-ws-row-here { font-size: 11.5px; color: var(--ink-3); flex: 0 0 auto; }
+      .book-ws-act {
+        flex: 0 0 auto; border: none; background: transparent; color: var(--ink-3); cursor: pointer;
+        width: 26px; height: 26px; border-radius: 6px; font-size: 14px; line-height: 1; padding: 0;
+      }
+      .book-ws-act:hover { background: var(--hover); color: var(--ink); }
+      .book-ws-act.danger:hover { color: var(--danger); }
     </style>
     <script>
       /* Apply the saved toolbar label scheme before first paint so
@@ -4743,6 +4822,7 @@
           <nav class="tab-rail" id="tabRail" aria-label="Open documents">
             <div class="tab-scroll" id="tabScroll">
               <div class="tab-bands" id="tabBands"></div>
+              <div class="tab-plates" id="tabPlates"></div>
               <div class="tab-strip" id="tabStrip"></div>
             </div>
             <div class="tab-foot">
@@ -5166,14 +5246,17 @@
       <div class="book-cover">
         <div class="book-spread">
           <div class="book-page book-left">
-            <div class="book-page-head"><span>Contents</span></div>
+            <div class="book-page-head"><span>Contents</span><span class="book-ws-name" id="bookWsName"></span></div>
             <input class="book-search" id="bookSearch" type="text" placeholder="Search open tabs" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search open tabs" />
             <div id="bookList"></div>
           </div>
           <div class="book-page book-right">
-            <div class="book-page-head"><span>Housekeeping</span>
+            <div class="book-page-head"><span>Workspaces</span>
               <button class="book-close" id="bookClose" type="button" aria-label="Close tab switcher" data-tip="Close">✕</button>
             </div>
+            <div id="bookWsList"></div>
+            <button class="book-house-btn" id="bookNewWs" type="button">New workspace…</button>
+            <div class="book-page-head" style="margin-top:14px"><span>Housekeeping</span></div>
             <button class="book-house-btn" id="bookReopen" type="button">Reopen closed tab</button>
             <button class="book-house-btn danger" id="bookCloseAll" type="button">Close all tabs</button>
           </div>
@@ -12984,9 +13067,27 @@
            tab the same way: saved into the outgoing tab's record
            and loaded from the incoming one. The open set persists
            per device in localStorage (folio-tabs) and never
-           syncs. Tabs carry a `group` field that stays null —
-           groups are Phase 3. */
+           syncs.
+           Phase 3 (build -103): groups and workspaces go
+           live on this same model. A tab's `group` field
+           names a group in the ACTIVE workspace's definition
+           (or null). Workspace DEFINITIONS — the workspace
+           list, each workspace's groups, and group
+           membership — are a synced store (localStorage
+           folio-workspaces-def locally; the theme_styles
+           key/value table under key folio.workspaces.v1 when
+           signed in, fail-soft exactly like theme_styles).
+           Each device's OPEN SETS (folio-workspaces-state:
+           one serialized tabPersist payload per workspace,
+           collapse states included) and its active-workspace
+           pointer stay per-device and never sync. The legacy
+           folio-tabs payload remains the active workspace's
+           mirror, and on upgrade it becomes the initial
+           workspace's ("Main") open set — nothing is lost. */
         var TABS_KEY = 'folio-tabs';
+        var WS_DEF_KEY = 'folio-workspaces-def';
+        var WS_STATE_KEY = 'folio-workspaces-state';
+        var WS_SYNC_KEY = 'folio.workspaces.v1';
         var CLIP_KEY = 'folio-clip-history';
         var folioTabsReady = false;
         var folioTabNavInternal = false;
@@ -13000,6 +13101,17 @@
         var tabScrollPos = 0;
         var tabView = { mode: 'fit', M: 0, T: 0, Z: 0 };
         var tabLayoutCache = [];
+        /* Phase 3 state. wsDefs is the synced definition
+           store; wsSets holds this device's serialized open
+           set per workspace id; tabCollapsed is the ACTIVE
+           workspace's per-device collapse map (groupId ->
+           true), persisted inside its open-set payload. */
+        var wsDefs = { updated: 0, list: [{ id: 'ws-main', name: 'Main', groups: [], membership: {} }] };
+        var wsActiveId = 'ws-main';
+        var wsSets = {};
+        var tabCollapsed = {};
+        var tabPlates = [];        // [{ gid, el, caches:[cache entries] }]
+        var tabPlatesEl = document.getElementById('tabPlates');
         var tabSuppressClick = false;
         var tabPendingFill = false;
         var tabRailEl = document.getElementById('tabRail');
@@ -13037,6 +13149,309 @@
           var i = tabIndexOf(id);
           return i < 0 ? null : tabRecords[i];
         }
+        /* ----- Phase 3: workspace definitions + groups -----
+           Definitions normalize defensively at every door
+           (local load, sync merge): ids and names are
+           strings, groups are {id,name}, membership maps
+           docId -> groupId and only ever names groups that
+           exist in the same workspace. */
+        function wsNormalizeDefs(raw) {
+          var out = { updated: 0, list: [] };
+          if (raw && typeof raw === 'object') {
+            out.updated = typeof raw.updated === 'number' ? raw.updated : 0;
+            if (Array.isArray(raw.list)) {
+              raw.list.forEach(function (w) {
+                if (!w || typeof w.id !== 'string' || !w.id) return;
+                var groups = [];
+                if (Array.isArray(w.groups)) {
+                  w.groups.forEach(function (g) {
+                    if (g && typeof g.id === 'string' && g.id) groups.push({ id: g.id, name: typeof g.name === 'string' && g.name ? g.name : 'Group' });
+                  });
+                }
+                var membership = {};
+                if (w.membership && typeof w.membership === 'object') {
+                  Object.keys(w.membership).forEach(function (docId) {
+                    var gid = w.membership[docId];
+                    if (groups.some(function (g) { return g.id === gid; })) membership[docId] = gid;
+                  });
+                }
+                out.list.push({ id: w.id, name: typeof w.name === 'string' && w.name ? w.name : 'Workspace', groups: groups, membership: membership });
+              });
+            }
+          }
+          if (!out.list.length) out.list.push({ id: 'ws-main', name: 'Main', groups: [], membership: {} });
+          return out;
+        }
+        function wsDef() {
+          for (var i = 0; i < wsDefs.list.length; i++) if (wsDefs.list[i].id === wsActiveId) return wsDefs.list[i];
+          return wsDefs.list[0];
+        }
+        function wsGroupById(gid) {
+          if (!gid) return null;
+          var groups = wsDef().groups;
+          for (var i = 0; i < groups.length; i++) if (groups[i].id === gid) return groups[i];
+          return null;
+        }
+        function wsDefsLoad() {
+          try {
+            var raw = JSON.parse(localStorage.getItem(WS_DEF_KEY) || 'null');
+            if (raw) wsDefs = wsNormalizeDefs(raw);
+          } catch (e) {}
+        }
+        function wsDefsSave() {
+          wsDefs.updated = Date.now();
+          try { localStorage.setItem(WS_DEF_KEY, JSON.stringify(wsDefs)); } catch (e) {}
+          /* Definitions sync on the regular cycle too
+             (pushAll calls pushWorkspaces); this immediate
+             attempt is the same fail-soft call, so a rename
+             made between cycles still lands promptly when
+             signed in. Both helpers are declared later in
+             this scope and are no-ops signed out. */
+          try { if (typeof pushWorkspaces === 'function') pushWorkspaces(myMeta()); } catch (e) {}
+        }
+        function wsStateSave() {
+          try { localStorage.setItem(WS_STATE_KEY, JSON.stringify({ activeId: wsActiveId, sets: wsSets })); } catch (e) {}
+        }
+        function wsStateLoad() {
+          try {
+            var raw = JSON.parse(localStorage.getItem(WS_STATE_KEY) || 'null');
+            if (raw && typeof raw === 'object') {
+              if (raw.sets && typeof raw.sets === 'object') wsSets = raw.sets;
+              if (typeof raw.activeId === 'string' && wsDefs.list.some(function (w) { return w.id === raw.activeId; })) wsActiveId = raw.activeId;
+            }
+          } catch (e) {}
+          if (!wsDefs.list.some(function (w) { return w.id === wsActiveId; })) wsActiveId = wsDefs.list[0].id;
+        }
+        /* Mirror the live records' membership into the
+           active workspace's synced definition. The
+           per-device records stay authoritative locally;
+           the definition copy is what another device reads
+           when it files a newly opened doc. */
+        function wsSyncMembership() {
+          var def = wsDef();
+          var m = {};
+          tabRecords.forEach(function (r) { if (r.group && wsGroupById(r.group)) m[r.docId] = r.group; });
+          if (JSON.stringify(def.membership || {}) !== JSON.stringify(m)) {
+            def.membership = m;
+            wsDefsSave();
+          }
+        }
+        function groupMembers(gid) {
+          return tabRecords.filter(function (r) { return r.group === gid; });
+        }
+        function groupIsCollapsed(gid) { return !!tabCollapsed[gid]; }
+        function setTabGroup(docId, gid) {
+          var r = tabRecord(docId);
+          if (!r) return;
+          if (gid && !wsGroupById(gid)) gid = null;
+          /* Filing the ACTIVE tab into a collapsed group
+             would file the divider being read: expand the
+             group instead, so the tab stays visible. */
+          if (gid && groupIsCollapsed(gid) && docId === tabActiveId) delete tabCollapsed[gid];
+          r.group = gid || null;
+          wsSyncMembership();
+          tabPersist();
+          tabRender();
+          if (typeof bookRender === 'function' && bookOverlay && !bookOverlay.hidden) bookRender();
+        }
+        function createGroup(name, docId) {
+          var gid = uid();
+          wsDef().groups.push({ id: gid, name: name || 'New group' });
+          wsDefsSave();
+          if (docId) setTabGroup(docId, gid);
+          else { tabPersist(); tabRender(); }
+          return gid;
+        }
+        function renameGroup(gid, name) {
+          var g = wsGroupById(gid);
+          if (!g || !name) return;
+          g.name = name;
+          wsDefsSave();
+          tabRender();
+          if (typeof bookRender === 'function' && bookOverlay && !bookOverlay.hidden) bookRender();
+        }
+        /* Dissolving a group unfiles its tabs — it never
+           closes them (spec §5). */
+        function dissolveGroup(gid) {
+          tabRecords.forEach(function (r) { if (r.group === gid) r.group = null; });
+          var def = wsDef();
+          def.groups = def.groups.filter(function (g) { return g.id !== gid; });
+          delete tabCollapsed[gid];
+          wsSyncMembership();
+          wsDefsSave();
+          tabPersist();
+          tabRender();
+          if (typeof bookRender === 'function' && bookOverlay && !bookOverlay.hidden) bookRender();
+        }
+        function collapseGroup(gid) {
+          if (!wsGroupById(gid) || groupIsCollapsed(gid)) return;
+          if (tabActiveId && tabRecord(tabActiveId) && tabRecord(tabActiveId).group === gid) {
+            /* You cannot file the divider you are reading:
+               activate the nearest tab OUTSIDE the group
+               (below first, then above) before folding. If
+               no outside tab exists, the fold is refused —
+               collapsing would leave nothing readable. */
+            var ai = tabIndexOf(tabActiveId), outside = null;
+            for (var i = ai + 1; i < tabRecords.length && !outside; i++) if (tabRecords[i].group !== gid) outside = tabRecords[i];
+            for (var j = ai - 1; j >= 0 && !outside; j--) if (tabRecords[j].group !== gid) outside = tabRecords[j];
+            if (!outside) { folioToast('Open a tab outside the group first — the tab you are reading can’t be filed away.', 3600); return; }
+            tabCollapsed[gid] = true;
+            tabPersist();
+            activateTab(outside.docId, true);
+            return;
+          }
+          tabCollapsed[gid] = true;
+          tabPersist();
+          tabRender();
+          if (typeof bookRender === 'function' && bookOverlay && !bookOverlay.hidden) bookRender();
+        }
+        function expandGroup(gid) {
+          if (!groupIsCollapsed(gid)) return;
+          delete tabCollapsed[gid];
+          tabPersist();
+          tabRender();
+          if (typeof bookRender === 'function' && bookOverlay && !bookOverlay.hidden) bookRender();
+        }
+        function toggleGroup(gid) {
+          if (groupIsCollapsed(gid)) expandGroup(gid); else collapseGroup(gid);
+        }
+        /* The name prompt rides the app's existing tag modal
+           (openTagModal is the generic name/confirm dialog:
+           input, error string return, Enter/Escape wired). */
+        function tabNamePrompt(title, text, initial, label, cb) {
+          openTagModal({
+            title: title, text: text, input: true, initial: initial || '', confirmLabel: label || 'Save',
+            onConfirm: function (value) {
+              var v = (value || '').trim();
+              if (!v) return 'A name is required.';
+              cb(v);
+              return null;
+            },
+          });
+        }
+        /* ----- Phase 3: workspaces -----
+           Switching replaces the whole open set. The outgoing
+           set is already auto-saved: every mutation persists
+           it into wsSets under the outgoing id (tabPersist),
+           and the switch snapshots once more before swapping
+           for the changes persistence skips (the live nav). */
+        function wsApplySetData(data) {
+          tabRecords = [];
+          tabClosedStack = [];
+          tabCollapsed = {};
+          if (data && Array.isArray(data.tabs)) {
+            data.tabs.forEach(function (t) {
+              if (!t || !tabDoc(t.docId) || tabIndexOf(t.docId) !== -1) return;
+              var nav = t.nav && Array.isArray(t.nav.stack)
+                ? { stack: t.nav.stack.filter(function (x) { return navDocExists(x); }), idx: typeof t.nav.idx === 'number' ? t.nav.idx : 0 }
+                : { stack: [t.docId], idx: 0 };
+              if (!nav.stack.length) nav = { stack: [t.docId], idx: 0 };
+              var gid = t.group && wsGroupById(t.group) ? t.group : null;
+              if (!gid) {
+                var mem = wsDef().membership && wsDef().membership[t.docId];
+                if (mem && wsGroupById(mem)) gid = mem;
+              }
+              tabRecords.push({
+                docId: t.docId, group: gid, nav: nav,
+                refId: t.ref && tabDoc(t.ref) ? t.ref : null,
+                refW: typeof t.refW === 'number' && t.refW > 0 ? Math.min(0.78, Math.max(0.16, t.refW)) : 0.42,
+                refScroll: typeof t.refScroll === 'number' ? t.refScroll : 0,
+              });
+            });
+            if (Array.isArray(data.closed)) tabClosedStack = data.closed.filter(function (x) { return !!tabDoc(x); });
+            if (data.collapsed && typeof data.collapsed === 'object') {
+              Object.keys(data.collapsed).forEach(function (gid) { if (data.collapsed[gid] && wsGroupById(gid)) tabCollapsed[gid] = true; });
+            }
+            tabActiveId = data.active && tabIndexOf(data.active) !== -1 ? data.active : null;
+          }
+        }
+        function switchWorkspace(id, seedDocId) {
+          if (!wsDefs.list.some(function (w) { return w.id === id; })) return;
+          if (id === wsActiveId && !seedDocId) return;
+          tabSaveNav();
+          wsSets[wsActiveId] = tabSerializeSet();
+          wsActiveId = id;
+          wsStateSave();
+          wsApplySetData(wsSets[id]);
+          if (!tabRecords.length) {
+            var seedId = seedDocId && tabDoc(seedDocId) ? seedDocId
+              : (lib.currentId && tabDoc(lib.currentId) ? lib.currentId : (lib.docs.length ? lib.docs[0].id : null));
+            if (seedId) tabRecords.push({ docId: seedId, group: null, nav: { stack: [seedId], idx: 0 } });
+          }
+          if (!tabActiveId || tabIndexOf(tabActiveId) === -1) tabActiveId = tabRecords.length ? tabRecords[0].docId : null;
+          tabMru = tabActiveId ? [tabActiveId] : [];
+          if (tabActiveId) {
+            var r = tabRecord(tabActiveId);
+            folioTabNavInternal = true;
+            navTraversing = true;
+            openDoc(tabActiveId, false);
+            navTraversing = false;
+            folioTabNavInternal = false;
+            if (r) tabLoadNav(r);
+          }
+          tabPersist();
+          tabRender();
+          if (tabActiveId) tabEnsureVisible(tabActiveId);
+        }
+        function createWorkspace(name) {
+          var id = uid();
+          wsDefs.list.push({ id: id, name: name || 'New workspace', groups: [], membership: {} });
+          wsDefsSave();
+          /* A new workspace starts from the document in front
+             of you — its sole tab — so the editor is never
+             left showing a doc its open set doesn't hold. */
+          switchWorkspace(id, lib.currentId);
+          return id;
+        }
+        function renameWorkspace(id, name) {
+          var w = null;
+          wsDefs.list.forEach(function (x) { if (x.id === id) w = x; });
+          if (!w || !name) return;
+          w.name = name;
+          wsDefsSave();
+          if (typeof bookRender === 'function' && bookOverlay && !bookOverlay.hidden) bookRender();
+        }
+        /* Deleting a workspace deletes its definition and
+           this device's saved open set for it — never a
+           document. The last workspace cannot be deleted. */
+        function deleteWorkspace(id) {
+          if (wsDefs.list.length <= 1) return;
+          wsDefs.list = wsDefs.list.filter(function (w) { return w.id !== id; });
+          delete wsSets[id];
+          wsDefsSave();
+          if (id === wsActiveId) {
+            wsActiveId = wsDefs.list[0].id;
+            wsStateSave();
+            wsApplySetData(wsSets[wsActiveId]);
+            if (!tabRecords.length && lib.docs.length) {
+              var seedId = lib.currentId && tabDoc(lib.currentId) ? lib.currentId : lib.docs[0].id;
+              tabRecords.push({ docId: seedId, group: null, nav: { stack: [seedId], idx: 0 } });
+            }
+            if (!tabActiveId || tabIndexOf(tabActiveId) === -1) tabActiveId = tabRecords.length ? tabRecords[0].docId : null;
+            tabMru = tabActiveId ? [tabActiveId] : [];
+            if (tabActiveId) {
+              folioTabNavInternal = true;
+              navTraversing = true;
+              openDoc(tabActiveId, false);
+              navTraversing = false;
+              folioTabNavInternal = false;
+              var r = tabRecord(tabActiveId);
+              if (r) tabLoadNav(r);
+            }
+            tabPersist();
+            tabRender();
+          } else {
+            wsStateSave();
+            if (typeof bookRender === 'function' && bookOverlay && !bookOverlay.hidden) bookRender();
+          }
+        }
+        function cycleWorkspaces() {
+          if (wsDefs.list.length < 2) return;
+          var i = 0;
+          wsDefs.list.forEach(function (w, idx) { if (w.id === wsActiveId) i = idx; });
+          switchWorkspace(wsDefs.list[(i + 1) % wsDefs.list.length].id);
+          folioToast('Workspace: ' + wsDef().name, 1800);
+        }
         function tabFolderColor(d) {
           var f = d && d.folderId ? folderById(d.folderId) : null;
           return (f && f.color) || '#b3a888';
@@ -13059,23 +13474,35 @@
           if (i !== -1) tabMru.splice(i, 1);
           tabMru.unshift(id);
         }
+        function tabSerializeSet() {
+          return {
+            tabs: tabRecords.map(function (r) {
+              return {
+                docId: r.docId, group: r.group || null, nav: r.nav,
+                /* Phase 2: the tab's reference — doc id, the
+                   reference's own scroll, the divider fraction. */
+                ref: r.refId || null,
+                refW: typeof r.refW === 'number' ? r.refW : null,
+                refScroll: typeof r.refScroll === 'number' ? r.refScroll : 0,
+              };
+            }),
+            active: tabActiveId,
+            closed: tabClosedStack.slice(0, 25),
+            /* Phase 3: the active workspace's collapse states
+               ride its per-device open set. */
+            collapsed: Object.assign({}, tabCollapsed),
+          };
+        }
         function tabPersist() {
           tabSaveNav();
           try {
-            localStorage.setItem(TABS_KEY, JSON.stringify({
-              tabs: tabRecords.map(function (r) {
-                return {
-                  docId: r.docId, group: r.group || null, nav: r.nav,
-                  /* Phase 2: the tab's reference — doc id, the
-                     reference's own scroll, the divider fraction. */
-                  ref: r.refId || null,
-                  refW: typeof r.refW === 'number' ? r.refW : null,
-                  refScroll: typeof r.refScroll === 'number' ? r.refScroll : 0,
-                };
-              }),
-              active: tabActiveId,
-              closed: tabClosedStack.slice(0, 25),
-            }));
+            var payload = tabSerializeSet();
+            localStorage.setItem(TABS_KEY, JSON.stringify(payload));
+            /* Phase 3: the same payload is this device's open
+               set for the ACTIVE workspace; other workspaces'
+               sets stay as they were saved when last live. */
+            wsSets[wsActiveId] = payload;
+            wsStateSave();
           } catch (e) {}
         }
 
@@ -13153,6 +13580,10 @@
         function activateTab(id, focus) {
           var r = tabRecord(id);
           if (!r) return;
+          /* Phase 3: a filed tab reached from any door (sidebar,
+             Omnisearch, wikilink, the Book) unfolds its group
+             first — activation always lands on a visible tab. */
+          if (r.group && groupIsCollapsed(r.group) && wsGroupById(r.group)) delete tabCollapsed[r.group];
           if (id === tabActiveId && id === lib.currentId) {
             tabEnsureVisible(id);
             if (focus) tabFocusEditor();
@@ -13175,7 +13606,8 @@
           if (!tabDoc(id)) return;
           if (tabIndexOf(id) !== -1) { activateTab(id, true); return; }
           tabSaveNav();
-          var r = { docId: id, group: null, nav: { stack: [id], idx: 0 } };
+          var memGroup = wsDef().membership && wsDef().membership[id];
+          var r = { docId: id, group: memGroup && wsGroupById(memGroup) ? memGroup : null, nav: { stack: [id], idx: 0 } };
           tabRecords.push(r);
           tabActiveId = id;
           tabLoadNav(r);
@@ -13196,7 +13628,7 @@
         function tabAfterPlainOpen(id) {
           if (tabPendingFill) {
             tabPendingFill = false;
-            if (tabIndexOf(id) === -1) tabRecords.push({ docId: id, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
+            if (tabIndexOf(id) === -1) tabRecords.push({ docId: id, group: (function () { var mg = wsDef().membership && wsDef().membership[id]; return mg && wsGroupById(mg) ? mg : null; })(), nav: { stack: navStack.slice(), idx: navIdx } });
             tabActiveId = id;
           }
           var r = tabRecord(tabActiveId);
@@ -13208,7 +13640,7 @@
                and mint a record only when the doc has none. */
             r = tabRecord(id);
             if (!r) {
-              tabRecords.push({ docId: id, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
+              tabRecords.push({ docId: id, group: (function () { var mg = wsDef().membership && wsDef().membership[id]; return mg && wsGroupById(mg) ? mg : null; })(), nav: { stack: navStack.slice(), idx: navIdx } });
               r = tabRecord(id);
             }
             tabActiveId = id;
@@ -13298,11 +13730,23 @@
           tabPersist();
           tabRender();
         }
+        /* The keyboard's stop list: tabs that are actually
+           on the stack. A collapsed group contributes NO tab
+           stops — cycling passes the whole filed group in
+           the one step between its visible neighbours and
+           never auto-expands it (spec §5). */
+        function tabVisibleStops() {
+          return tabRecords.filter(function (r) {
+            return !(r.group && groupIsCollapsed(r.group) && wsGroupById(r.group));
+          });
+        }
         function tabStep(dir) {
-          if (tabRecords.length < 2) return;
-          var i = tabIndexOf(tabActiveId);
+          var stops = tabVisibleStops();
+          if (stops.length < 2) return;
+          var i = -1;
+          stops.forEach(function (r, idx) { if (r.docId === tabActiveId) i = idx; });
           if (i === -1) i = 0;
-          var next = tabRecords[(i + dir + tabRecords.length) % tabRecords.length];
+          var next = stops[(i + dir + stops.length) % stops.length];
           if (next) activateTab(next.docId, true);
         }
         function tabMruToggle() {
@@ -13315,6 +13759,25 @@
         }
         function tabOnDocDeleted(id) {
           var wasActive = tabActiveId === id;
+          /* Phase 3: the doc leaves every OTHER workspace's
+             saved open set on this device too, and every
+             synced membership map — a deleted doc must not
+             resurrect as a tab when its workspace is next
+             opened. */
+          Object.keys(wsSets).forEach(function (wsid) {
+            if (wsid === wsActiveId) return;
+            var set = wsSets[wsid];
+            if (!set || !Array.isArray(set.tabs)) return;
+            set.tabs = set.tabs.filter(function (t) { return t.docId !== id; });
+            if (Array.isArray(set.closed)) set.closed = set.closed.filter(function (x) { return x !== id; });
+            if (set.active === id) set.active = set.tabs.length ? set.tabs[0].docId : null;
+          });
+          var memChanged = false;
+          wsDefs.list.forEach(function (w) {
+            if (w.membership && w.membership[id]) { delete w.membership[id]; memChanged = true; }
+          });
+          if (memChanged) wsDefsSave();
+          wsStateSave();
           /* Phase 2: a deleted doc stops being any tab's
              reference — the pane has nothing left to show. */
           tabRecords.forEach(function (r) { if (r.refId === id) r.refId = null; });
@@ -13349,6 +13812,87 @@
           tabMenuEl.className = 'menu';
           tabMenuEl.innerHTML = '';
           tabMenuFor = null;
+        }
+        /* Phase 3 menus (group picker + group menu) ride the
+           same #tabMenu surface and the same native-menu
+           resign as openTabMenu — one menu element, one
+           suppression treatment, whichever builder filled it. */
+        function tabMenuShow(x, y) {
+          tabMenuEl.className = 'menu open';
+          if (window.FolioOverlayHost) {
+            try { window.FolioOverlayHost.adopt(tabMenuEl); window.FolioOverlayHost.sync(); } catch (e) {}
+          }
+          var w = 224, h = tabMenuEl.offsetHeight;
+          tabMenuEl.style.left = Math.max(8, Math.min(x || 8, window.innerWidth - w - 8)) + 'px';
+          tabMenuEl.style.top = Math.max(8, Math.min(y || 8, window.innerHeight - h - 8)) + 'px';
+        }
+        function tabMenuItem(label, cls, fn) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-item' + (cls ? ' ' + cls : '');
+          b.setAttribute('role', 'menuitem');
+          b.setAttribute('data-tip', label);
+          var ic = document.createElement('span');
+          ic.className = 'm-icon';
+          b.appendChild(ic);
+          var s = document.createElement('span');
+          s.className = 'm-label';
+          s.textContent = label;
+          b.appendChild(s);
+          b.addEventListener('click', function () { closeTabMenu(); fn(); });
+          tabMenuEl.appendChild(b);
+          return b;
+        }
+        function tabMenuHead(text) {
+          var h = document.createElement('div');
+          h.className = 'menu-head';
+          h.textContent = text;
+          tabMenuEl.appendChild(h);
+        }
+        /* "Move to group ▸" (spec §5/§6): the picker replaces
+           the tab menu's contents — existing groups (the
+           current one checked in its label), New group…,
+           Remove from group when grouped, and Back. */
+        function openGroupPickMenu(docId, x, y) {
+          tabResignTextSession();
+          closeDocMenu(); closeFolderMenu(); closeMoveMenu(); closeViewMenu(); closeTopMenu();
+          tabMenuFor = docId;
+          tabMenuEl.innerHTML = '';
+          var rec = tabRecord(docId);
+          tabMenuHead('Move to group');
+          wsDef().groups.forEach(function (g) {
+            var label = g.name + (rec && rec.group === g.id ? ' · here' : '');
+            tabMenuItem(label, '', function () { setTabGroup(docId, g.id); });
+          });
+          tabMenuItem('New group…', '', function () {
+            tabNamePrompt('New group', 'The tab is filed into the new group. It stays open.', '', 'Create group', function (name) {
+              createGroup(name, docId);
+            });
+          });
+          if (rec && rec.group) {
+            tabMenuItem('Remove from group', '', function () { setTabGroup(docId, null); });
+          }
+          tabMenuItem('‹ Back', '', function () { openTabMenu(docId, x, y); });
+          tabMenuShow(x, y);
+        }
+        /* The group's own menu — from its plate's rim, its
+           collapsed unit, or its Book header. Delete means
+           dissolve: the tabs are unfiled, never closed. */
+        function openGroupMenu(gid, x, y) {
+          var g = wsGroupById(gid);
+          if (!g) return;
+          tabResignTextSession();
+          closeDocMenu(); closeFolderMenu(); closeMoveMenu(); closeViewMenu(); closeTopMenu();
+          tabMenuFor = 'group:' + gid;
+          tabMenuEl.innerHTML = '';
+          tabMenuHead(g.name + ' · ' + groupMembers(gid).length);
+          if (groupIsCollapsed(gid)) tabMenuItem('Expand group', '', function () { expandGroup(gid); });
+          else tabMenuItem('Collapse group', '', function () { collapseGroup(gid); });
+          tabMenuItem('Rename group…', '', function () {
+            tabNamePrompt('Rename group', '', g.name, 'Rename', function (name) { renameGroup(gid, name); });
+          });
+          tabMenuItem('Delete group', 'danger', function () { dissolveGroup(gid); });
+          tabMenuShow(x, y);
         }
         /* Build -82: resign the whole text session, not just
            the selection. Build -78 (below, in this function's
@@ -13493,6 +14037,14 @@
             } else {
               item('Show as reference here', '', function () { refSet(tabActiveId, id); });
             }
+          }
+          /* Phase 3 (spec §5–§6): group membership and the
+             group's own fold, in this same menu. */
+          item('Move to group ▸', '', function () { openGroupPickMenu(id, x, y); });
+          var menuGrp = tabRecord(id) && tabRecord(id).group ? wsGroupById(tabRecord(id).group) : null;
+          if (menuGrp) {
+            if (groupIsCollapsed(menuGrp.id)) item('Expand group', '', function () { expandGroup(menuGrp.id); });
+            else item('Collapse group', '', function () { collapseGroup(menuGrp.id); });
           }
           item('Close tab', 'danger', function () { closeTab(id); });
           item('Close other tabs', 'danger', function () { closeOtherTabs(id); });
@@ -13878,8 +14430,67 @@
           tabBandsEl.innerHTML = '';
           if (paperSheetsEl) paperSheetsEl.innerHTML = '';
           tabLayoutCache = [];
+          if (tabPlatesEl) tabPlatesEl.innerHTML = '';
+          tabPlates = [];
+          /* Phase 3 (build -103): the rendered item list —
+             one entry per visible tab, plus ONE stack unit
+             per collapsed group at its first member's
+             position. Filed tabs render nothing: no element,
+             no sheet; their sessions stay parked and open.
+             Expanded groups collect their member caches for
+             the backing plate tabLayout positions. */
+          var tabItems = [];
+          var unitSeen = {};
+          var plateByGid = {};
+          tabRecords.forEach(function (r0) {
+            var g0 = r0.group && wsGroupById(r0.group) ? wsGroupById(r0.group) : null;
+            if (g0 && groupIsCollapsed(g0.id)) {
+              if (!unitSeen[g0.id]) { unitSeen[g0.id] = 1; tabItems.push({ kind: 'unit', group: g0 }); }
+              return;
+            }
+            tabItems.push({ kind: 'tab', rec: r0 });
+            if (g0 && tabPlatesEl && !plateByGid[g0.id]) {
+              var plEl = document.createElement('div');
+              plEl.className = 'tab-plate';
+              plEl.setAttribute('data-group-id', g0.id);
+              plEl.setAttribute('data-tip', g0.name + ' — group');
+              plEl.setAttribute('aria-label', g0.name + ' group');
+              (function (gid, pel) {
+                pel.addEventListener('contextmenu', function (ev) { ev.preventDefault(); openGroupMenu(gid, ev.clientX, ev.clientY); });
+                pel.addEventListener('click', function (ev) { if (tabSuppressClick) return; openGroupMenu(gid, ev.clientX, ev.clientY); });
+              })(g0.id, plEl);
+              tabPlatesEl.appendChild(plEl);
+              var pl = { gid: g0.id, el: plEl, caches: [] };
+              plateByGid[g0.id] = pl;
+              tabPlates.push(pl);
+            }
+          });
           var nextRank = 1;
-          tabRecords.forEach(function (r) {
+          tabItems.forEach(function (it) {
+            if (it.kind === 'unit') {
+              var ug = it.group;
+              var umembers = groupMembers(ug.id);
+              var ucount = umembers.length;
+              var urank = nextRank++;
+              var ueff = Math.min(urank, 6);
+              var uel = document.createElement('div');
+              uel.className = 'folio-tab group-unit';
+              uel.setAttribute('role', 'tab');
+              uel.setAttribute('aria-label', ug.name + ' group, ' + ucount + ' tabs, collapsed');
+              uel.setAttribute('data-group-id', ug.id);
+              uel.setAttribute('data-tip', ug.name + ' · ' + ucount + ' — tap to expand');
+              uel.style.setProperty('--tab-face', 'color-mix(in srgb, var(--surface) ' + (100 - ueff * 6) + '%, black)');
+              var unm = document.createElement('span');
+              unm.className = 'folio-tab-name';
+              unm.textContent = ug.name + ' · ' + ucount;
+              uel.appendChild(unm);
+              uel.addEventListener('click', function () { if (tabSuppressClick) return; expandGroup(ug.id); });
+              uel.addEventListener('contextmenu', function (ev) { ev.preventDefault(); openGroupMenu(ug.id, ev.clientX, ev.clientY); });
+              tabStripEl.appendChild(uel);
+              tabLayoutCache.push({ rec: null, unit: true, gid: ug.id, unitLabel: ug.name + ' · ' + ucount, el: uel, band: null, sheet: null, gapEl: null, rank: urank, recIdx: umembers.length ? tabIndexOf(umembers[0].docId) : 0, vtop: 0, vh: 0, top: 0, sh: 0 });
+              return;
+            }
+            var r = it.rec;
             var d = tabDoc(r.docId);
             if (!d) return;
             var isActive = r.docId === tabActiveId;
@@ -14022,7 +14633,9 @@
               sheet.appendChild(gapEl);
               paperSheetsEl.appendChild(sheet);
             }
-            tabLayoutCache.push({ rec: r, el: el, band: band, sheet: sheet, gapEl: gapEl, rank: rank, vtop: 0, vh: 0, top: 0, sh: 0 });
+            var cacheEntry = { rec: r, el: el, band: band, sheet: sheet, gapEl: gapEl, rank: rank, gid: (r.group && wsGroupById(r.group) && !groupIsCollapsed(r.group)) ? r.group : null, recIdx: tabIndexOf(r.docId), vtop: 0, vh: 0, top: 0, sh: 0 };
+            tabLayoutCache.push(cacheEntry);
+            if (cacheEntry.gid && plateByGid[cacheEntry.gid]) plateByGid[cacheEntry.gid].caches.push(cacheEntry);
           });
           var pillCount = document.getElementById('tabPillCount');
           if (pillCount) pillCount.textContent = String(tabRecords.length);
@@ -14087,29 +14700,38 @@
           }
           var H = zoneBottom - zoneTop;
           if (!H) return;
-          var gap = 12, n = tabLayoutCache.length, sum = 0, minNat = Infinity;
+          var n = tabLayoutCache.length, sum = 0, minNat = Infinity;
+          /* Phase 3 packing (spec §4.1/§5): members of one
+             expanded group sit ~2px apart; every other
+             boundary keeps the standard 12px gap. gaps[i] is
+             the gap BEFORE item i (gaps[0] is always 0). */
+          var gaps = tabLayoutCache.map(function (c, ci) {
+            if (!ci) return 0;
+            var prev = tabLayoutCache[ci - 1];
+            return c.gid && prev.gid && c.gid === prev.gid ? 2 : 12;
+          });
+          var gapsTotal = gaps.reduce(function (a, b) { return a + b; }, 0);
           tabLayoutCache.forEach(function (c) {
-            c.vh = tabNaturalHeight(tabDoc(c.rec.docId) ? tabDoc(c.rec.docId).title : '');
+            c.vh = tabNaturalHeight(c.unit ? c.unitLabel : (tabDoc(c.rec.docId) ? tabDoc(c.rec.docId).title : ''));
             sum += c.vh;
             if (c.vh < minNat) minNat = c.vh;
           });
-          var total = sum + gap * (n - 1);
+          var total = sum + gapsTotal;
           if (total <= H) {
             tabView = { mode: 'fit', M: H, T: total, Z: 0 };
             tabScrollPos = 0;
             var y = 0;
-            tabLayoutCache.forEach(function (c) { c.vtop = y; c.top = y; c.sh = c.vh; y += c.vh + gap; });
+            tabLayoutCache.forEach(function (c, ci) { c.vtop = y; c.top = y; c.sh = c.vh; y += c.vh + (gaps[ci + 1] || 0); });
           } else {
-            var f = (H - gap * (n - 1)) / sum;
+            var f = (H - gapsTotal) / sum;
             if (minNat * f >= 56) {
               tabView = { mode: 'fit', M: H, T: H, Z: 0 };
               tabScrollPos = 0;
               var y2 = 0;
-              tabLayoutCache.forEach(function (c) { c.vh = c.vh * f; c.vtop = y2; c.top = y2; c.sh = c.vh; y2 += c.vh + gap; });
+              tabLayoutCache.forEach(function (c, ci) { c.vh = c.vh * f; c.vtop = y2; c.top = y2; c.sh = c.vh; y2 += c.vh + (gaps[ci + 1] || 0); });
             } else {
               var f2 = 56 / minNat, T = 0;
-              tabLayoutCache.forEach(function (c) { c.vh = c.vh * f2; c.vtop = T; T += c.vh + gap; });
-              T -= gap;
+              tabLayoutCache.forEach(function (c, ci) { c.vh = c.vh * f2; c.vtop = T; T += c.vh + (gaps[ci + 1] || 0); });
               var Z = Math.max(30, Math.min(96, H * 0.22));
               var M = Math.max(60, H - 2 * Z);
               tabView = { mode: 'scroll', M: M, T: T, Z: Z };
@@ -14168,6 +14790,7 @@
             }
             var effRank = Math.min(c.rank || 0, 6);
             var off = Math.min(effRank * 4, Math.max(0, railW - gutter - 16));
+            c.off = off;
             var rightEdge = railW - off;
             c.el.style.setProperty('--tab-l', gutter + 'px');
             c.el.style.setProperty('--tab-w', Math.max(16, rightEdge - gutter) + 'px');
@@ -14304,6 +14927,39 @@
             } else {
               paperGiltGapEl.style.display = 'none';
             }
+          }
+          /* Phase 3: the group plates. Each plate spans its
+             members' rendered run (compression and slivers
+             included, since it reads c.top/c.sh like every
+             other consumer), padded 6px at both ends so its
+             rim shows above the first member and below the
+             last; its left edge sits 18px left of the tab
+             line (the rim the mockup draws), and its right
+             edge tucks 2px behind the shallowest member's
+             own sheet edge, so the rim never pokes past a
+             tab toward the page. */
+          if (tabPlates.length) {
+            var plateRailW = tabRailEl && tabRailEl.clientWidth ? tabRailEl.clientWidth : 64;
+            var plateGutter = 22;
+            if (tabRailEl) {
+              var pgx = parseFloat(getComputedStyle(tabRailEl).getPropertyValue('--tab-x'));
+              if (pgx > 0) plateGutter = pgx;
+            }
+            tabPlates.forEach(function (pl) {
+              if (!pl.caches.length) { pl.el.style.display = 'none'; return; }
+              var pTop = Infinity, pBottom = -Infinity, pMinOff = Infinity;
+              pl.caches.forEach(function (c) {
+                if (c.top < pTop) pTop = c.top;
+                if (c.top + c.sh > pBottom) pBottom = c.top + c.sh;
+                if ((c.off || 0) < pMinOff) pMinOff = c.off || 0;
+              });
+              var pLeft = Math.max(2, plateGutter - 18);
+              pl.el.style.display = 'block';
+              pl.el.style.top = (pTop - 6) + 'px';
+              pl.el.style.height = Math.max(20, pBottom - pTop + 12) + 'px';
+              pl.el.style.left = pLeft + 'px';
+              pl.el.style.width = Math.max(18, plateRailW - pMinOff - 2 - pLeft) + 'px';
+            });
           }
           tabAnchor();
         }
@@ -14463,22 +15119,121 @@
             tabScrollPos = Math.max(0, Math.min(tabScrollPos, Math.max(0, tabView.T - tabView.M)));
             tabLayout();
           }, { passive: false });
-          /* One pointer grammar for the rail: a touch drag
-             scrolls the stack; a mouse drag reorders; a hold
-             (either) opens the tab menu; a plain tap switches. */
+          /* One pointer grammar for the rail (build -103,
+             reworked): a press past the 7px threshold becomes
+             ONE drag with ONE meaning — reorder along the
+             stack, with group filing by where it lands. Every
+             pointer type drags (mouse, trackpad, pen, touch);
+             the move/up handlers live on the DOCUMENT, so a
+             drag keeps following the pointer wherever it
+             roams and its drop is committed by exactly one
+             path (tabPtrEnd). The Phase 2 drag-a-tab-onto-
+             the-editor reference door is REMOVED (Andrew's
+             call, build -103): on his iPad its document-level
+             drop watch swallowed EVERY tab drop — the drag
+             followed fine, but any release over the editor
+             area opened the dragged doc as the reference and
+             the reorder commit never fired; and the door was
+             redundant, since the tab menu's "Show as
+             reference here" opens the same pane. So no tab
+             drag, whatever its drop coordinates, can reach
+             refSet anymore — the only refSet callers left are
+             the tab menu items. Group drags ride the same
+             model: the plate rim (expanded) or the collapsed
+             unit is the handle, the whole block follows, and
+             the drop lands it as one block among the stack's
+             items. A press on empty rail drags the stack-
+             scroll instead, as touch always did. A hold
+             without movement opens the tab menu; a plain tap
+             switches — both unchanged.
+             While dragging, the tab follows the pointer and a
+             gilt drop slot previews the landing gap; dropping
+             ONTO a collapsed group's unit files the tab into
+             that group (the slot takes the unit's span), and
+             landing between two members of one group — or
+             beside a lone member — files by adjacency;
+             landing in open country unfiles. The commit
+             re-renders, so depths, gilt, spines and plates
+             re-rank around the moved tab, and tabPersist
+             makes the order (and the filing) survive. */
           var tabPtr = null;
+          var tabDropSlotEl = null;
+          function tabDropSlotShow(cacheEntry, h) {
+            if (!tabDropSlotEl) {
+              tabDropSlotEl = document.createElement('div');
+              tabDropSlotEl.className = 'tab-drop-slot';
+              tabDropSlotEl.setAttribute('aria-hidden', 'true');
+              tabScrollEl.appendChild(tabDropSlotEl);
+            }
+            if (!cacheEntry) { tabDropSlotEl.style.display = 'none'; return; }
+            var dragC = null;
+            tabLayoutCache.forEach(function (c) { if (c.rec && tabPtr && c.rec.docId === tabPtr.id) dragC = c; });
+            tabDropSlotEl.style.display = 'block';
+            tabDropSlotEl.style.top = cacheEntry.top + 'px';
+            tabDropSlotEl.style.height = Math.max(14, h || cacheEntry.sh) + 'px';
+            tabDropSlotEl.style.left = (dragC ? parseFloat(dragC.el.style.getPropertyValue('--tab-l')) || 22 : 22) + 'px';
+            tabDropSlotEl.style.width = (dragC ? dragC.el.offsetWidth : 40) + 'px';
+          }
+          function tabDropSlotHide() { if (tabDropSlotEl) tabDropSlotEl.style.display = 'none'; }
           tabScrollEl.addEventListener('pointerdown', function (ev) {
             /* Build -95: a middle-button press is a close
                (handled on the tab's own mousedown/auxclick),
                never the start of a drag, a stack scroll or a
                long-press — claim it and start nothing. */
             if (typeof ev.button === 'number' && ev.button === 1) { ev.preventDefault(); return; }
+            var plateT = ev.target.closest ? ev.target.closest('.tab-plate') : null;
+            if (plateT) {
+              /* The plate's exposed rim is the EXPANDED group's
+                 drag handle: a press here drags the whole group
+                 as a block. A plain click still opens the group
+                 menu (the plate's own click listener), guarded
+                 by tabSuppressClick after a real drag. */
+              var pGid = plateT.getAttribute('data-group-id');
+              var pPlate = null;
+              tabPlates.forEach(function (pl) { if (pl.gid === pGid) pPlate = pl; });
+              if (!pGid || !pPlate) return;
+              tabPtr = {
+                groupDrag: pGid, el: plateT,
+                memberEls: pPlate.caches.map(function (c) { return c.el; }),
+                startY: ev.clientY, lastY: ev.clientY, type: ev.pointerType,
+                moved: false, targetCache: null, lpTimer: null,
+              };
+              return;
+            }
             var t = ev.target.closest ? ev.target.closest('.folio-tab') : null;
-            if (!t || (ev.target.closest && ev.target.closest('.folio-tab-x, .folio-tab-menu'))) return;
+            if (t && t.classList.contains('group-unit')) {
+              /* The collapsed unit drags its whole group too —
+                 same block, filed state riding along. A plain
+                 tap still expands (its click listener); a hold
+                 opens the group menu. */
+              var uGid = t.getAttribute('data-group-id');
+              if (!uGid) return;
+              tabPtr = {
+                groupDrag: uGid, el: t, memberEls: [],
+                startY: ev.clientY, lastY: ev.clientY, type: ev.pointerType,
+                moved: false, targetCache: null,
+                lpTimer: setTimeout(function () {
+                  if (tabPtr && !tabPtr.moved) {
+                    tabSuppressClick = true;
+                    openGroupMenu(uGid, ev.clientX, ev.clientY);
+                    setTimeout(function () { tabSuppressClick = false; }, 450);
+                  }
+                }, 550),
+              };
+              return;
+            }
+            if (!t) {
+              /* Empty rail: a drag here scrolls the stack
+                 (the gesture touch used to own on tabs too). */
+              tabPtr = { scrollOnly: true, lastY: ev.clientY, moved: false };
+              return;
+            }
+            if (ev.target.closest && ev.target.closest('.folio-tab-x, .folio-tab-menu')) return;
             var id = t.getAttribute('data-doc-id');
+            if (!id) return;
             tabPtr = {
               id: id, el: t, startY: ev.clientY, lastY: ev.clientY,
-              type: ev.pointerType, moved: false, targetIdx: -1,
+              type: ev.pointerType, moved: false, targetRecIdx: -1, targetCache: null, dropGroup: undefined,
               lpTimer: setTimeout(function () {
                 if (tabPtr && !tabPtr.moved) {
                   tabSuppressClick = true;
@@ -14488,96 +15243,174 @@
               }, 550),
             };
           });
-          tabScrollEl.addEventListener('pointermove', function (ev) {
+          document.addEventListener('pointermove', function (ev) {
             if (!tabPtr) return;
             var dy = ev.clientY - tabPtr.lastY;
             var totalDy = ev.clientY - tabPtr.startY;
-            if (!tabPtr.moved && Math.abs(totalDy) > 7) {
-              tabPtr.moved = true;
-              if (tabPtr.lpTimer) { clearTimeout(tabPtr.lpTimer); tabPtr.lpTimer = null; }
-            }
-            if (!tabPtr.moved) return;
-            if (tabPtr.type === 'touch' || tabPtr.type === 'pen') {
+            if (tabPtr.scrollOnly) {
               if (tabView.mode === 'scroll') {
                 tabScrollPos -= dy;
                 tabScrollPos = Math.max(0, Math.min(tabScrollPos, Math.max(0, tabView.T - tabView.M)));
                 tabLayout();
               }
-            } else {
-              tabPtr.el.classList.add('dragging');
-              tabPtr.el.style.transform = 'translateY(' + totalDy + 'px)';
-              var center = tabPtr.el.offsetTop + totalDy + tabPtr.el.offsetHeight / 2;
-              var best = tabIndexOf(tabPtr.id), bestDist = Infinity;
-              tabLayoutCache.forEach(function (c, idx) {
-                var cc = c.top + c.sh / 2;
-                var dist = Math.abs(cc - center);
-                if (dist < bestDist) { bestDist = dist; best = idx; }
-              });
-              tabPtr.targetIdx = best;
+              tabPtr.lastY = ev.clientY;
+              return;
+            }
+            if (tabPtr.groupDrag) {
+              if (!tabPtr.moved && Math.abs(totalDy) > 7) {
+                tabPtr.moved = true;
+                if (tabPtr.lpTimer) { clearTimeout(tabPtr.lpTimer); tabPtr.lpTimer = null; }
+                tabHoverPoint = null;
+                tabHoverSet(null);
+              }
+              if (tabPtr.moved) {
+                /* The block follows as one piece: the handle
+                   (plate or unit) and every member tab ride
+                   the same translate. */
+                tabPtr.el.classList.add('dragging');
+                tabPtr.el.style.transform = 'translateY(' + totalDy + 'px)';
+                tabPtr.memberEls.forEach(function (mel) { mel.style.transform = 'translateY(' + totalDy + 'px)'; });
+                var gCenter = tabPtr.el.offsetTop + totalDy + tabPtr.el.offsetHeight / 2;
+                var gBest = null, gBestDist = Infinity;
+                tabLayoutCache.forEach(function (c) {
+                  if (c.gid === tabPtr.groupDrag) return;
+                  var cc = c.top + c.sh / 2;
+                  var dist = Math.abs(cc - gCenter);
+                  if (dist < gBestDist) { gBestDist = dist; gBest = c; }
+                });
+                if (gBest) {
+                  tabPtr.targetCache = gBest;
+                  tabDropSlotShow(gBest, gBest.sh);
+                }
+              }
+              tabPtr.lastY = ev.clientY;
+              return;
+            }
+            if (!tabPtr.moved && Math.abs(totalDy) > 7) {
+              tabPtr.moved = true;
+              if (tabPtr.lpTimer) { clearTimeout(tabPtr.lpTimer); tabPtr.lpTimer = null; }
+              /* The drag owns the pointer now: the hover
+                 stretch (tracked by doc id) must not fight
+                 it, so the tracked hover is dropped for the
+                 drag's duration; the next pointermove after
+                 the drop re-tracks it. */
+              tabHoverPoint = null;
+              tabHoverSet(null);
+            }
+            if (!tabPtr.moved) return;
+            tabPtr.el.classList.add('dragging');
+            tabPtr.el.style.transform = 'translateY(' + totalDy + 'px)';
+            var center = tabPtr.el.offsetTop + totalDy + tabPtr.el.offsetHeight / 2;
+            var best = null, bestDist = Infinity;
+            tabLayoutCache.forEach(function (c) {
+              var cc = c.top + c.sh / 2;
+              var dist = Math.abs(cc - center);
+              if (dist < bestDist) { bestDist = dist; best = c; }
+            });
+            if (best) {
+              tabPtr.targetCache = best;
+              tabPtr.targetRecIdx = best.recIdx;
+              tabPtr.dropGroup = best.unit ? best.gid : undefined;
+              tabDropSlotShow(best, best.unit ? best.sh : tabPtr.el.offsetHeight);
             }
             tabPtr.lastY = ev.clientY;
-          });
+          }, true);
+          /* Group filing by landing position (adjacency):
+             between two members of one group, or beside a
+             lone member, the tab joins that group; on a
+             boundary between two groups it joins the one it
+             approached from (drag direction); anywhere else
+             it is unfiled. An explicit unit drop wins. */
+          function tabDragAdoptGroup(rec, idx, p) {
+            if (p.dropGroup !== undefined) return p.dropGroup;
+            var prev = tabRecords[idx - 1] || null;
+            var next = tabRecords[idx + 1] || null;
+            var pg = prev && prev.group && wsGroupById(prev.group) ? prev.group : null;
+            var ng = next && next.group && wsGroupById(next.group) ? next.group : null;
+            if (pg && (!ng || ng === pg)) return pg;
+            if (ng && !pg) return ng;
+            if (pg && ng && pg !== ng) return (p.startY <= p.lastY) ? pg : ng;
+            return null;
+          }
           function tabPtrEnd(commit) {
             if (!tabPtr) return;
             if (tabPtr.lpTimer) clearTimeout(tabPtr.lpTimer);
             var p = tabPtr;
             tabPtr = null;
+            tabDropSlotHide();
+            if (p.scrollOnly) return;
             p.el.classList.remove('dragging');
             p.el.style.transform = '';
-            if (commit && p.moved && p.type !== 'touch' && p.type !== 'pen' && p.targetIdx !== -1) {
+            if (p.groupDrag) {
+              p.memberEls.forEach(function (mel) { mel.style.transform = ''; });
+              if (commit && p.moved && p.targetCache) {
+                var gMembers = tabRecords.filter(function (r) { return r.group === p.groupDrag; });
+                var gAnchorId = p.targetCache.unit
+                  ? (groupMembers(p.targetCache.gid)[0] || {}).docId
+                  : (p.targetCache.rec ? p.targetCache.rec.docId : null);
+                if (gMembers.length && gAnchorId && tabIndexOf(gAnchorId) !== -1) {
+                  var blockBefore = tabIndexOf(gMembers[gMembers.length - 1].docId) < tabIndexOf(gAnchorId);
+                  var rest = tabRecords.filter(function (r) { return r.group !== p.groupDrag; });
+                  var aIdx = -1, aEnd = -1;
+                  rest.forEach(function (r, idx) { if (r.docId === gAnchorId) aIdx = idx; });
+                  if (aIdx !== -1) {
+                    aEnd = aIdx;
+                    var aGroup = rest[aIdx].group;
+                    if (aGroup) { for (var k = aIdx; k < rest.length; k++) { if (rest[k].group === aGroup) aEnd = k; } }
+                    var insertAt = blockBefore ? aEnd + 1 : aIdx;
+                    tabRecords = rest.slice(0, insertAt).concat(gMembers, rest.slice(insertAt));
+                    tabSuppressClick = true;
+                    setTimeout(function () { tabSuppressClick = false; }, 60);
+                    tabPersist();
+                    tabRender();
+                    return;
+                  }
+                }
+              }
+              if (p.moved) tabLayout();
+              return;
+            }
+            if (commit && p.moved && p.targetCache) {
               var from = tabIndexOf(p.id);
-              if (from !== -1 && p.targetIdx !== from) {
+              var anchorDoc = p.targetCache.unit
+                ? (groupMembers(p.targetCache.gid)[0] || {}).docId
+                : (p.targetCache.rec ? p.targetCache.rec.docId : null);
+              if (from !== -1 && anchorDoc && anchorDoc !== p.id) {
                 var rec = tabRecords.splice(from, 1)[0];
-                tabRecords.splice(p.targetIdx, 0, rec);
-                tabSuppressClick = true;
-                setTimeout(function () { tabSuppressClick = false; }, 60);
-                tabPersist();
-                tabRender();
-                return;
+                var at = tabIndexOf(anchorDoc);
+                if (at !== -1) {
+                  /* Land on the far side of the anchor when
+                     dragging down past it, so the drop feels
+                     like the slot the preview drew. */
+                  if (from < at) at += 1;
+                  tabRecords.splice(at, 0, rec);
+                  rec.group = tabDragAdoptGroup(rec, at, p);
+                  wsSyncMembership();
+                  tabSuppressClick = true;
+                  setTimeout(function () { tabSuppressClick = false; }, 60);
+                  tabPersist();
+                  tabRender();
+                  return;
+                }
+                tabRecords.splice(from, 0, rec);
+              } else if (from !== -1 && p.dropGroup !== undefined && p.dropGroup) {
+                /* Dropped on its "own" unit position with no
+                   anchor move (the dragged tab is the unit's
+                   first member position): still file it. */
+                var selfRec = tabRecord(p.id);
+                if (selfRec && selfRec.group !== p.dropGroup) {
+                  selfRec.group = p.dropGroup;
+                  wsSyncMembership();
+                  tabPersist();
+                  tabRender();
+                  return;
+                }
               }
             }
             if (p.moved) tabLayout();
           }
-          tabScrollEl.addEventListener('pointerup', function () { tabPtrEnd(true); });
-          tabScrollEl.addEventListener('pointercancel', function () { tabPtrEnd(false); });
-          /* Phase 2, door 2 (spec §7): dragging a tab onto the
-             editor area makes the dragged doc the CURRENT tab's
-             reference (its own tab stays in the rail). The rail's
-             own pointer handlers only see the press while it
-             stays over the rail, so the drop watch lives on the
-             document: it tracks a mouse drag's position, paints
-             the drop affordance on the editor area, and claims
-             a release that lands there before the reorder commit
-             can run. Touch/pen drags keep their Phase 1 meaning
-             (stack scroll / reorder) — the real touch door is
-             Andrew's on-device verdict, as with every gesture. */
-          document.addEventListener('pointermove', function (ev) {
-            if (!tabPtr || tabPtr.type === 'touch' || tabPtr.type === 'pen') return;
-            tabPtr.lastX = ev.clientX;
-            tabPtr.lastY = ev.clientY;
-            if (!editorScroll) return;
-            var r = editorScroll.getBoundingClientRect();
-            var over = tabPtr.moved && ev.clientX >= r.left && ev.clientX <= r.right &&
-              ev.clientY >= r.top && ev.clientY <= r.bottom;
-            editorScroll.classList.toggle('ref-drop', !!over);
-          }, true);
-          document.addEventListener('pointerup', function (ev) {
-            if (editorScroll) editorScroll.classList.remove('ref-drop');
-            if (!tabPtr || tabPtr.type === 'touch' || tabPtr.type === 'pen' || !tabPtr.moved) return;
-            if (!editorScroll || refPhoneWidth()) return;
-            var r = editorScroll.getBoundingClientRect();
-            var over = ev.clientX >= r.left && ev.clientX <= r.right &&
-              ev.clientY >= r.top && ev.clientY <= r.bottom;
-            if (!over) return;
-            var draggedId = tabPtr.id;
-            tabPtrEnd(false);
-            tabSuppressClick = true;
-            setTimeout(function () { tabSuppressClick = false; }, 120);
-            refSet(tabActiveId, draggedId);
-          }, true);
-          document.addEventListener('pointercancel', function () {
-            if (editorScroll) editorScroll.classList.remove('ref-drop');
-          }, true);
+          document.addEventListener('pointerup', function () { tabPtrEnd(true); }, true);
+          document.addEventListener('pointercancel', function () { tabPtrEnd(false); }, true);
         }
         var tabAddBtn = document.getElementById('tabAddBtn');
         if (tabAddBtn) tabAddBtn.addEventListener('click', function () { openTabPicker(); });
@@ -14645,57 +15478,166 @@
         function bookRows() {
           return bookListEl ? Array.prototype.slice.call(bookListEl.querySelectorAll('.book-row')) : [];
         }
+        function bookMakeRow(r) {
+          var d = tabDoc(r.docId);
+          var row = document.createElement('div');
+          row.className = 'book-row' + (r.docId === tabActiveId ? ' active' : '') + (r.group && wsGroupById(r.group) ? ' grouped' : '');
+          row.setAttribute('role', 'button');
+          row.setAttribute('tabindex', '-1');
+          row.setAttribute('data-doc-id', r.docId);
+          var stripe = document.createElement('span');
+          stripe.className = 'book-row-stripe';
+          stripe.style.background = tabFolderColor(d);
+          row.appendChild(stripe);
+          var nm = document.createElement('span');
+          nm.className = 'book-row-name';
+          nm.textContent = d.title || 'Untitled';
+          row.appendChild(nm);
+          if (r.docId === tabActiveId) {
+            var here = document.createElement('span');
+            here.className = 'book-row-here';
+            here.textContent = 'open here';
+            row.appendChild(here);
+          }
+          var x = document.createElement('button');
+          x.type = 'button';
+          x.className = 'book-row-x';
+          x.setAttribute('aria-label', 'Close tab');
+          x.setAttribute('data-tip', 'Close tab');
+          x.textContent = '×';
+          x.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            closeTab(r.docId);
+            bookRender();
+          });
+          row.appendChild(x);
+          row.addEventListener('click', function () {
+            closeBook();
+            activateTab(r.docId, true);
+          });
+          row.addEventListener('contextmenu', function (ev) {
+            ev.preventDefault();
+            openTabMenu(r.docId, ev.clientX, ev.clientY);
+          });
+          return row;
+        }
+        /* The right page's workspace list (Phase 3, spec §8–§9):
+           the current workspace marked, rows switch, and each
+           row carries rename / delete (delete never touches a
+           document and is refused for the last workspace). */
+        function bookRenderWorkspaces() {
+          var listEl = document.getElementById('bookWsList');
+          var nameEl = document.getElementById('bookWsName');
+          if (nameEl) nameEl.textContent = wsDef().name;
+          if (!listEl) return;
+          listEl.innerHTML = '';
+          wsDefs.list.forEach(function (w) {
+            var row = document.createElement('div');
+            row.className = 'book-ws-row' + (w.id === wsActiveId ? ' current' : '');
+            row.setAttribute('role', 'button');
+            row.setAttribute('data-ws-id', w.id);
+            var nm = document.createElement('span');
+            nm.className = 'book-ws-row-name';
+            nm.textContent = w.name;
+            row.appendChild(nm);
+            if (w.id === wsActiveId) {
+              var here = document.createElement('span');
+              here.className = 'book-ws-row-here';
+              here.textContent = 'you are here';
+              row.appendChild(here);
+            }
+            var ren = document.createElement('button');
+            ren.type = 'button';
+            ren.className = 'book-ws-act';
+            ren.setAttribute('aria-label', 'Rename workspace');
+            ren.setAttribute('data-tip', 'Rename workspace');
+            ren.textContent = '✎';
+            ren.addEventListener('click', function (ev) {
+              ev.stopPropagation();
+              tabNamePrompt('Rename workspace', '', w.name, 'Rename', function (name) { renameWorkspace(w.id, name); });
+            });
+            row.appendChild(ren);
+            if (wsDefs.list.length > 1) {
+              var del = document.createElement('button');
+              del.type = 'button';
+              del.className = 'book-ws-act danger';
+              del.setAttribute('aria-label', 'Delete workspace');
+              del.setAttribute('data-tip', 'Delete workspace — its documents are not deleted');
+              del.textContent = '×';
+              del.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                openTagModal({
+                  title: 'Delete workspace?',
+                  text: '“' + w.name + '” and this device’s saved open set for it go away. Its documents are not deleted.',
+                  confirmLabel: 'Delete workspace', danger: true,
+                  onConfirm: function () { deleteWorkspace(w.id); bookRender(); return null; },
+                });
+              });
+              row.appendChild(del);
+            }
+            row.addEventListener('click', function () {
+              if (w.id === wsActiveId) return;
+              closeBook();
+              switchWorkspace(w.id);
+            });
+            listEl.appendChild(row);
+          });
+        }
         function bookRender() {
           if (!bookListEl) return;
           var q = (bookSearchEl && bookSearchEl.value || '').trim().toLowerCase();
           bookListEl.innerHTML = '';
           var shown = 0;
-          tabRecords.forEach(function (r) {
-            var d = tabDoc(r.docId);
-            if (!d) return;
-            if (q && (d.title || 'Untitled').toLowerCase().indexOf(q) === -1) return;
-            shown++;
-            var row = document.createElement('div');
-            row.className = 'book-row' + (r.docId === tabActiveId ? ' active' : '');
-            row.setAttribute('role', 'button');
-            row.setAttribute('tabindex', '-1');
-            row.setAttribute('data-doc-id', r.docId);
-            var stripe = document.createElement('span');
-            stripe.className = 'book-row-stripe';
-            stripe.style.background = tabFolderColor(d);
-            row.appendChild(stripe);
-            var nm = document.createElement('span');
-            nm.className = 'book-row-name';
-            nm.textContent = d.title || 'Untitled';
-            row.appendChild(nm);
-            if (r.docId === tabActiveId) {
-              var here = document.createElement('span');
-              here.className = 'book-row-here';
-              here.textContent = 'open here';
-              row.appendChild(here);
-            }
-            var x = document.createElement('button');
-            x.type = 'button';
-            x.className = 'book-row-x';
-            x.setAttribute('aria-label', 'Close tab');
-            x.setAttribute('data-tip', 'Close tab');
-            x.textContent = '×';
-            x.addEventListener('click', function (ev) {
-              ev.stopPropagation();
-              closeTab(r.docId);
-              bookRender();
+          function matches(d) { return !q || (d.title || 'Untitled').toLowerCase().indexOf(q) !== -1; }
+          if (q) {
+            /* Searching flattens: every open tab that matches,
+               filed ones included (spec §5: filed ≠ closed,
+               and the Book still lists them). */
+            tabRecords.forEach(function (r) {
+              var d = tabDoc(r.docId);
+              if (!d || !matches(d)) return;
+              shown++;
+              bookListEl.appendChild(bookMakeRow(r));
             });
-            row.appendChild(x);
-            row.addEventListener('click', function () {
-              closeBook();
-              activateTab(r.docId, true);
+          } else {
+            /* Rail order, grouped as the stack groups them:
+               a header per group (chevron shares the stack's
+               collapse state), its members indented beneath;
+               a collapsed group shows its header alone. */
+            var headedGroups = {};
+            tabRecords.forEach(function (r) {
+              var d = tabDoc(r.docId);
+              if (!d) return;
+              var g = r.group && wsGroupById(r.group) ? wsGroupById(r.group) : null;
+              if (g && !headedGroups[g.id]) {
+                headedGroups[g.id] = 1;
+                var head = document.createElement('button');
+                head.type = 'button';
+                head.className = 'book-group-head';
+                head.setAttribute('data-group-id', g.id);
+                var chev = document.createElement('span');
+                chev.className = 'book-group-chev';
+                chev.textContent = groupIsCollapsed(g.id) ? '▸' : '▾';
+                head.appendChild(chev);
+                var gn = document.createElement('span');
+                gn.textContent = g.name;
+                head.appendChild(gn);
+                var cnt = document.createElement('span');
+                cnt.className = 'book-group-count';
+                cnt.textContent = '· ' + groupMembers(g.id).length;
+                head.appendChild(cnt);
+                head.addEventListener('click', function () { toggleGroup(g.id); bookRender(); });
+                head.addEventListener('contextmenu', function (ev) {
+                  ev.preventDefault();
+                  openGroupMenu(g.id, ev.clientX, ev.clientY);
+                });
+                bookListEl.appendChild(head);
+              }
+              if (g && groupIsCollapsed(g.id)) return;
+              shown++;
+              bookListEl.appendChild(bookMakeRow(r));
             });
-            row.addEventListener('contextmenu', function (ev) {
-              ev.preventDefault();
-              openTabMenu(r.docId, ev.clientX, ev.clientY);
-            });
-            bookListEl.appendChild(row);
-          });
+          }
           if (!shown) {
             var empty = document.createElement('div');
             empty.className = 'book-empty';
@@ -14704,12 +15646,20 @@
           }
           if (bookReopenBtn) bookReopenBtn.disabled = !tabClosedStack.length;
           if (bookCloseAllBtn) bookCloseAllBtn.disabled = !tabRecords.length;
+          bookRenderWorkspaces();
           var rows = bookRows();
           if (bookSel >= rows.length) bookSel = Math.max(0, rows.length - 1);
           rows.forEach(function (row, i) { row.classList.toggle('sel', i === bookSel); });
         }
         if (bookSearchEl) bookSearchEl.addEventListener('input', function () { bookSel = 0; bookRender(); });
         if (bookReopenBtn) bookReopenBtn.addEventListener('click', function () { reopenClosedTab(); bookRender(); });
+        var bookNewWsBtn = document.getElementById('bookNewWs');
+        if (bookNewWsBtn) bookNewWsBtn.addEventListener('click', function () {
+          tabNamePrompt('New workspace', 'It starts from the document in front of you; this workspace’s open set is saved as it stands.', '', 'Create workspace', function (name) {
+            createWorkspace(name);
+            closeBook();
+          });
+        });
         if (bookCloseAllBtn) bookCloseAllBtn.addEventListener('click', function () { closeAllTabs(); bookRender(); });
         var bookCloseBtn = document.getElementById('bookClose');
         if (bookCloseBtn) bookCloseBtn.addEventListener('click', function () { closeBook(); });
@@ -14843,33 +15793,28 @@
         /* ----- init: adopt the startup editor, restore the open set ----- */
         (function tabInit() {
           tabAdoptInitialSession();
-          var saved = null;
-          try { saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null'); } catch (e) {}
-          if (saved && Array.isArray(saved.tabs)) {
-            saved.tabs.forEach(function (t) {
-              if (!t || !tabDoc(t.docId) || tabIndexOf(t.docId) !== -1) return;
-              var nav = t.nav && Array.isArray(t.nav.stack)
-                ? { stack: t.nav.stack.filter(function (x) { return navDocExists(x); }), idx: typeof t.nav.idx === 'number' ? t.nav.idx : 0 }
-                : { stack: [t.docId], idx: 0 };
-              if (!nav.stack.length) nav = { stack: [t.docId], idx: 0 };
-              tabRecords.push({
-                docId: t.docId, group: null, nav: nav,
-                refId: t.ref && tabDoc(t.ref) ? t.ref : null,
-                refW: typeof t.refW === 'number' && t.refW > 0 ? Math.min(0.78, Math.max(0.16, t.refW)) : 0.42,
-                refScroll: typeof t.refScroll === 'number' ? t.refScroll : 0,
-              });
-            });
-            if (Array.isArray(saved.closed)) {
-              tabClosedStack = saved.closed.filter(function (x) { return !!tabDoc(x); });
-            }
+          /* Phase 3 upgrade path: definitions and this
+             device's per-workspace sets load first; the
+             active workspace's set comes from folio-workspaces-
+             state when present, else from the legacy
+             folio-tabs payload — which thereby BECOMES the
+             initial workspace's ("Main", until renamed) open
+             set, upgraded in place by the tabPersist below.
+             Nothing from the pre-Phase-3 open set is lost. */
+          wsDefsLoad();
+          wsStateLoad();
+          var saved = wsSets[wsActiveId] || null;
+          if (!saved) {
+            try { saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null'); } catch (e) {}
           }
+          wsApplySetData(saved);
           if (lib.currentId && tabIndexOf(lib.currentId) === -1) {
             tabRecords.push({ docId: lib.currentId, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
           }
           if (!tabRecords.length && lib.docs.length) {
             tabRecords.push({ docId: lib.docs[0].id, group: null, nav: { stack: [lib.docs[0].id], idx: 0 } });
           }
-          tabActiveId = lib.currentId;
+          tabActiveId = lib.currentId && tabIndexOf(lib.currentId) !== -1 ? lib.currentId : (tabRecords.length ? tabRecords[0].docId : lib.currentId);
           var activeRec = tabRecord(tabActiveId);
           if (activeRec && activeRec.nav && activeRec.nav.stack.length) tabLoadNav(activeRec);
           tabMru = tabActiveId ? [tabActiveId] : [];
@@ -21771,6 +22716,56 @@
           }).catch(function () { themeTableOk = false; return false; });
         }
 
+        /* ---------------- workspaces sync (Phase 3) ----------------
+           Workspace DEFINITIONS ride the SAME theme_styles
+           key/value table, under their own key
+           'folio.workspaces.v1', whose data is the whole
+           wsDefs store (workspace list, groups, membership);
+           merging is newer-wins on the store's updated stamp.
+           Same fail-soft contract as theme_styles: until the
+           table exists every call fails soft, definitions
+           keep working locally, and the first cycle after the
+           table appears uploads and merges everything. Open
+           sets and the live-workspace pointer are NOT in
+           this store — they are per-device by design (spec
+           §9/§13) and never leave folio-workspaces-state. */
+        var wsTableOk = null;
+        function mergeWorkspacesRemote(rows) {
+          if (!Array.isArray(rows)) return false;
+          var row = null;
+          rows.forEach(function (r) { if (r && r.key === WS_SYNC_KEY) row = r; });
+          if (!row || !row.data || typeof row.data !== 'object') return false;
+          var remote = wsNormalizeDefs(row.data);
+          var remoteUpd = Math.max(remote.updated || 0, Date.parse(row.updated_at) || 0);
+          if (remoteUpd > (wsDefs.updated || 0)) {
+            remote.updated = remoteUpd;
+            wsDefs = remote;
+            try { localStorage.setItem(WS_DEF_KEY, JSON.stringify(wsDefs)); } catch (e) {}
+            /* The live pointer and open sets stay per-device:
+               if the active id vanished remotely, fall back
+               to the first workspace without touching sets. */
+            if (!wsDefs.list.some(function (w) { return w.id === wsActiveId; })) {
+              wsActiveId = wsDefs.list[0].id;
+              wsStateSave();
+            }
+            return true;
+          }
+          return false;
+        }
+        function pushWorkspaces(meta0) {
+          if (!sb || !sbUser) return Promise.resolve(false);
+          var sig = JSON.stringify(wsDefs);
+          var old = (meta0 && meta0.wsSig) || null;
+          if (old === sig) return Promise.resolve(true);
+          var row = { key: WS_SYNC_KEY, data: wsDefs, updated_at: new Date(wsDefs.updated || Date.now()).toISOString() };
+          return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
+            if (r && r.error) { wsTableOk = false; return false; }
+            wsTableOk = true;
+            saveSyncMeta({ wsSig: sig, wsOk: true });
+            return true;
+          }).catch(function () { wsTableOk = false; return false; });
+        }
+
         function pushAll() {
           if (!sb || !sbUser) return Promise.resolve(false);
           setSyncState('Syncing\u2026');
@@ -22084,6 +23079,9 @@
             // like tag_meta: the add-on table may not exist
             // yet, and its absence must never fail the push.
             pushThemeStyles(meta0);
+            // Workspace definitions push alongside, fire-and-
+            // forget like theme styles (Phase 3).
+            pushWorkspaces(meta0);
             // Share-link style snapshots ride the same
             // cycle (build -58): existing links pick up the
             // owner's current styles without being recreated.
@@ -22705,6 +23703,17 @@
                 applyThemedStyles();
                 if (themeModalEl && !themeModalEl.hidden) { buildThemeNav(); buildThemeDetail(); }
               }
+              /* Workspace definitions share the theme_styles
+                 pull (same table, own key): a newer remote
+                 store replaces the local definitions, and the
+                 stack + Book re-render on the merged groups.
+                 Open sets are never in this payload. */
+              try {
+                if (mergeWorkspacesRemote(res[3].data || [])) {
+                  if (typeof tabRender === 'function' && folioTabsReady) tabRender();
+                  if (bookOverlay && !bookOverlay.hidden && typeof bookRender === 'function') bookRender();
+                }
+              } catch (e) {}
             }
             if (!lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs[0].id;
             var curAfter = lib.docs.find(function (d) { return d.id === lib.currentId; });
@@ -29415,6 +30424,13 @@
             run: function () { tabMruToggle(); } },
           { id: 'tab-book', combo: 'alt+w', hint: '⌥W', group: 'General', label: 'Tab switcher',
             run: function () { openBook(); } },
+          /* Phase 3 (spec §9–§10): ⌥⇧W cycles workspaces.
+             The Option glyph for W with Shift resolves through
+             the dispatcher's Option-character table like ⌥W's
+             own ∑. Field-safe for the same reason: the chord
+             types no text. */
+          { id: 'tab-ws-cycle', combo: 'alt+shift+w', hint: '⌥⇧W', group: 'General', label: 'Cycle workspaces',
+            run: function () { cycleWorkspaces(); } },
           /* ⌥T (build -78): New tab… — the spine + disc's own
              door, on a chord. It opens the SAME new-tab picker
              the disc opens (Omnisearch in new-tab mode: a pick
@@ -29956,7 +30972,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-recent': true, 'tab-book': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
+        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-recent': true, 'tab-book': true, 'tab-ws-cycle': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
