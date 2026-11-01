@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-97" />
+    <meta name="folio-build" content="20261101-98" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3684,7 +3684,33 @@
          right edge to the page at the tab's own height, edged
          in the gilt line colour, so the tab meets the side of
          its own sheet. See the .paper-sheet / .tab-band rules
-         and tabLayout for the details. */
+         and tabLayout for the details.
+         Build -97 (the -96 pile, contained): the sheets'
+         z-indexes escaped their layer (it had none of its
+         own) and an opaque sheet painted over the paper —
+         every document rendered blank. The layer is now a
+         stacking context (z-index 0) and the paper carries
+         z-index 1 in the wrap; see the .paper-sheets rules.
+         That invariant is structural and stands.
+         Build -98 (the -93/-96/-97 architecture untouched):
+         three refinements to how the pile reads. (1) NO tab
+         has a right border anymore — build -95's active-only
+         treatment is universal: the base .folio-tab ring is
+         top/bottom/left insets only, so each tab-to-page-edge
+         junction is a single line (the page's border for the
+         active tab, the band's gilt edge for inactive tabs)
+         instead of the compounded bar the tab's right inset
+         + band gilt + sheet gilt used to stack up. (2) The
+         per-rank separation doubles: sheets and tab lengths
+         step 4px per depth rank (was 2px), driven by one
+         capped offset in tabLayout so tab, sheet and band
+         never disagree. (3) Each sheet also steps DOWN 3px
+         per rank (top/bottom as a matched pair, height
+         unchanged, radius still the page's exact 6px), so
+         bottoms form a staircase of rounded corners and each
+         gilt left edge ends at its own sheet's corner —
+         superseding the -91 "lines end at the paper's
+         bottom" framing for the sheets behind the front one. */
       .editor-body {
         display: flex; flex: 1; min-height: 0; position: relative;
         --stack-reserve: 78px;
@@ -3728,8 +3754,14 @@
          never moves on scroll), never to the page's rendered
          span — no scroll listener positions it, so the -93
          no-lag architecture is untouched. The active tab gets
-         no band: it already merges with the page directly
-         (build -95 removed its right border for that reason). */
+         no band: it already merges with the page directly.
+         Build -98: since the tab's own right border is now
+         gone on every tab (see .folio-tab), this band's gilt
+         left edge is the ONE line at each inactive tab's
+         junction — before -98 it stood immediately right of
+         the tab's right inset ring, and the two (plus the
+         sheet's gilt edge behind) compounded into the thick
+         bar Andrew saw on inactive tabs. */
       .tab-band {
         position: absolute; display: none; pointer-events: none;
         border-top: 1px solid var(--line);
@@ -3846,7 +3878,18 @@
            name is ink on paper, as on the sheet itself. */
         background: var(--tab-face, var(--surface));
         color: var(--ink); border-radius: 7px 0 0 7px;
-        box-shadow: inset 0 0 0 1px var(--line), -1px 1px 3px rgba(0, 0, 0, 0.13);
+        /* Build -98: the outline ring has NO right arm — on
+           any tab, active or not. Every tab connects to a page
+           edge (the active tab to the page itself, an inactive
+           tab to its sheet through its band), so the junction
+           line belongs to that edge alone: the page's border,
+           or the band's gilt left edge. Build -95 did this for
+           the active tab only; with the tab's own right inset
+           also present on inactive tabs, it compounded with
+           the band's 2px gilt line (and the sheet's gilt edge
+           behind it) into the thick right bar Andrew saw.
+           Top, bottom and left insets stay, as before. */
+        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -1px 1px 3px rgba(0, 0, 0, 0.13);
         display: flex; align-items: center; justify-content: center;
         transition: left 0.12s ease, width 0.12s ease;
         overflow: hidden; user-select: none; -webkit-user-select: none;
@@ -3866,19 +3909,16 @@
       .folio-tab.active {
         background: var(--surface); color: var(--ink);
         transform: none;
-        /* Build -95: no right border on the active tab — its
-           outline is the inset box-shadow ring on .folio-tab,
-           so the active face re-states that ring as top,
-           bottom and left insets only (plus the drop shadow),
-           letting the tab merge with the page as one
-           silhouette. Inactive tabs keep the full ring: they
-           meet their own recessed sheets. The same face holds
-           in the hover-stretched state (the rules below). */
-        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -1px 1px 3px rgba(0, 0, 0, 0.13);
+        /* Build -95 gave the active tab a right-borderless
+           ring of its own (re-stated here) so it merges with
+           the page as one silhouette. Build -98 made that
+           treatment universal — the base .folio-tab ring now
+           has no right arm on ANY tab — so the active face no
+           longer needs a shadow of its own: it inherits the
+           base ring in rest and hover-stretched states alike. */
       }
       .folio-tab.active:hover, .folio-tab.active.tab-hover {
         background: var(--surface);
-        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line), -1px 1px 3px rgba(0, 0, 0, 0.13);
       }
       .folio-tab-name {
         writing-mode: vertical-rl; transform: rotate(180deg);
@@ -13786,9 +13826,20 @@
                rail element so the slim treatment's narrower
                strip applies itself); the tab stretches right to
                its own sheet's edge — the column's right side
-               stepped 2px left per depth rank — and the sheet's
+               stepped left per depth rank — and the sheet's
                page-edge strip stands at that same x, dimmed a
-               step per rank behind the front sheet. */
+               step per rank behind the front sheet.
+               Build -98: the step is 4px per rank (was 2px), so
+               the pile's layers read more distinctly. ONE capped
+               offset value (off) drives the tab's right edge,
+               the sheet's left offset and (below) the band, so
+               a tab always lands exactly on its own sheet's
+               edge. The cap (railW − gutter − 16) only bites in
+               the slim rail, where 4px × rank 6 would push a
+               deep tab under the 16px min width and past its
+               sheet's edge; the full rail's cap is 26px, above
+               the 24px the deepest rank needs, so full-width
+               steps are a pure 4px throughout. */
             var railW = tabRailEl && tabRailEl.clientWidth ? tabRailEl.clientWidth : 64;
             var gutter = 22;
             if (tabRailEl) {
@@ -13796,16 +13847,26 @@
               if (gx > 0) gutter = gx;
             }
             var effRank = Math.min(c.rank || 0, 6);
-            var rightEdge = railW - effRank * 2;
+            var off = Math.min(effRank * 4, Math.max(0, railW - gutter - 16));
+            var rightEdge = railW - off;
             c.el.style.setProperty('--tab-l', gutter + 'px');
             c.el.style.setProperty('--tab-w', Math.max(16, rightEdge - gutter) + 'px');
             /* Build -93: the tab's sheet, in the scroll
                content behind the paper — offset left by the
-               same 2px-per-rank step its tab's right edge
-               takes, paper shaded per depth exactly like the
-               tab's own face. Its size and vertical span are
-               pure CSS (the wrapper's box), so nothing here —
-               or anywhere — repositions it on scroll.
+               same per-rank step its tab's right edge takes
+               (build -98: the shared capped offset, off),
+               paper shaded per depth exactly like the tab's
+               own face. Its size is the wrapper's box, so
+               nothing here — or anywhere — repositions it on
+               scroll. Build -98 also scoots each sheet DOWN
+               3px per rank (top/bottom set as a matched pair,
+               so the sheet keeps the paper's exact height,
+               shifted): the pile reads hand-stacked, each
+               deeper sheet's bottom edge peeking below the one
+               in front as a staircase of rounded corners, its
+               gilt left edge terminating at its own bottom-left
+               corner. A static layout offset — still no scroll
+               listener, still composited with the page.
                Build -96: the corner radius is the page's own
                6px exactly (not 6px + the offset), so the stack
                area's top and bottom silhouettes carry the
@@ -13823,8 +13884,11 @@
                again (the -96 blank-documents regression came
                from these values escaping an uncontained layer). */
             if (c.sheet) {
-              var sheetOff = effRank * 2;
+              var sheetOff = off;
+              var sheetDown = effRank * 3;
               c.sheet.style.left = (-sheetOff) + 'px';
+              c.sheet.style.top = sheetDown + 'px';
+              c.sheet.style.bottom = (-sheetDown) + 'px';
               c.sheet.style.borderRadius = '6px';
               c.sheet.style.zIndex = String(60 - effRank);
               c.sheet.style.background =
