@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-104" />
+    <meta name="folio-build" content="20261101-106" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4481,31 +4481,108 @@
          the tabs module): membership is a per-tab property
          decided by strictly-inside-span on the post-removal
          list, and the drop preview OPENS A GAP — neighbours
-         part, and all that remains of the old dashed ghost
-         tab is a slim gilt insertion line at the gap's
-         boundary, never a tab shape over a stationary tab. */
+         part at the insertion index.
+         Build -105: the drop preview is the COMBO Andrew
+         asked for — the neighbours still part exactly as in
+         -104, AND the ghost tab returns, but it now sits IN
+         the opened gap: a translucent placeholder of the
+         dragged tab (its face, spine and name) occupying the
+         parted slot, so the landing spot reads as the tab
+         itself, already home. The ghost only ever paints
+         inside the gap the parting opened — it never
+         overlaps a stationary tab — and the dragged source
+         fades back at its origin instead of following the
+         pointer over its neighbours. The group head, plate
+         and labelling are exactly as -104 left them.
+         Build -106 (group presentation C — Andrew's pick of
+         the three mockups): the wide group head tab AND the
+         backing plate are DELETED. An EXPANDED group is a
+         slim vertical BAR PILL floating LEFT of the tab line
+         with ~12px of clear air between the bar and the
+         member tabs, spanned exactly over the group's run,
+         with one small RUNG from the bar's right edge to
+         each member tab's left edge at its mid-height.
+         Nothing of the group apparatus sits on or behind the
+         tabs anymore, so every sheet's gilt page edge stays
+         visible, grouped sheets included. The bar carries
+         the group name in faded drop caps plus the member
+         count, in the group's color register, and it IS the
+         group's handle: drag moves the block, tap collapses,
+         right-click / long-press opens the group menu. A
+         COLLAPSED group renders as a NORMAL TAB in the stack
+         — same width/height register as a document tab,
+         sized by its name the way a doc tab is sized by its
+         title — wearing the group's coloring and its name in
+         faded drop caps plus "· N". Collapse and expand are
+         a MORPH, not a swap: the bar pill contracts into the
+         collapsed tab's slot (rungs retracting, members
+         converging) and the collapsed tab unfolds back out
+         into the bar (rungs extending, members emerging) —
+         see tabMorphPlay in the tabs module; reduced motion
+         gets the plain instant render. To make room for the
+         bar without moving a single tab, the rail WIDENS by
+         28px on the left whenever an expanded group exists
+         (.has-bars: --tab-x grows by the same 28px, so every
+         tab's width and right edge — its sheet edge — are
+         exactly where they were; the bar sits in the added
+         strip, 12px clear of the tab line). The #tabPlates
+         layer stays in the DOM, permanently empty, as the
+         guard the retired bands layer set the pattern for. */
       .tab-plates { position: absolute; inset: 0; }
-      .tab-plate {
-        position: absolute; border: 1px solid var(--stack-edge); border-radius: 6px;
-        background: color-mix(in srgb, var(--surface) 90%, black);
+      .tab-plate { display: none !important; }
+      .tab-rail.has-bars { width: 92px; --tab-x: 50px; }
+      .tab-rail.slim.has-bars { width: 72px; --tab-x: 42px; }
+      /* The foot doors stay centred over the TAB column,
+         not over the widened rail, so they never drift when
+         the bar strip comes and goes. */
+      .tab-rail.has-bars .tab-foot { padding-left: 28px; }
+      .tab-bars { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+      .tab-group-bar {
+        position: absolute; width: 16px; border-radius: 999px;
+        border: 1px solid var(--gt-bd, var(--stack-edge));
+        background: var(--gt-bg, color-mix(in srgb, var(--surface) 84%, black));
         box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09);
-        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; cursor: pointer; pointer-events: auto;
+        user-select: none; -webkit-user-select: none; touch-action: none;
       }
-      /* The group tab: wider than a member tab (its --tab-l /
-         --tab-w come from tabLayout's group-head branch),
-         its face a deeper sheet tone or the group's chosen
-         color wash (--gt-bg, set inline by tabRender when
-         the group has a color), its edges the gilt — or the
-         group's chosen border color (--gt-bd) — on the left
-         spine and the right edge alike. It never takes the
-         member tabs' hover stretch: it is already wide. */
+      .tab-group-bar .folio-tab-name { padding-right: 0; }
+      .tab-group-bar .group-tab-name { font-size: 10px; letter-spacing: 0.14em; }
+      .tab-group-bar .group-tab-name .gt-drop { font-size: 15px; }
+      .tab-group-bar .group-tab-name .gt-count { font-size: 9px; }
+      .tab-group-rung {
+        position: absolute; height: 2px; border-radius: 1px;
+        background: var(--gt-bd, var(--stack-edge)); opacity: 0.75;
+        pointer-events: none;
+      }
+      /* The morph overlay: one pill that starts as the bar
+         (or as the collapsed tab) and ends as the other —
+         see tabMorphPlay. Member clones ride the same layer
+         family while they converge / emerge. */
+      .tab-morph-pill {
+        position: absolute; z-index: 9; pointer-events: none;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden;
+        border: 1px solid var(--gt-bd, var(--stack-edge));
+        background: var(--gt-bg, color-mix(in srgb, var(--surface) 84%, black));
+        box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09);
+      }
+      .folio-tab.tab-morph-clone { z-index: 8; pointer-events: none; transition: none; }
+      /* The group tab — build -106: this element now renders
+         ONLY the collapsed state, as a normal tab (its
+         --tab-l / --tab-w come from tabLayout's ordinary
+         branch, its right edge on its own sheet like any
+         peer). Its face keeps the group's chosen color wash
+         (--gt-bg, set inline by tabRender when the group has
+         a color) and its spine the group's chosen border
+         color (--gt-bd) — but, like every tab since -98, it
+         carries NO right arm: the junction line belongs to
+         its sheet's gilt edge alone. It takes the ordinary
+         hover stretch like any peer tab. */
       .folio-tab.group-tab {
         background: var(--gt-bg, color-mix(in srgb, var(--surface) 84%, black));
-        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset var(--tab-lw, 3px) 0 0 var(--gt-bd, var(--stack-edge)), inset -2px 0 0 var(--gt-bd, var(--stack-edge)), -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09);
+        box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset var(--tab-lw, 3px) 0 0 var(--gt-bd, var(--stack-edge)), -2px 2px 6px rgba(0, 0, 0, 0.12), 0 2px 7px rgba(0, 0, 0, 0.09);
         cursor: pointer;
-      }
-      .folio-tab.group-tab:hover, .folio-tab.group-tab.tab-hover {
-        left: var(--tab-l, 4px); width: var(--tab-w, 40px);
       }
       /* Faded drop caps: the name in letterspaced caps at a
          muted, faded tone, its initial letter enlarged in
@@ -4524,15 +4601,37 @@
         font-size: 10px; letter-spacing: 0.1em;
         color: color-mix(in srgb, var(--ink) 38%, transparent);
       }
-      /* Build -104: the drop preview is a slim gilt insertion
-         LINE at the boundary of the gap the neighbours part
-         to open (see tabDragGapApply) — never a ghost tab
-         overlapping a stationary one. */
-      .tab-drop-slot {
-        position: absolute; height: 3px; border: 0; border-radius: 2px;
-        background: var(--stack-edge); opacity: 0.9;
-        pointer-events: none; z-index: 5;
+      /* Build -105: the drop preview's GHOST — a translucent
+         placeholder of the dragged tab that sits IN the gap
+         the neighbours part to open (see tabDragGapApply):
+         the dragged tab's own face and spine tones (copied
+         onto --tab-face / --tab-lc by the drag code; a group
+         drag's block takes --gt-bg / --gt-bd the same way),
+         its name in the tabs' vertical register, a dashed
+         gilt outline so it reads as a placeholder rather
+         than a landed tab, at roughly half strength. It is
+         positioned only inside the parted slot — never over
+         a stationary tab — and the slim -104 insertion line
+         is retired: the ghost itself marks the landing. */
+      .tab-drag-ghost {
+        position: absolute; z-index: 5; pointer-events: none;
+        display: none; align-items: center; justify-content: center;
+        overflow: hidden; border-radius: 7px 0 0 7px;
+        background: var(--tab-face, var(--surface));
+        border: 1px dashed var(--stack-edge); border-right: 0;
+        box-shadow: inset var(--tab-lw, 3px) 0 0 var(--tab-lc, var(--stack-edge));
+        opacity: 0.55; user-select: none; -webkit-user-select: none;
       }
+      .tab-drag-ghost.is-group {
+        background: var(--gt-bg, color-mix(in srgb, var(--surface) 84%, black));
+        border-color: var(--gt-bd, var(--stack-edge));
+        box-shadow: inset var(--tab-lw, 3px) 0 0 var(--gt-bd, var(--stack-edge));
+      }
+      .tab-drag-ghost .folio-tab-name { opacity: 0.85; }
+      /* The dragged source at its origin while the ghost
+         rides the gap: faded well back, so the pair reads as
+         one tab leaving a marked slot — not two live tabs. */
+      .folio-tab.drag-source, .tab-plate.drag-source, .tab-group-bar.drag-source { opacity: 0.18; }
       .book-ws-name { font-family: "Public Sans", sans-serif; font-size: 12px; font-weight: 600; color: var(--ink-3); }
       .book-group-head {
         display: flex; align-items: center; gap: 7px; width: 100%; text-align: left;
@@ -4903,6 +5002,7 @@
               <div class="tab-bands" id="tabBands"></div>
               <div class="tab-plates" id="tabPlates"></div>
               <div class="tab-strip" id="tabStrip"></div>
+              <div class="tab-bars" id="tabBars"></div>
             </div>
             <div class="tab-foot">
               <button class="tab-add" id="tabAddBtn" type="button" aria-label="Open a document in a new tab" data-tip="Open a document in a new tab" data-sc="tab-new">+</button>
@@ -13189,8 +13289,18 @@
         var wsActiveId = 'ws-main';
         var wsSets = {};
         var tabCollapsed = {};
-        var tabPlates = [];        // [{ gid, el, caches:[cache entries] }]
+        var tabPlates = [];        // build -106: retired — always empty; the drag/layout loops that read it no-op
         var tabPlatesEl = document.getElementById('tabPlates');
+        /* Build -106: the floating group bars (presentation
+           C). tabBars mirrors the expanded groups currently
+           rendered: [{ gid, group, el, rungs:[el], caches:
+           [member cache entries] }], rebuilt by tabRender and
+           positioned by tabLayout. tabMorphPending carries a
+           collapse/expand geometry snapshot from the toggle
+           door to the render that lands it (tabMorphPlay). */
+        var tabBars = [];
+        var tabBarsEl = document.getElementById('tabBars');
+        var tabMorphPending = null;
         var tabSuppressClick = false;
         var tabPendingFill = false;
         var tabRailEl = document.getElementById('tabRail');
@@ -13389,6 +13499,194 @@
           tabRender();
           if (typeof bookRender === 'function' && bookOverlay && !bookOverlay.hidden) bookRender();
         }
+        /* ----- build -106: the collapse/expand MORPH -----
+           Collapse and expand are one object changing shape,
+           not a swap of two elements. The toggle doors
+           (collapseGroup / expandGroup below, which every
+           door — bar, collapsed tab, Book header, menus —
+           funnels through) snapshot the group's LIVE geometry
+           as absolute rects before the state flips; the
+           render that lands the new state ends in
+           tabMorphPlay, which converts the snapshot into the
+           tab-scroll's current coordinate frame (the rail
+           may have widened or narrowed by 28px in the flip)
+           and plays the transformation with WAAPI overlays:
+           a pill that starts as the bar and lands as the
+           collapsed tab (or the reverse), member clones that
+           converge into the slot (or real members that emerge
+           out of it), and rungs that retract (or extend). The
+           real layout is final from the first frame — the
+           overlays and transforms are visual only, so nothing
+           else in the stack jumps. prefers-reduced-motion
+           (and any missing geometry) skips the morph: the
+           plain render stands, exactly as before -106. */
+        function tabMorphReduced() {
+          try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+        }
+        function tabAbsRect(el) {
+          if (!el) return null;
+          var r = el.getBoundingClientRect();
+          if (!r.width && !r.height) return null;
+          return { left: r.left, top: r.top, width: r.width, height: r.height };
+        }
+        function tabScrollRect(abs) {
+          var sr = tabScrollEl ? tabScrollEl.getBoundingClientRect() : null;
+          if (!sr || !abs) return null;
+          return { left: abs.left - sr.left, top: abs.top - sr.top, width: abs.width, height: abs.height };
+        }
+        function snapshotGroupMorph(gid, kind) {
+          tabMorphPending = null;
+          if (tabMorphReduced() || !tabScrollEl) return;
+          var g = wsGroupById(gid);
+          if (!g) return;
+          var snap = { kind: kind, gid: gid, color: g.color || null, bar: null, head: null, members: [], rungs: [] };
+          if (kind === 'collapse') {
+            var barEntry = null;
+            tabBars.forEach(function (b) { if (b.gid === gid) barEntry = b; });
+            if (!barEntry || !barEntry.el) return;
+            snap.bar = tabAbsRect(barEntry.el);
+            if (!snap.bar || snap.bar.height < 8) return;
+            barEntry.caches.forEach(function (c) {
+              var mr = tabAbsRect(c.el);
+              if (!mr) return;
+              var nmEl = c.el.querySelector ? c.el.querySelector('.folio-tab-name') : null;
+              snap.members.push({
+                rect: mr,
+                label: nmEl ? nmEl.textContent : '',
+                face: c.el.style.getPropertyValue('--tab-face'),
+                lc: c.el.style.getPropertyValue('--tab-lc'),
+              });
+              snap.rungs.push({
+                left: snap.bar.left + snap.bar.width, top: mr.top + mr.height / 2 - 1,
+                width: Math.max(0, mr.left - (snap.bar.left + snap.bar.width)), height: 2,
+              });
+            });
+            if (!snap.members.length) return;
+          } else {
+            var headC = null;
+            tabLayoutCache.forEach(function (c) { if (c.ghead && c.gid === gid) headC = c; });
+            if (!headC) return;
+            snap.head = tabAbsRect(headC.el);
+            if (!snap.head || snap.head.height < 8) return;
+          }
+          tabMorphPending = snap;
+        }
+        function tabMorphPlay() {
+          var m = tabMorphPending;
+          tabMorphPending = null;
+          if (!m || !tabScrollEl || tabMorphReduced()) return;
+          var ease = 'cubic-bezier(0.33, 0.8, 0.3, 1)';
+          var gtBg = m.color ? 'color-mix(in srgb, ' + m.color + ' 32%, var(--surface))' : '';
+          var gtBd = m.color || '';
+          function makePill(from, to, fromRadius, toRadius) {
+            var pill = document.createElement('div');
+            pill.className = 'tab-morph-pill';
+            pill.setAttribute('aria-hidden', 'true');
+            if (gtBg) pill.style.setProperty('--gt-bg', gtBg);
+            if (gtBd) pill.style.setProperty('--gt-bd', gtBd);
+            pill.style.left = from.left + 'px';
+            pill.style.top = from.top + 'px';
+            pill.style.width = from.width + 'px';
+            pill.style.height = from.height + 'px';
+            pill.style.borderRadius = fromRadius;
+            tabScrollEl.appendChild(pill);
+            var anim = pill.animate([
+              { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px', borderRadius: fromRadius, opacity: 1 },
+              { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px', borderRadius: toRadius, opacity: 0.92 },
+            ], { duration: 320, easing: ease, fill: 'forwards' });
+            var done = function () { if (pill.parentElement) pill.parentElement.removeChild(pill); };
+            if (anim && anim.finished && anim.finished.then) anim.finished.then(done, done); else setTimeout(done, 380);
+            return pill;
+          }
+          if (m.kind === 'collapse') {
+            var headC2 = null;
+            tabLayoutCache.forEach(function (c) { if (c.ghead && c.gid === m.gid) headC2 = c; });
+            var fromBar = tabScrollRect(m.bar);
+            if (!headC2 || !fromBar) return;
+            var target = tabScrollRect(tabAbsRect(headC2.el));
+            if (!target) return;
+            makePill(fromBar, target, '999px', '7px 0 0 7px');
+            var tCenter = target.top + target.height / 2;
+            m.members.forEach(function (mm) {
+              var pt = tabScrollRect(mm.rect);
+              if (!pt) return;
+              var clone = document.createElement('div');
+              clone.className = 'folio-tab tab-morph-clone';
+              clone.setAttribute('aria-hidden', 'true');
+              clone.style.left = pt.left + 'px';
+              clone.style.top = pt.top + 'px';
+              clone.style.width = pt.width + 'px';
+              clone.style.height = pt.height + 'px';
+              if (mm.face) clone.style.setProperty('--tab-face', mm.face);
+              if (mm.lc) clone.style.setProperty('--tab-lc', mm.lc);
+              var cn = document.createElement('span');
+              cn.className = 'folio-tab-name';
+              cn.textContent = mm.label;
+              clone.appendChild(cn);
+              tabScrollEl.appendChild(clone);
+              var dy = tCenter - (pt.top + pt.height / 2);
+              var anim = clone.animate([
+                { transform: 'translateY(0px)', opacity: 1 },
+                { transform: 'translateY(' + dy + 'px)', opacity: 0 },
+              ], { duration: 300, easing: ease, fill: 'forwards' });
+              var done = function () { if (clone.parentElement) clone.parentElement.removeChild(clone); };
+              if (anim && anim.finished && anim.finished.then) anim.finished.then(done, done); else setTimeout(done, 360);
+            });
+            m.rungs.forEach(function (rg) {
+              var pt2 = tabScrollRect(rg);
+              if (!pt2 || pt2.width < 1) return;
+              var rel = document.createElement('div');
+              rel.className = 'tab-group-rung';
+              rel.setAttribute('aria-hidden', 'true');
+              if (gtBd) rel.style.setProperty('--gt-bd', gtBd);
+              rel.style.left = pt2.left + 'px';
+              rel.style.top = pt2.top + 'px';
+              rel.style.width = pt2.width + 'px';
+              rel.style.transformOrigin = 'left center';
+              tabScrollEl.appendChild(rel);
+              var anim2 = rel.animate([
+                { transform: 'scaleX(1)', opacity: 0.75 },
+                { transform: 'scaleX(0)', opacity: 0 },
+              ], { duration: 220, easing: ease, fill: 'forwards' });
+              var done2 = function () { if (rel.parentElement) rel.parentElement.removeChild(rel); };
+              if (anim2 && anim2.finished && anim2.finished.then) anim2.finished.then(done2, done2); else setTimeout(done2, 280);
+            });
+            try {
+              headC2.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: 130, easing: 'ease-out', fill: 'backwards' });
+            } catch (e) {}
+            return;
+          }
+          /* expand: the collapsed tab unfolds into the bar */
+          var barEntry2 = null;
+          tabBars.forEach(function (b) { if (b.gid === m.gid) barEntry2 = b; });
+          var fromHead = tabScrollRect(m.head);
+          if (!barEntry2 || !barEntry2.el || !fromHead) return;
+          var barTarget = tabScrollRect(tabAbsRect(barEntry2.el));
+          if (!barTarget) return;
+          makePill(fromHead, barTarget, '7px 0 0 7px', '999px');
+          var hCenter = fromHead.top + fromHead.height / 2;
+          barEntry2.caches.forEach(function (c, ci) {
+            var dy2 = hCenter - (c.top + c.sh / 2);
+            try {
+              c.el.animate([
+                { transform: 'translateY(' + dy2 + 'px)', opacity: 0 },
+                { transform: 'translateY(0px)', opacity: 1 },
+              ], { duration: 330, delay: Math.min(ci * 24, 96), easing: ease, fill: 'backwards' });
+            } catch (e) {}
+          });
+          barEntry2.rungs.forEach(function (rel2, ri) {
+            rel2.style.transformOrigin = 'left center';
+            try {
+              rel2.animate([
+                { transform: 'scaleX(0)', opacity: 0 },
+                { transform: 'scaleX(1)', opacity: 0.75 },
+              ], { duration: 260, delay: 90 + Math.min(ri * 24, 96), easing: ease, fill: 'backwards' });
+            } catch (e) {}
+          });
+          try {
+            barEntry2.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: 140, easing: 'ease-out', fill: 'backwards' });
+          } catch (e) {}
+        }
         function collapseGroup(gid) {
           if (!wsGroupById(gid) || groupIsCollapsed(gid)) return;
           if (tabActiveId && tabRecord(tabActiveId) && tabRecord(tabActiveId).group === gid) {
@@ -13401,11 +13699,13 @@
             for (var i = ai + 1; i < tabRecords.length && !outside; i++) if (tabRecords[i].group !== gid) outside = tabRecords[i];
             for (var j = ai - 1; j >= 0 && !outside; j--) if (tabRecords[j].group !== gid) outside = tabRecords[j];
             if (!outside) { folioToast('Open a tab outside the group first — the tab you are reading can’t be filed away.', 3600); return; }
+            snapshotGroupMorph(gid, 'collapse');
             tabCollapsed[gid] = true;
             tabPersist();
             activateTab(outside.docId, true);
             return;
           }
+          snapshotGroupMorph(gid, 'collapse');
           tabCollapsed[gid] = true;
           tabPersist();
           tabRender();
@@ -13413,6 +13713,7 @@
         }
         function expandGroup(gid) {
           if (!groupIsCollapsed(gid)) return;
+          snapshotGroupMorph(gid, 'expand');
           delete tabCollapsed[gid];
           tabPersist();
           tabRender();
@@ -13982,9 +14283,10 @@
           tabMenuItem('‹ Back', '', function () { openTabMenu(docId, x, y); });
           tabMenuShow(x, y);
         }
-        /* The group's own menu — from its plate's rim, its
-           collapsed unit, or its Book header. Delete means
-           dissolve: the tabs are unfiled, never closed. */
+        /* The group's own menu — from its floating bar
+           (build -106), its collapsed tab, or its Book
+           header. Delete means dissolve: the tabs are
+           unfiled, never closed. */
         function openGroupMenu(gid, x, y) {
           var g = wsGroupById(gid);
           if (!g) return;
@@ -14006,8 +14308,9 @@
            standard palette (the folder colors, in palette
            order) plus Default, rendered as the folder pop's
            swatch row inside this same menu surface. One pick
-           sets the group tab's background wash and border
-           (and the plate's rim) together. */
+           sets the group's color register together: the
+           collapsed tab's wash and spine, and (build -106)
+           the expanded bar's fill, border and rungs. */
         var GROUP_COLORS = ['#e03131', '#e8590c', '#f08c00', '#2f9e44', '#0ca678', '#1971c2', '#6741d9', '#d6336c', '#868e96'];
         function openGroupColorMenu(gid, x, y) {
           var g = wsGroupById(gid);
@@ -14580,69 +14883,112 @@
           tabLayoutCache = [];
           if (tabPlatesEl) tabPlatesEl.innerHTML = '';
           tabPlates = [];
+          if (tabBarsEl) tabBarsEl.innerHTML = '';
+          tabBars = [];
           /* Phase 3 (build -103): the rendered item list —
-             one entry per visible tab. Build -104: every
-             group also gets ONE group-tab head item at its
-             first member's position, in both states — heading
-             the run when expanded, standing alone when
-             collapsed (its members then render nothing: no
-             element, no sheet; their sessions stay parked and
-             open). Expanded groups collect their head + member
-             caches for the backing plate tabLayout positions,
-             so the plate backs the whole run, head included. */
+             one entry per visible tab. Build -106 (presentation
+             C): an EXPANDED group contributes NO head item —
+             its members render as ordinary tabs and the group
+             itself renders as the floating BAR in the bars
+             layer (created here, positioned by tabLayout over
+             exactly the members' run, one rung per member).
+             A COLLAPSED group contributes ONE group-tab head
+             item, standing alone as a normal tab (its members
+             then render nothing: no element, no sheet; their
+             sessions stay parked and open). Expanded groups
+             collect their member caches on their bar entry so
+             tabLayout can span the bar and land the rungs. */
           var tabItems = [];
           var headSeen = {};
-          var plateByGid = {};
+          var barByGid = {};
+          var anyExpanded = false;
           tabRecords.forEach(function (r0) {
             var g0 = r0.group && wsGroupById(r0.group) ? wsGroupById(r0.group) : null;
             if (g0 && !headSeen[g0.id]) {
               headSeen[g0.id] = 1;
               var gCollapsed = groupIsCollapsed(g0.id);
-              tabItems.push({ kind: 'ghead', group: g0, collapsed: gCollapsed });
-              if (!gCollapsed && tabPlatesEl && !plateByGid[g0.id]) {
-                var plEl = document.createElement('div');
-                plEl.className = 'tab-plate';
-                plEl.setAttribute('data-group-id', g0.id);
-                plEl.setAttribute('data-tip', g0.name + ' — group');
-                plEl.setAttribute('aria-label', g0.name + ' group');
-                /* Build -104: the plate's rim adopts the
-                   group's chosen border color (its face keeps
-                   the sheet tone with at most a whisper of the
-                   color as tint), so head, rim and members read
-                   as one object. */
-                if (g0.color) {
-                  plEl.style.borderColor = g0.color;
-                  plEl.style.background = 'color-mix(in srgb, ' + g0.color + ' 10%, var(--surface))';
+              if (gCollapsed) {
+                tabItems.push({ kind: 'ghead', group: g0, collapsed: true });
+              } else {
+                anyExpanded = true;
+                if (tabBarsEl && !barByGid[g0.id]) {
+                  var bEl = document.createElement('div');
+                  bEl.className = 'tab-group-bar';
+                  bEl.setAttribute('data-group-id', g0.id);
+                  bEl.setAttribute('role', 'button');
+                  bEl.setAttribute('aria-label', g0.name + ' group, ' + groupMembers(g0.id).length + ' tabs — tap to collapse');
+                  bEl.setAttribute('data-tip', g0.name + ' · ' + groupMembers(g0.id).length + ' — tap to collapse');
+                  if (g0.color) {
+                    bEl.style.setProperty('--gt-bg', 'color-mix(in srgb, ' + g0.color + ' 32%, var(--surface))');
+                    bEl.style.setProperty('--gt-bd', g0.color);
+                  }
+                  var bnm = document.createElement('span');
+                  bnm.className = 'folio-tab-name group-tab-name';
+                  var bName = g0.name || 'Group';
+                  var bDrop = document.createElement('span');
+                  bDrop.className = 'gt-drop';
+                  bDrop.textContent = bName.charAt(0);
+                  bnm.appendChild(bDrop);
+                  var bRest = document.createElement('span');
+                  bRest.className = 'gt-rest';
+                  bRest.textContent = bName.slice(1);
+                  bnm.appendChild(bRest);
+                  var bCnt = document.createElement('span');
+                  bCnt.className = 'gt-count';
+                  bCnt.textContent = ' · ' + groupMembers(g0.id).length;
+                  bnm.appendChild(bCnt);
+                  bEl.appendChild(bnm);
+                  (function (gid, bel) {
+                    bel.addEventListener('click', function () { if (tabSuppressClick) return; toggleGroup(gid); });
+                    bel.addEventListener('contextmenu', function (ev) { ev.preventDefault(); openGroupMenu(gid, ev.clientX, ev.clientY); });
+                  })(g0.id, bEl);
+                  tabBarsEl.appendChild(bEl);
+                  var bRungs = [];
+                  groupMembers(g0.id).forEach(function () {
+                    var rel = document.createElement('div');
+                    rel.className = 'tab-group-rung';
+                    rel.setAttribute('aria-hidden', 'true');
+                    if (g0.color) rel.style.setProperty('--gt-bd', g0.color);
+                    tabBarsEl.appendChild(rel);
+                    bRungs.push(rel);
+                  });
+                  var bEntry = { gid: g0.id, group: g0, el: bEl, rungs: bRungs, caches: [] };
+                  barByGid[g0.id] = bEntry;
+                  tabBars.push(bEntry);
                 }
-                (function (gid, pel) {
-                  pel.addEventListener('contextmenu', function (ev) { ev.preventDefault(); openGroupMenu(gid, ev.clientX, ev.clientY); });
-                  pel.addEventListener('click', function (ev) { if (tabSuppressClick) return; openGroupMenu(gid, ev.clientX, ev.clientY); });
-                })(g0.id, plEl);
-                tabPlatesEl.appendChild(plEl);
-                var pl = { gid: g0.id, el: plEl, caches: [] };
-                plateByGid[g0.id] = pl;
-                tabPlates.push(pl);
               }
             }
             if (g0 && groupIsCollapsed(g0.id)) return;
             tabItems.push({ kind: 'tab', rec: r0 });
           });
+          /* The rail widens by the bar strip's 28px while any
+             expanded group is on the stack (see the Phase 3
+             CSS note): set BEFORE tabLayout reads --tab-x, so
+             the layout below resolves in the new frame. */
+          if (tabRailEl) tabRailEl.classList.toggle('has-bars', anyExpanded);
           var nextRank = 1;
           tabItems.forEach(function (it) {
             if (it.kind === 'ghead') {
-              /* Build -104: the GROUP TAB. Wider than a member
-                 tab (tabLayout's group-head branch reaches it
-                 further left), carrying the group's name in
-                 faded drop caps with the member count smaller
-                 after it. It is the group's handle in the
-                 stack: the drag grammar in the pointer module
-                 moves the whole group from it, a tap toggles
-                 collapse/expand right here (no Book needed),
-                 and right-click / long-press opens the group
-                 menu (rename, Group color, dissolve). Its face
-                 and edges take the group's color when one is
-                 set (--gt-bg / --gt-bd), gilt and deep sheet
-                 tone otherwise. */
+              /* Build -106: the COLLAPSED GROUP TAB — the only
+                 state this element renders now (expanded groups
+                 render as the floating bar, above). It is a
+                 NORMAL tab in the stack: tabLayout's ordinary
+                 branch gives it the shared tab line, a peer's
+                 width and its own sheet (created below, like
+                 any inactive tab's), sized by its name the way
+                 a doc tab is sized by its title. What marks it
+                 as a group is only its lettering and coloring:
+                 the group's name in faded drop caps with the
+                 member count smaller after it, its face and
+                 spine in the group's color when one is set
+                 (--gt-bg / --gt-bd), gilt and deep sheet tone
+                 otherwise. It remains the group's handle: the
+                 drag grammar in the pointer module moves the
+                 whole (filed) group from it, a tap expands it
+                 right here (no Book needed), right-click /
+                 long-press opens the group menu (rename, Group
+                 color, dissolve), and dropping a dragged tab
+                 onto it files the tab into the group. */
               var hg = it.group;
               var hmembers = groupMembers(hg.id);
               var hcount = hmembers.length;
@@ -14676,9 +15022,27 @@
               hel.addEventListener('click', function () { if (tabSuppressClick) return; toggleGroup(hg.id); });
               hel.addEventListener('contextmenu', function (ev) { ev.preventDefault(); openGroupMenu(hg.id, ev.clientX, ev.clientY); });
               tabStripEl.appendChild(hel);
-              var hCache = { rec: null, ghead: true, gid: hg.id, groupCollapsed: !!it.collapsed, unitLabel: hg.name + ' · ' + hcount, el: hel, band: null, sheet: null, gapEl: null, rank: hrank, recIdx: hmembers.length ? tabIndexOf(hmembers[0].docId) : 0, vtop: 0, vh: 0, top: 0, sh: 0 };
+              /* Build -106: like any inactive peer tab, the
+                 collapsed group tab owns a sheet in the pile
+                 (with its gilt-gap cover), so its right edge
+                 lands on its own sheet's gilt line exactly as
+                 a document tab's does; tabLayout shades that
+                 sheet in the group's own register (see the
+                 ghead sheet-face branch there). */
+              var hSheet = null;
+              var hGapEl = null;
+              if (hrank >= 1 && paperSheetsEl) {
+                hSheet = document.createElement('div');
+                hSheet.className = 'paper-sheet';
+                hSheet.setAttribute('aria-hidden', 'true');
+                hGapEl = document.createElement('div');
+                hGapEl.className = 'paper-sheet-gap';
+                hGapEl.setAttribute('aria-hidden', 'true');
+                hSheet.appendChild(hGapEl);
+                paperSheetsEl.appendChild(hSheet);
+              }
+              var hCache = { rec: null, ghead: true, gid: hg.id, groupCollapsed: !!it.collapsed, unitLabel: hg.name + ' · ' + hcount, el: hel, band: null, sheet: hSheet, gapEl: hGapEl, rank: hrank, gColor: hg.color || null, recIdx: hmembers.length ? tabIndexOf(hmembers[0].docId) : 0, vtop: 0, vh: 0, top: 0, sh: 0 };
               tabLayoutCache.push(hCache);
-              if (!it.collapsed && plateByGid[hg.id]) plateByGid[hg.id].caches.push(hCache);
               return;
             }
             var r = it.rec;
@@ -14826,7 +15190,7 @@
             }
             var cacheEntry = { rec: r, el: el, band: band, sheet: sheet, gapEl: gapEl, rank: rank, gid: (r.group && wsGroupById(r.group) && !groupIsCollapsed(r.group)) ? r.group : null, recIdx: tabIndexOf(r.docId), vtop: 0, vh: 0, top: 0, sh: 0 };
             tabLayoutCache.push(cacheEntry);
-            if (cacheEntry.gid && plateByGid[cacheEntry.gid]) plateByGid[cacheEntry.gid].caches.push(cacheEntry);
+            if (cacheEntry.gid && barByGid[cacheEntry.gid]) barByGid[cacheEntry.gid].caches.push(cacheEntry);
           });
           var pillCount = document.getElementById('tabPillCount');
           if (pillCount) pillCount.textContent = String(tabRecords.length);
@@ -14844,6 +15208,10 @@
              pointer resting over a different tab than the
              tracked one); the visible state never dropped. */
           tabHoverSync();
+          /* Build -106: if this render landed a collapse or
+             expand, play its morph now that the final layout
+             is on the page (a no-op for every other render). */
+          tabMorphPlay();
         }
         /* ----- build -91: the paper's vertical span -----
            The paper's top and bottom inside the editor body,
@@ -14984,21 +15352,14 @@
             var off = Math.min(effRank * 4, Math.max(0, railW - gutter - 16));
             c.off = off;
             var rightEdge = railW - off;
-            if (c.ghead) {
-              /* Build -104: the group tab is WIDER than a
-                 member tab — it reaches left to the plate
-                 rim's line (4px) and right to 2px short of
-                 the page edge, whatever its depth rank, so
-                 the faded drop-cap name has room to read.
-                 Its off is pinned at 2 for the plate's
-                 right-edge maths. */
-              c.off = 2;
-              c.el.style.setProperty('--tab-l', '4px');
-              c.el.style.setProperty('--tab-w', Math.max(20, railW - 6) + 'px');
-            } else {
-              c.el.style.setProperty('--tab-l', gutter + 'px');
-              c.el.style.setProperty('--tab-w', Math.max(16, rightEdge - gutter) + 'px');
-            }
+            /* Build -106: the collapsed group tab takes the
+               ORDINARY branch — the shared tab line, a peer's
+               width stepped by its own depth rank, its right
+               edge on its own sheet — exactly like a document
+               tab. (Build -104's wider group-head geometry is
+               retired with the head itself.) */
+            c.el.style.setProperty('--tab-l', gutter + 'px');
+            c.el.style.setProperty('--tab-w', Math.max(16, rightEdge - gutter) + 'px');
             /* Build -93: the tab's sheet, in the scroll
                content behind the paper — offset left by the
                same per-rank step its tab's right edge takes
@@ -15061,6 +15422,18 @@
                  the gilt-free junction.) */
               var sheetFace =
                 'color-mix(in srgb, var(--surface) ' + (100 - effRank * 6) + '%, black)';
+              /* Build -106: the COLLAPSED GROUP tab's sheet
+                 wears the group's own register, so the tab
+                 and its sheet share one tone across the
+                 gilt-free junction exactly as a document tab
+                 and its sheet do: the group's color wash over
+                 the rank's shaded surface when a color is set,
+                 the group tab's flat deep tone otherwise. */
+              if (c.ghead) {
+                sheetFace = c.gColor
+                  ? 'color-mix(in srgb, ' + c.gColor + ' 32%, var(--surface))'
+                  : 'color-mix(in srgb, var(--surface) 84%, black)';
+              }
               c.sheet.style.background = sheetFace;
               /* Build -102: the sheet's gilt gap behind its
                  own tab. The sheet's child cover strip paints
@@ -15133,37 +15506,46 @@
               paperGiltGapEl.style.display = 'none';
             }
           }
-          /* Phase 3: the group plates. Each plate spans its
-             members' rendered run (compression and slivers
-             included, since it reads c.top/c.sh like every
-             other consumer), padded 6px at both ends so its
-             rim shows above the first member and below the
-             last; its left edge sits 18px left of the tab
-             line (the rim the mockup draws), and its right
-             edge tucks 2px behind the shallowest member's
-             own sheet edge, so the rim never pokes past a
-             tab toward the page. */
-          if (tabPlates.length) {
-            var plateRailW = tabRailEl && tabRailEl.clientWidth ? tabRailEl.clientWidth : 64;
-            var plateGutter = 22;
+          /* Build -106: the group BARS. Each bar pill spans
+             EXACTLY its members' rendered run (compression
+             and slivers included, since it reads c.top/c.sh
+             like every other consumer): top of the first
+             member tab to bottom of the last, no padding.
+             It floats LEFT of the tab line with 12px of clear
+             air: the rail's .has-bars widening puts the tab
+             line (gutter) 28px into the rail, and the 16px
+             bar sits at gutter − 28, so bar-right to tab-left
+             measures exactly 12px. One RUNG per member runs
+             from the bar's right edge to that member tab's
+             left edge, landing at the tab's mid-height.
+             Nothing is positioned on or behind any tab, so
+             every sheet's gilt edge column stays visible. */
+          if (tabBars.length) {
+            var barGutter = 22;
             if (tabRailEl) {
-              var pgx = parseFloat(getComputedStyle(tabRailEl).getPropertyValue('--tab-x'));
-              if (pgx > 0) plateGutter = pgx;
+              var bgx = parseFloat(getComputedStyle(tabRailEl).getPropertyValue('--tab-x'));
+              if (bgx > 0) barGutter = bgx;
             }
-            tabPlates.forEach(function (pl) {
-              if (!pl.caches.length) { pl.el.style.display = 'none'; return; }
-              var pTop = Infinity, pBottom = -Infinity, pMinOff = Infinity;
-              pl.caches.forEach(function (c) {
-                if (c.top < pTop) pTop = c.top;
-                if (c.top + c.sh > pBottom) pBottom = c.top + c.sh;
-                if ((c.off || 0) < pMinOff) pMinOff = c.off || 0;
+            var barLeft = Math.max(0, barGutter - 28);
+            tabBars.forEach(function (bar) {
+              if (!bar.caches.length) { bar.el.style.display = 'none'; bar.rungs.forEach(function (rel) { rel.style.display = 'none'; }); return; }
+              var bTop = Infinity, bBottom = -Infinity;
+              bar.caches.forEach(function (c) {
+                if (c.top < bTop) bTop = c.top;
+                if (c.top + c.sh > bBottom) bBottom = c.top + c.sh;
               });
-              var pLeft = Math.max(2, plateGutter - 18);
-              pl.el.style.display = 'block';
-              pl.el.style.top = (pTop - 6) + 'px';
-              pl.el.style.height = Math.max(20, pBottom - pTop + 12) + 'px';
-              pl.el.style.left = pLeft + 'px';
-              pl.el.style.width = Math.max(18, plateRailW - pMinOff - 2 - pLeft) + 'px';
+              bar.el.style.display = 'flex';
+              bar.el.style.top = bTop + 'px';
+              bar.el.style.height = Math.max(16, bBottom - bTop) + 'px';
+              bar.el.style.left = barLeft + 'px';
+              bar.caches.forEach(function (c, ci) {
+                var rel = bar.rungs[ci];
+                if (!rel) return;
+                rel.style.display = 'block';
+                rel.style.left = (barLeft + 16) + 'px';
+                rel.style.top = (c.top + c.sh / 2 - 1) + 'px';
+                rel.style.width = Math.max(0, barGutter - barLeft - 16) + 'px';
+              });
             });
           }
           tabAnchor();
@@ -15273,11 +15655,13 @@
         var tabHoverDocId = null;
         var tabHoverPoint = null;
         function tabHoverSet(el) {
-          /* Build -104: the group tab never takes the member
-             hover stretch (it is already wide, and its
-             geometry is pinned by tabLayout) — a pointer over
-             it tracks as no hovered tab. */
-          if (el && el.classList && el.classList.contains('group-tab')) el = null;
+          /* Build -104: the group tab never took the member
+             hover stretch (it was already wide, its geometry
+             pinned by tabLayout) — a pointer over it tracked
+             as no hovered tab. Build -106: the group tab is
+             now the COLLAPSED state rendered as a normal tab,
+             and it takes the ordinary hover stretch like any
+             peer, so nothing is excluded here anymore. */
           if (tabHoverEl === el) return;
           if (tabHoverEl) tabHoverEl.classList.remove('tab-hover');
           tabHoverEl = el;
@@ -15356,11 +15740,15 @@
              scroll instead, as touch always did. A hold
              without movement opens the tab menu; a plain tap
              switches — both unchanged.
-             While dragging, the tab follows the pointer and
-             the stack opens a gap at the prospective
-             insertion point (build -104: neighbours part, a
-             slim gilt line marks the boundary — no ghost tab
-             over a stationary tab). Dropping ONTO a collapsed
+             While dragging, the stack opens a gap at the
+             prospective insertion point and the ghost tab
+             sits IN that gap (build -105, the combo: -104's
+             parting neighbours plus a translucent placeholder
+             of the dragged tab occupying the parted slot —
+             never a tab shape over a stationary tab; the
+             dragged source fades at its origin and no longer
+             follows the pointer over its neighbours).
+             Dropping ONTO a collapsed
              group's tab files the tab into that group;
              otherwise membership follows the strictly-inside-
              span rule on the post-removal list (see the
@@ -15371,8 +15759,59 @@
              tabPersist makes the order (and the filing)
              survive. */
           var tabPtr = null;
-          var tabDropSlotEl = null;
-          function tabDropSlotHide() { if (tabDropSlotEl) tabDropSlotEl.style.display = 'none'; }
+          var tabDragGhostEl = null;
+          function tabDragGhostHide() { if (tabDragGhostEl) tabDragGhostEl.style.display = 'none'; }
+          /* Build -105: the ghost element — built lazily on
+             a drag's first gap application and rebuilt when
+             the dragged source changes (its data-ghost-key
+             no longer matches). It is a placeholder, not a
+             clone: one vertical name span on the dragged
+             tab's own face / spine tones (a group block
+             takes the group head's tones and name), so what
+             sits in the parted slot reads as the dragged
+             tab itself at half strength. */
+          function tabDragGhostEnsure(p, dragC) {
+            var key = p.groupDrag ? 'g:' + p.groupDrag : 't:' + p.id;
+            if (tabDragGhostEl && tabDragGhostEl.getAttribute('data-ghost-key') === key) return tabDragGhostEl;
+            if (tabDragGhostEl) tabDragGhostEl.remove();
+            var g = document.createElement('div');
+            g.className = 'tab-drag-ghost' + (p.groupDrag ? ' is-group' : '');
+            g.setAttribute('aria-hidden', 'true');
+            g.setAttribute('data-ghost-key', key);
+            if (dragC && dragC.el) {
+              ['--tab-face', '--tab-lc', '--gt-bg', '--gt-bd'].forEach(function (prop) {
+                var v = dragC.el.style.getPropertyValue(prop);
+                if (v) g.style.setProperty(prop, v);
+              });
+            }
+            /* Build -106: a group drag's first cache is now a
+               MEMBER (the expanded group has no head element),
+               which carries no group tones — take them from
+               the group's definition so the ghost block still
+               reads in the group's register. (A collapsed
+               group's drag starts from its group tab, which
+               already set the vars above.) */
+            if (p.groupDrag) {
+              var gdef = wsGroupById(p.groupDrag);
+              if (gdef && gdef.color) {
+                g.style.setProperty('--gt-bg', 'color-mix(in srgb, ' + gdef.color + ' 32%, var(--surface))');
+                g.style.setProperty('--gt-bd', gdef.color);
+              }
+            }
+            var nm = document.createElement('span');
+            nm.className = 'folio-tab-name';
+            if (p.groupDrag) {
+              var grp = wsGroupById(p.groupDrag);
+              nm.textContent = (grp ? grp.name : 'Group') + ' · ' + groupMembers(p.groupDrag).length;
+            } else {
+              var dd = tabDoc(p.id);
+              nm.textContent = dd ? (dd.title || 'Untitled') : 'Untitled';
+            }
+            g.appendChild(nm);
+            tabScrollEl.appendChild(g);
+            tabDragGhostEl = g;
+            return g;
+          }
           /* ----- build -104: the insertion model -----
              A drag computes ONE thing while it moves: an
              INSERTION INDEX j into the rendered item list
@@ -15397,10 +15836,12 @@
              group's tab still files into it (ontoGid), and
              a group drag moves its block with every
              membership untouched. While the drag moves, the
-             neighbours PART at j (tabDragGapApply) and a
-             slim gilt line marks the boundary — the landing
-             slot is visibly between two tabs, never a ghost
-             tab laid over a stationary one. */
+             neighbours PART at j (tabDragGapApply) and the
+             ghost tab sits in the parted slot (build -105):
+             the landing slot is visibly between two tabs,
+             occupied by a translucent placeholder of the
+             dragged tab — never a ghost laid over a
+             stationary one. */
           function tabDragOthers(p) {
             return tabLayoutCache.filter(function (c) {
               if (p.groupDrag) return c.gid !== p.groupDrag;
@@ -15454,34 +15895,70 @@
                 pl.el.style.height = Math.max(20, pBottom - pTop + 12) + 'px';
               }
             });
-            /* The slim gilt insertion line at the gap's
-               boundary — between the item above and the item
-               below, at the dragged tab's own left/width. */
-            if (!tabDropSlotEl) {
-              tabDropSlotEl = document.createElement('div');
-              tabDropSlotEl.className = 'tab-drop-slot';
-              tabDropSlotEl.setAttribute('aria-hidden', 'true');
-              tabScrollEl.appendChild(tabDropSlotEl);
-            }
-            var boundary;
-            if (!others.length) boundary = 0;
-            else if (j <= 0) boundary = others[0].top - 6;
-            else if (j >= others.length) boundary = others[others.length - 1].top + others[others.length - 1].sh + 6;
-            else boundary = (others[j - 1].top + others[j - 1].sh + others[j].top) / 2;
+            /* Build -106: the BARS follow their members into
+               the gap the same way: each bar re-spans its
+               caches at their shifted positions and each rung
+               re-lands at its tab's shifted mid-height, so a
+               parting inside a group stretches its bar instead
+               of leaving members disconnected. The dragged
+               group's own bar is skipped — it sits faded at
+               its origin as part of the drag source. tabLayout
+               restores every bar and rung when the drag ends. */
+            tabBars.forEach(function (bar) {
+              if (p.groupDrag && bar.gid === p.groupDrag) return;
+              if (!bar.caches.length) return;
+              var bTop2 = Infinity, bBottom2 = -Infinity;
+              bar.caches.forEach(function (c) {
+                var idx = others.indexOf(c);
+                var shift = idx !== -1 && idx >= j ? h : 0;
+                if (c.top + shift < bTop2) bTop2 = c.top + shift;
+                if (c.top + c.sh + shift > bBottom2) bBottom2 = c.top + c.sh + shift;
+              });
+              if (bTop2 !== Infinity) {
+                bar.el.style.top = bTop2 + 'px';
+                bar.el.style.height = Math.max(16, bBottom2 - bTop2) + 'px';
+                bar.caches.forEach(function (c, ci) {
+                  var rel = bar.rungs[ci];
+                  if (!rel) return;
+                  var idx = others.indexOf(c);
+                  var shift = idx !== -1 && idx >= j ? h : 0;
+                  rel.style.top = (c.top + shift + c.sh / 2 - 1) + 'px';
+                });
+              }
+            });
+            /* Build -105: the GHOST in the gap. The parting
+               above shifts every item at or after j down by
+               exactly h, so the slot it opens starts at the
+               pre-shift top of the item now at j (the first
+               item's own top when j is 0) and runs h tall;
+               at the very end it starts one standard gap
+               below the last item, in the zone's open tail.
+               The ghost fills exactly that slot — the
+               dragged tab's own left / width / height — so
+               it can only ever paint where the parting made
+               room, never over a stationary tab. */
             var dragC = null;
             tabLayoutCache.forEach(function (c) {
               if (dragC) return;
               if (p.groupDrag ? c.gid === p.groupDrag : (c.rec && c.rec.docId === p.id)) dragC = c;
             });
-            tabDropSlotEl.style.display = 'block';
-            tabDropSlotEl.style.top = (boundary - 1.5) + 'px';
-            tabDropSlotEl.style.left = (dragC ? parseFloat(dragC.el.style.getPropertyValue('--tab-l')) || 22 : 22) + 'px';
-            tabDropSlotEl.style.width = (dragC ? dragC.el.offsetWidth : 40) + 'px';
+            var ghost = tabDragGhostEnsure(p, dragC);
+            var slotTop;
+            if (!others.length) slotTop = dragC ? dragC.top : 0;
+            else if (j <= 0) slotTop = others[0].top;
+            else if (j >= others.length) slotTop = others[others.length - 1].top + others[others.length - 1].sh + 12;
+            else slotTop = others[j].top;
+            ghost.style.display = 'flex';
+            ghost.style.top = slotTop + 'px';
+            ghost.style.height = h + 'px';
+            ghost.style.left = (dragC ? parseFloat(dragC.el.style.getPropertyValue('--tab-l')) || 22 : 22) + 'px';
+            ghost.style.width = (dragC ? dragC.el.offsetWidth : 40) + 'px';
           }
           function tabDragGapClear() {
             tabLayoutCache.forEach(function (c) { if (c.el) c.el.style.transform = ''; });
             tabPlates.forEach(function (pl) { pl.el.style.transform = ''; });
-            tabDropSlotHide();
+            if (tabScrollEl) tabScrollEl.querySelectorAll('.drag-source').forEach(function (el) { el.classList.remove('drag-source'); });
+            tabDragGhostHide();
           }
           function groupMembersIn(list, gid) {
             return list.filter(function (r) { return r.group === gid; });
@@ -15511,6 +15988,34 @@
                never the start of a drag, a stack scroll or a
                long-press — claim it and start nothing. */
             if (typeof ev.button === 'number' && ev.button === 1) { ev.preventDefault(); return; }
+            var barT = ev.target.closest ? ev.target.closest('.tab-group-bar') : null;
+            if (barT) {
+              /* Build -106: the BAR is the expanded group's
+                 handle — a press here drags the whole group
+                 as a block (the bar and every member ride as
+                 the faded source while the neighbours part).
+                 A plain tap collapses the group (the bar's
+                 own click listener, guarded by
+                 tabSuppressClick after a real drag); a hold
+                 opens the group menu. */
+              var bGid = barT.getAttribute('data-group-id');
+              if (!bGid) return;
+              var bMemberEls = [];
+              tabLayoutCache.forEach(function (c) { if (c.gid === bGid && !c.ghead) bMemberEls.push(c.el); });
+              tabPtr = {
+                groupDrag: bGid, el: barT, memberEls: bMemberEls,
+                startY: ev.clientY, lastY: ev.clientY, type: ev.pointerType,
+                moved: false, insertIdx: -1, othersCache: null,
+                lpTimer: setTimeout(function () {
+                  if (tabPtr && !tabPtr.moved) {
+                    tabSuppressClick = true;
+                    openGroupMenu(bGid, ev.clientX, ev.clientY);
+                    setTimeout(function () { tabSuppressClick = false; }, 450);
+                  }
+                }, 550),
+              };
+              return;
+            }
             var plateT = ev.target.closest ? ev.target.closest('.tab-plate') : null;
             if (plateT) {
               /* The plate's exposed rim is the EXPANDED group's
@@ -15599,15 +16104,17 @@
                 tabHoverSet(null);
               }
               if (tabPtr.moved) {
-                /* The block follows as one piece: the handle
-                   (group tab or plate), every member tab and
-                   the plate ride the same translate, and the
-                   neighbours part at the insertion index the
-                   block's centre computes. */
-                tabPtr.el.classList.add('dragging');
-                tabPtr.el.style.transform = 'translateY(' + totalDy + 'px)';
-                tabPtr.memberEls.forEach(function (mel) { mel.style.transform = 'translateY(' + totalDy + 'px)'; });
-                tabPlates.forEach(function (pl) { if (pl.gid === tabPtr.groupDrag && pl.el !== tabPtr.el) pl.el.style.transform = 'translateY(' + totalDy + 'px)'; });
+                /* Build -105: the block no longer follows the
+                   pointer as one piece — the handle (group tab
+                   or plate), every member tab and the plate
+                   fade back at their origin as the drag source,
+                   the neighbours part at the insertion index
+                   the block's centre computes, and the ghost
+                   block (tabDragGapApply, height = the whole
+                   block) sits in the parted slot. */
+                tabPtr.el.classList.add('drag-source');
+                tabPtr.memberEls.forEach(function (mel) { mel.classList.add('drag-source'); });
+                tabPlates.forEach(function (pl) { if (pl.gid === tabPtr.groupDrag && pl.el !== tabPtr.el) pl.el.classList.add('drag-source'); });
                 var blockTop = Infinity;
                 tabLayoutCache.forEach(function (c) { if (c.gid === tabPtr.groupDrag && c.top < blockTop) blockTop = c.top; });
                 if (blockTop === Infinity) blockTop = tabPtr.el.offsetTop;
@@ -15632,8 +16139,13 @@
               tabHoverSet(null);
             }
             if (!tabPtr.moved) return;
-            tabPtr.el.classList.add('dragging');
-            tabPtr.el.style.transform = 'translateY(' + totalDy + 'px)';
+            /* Build -105: the dragged tab stays at its origin
+               as a faded source; the centre maths below still
+               tracks the pointer (offsetTop never moved, so
+               offsetTop + totalDy IS the pointer-side centre),
+               and the ghost in tabDragGapApply shows where
+               that centre would land it. */
+            tabPtr.el.classList.add('drag-source');
             var center = tabPtr.el.offsetTop + totalDy + tabPtr.el.offsetHeight / 2;
             var comp = tabDragCompute(tabPtr, center);
             tabPtr.insertIdx = comp.j;
