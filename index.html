@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-124" />
+    <meta name="folio-build" content="20261102-125" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -668,7 +668,7 @@
       }
       .outline-pin:hover, .outline-close:hover { background: var(--hover); color: var(--ink); }
       .outline-pin[aria-pressed="true"] { background: var(--active); color: var(--accent); }
-      #outlineList { overflow-y: auto; max-height: min(56vh, 460px); padding: 6px; }
+      #outlineList { overflow-y: auto; max-height: min(calc(var(--vvh, 100dvh) * 0.56), 460px); padding: 6px; }
       .side-empty { font-size: 13px; color: var(--ink-3); padding: 4px 10px 8px; line-height: 1.45; }
       .backlink-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 8px 6px; }
       .backlink-chip {
@@ -1285,7 +1285,7 @@
          win. On a phone-width viewport the popover clamps
          to the screen and the preview (never the label)
          gives up the room. */
-      .fmt-pop.div-pop { width: 328px; max-width: calc(100vw - 16px); max-height: min(82vh, 560px); overflow-y: auto; }
+      .fmt-pop.div-pop { width: 328px; max-width: calc(100vw - 16px); max-height: min(calc(var(--vvh, 100dvh) * 0.82), 560px); overflow-y: auto; }
       .div-pop .menu-item { align-items: center; }
       .div-pop .menu-item .m-label {
         flex: 0 0 auto; white-space: nowrap; overflow: visible;
@@ -1843,7 +1843,14 @@
          surface (the sections scroll with it). Theme entries are
          labeled rows — the element name IS the point of the
          section — while recents reuse the swatch grid, smaller. */
-      #fmtPop { max-height: calc(100dvh - 16px); overflow-y: auto; overscroll-behavior: contain; }
+      /* Build -125: the cap measures the *visible* viewport
+         (--vvh from visualViewport), not 100dvh — with the
+         keyboard up or the browser chrome showing, dvh stays
+         tall while the visible region shrinks, and the old cap
+         let the popover's bottom (and the end of its scroll
+         range) live below the visible bottom. The host fit
+         pass handles the popover's top offset on top of this. */
+      #fmtPop { max-height: calc(var(--vvh, 100dvh) - 16px); overflow-y: auto; overscroll-behavior: contain; }
       .fmt-section-label {
         margin-top: 8px; padding-top: 12px;
         border-top: 1px solid var(--line-soft);
@@ -1988,7 +1995,7 @@
          menu list's items (.menu-item), and the swatch tiles
          (.fmt-swatch), so it walks with the shared popover
          keyboard engine like the other grid popovers. */
-      .callout-pop { width: 288px; max-height: min(82vh, 660px); overflow-y: auto; }
+      .callout-pop { width: 288px; max-height: min(calc(var(--vvh, 100dvh) * 0.82), 660px); overflow-y: auto; }
       .callout-pop .pop-label { padding: 4px 4px 6px; }
       .callout-pop .menu-item { min-height: 35px; padding: 5px 10px; }
       .callout-pop .fmt-swatch { width: 34px; height: 34px; }
@@ -2397,6 +2404,15 @@
         position: fixed; z-index: 110; width: 224px;
         background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
         box-shadow: var(--shadow); padding: 5px; display: none;
+        /* Build -125: every menu caps to the *visible* viewport
+           (--vvh, published from visualViewport by
+           syncAppViewport; 100dvh is only the no-visualViewport
+           fallback) and scrolls internally, so a long menu's
+           last item is always reachable. The overlay host's
+           fit pass enforces the same invariant geometrically
+           for surfaces whose placement predates the cap. */
+        max-height: calc(var(--vvh, 100dvh) - 16px); overflow-y: auto;
+        overscroll-behavior: contain;
       }
       .menu.open { display: block; }
       /* The context tools menu can outgrow a phone's visible
@@ -2499,7 +2515,7 @@
       .ab-input::placeholder { color: var(--ink-3); }
       .ab-key { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
       .ab-results {
-        max-height: min(46vh, 430px); overflow-y: auto;
+        max-height: min(calc(var(--vvh, 100dvh) * 0.46), 430px); overflow-y: auto;
         border-top: 1px solid var(--line-soft); margin-top: 4px; padding-top: 4px;
       }
       .ab-group {
@@ -2610,7 +2626,7 @@
       #themeModal { overflow: hidden; overscroll-behavior: contain; }
       .panel.theme-panel {
         max-width: min(920px, 92vw); display: flex; flex-direction: column;
-        max-height: calc(95dvh - 20px); overflow: hidden;
+        max-height: calc(var(--vvh, 100dvh) * 0.95 - 20px); overflow: hidden;
       }
       .theme-edit {
         display: grid; grid-template-columns: 236px minmax(0, 1fr);
@@ -2837,7 +2853,7 @@
           width: min(356px, calc(100vw - 20px)); max-width: none;
           margin-top: 0; z-index: 80;
           box-shadow: var(--shadow);
-          max-height: calc(100dvh - 24px); overflow-y: auto;
+          max-height: calc(var(--vvh, 100dvh) - 24px); overflow-y: auto;
           overscroll-behavior: contain;
         }
         .ts-picker .ts-sv { height: 118px; }
@@ -2846,7 +2862,7 @@
       /* ---------------- Theme popover ---------------- */
       .theme-pop {
         position: absolute; left: 12px; right: 12px; bottom: 62px; z-index: 60;
-        max-height: calc(100dvh - 84px); overflow-y: auto; overscroll-behavior: contain;
+        max-height: calc(var(--vvh, 100dvh) - 84px); overflow-y: auto; overscroll-behavior: contain;
         background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
         box-shadow: var(--shadow); padding: 8px;
       }
@@ -3104,7 +3120,7 @@
       #shareModal .panel {
         flex: 0 0 auto;
         width: min(560px, calc(100vw - 28px));
-        height: calc(95dvh - 20px); max-height: calc(95dvh - 20px);
+        height: calc(var(--vvh, 100dvh) * 0.95 - 20px); max-height: calc(var(--vvh, 100dvh) * 0.95 - 20px);
         margin: auto;
         display: flex; flex-direction: column; overflow: hidden;
       }
@@ -3137,6 +3153,14 @@
         width: 100%; max-width: 560px; margin: auto 0;
         background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
         box-shadow: var(--shadow); padding: 10px 20px 20px;
+        /* Build -125: a modal panel never outgrows the visible
+           viewport; past the cap it scrolls internally, so its
+           header and its last row are both reachable on short
+           screens and with the keyboard up. The framed panels
+           (Share, Theme styles) override both declarations
+           with their own fixed-frame rules, as before. */
+        max-height: calc(var(--vvh, 100dvh) - 40px); overflow-y: auto;
+        overscroll-behavior: contain;
       }
       .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0 2px; }
       .panel-head h2 {
@@ -3188,7 +3212,7 @@
          each with a checkbox that starts checked. Folder names
          ride along as a quiet hint so same-titled documents in
          different folders stay distinguishable. */
-      .bundle-list { margin-top: 6px; max-height: 46dvh; overflow-y: auto; }
+      .bundle-list { margin-top: 6px; max-height: calc(var(--vvh, 100dvh) * 0.46); overflow-y: auto; }
       .bundle-row {
         display: flex; align-items: center; gap: 10px;
         padding: 9px 2px; border-bottom: 1px solid var(--line-soft);
@@ -3339,7 +3363,7 @@
       }
       .share-manager-door[hidden] { display: none; }
       .share-manager-door-btn { font-size: 12.5px; padding: 6px 12px; min-height: 32px; }
-      .share-manager-list { margin-top: 4px; max-height: 54dvh; overflow-y: auto; }
+      .share-manager-list { margin-top: 4px; max-height: calc(var(--vvh, 100dvh) * 0.54); overflow-y: auto; }
       .share-manager-group { margin-top: 16px; }
       .share-manager-group:first-child { margin-top: 6px; }
       .share-manager-group-head {
@@ -3378,7 +3402,7 @@
       /* The Add-documents picker reuses the bundle list rows;
          its confirm button names the count like the creation
          modal's does. */
-      .adddocs-list { margin-top: 6px; max-height: 46dvh; overflow-y: auto; }
+      .adddocs-list { margin-top: 6px; max-height: calc(var(--vvh, 100dvh) * 0.46); overflow-y: auto; }
 
       /* ---------------- Add to a share bundle + watch rules (build -62) ----------------
          Feature A rows live in the Share panel under their own
@@ -4956,7 +4980,7 @@
       .book-spread { display: flex; gap: 10px; }
       .book-page {
         flex: 1 1 0; min-width: 0; background: var(--surface); color: var(--ink);
-        border-radius: 6px; padding: 14px 16px 16px; max-height: 72dvh; overflow-y: auto;
+        border-radius: 6px; padding: 14px 16px 16px; max-height: calc(var(--vvh, 100dvh) * 0.72); overflow-y: auto;
         box-shadow: inset 0 0 0 1px var(--line-soft);
       }
       .book-page-head {
@@ -4998,7 +5022,7 @@
       .book-house-btn.danger { color: var(--danger); }
       @media (max-width: 640px) {
         #bookOverlay { padding: 0; }
-        .book-cover { max-width: none; min-height: 100dvh; border-radius: 0; }
+        .book-cover { max-width: none; min-height: var(--vvh, 100dvh); border-radius: 0; }
         .book-spread { flex-direction: column; }
         .book-page { max-height: none; overflow-y: visible; }
       }
@@ -12834,16 +12858,41 @@
             editorScroll.scrollTop -= (box.top + pad) - rect.top;
           }
         }
+        var vvVarCache = { h: -1, w: -1 };
         function syncAppViewport() {
           var vv = window.visualViewport;
-          if (!vv || !appRootEl) return;
+          if (!vv) return;
           /* Pinch zoom also reports through visualViewport; leave the
              shell alone while zoomed so zooming behaves as before. */
           if (Math.abs(vv.scale - 1) > 0.01) {
-            appRootEl.style.height = '';
-            appRootEl.style.top = '';
+            if (appRootEl) {
+              appRootEl.style.height = '';
+              appRootEl.style.top = '';
+            }
+            /* Build -125: while zoomed the CSS caps fall back to
+               their dvh values, exactly as before this build. */
+            if (vvVarCache.h !== -1) {
+              vvVarCache = { h: -1, w: -1 };
+              document.documentElement.style.removeProperty('--vvh');
+              document.documentElement.style.removeProperty('--vvw');
+            }
             return;
           }
+          /* Build -125: publish the *visible* viewport size as CSS
+             lengths. Surface caps (menus, popovers, modal panels)
+             measure against --vvh/--vvw instead of vh/dvh units:
+             on iOS the layout viewport — and so 100dvh — stays
+             full-height behind the keyboard and the browser
+             chrome, which is how long menus and pickers used to
+             be capped against a taller region than the visible
+             one and land their bottoms off screen. */
+          var vvh = Math.round(vv.height), vvw = Math.round(vv.width);
+          if (vvh !== vvVarCache.h || vvw !== vvVarCache.w) {
+            vvVarCache = { h: vvh, w: vvw };
+            document.documentElement.style.setProperty('--vvh', vvh + 'px');
+            document.documentElement.style.setProperty('--vvw', vvw + 'px');
+          }
+          if (!appRootEl) return;
           appRootEl.style.height = Math.round(vv.height) + 'px';
           appRootEl.style.top = Math.round(vv.offsetTop) + 'px';
           /* Resizing the shell does not scroll the document, so the
@@ -37911,10 +37960,139 @@
         }
         var stack = [];
         var syncing = false;
+        /* ---------------- Build -125: the visible-viewport fit ----
+           The host's geometry invariant: no anchored surface ever
+           extends past the *visible* viewport — visualViewport,
+           honoring its offset (iOS pans it for the keyboard) and
+           an 8px margin — and a surface too tall for the visible
+           region is capped to it and scrolls internally, so its
+           bottom edge and its last row stay on screen. Openers
+           still place their surfaces exactly as they always have
+           (most measure against the layout viewport, whose height
+           on iOS stays full behind the keyboard and the browser
+           chrome — the mismatch behind the long-standing report
+           of menus and color pickers clipped at the bottom);
+           this pass runs after placement — on open via sync(),
+           on any size change of an open surface via
+           ResizeObserver (an expanding picker section grows its
+           popover after the opener has placed it), and on
+           visual-viewport resize/scroll (the keyboard arriving
+           or leaving) — and nudges only what actually overflows:
+           slide into view first, cap the height only when the
+           surface is taller than the region itself.
+           Out of scope by design: modal overlays and their
+           panels (their caps are CSS, against --vvh), the
+           centered bars (the action bar and Omnisearch place
+           themselves from visualViewport already), tooltips and
+           drag ghosts (transient, pointer-owned), toasts and
+           the update banner (self-anchored strips), and any
+           non-fixed surface (the sidebar's theme popover is
+           anchored inside the shell, which is itself sized to
+           the visible viewport). Pinch zoom suspends the pass,
+           matching the shell's own policy. Nothing here touches
+           the editor: scroll and selection preservation (-122)
+           is unaffected — the pass writes only the surface's own
+           top/left/max-height. */
+        var FIT_SKIP_SEL = '.overlay, .auth-overlay, .share-view, .action-bar, .tooltip, .drag-ghost, .folio-toast, .update-banner';
+        var FIT_MARGIN = 8;
+        function fitSurface(el) {
+          if (!el || el === backdrop || !el.matches || el.matches(FIT_SKIP_SEL)) return;
+          var cs = window.getComputedStyle(el);
+          if (cs.position !== 'fixed' || cs.display === 'none') return;
+          var vv = window.visualViewport;
+          if (vv && Math.abs(vv.scale - 1) > 0.01) return;
+          var offL = vv ? vv.offsetLeft : 0;
+          var offT = vv ? vv.offsetTop : 0;
+          var visW = vv ? vv.width : window.innerWidth;
+          var visH = vv ? vv.height : window.innerHeight;
+          var availH = Math.max(120, Math.floor(visH - FIT_MARGIN * 2));
+          if (el.getAttribute('data-vvfit') === '1') {
+            /* Re-derive from the natural height each pass. The
+               cap is one inline property; lifting it and (when
+               still needed) re-applying it inside this one
+               synchronous pass never paints the uncapped state,
+               and the ResizeObserver sees the same start and end
+               size, so the pass cannot loop itself. */
+            el.style.maxHeight = '';
+            el.removeAttribute('data-vvfit');
+          }
+          var r = el.getBoundingClientRect();
+          if (!r.width && !r.height) return;
+          /* getBoundingClientRect speaks visual-viewport
+             coordinates; style.top/left speak layout-viewport
+             coordinates. The offset translates between them —
+             the settings menu's placement comment is the
+             standing account of the two systems. */
+          var layTop = r.top + offT;
+          var layLeft = r.left + offL;
+          var h = r.height;
+          var w = r.width;
+          if (h > availH) {
+            el.style.maxHeight = availH + 'px';
+            if (cs.overflowY === 'visible') el.style.overflowY = 'auto';
+            el.setAttribute('data-vvfit', '1');
+            r = el.getBoundingClientRect();
+            layTop = r.top + offT;
+            layLeft = r.left + offL;
+            h = r.height;
+            w = r.width;
+          }
+          /* Slide into the visible region. Only top-anchored
+             surfaces move vertically (a bottom-anchored one
+             keeps its anchor; the cap above is its remedy), and
+             only untransformed surfaces move horizontally (a
+             translateX(-50%) surface owns its own centering). */
+          if (cs.top !== 'auto') {
+            var newTop = layTop;
+            if (newTop + h > offT + visH - FIT_MARGIN) newTop = offT + visH - FIT_MARGIN - h;
+            if (newTop < offT + FIT_MARGIN) newTop = offT + FIT_MARGIN;
+            if (Math.abs(newTop - layTop) > 0.5) el.style.top = Math.round(newTop) + 'px';
+          }
+          if (cs.left !== 'auto' && cs.transform === 'none' && w <= visW - FIT_MARGIN * 2) {
+            var newLeft = layLeft;
+            if (newLeft + w > offL + visW - FIT_MARGIN) newLeft = offL + visW - FIT_MARGIN - w;
+            if (newLeft < offL + FIT_MARGIN) newLeft = offL + FIT_MARGIN;
+            if (Math.abs(newLeft - layLeft) > 0.5) el.style.left = Math.round(newLeft) + 'px';
+          }
+        }
+        function unfitSurface(el) {
+          /* A closed surface hands its geometry back: the cap
+             and the forced internal scroll the fit pass lent it
+             are removed, so the next open measures and places
+             from scratch. Position is the opener's to recompute
+             on every open, as it always has been. */
+          if (fitRO) fitRO.unobserve(el);
+          if (el.getAttribute('data-vvfit') === '1') {
+            el.style.maxHeight = '';
+            el.style.overflowY = '';
+            el.removeAttribute('data-vvfit');
+          }
+        }
+        var fitRO = window.ResizeObserver
+          ? new ResizeObserver(function (entries) {
+              entries.forEach(function (en) { fitSurface(en.target); });
+            })
+          : null;
+        function fitOpenSurfaces() {
+          stack.forEach(fitSurface);
+        }
+        if (window.visualViewport) {
+          var fitRaf = 0;
+          var onVvFit = function () {
+            if (fitRaf) return;
+            fitRaf = window.requestAnimationFrame(function () {
+              fitRaf = 0;
+              fitOpenSurfaces();
+            });
+          };
+          window.visualViewport.addEventListener('resize', onVvFit);
+          window.visualViewport.addEventListener('scroll', onVvFit);
+        }
         function sync() {
           if (syncing) return;
           syncing = true;
           try {
+            var stackBefore = stack.slice();
             var kids = Array.prototype.slice.call(host.children);
             var openNow = kids.filter(function (el) {
               return el !== backdrop && isSurface(el) && isOpen(el);
@@ -37930,6 +38108,18 @@
             stack = stack.filter(function (el) {
               return openNow.indexOf(el) !== -1;
             });
+            /* Build -125: fit bookkeeping follows the stack —
+               arrivals are watched for size changes, departures
+               hand back any geometry the fit pass lent them,
+               and every open surface is (re)fitted below, after
+               its opener's placement has landed (sync runs as a
+               microtask behind the opener's own task). */
+            stackBefore.forEach(function (el) {
+              if (stack.indexOf(el) === -1) unfitSurface(el);
+            });
+            stack.forEach(function (el) {
+              if (stackBefore.indexOf(el) === -1 && fitRO) fitRO.observe(el);
+            });
             var topModal = null;
             for (var i = stack.length - 1; i >= 0; i--) {
               if (isModal(stack[i])) { topModal = stack[i]; break; }
@@ -37943,6 +38133,7 @@
               backdrop.hidden = true;
             }
             document.documentElement.classList.toggle('folio-overlay-lock', !!topModal);
+            fitOpenSurfaces();
           } finally {
             syncing = false;
           }
@@ -38000,6 +38191,8 @@
           backdrop: backdrop,
           adopt: adopt,
           sync: sync,
+          fit: fitSurface,
+          fitAll: fitOpenSurfaces,
           isOpen: isOpen,
           stack: function () { return stack.slice(); },
           openSurfaces: function () {
