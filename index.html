@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-113" />
+    <meta name="folio-build" content="20261102-114" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32538,7 +32538,12 @@
              stays the MRU toggle below — a different combo
              (alt+q, no mod part) — and ⌥W opens the Book. All
              four are field-safe (SC_SAFE_IN_FIELD below):
-             like Zen, the chords type no text. */
+             like Zen, the chords type no text. Build -114:
+             the metaKey shape of the Q chord no longer rides
+             along as an alias for Previous tab — ⌘⌥Q is now
+             Close tab (see the tab-close entry below, which
+             explains how the dispatcher tells the two shapes
+             of this one normalized combo apart). */
           { id: 'tab-next', combo: 'mod+alt+a', hint: '⌥⌃A', group: 'General', label: 'Next tab',
             run: function () { tabStep(1); } },
           { id: 'tab-prev', combo: 'mod+alt+q', hint: '⌥⌃Q', group: 'General', label: 'Previous tab',
@@ -32578,6 +32583,36 @@
              field too. */
           { id: 'tab-new', combo: 'alt+t', hint: '⌥T', group: 'General', label: 'New tab…',
             run: function () { openTabPicker(); } },
+          /* Build -114: Close tab on ⌘⌥Q. The run is the
+             EXISTING active-tab close path — the same closeTab
+             the tab's own ✕ invokes: nearest-neighbour
+             activation, the closed doc feeds the Reopen stack
+             (tabClosedStack), and per-tab state cleanup all
+             ride along; no new close semantics, and with only
+             one tab open it does exactly what that tab's ✕
+             does today.
+             Chord record — read before reassigning: ⌘⌥Q LOOKS
+             free if you only scan hint strings, but the
+             dispatcher's scComboOf folds ⌘ and ⌃ into a single
+             'mod', so ⌘⌥Q and ⌥⌃Q (Previous tab, above) both
+             normalize to 'mod+alt+q' and would collide in
+             SHORTCUT_BY_COMBO, the second entry silently
+             overwriting the first. This entry therefore
+             carries the distinct combo string 'meta+alt+q',
+             which scComboOf never produces, so it can never
+             overwrite Previous tab in the index; the
+             dispatcher itself resolves the press — a
+             'mod+alt+q' press with metaKey held and ctrlKey
+             clear is THIS entry, while the ctrlKey shape keeps
+             resolving to Previous tab through the index. Plain
+             ⌥Q (the MRU toggle, 'alt+q') is untouched either
+             way. Field-safe like the other tab chords
+             (SC_SAFE_IN_FIELD below): the chord types no
+             text. As a General registry entry with a run, it
+             also lands in the action-bar catalog automatically,
+             labelled 'Close tab' with this hint. */
+          { id: 'tab-close', combo: 'meta+alt+q', hint: '⌘⌥Q', group: 'General', label: 'Close tab',
+            run: function () { if (tabActiveId) closeTab(tabActiveId); } },
           /* Collapse toggles. ⌘⌥⇧D folds the Documents
              section: D for Documents — plain ⌘⌥D is the date
              stamp, so the toggle takes the shifted sibling,
@@ -33105,7 +33140,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-recent': true, 'tab-book': true, 'tab-ws-cycle': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
+        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-close': true, 'tab-recent': true, 'tab-book': true, 'tab-ws-cycle': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
@@ -33514,7 +33549,18 @@
             closeOmni(true);
             return;
           }
-          var sc = SHORTCUT_BY_COMBO[scComboOf(ev)];
+          var scCombo = scComboOf(ev);
+          /* Build -114: ⌘⌥Q vs ⌥⌃Q. scComboOf folds ⌘ and ⌃
+             into one 'mod', so both presses name 'mod+alt+q';
+             the registry keeps them as two entries (Close tab
+             under the never-produced combo 'meta+alt+q',
+             Previous tab under 'mod+alt+q'). The metaKey shape
+             — ⌘ held, ⌃ clear — resolves here to Close tab;
+             the ctrlKey shape falls through to the index and
+             stays Previous tab. */
+          var sc = (scCombo === 'mod+alt+q' && ev.metaKey && !ev.ctrlKey)
+            ? SHORTCUT_BY_ID['tab-close']
+            : SHORTCUT_BY_COMBO[scCombo];
           if (!sc || sc.native || !sc.run) return;
           /* A tableOnly entry (the ⌥+arrow insertion chords)
              resolves only while the caret or the painted cell
@@ -33894,7 +33940,8 @@
           'callout-composer': CALLOUT_ICON_SVG,
           'h4': '<span style="font-weight:700">H<small>4</small></span>',
           'nav-prev-doc': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 6-6 6 6"/></svg>',
-          'nav-next-doc': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 10 6 6 6-6"/></svg>'
+          'nav-next-doc': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 10 6 6 6-6"/></svg>',
+          'tab-close': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>'
         };
         var AB_ICON_EL = {
           'print': 'printBtn',
@@ -34314,15 +34361,32 @@
             }).slice(0, 6).map(omniTagEntry);
             if (tags.length) sections.push({ head: 'Tags', items: tags });
           }
-          /* Build -113: when NO document matches (title or
-             body), offer to create one from the query —
-             even when folder / tag results exist, because
-             the offer is about documents. The title is the
-             query as typed, trimmed (not the lowercased
-             search key). An empty query never reaches here. */
-          if (!docs.length) {
+          /* Build -114: wider trigger, bottom placement.
+             Offer to create whenever NO document result's
+             TITLE exactly matches the trimmed query
+             (case-insensitive exact title equality) — even
+             when partial title hits, body-only hits, folder,
+             or tag results DO exist, because none of those IS
+             the named document. An exact title match among
+             the results suppresses the row (the check runs
+             over every title hit, not just the displayed
+             slice, so an existing document is never offered
+             for duplication). The title is the query as
+             typed, trimmed (not the lowercased search key).
+             An empty query never reaches here. The row is
+             PINNED AT THE BOTTOM: a headless final section
+             appended after Documents / Folders / Tags, so it
+             renders after every result group — and when
+             nothing matches at all it is simply the only
+             row. (Build -113's rule — only when no document
+             matched at all, in its own Create section — is
+             replaced.) */
+          var hasExactTitle = titleHits.some(function (e) {
+            return (e.label || '').toLowerCase() === q;
+          });
+          if (!hasExactTitle) {
             var rawTitle = (omniInput.value || '').trim();
-            if (rawTitle) sections.push({ head: 'Create', items: [omniCreateEntry(rawTitle)] });
+            if (rawTitle) sections.push({ head: null, items: [omniCreateEntry(rawTitle)] });
           }
           return sections;
         }
@@ -34339,10 +34403,14 @@
             return;
           }
           sections.forEach(function (sec) {
-            var head = document.createElement('div');
-            head.className = 'ab-group';
-            head.textContent = sec.head;
-            omniResults.appendChild(head);
+            /* A headless section (build -114's pinned Create
+               row) renders its items with no group label. */
+            if (sec.head) {
+              var head = document.createElement('div');
+              head.className = 'ab-group';
+              head.textContent = sec.head;
+              omniResults.appendChild(head);
+            }
             sec.items.forEach(function (e) {
               var b = document.createElement('button');
               b.type = 'button';
