@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-112" />
+    <meta name="folio-build" content="20261102-113" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -858,6 +858,13 @@
         font-size: 14.5px; font-weight: 500; line-height: 1.45; text-align: center;
       }
       .folio-toast[hidden] { display: none; }
+      /* Build -113: a plain notification toast dismisses on
+         click / tap, so it wears the pointer cursor. (Toasts
+         carrying an action button are not tap-dismissible —
+         see the folioToast click handler — and the separate
+         Update banner, which has its own buttons, never gets
+         a dismiss handler at all.) */
+      .folio-toast { cursor: pointer; }
 
       /* "A new version is available" banner: same pill family as
          the toast, but it stays until acted on — Reload (accent)
@@ -12907,6 +12914,29 @@
           if (folioToastTimer) { clearTimeout(folioToastTimer); folioToastTimer = null; }
           if (el) el.hidden = true;
         }
+        /* Build -113 (rider): tapping / clicking a plain
+           notification toast dismisses it at once. The rule
+           is keyed on the presence of an action button, not
+           on the toast's text: a toast that carries a button
+           (a link, input, or any [role="button"] counts too)
+           is NOT tap-dismissible — tapping it does nothing,
+           and only its button or its own timeout closes it.
+           folioToast itself only ever sets text, so in
+           practice every folio toast is plain and dismisses;
+           the guard keeps the rule true if a toast ever
+           grows an action. The Update prompt is a separate
+           element (.update-banner) with Reload / dismiss
+           buttons and deliberately gets no handler here, so
+           tapping it outside its buttons leaves it up. The
+           click event covers taps on touch devices. */
+        (function () {
+          var el = document.getElementById('folioToast');
+          if (!el) return;
+          el.addEventListener('click', function () {
+            if (el.querySelector('button, a, input, select, textarea, [role="button"]')) return;
+            folioHideToast();
+          });
+        })();
 
         /* The destination every importer shares (the Markdown
            wiring below calls this too). */
@@ -33285,6 +33315,21 @@
         });
         document.addEventListener('keydown', function (ev) {
           if (ev.isComposing) return;
+          /* Build -113: ⌘Enter while Omnisearch is up opens
+             the highlighted result in a new tab. This must be
+             checked before the no-modifier branch below (which
+             owns plain Enter) and before the generic ⌘Enter
+             composer handling further down, neither of which
+             can see a ⌘ chord reach Omnisearch otherwise.
+             omniRun limits the new-tab behavior to DOCUMENT
+             results; folder / tag / create results perform
+             their normal action. Plain Enter is unchanged. */
+          if (omniOpen && (ev.metaKey || ev.ctrlKey) && !ev.altKey && ev.key === 'Enter') {
+            omniRunHighlighted(true);
+            ev.preventDefault();
+            ev.stopPropagation();
+            return;
+          }
           if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && !ev.shiftKey) {
             /* While the action bar is open it owns ↑/↓, Enter,
                and Esc the same way an open popover owns its
@@ -34160,6 +34205,8 @@
              runs the pick. */
           var forTab = omniNewTab;
           return {
+            kind: 'doc',
+            docId: d.id,
             icon: DOC_SVG,
             label: d.title || 'Untitled',
             sub: snippet || '',
@@ -34167,11 +34214,56 @@
             run: function () {
               if (forTab) { omniNewTab = false; openDocInNewTab(d.id); }
               else openDoc(d.id, true);
-            }
+            },
+            /* Build -113: ⌘Enter's door — the existing
+               one-tab-per-doc new-tab path (an already-open
+               doc simply activates its tab). */
+            runInNewTab: function () { openDocInNewTab(d.id); }
           };
+        }
+        function omniCreateEntry(title) {
+          return {
+            kind: 'create',
+            icon: typeof PLUS_SVG !== 'undefined' ? PLUS_SVG : DOC_SVG,
+            label: 'Create "' + title + '"',
+            sub: '',
+            hint: 'New document',
+            run: function () { omniCreateDoc(title); }
+          };
+        }
+        /* Build -113: Create from search — the normal
+           creation path (createDoc, the "New documents go
+           to" folder rule, watch-folder prompts) with the
+           query as the title. Per the -107 rule a newly
+           created document opens in a fresh active tab;
+           Omnisearch has already closed by the time this
+           runs (omniRun closes before running a pick). */
+        function omniCreateDoc(title) {
+          var clean = String(title || '').trim();
+          if (!clean) return;
+          if (tagFilter) setTagFilter(null);
+          var targetFolderId = null;
+          try { targetFolderId = newDocTargetFolderId(); } catch (e) {}
+          if (targetFolderId) {
+            try { expandFolderChain(targetFolderId); } catch (e2) {}
+          }
+          var doc = createDoc(clean);
+          if (targetFolderId) {
+            doc.folderId = targetFolderId;
+            persist(false);
+          }
+          if (typeof folioTabsReady !== 'undefined' && folioTabsReady) openDocInNewTab(doc.id);
+          else openDoc(doc.id, false);
+          if (targetFolderId && typeof maybePromptWatchShare === 'function') {
+            try { maybePromptWatchShare(doc, { folder: targetFolderId }); } catch (e3) {}
+          }
+          if (editorHandle) {
+            try { editorHandle.editor.chain().focus().run(); } catch (e4) { try { editorHandle.focus(); } catch (e5) {} }
+          }
         }
         function omniFolderEntry(f) {
           return {
+            kind: 'folder',
             icon: FOLDER_SVG,
             label: f.name,
             sub: '',
@@ -34181,6 +34273,7 @@
         }
         function omniTagEntry(t) {
           return {
+            kind: 'tag',
             icon: TAG_SVG,
             label: '#' + t.name,
             sub: '',
@@ -34220,6 +34313,16 @@
               return t.key.indexOf(tagQ) !== -1;
             }).slice(0, 6).map(omniTagEntry);
             if (tags.length) sections.push({ head: 'Tags', items: tags });
+          }
+          /* Build -113: when NO document matches (title or
+             body), offer to create one from the query —
+             even when folder / tag results exist, because
+             the offer is about documents. The title is the
+             query as typed, trimmed (not the lowercased
+             search key). An empty query never reaches here. */
+          if (!docs.length) {
+            var rawTitle = (omniInput.value || '').trim();
+            if (rawTitle) sections.push({ head: 'Create', items: [omniCreateEntry(rawTitle)] });
           }
           return sections;
         }
@@ -34271,7 +34374,7 @@
                 h.textContent = e.hint;
                 b.appendChild(h);
               }
-              b.addEventListener('click', function () { omniRun(e); });
+              b.addEventListener('click', function (ev) { omniRun(e, !!(ev && (ev.metaKey || ev.ctrlKey))); });
               omniResults.appendChild(b);
               omniItems.push(b);
               omniEntries.push(e);
@@ -34298,10 +34401,10 @@
             : (i + dir + omniItems.length) % omniItems.length;
           omniHighlight(next);
         }
-        function omniRunHighlighted() {
+        function omniRunHighlighted(inNewTab) {
           var i = omniCurrentIndex();
           if (i === -1 && omniItems.length) i = 0;
-          if (i >= 0 && omniEntries[i]) omniRun(omniEntries[i]);
+          if (i >= 0 && omniEntries[i]) omniRun(omniEntries[i], !!inNewTab);
         }
         function omniRestoreFocus() {
           var t = omniReturnFocus;
@@ -34312,11 +34415,19 @@
             editorHandle.editor.chain().focus().run();
           }
         }
-        function omniRun(e) {
+        function omniRun(e, inNewTab) {
           /* Focus goes back before the pick runs, so it lands
              in the same state its own surface would find —
              the action bar's rule, kept. */
           closeOmni(true);
+          /* Build -113: ⌘Enter (or ⌘-click) on a DOCUMENT
+             result opens it in a new tab through the
+             existing path; folder / tag / create results
+             simply perform their normal action. */
+          if (inNewTab && e && e.kind === 'doc' && typeof e.runInNewTab === 'function') {
+            e.runInNewTab();
+            return;
+          }
           e.run();
         }
         function omniRevealFolder(id) {
@@ -34393,7 +34504,29 @@
           omniRender();
           omniPlace();
           if (window.visualViewport) window.visualViewport.addEventListener('resize', omniPlace);
-          omniInput.focus();
+          omniFocusInput();
+          requestAnimationFrame(function () { omniFocusInput(); });
+          setTimeout(function () { omniFocusInput(); }, 60);
+        }
+        /* Build -113: focusing the Omnisearch input must
+           survive the overlay host's restack — the same
+           failure class the action bar's -104 repair fixed.
+           Unhiding the bar fires the host's attribute
+           observer, whose sync() reparents (raises) the newly
+           opened surface after a synchronous focus(), resetting
+           the focus it just took. So, exactly as the action
+           bar does: focus at once, re-assert on the next
+           frame and once more shortly after, each time only
+           while Omnisearch is still open and the input is not
+           already the active element — an Esc or a pick inside
+           that window is never overridden. Both doors (⌥Space
+           and the title-bar swipe) call openOmni, so both get
+           ready-to-type focus. Esc / close focus-restore is
+           untouched. */
+        function omniFocusInput() {
+          if (!omniOpen || !omniInput) return;
+          if (document.activeElement === omniInput) return;
+          try { omniInput.focus({ preventScroll: true }); } catch (e) { try { omniInput.focus(); } catch (e2) {} }
         }
         function closeOmni(restore) {
           if (!omniOpen) return;
