@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-123" />
+    <meta name="folio-build" content="20261102-124" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1783,6 +1783,60 @@
         width: 44px; height: 32px; padding: 2px; cursor: pointer;
         border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
       }
+      /* Build -124: the format popover's custom well is an
+         in-page picker (the build -53 pattern), not a native
+         color input — iOS fires the native well's 'change'
+         during a spectrum drag, and the change handler's
+         apply + close tore the popover (and then the native
+         panel anchored to it) down mid-drag. The drag here is
+         claimed with pointer capture and paints only; Done is
+         the single commit. */
+      .fmt-well-btn {
+        width: 44px; height: 32px; padding: 0; cursor: pointer; flex: 0 0 auto;
+        border: 1px solid var(--line); border-radius: 8px; background: #e03131;
+      }
+      .fmt-well-hex {
+        font-size: 12.5px; font-weight: 600; color: var(--ink-3);
+        font-variant-numeric: tabular-nums;
+      }
+      .fmt-picker {
+        margin-top: 10px; padding: 10px;
+        border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+      }
+      .fmt-picker[hidden] { display: none; }
+      .fmt-sv {
+        position: relative; height: 132px; border-radius: 10px; cursor: crosshair;
+        border: 1px solid var(--line); touch-action: none; margin-bottom: 10px;
+      }
+      .fmt-sv-thumb, .fmt-hue-thumb {
+        position: absolute; width: 16px; height: 16px; border-radius: 50%;
+        border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
+        transform: translate(-50%, -50%); pointer-events: none;
+      }
+      .fmt-hue {
+        position: relative; height: 18px; border-radius: 9px; cursor: pointer; touch-action: none;
+        border: 1px solid var(--line); margin-bottom: 10px;
+        background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+      }
+      .fmt-hue-thumb { top: 50%; }
+      .fmt-picker-foot { display: flex; align-items: center; gap: 7px; }
+      .fmt-picker-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; margin-top: 9px; }
+      .fmt-picker-preview {
+        width: 30px; height: 30px; border-radius: 8px; flex: 0 0 auto;
+        border: 1px solid var(--line);
+      }
+      .fmt-picker-hex {
+        flex: 1; min-width: 0; font: inherit; font-size: 13.5px; color: var(--ink);
+        background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+        padding: 6px 7px; outline: none; font-variant-numeric: tabular-nums;
+      }
+      .fmt-picker-hex:focus { border-color: var(--accent); }
+      .fmt-picker-cancel {
+        font-size: 13.5px; font-weight: 600; color: var(--ink-2);
+        padding: 7px 8px; border-radius: 8px; min-height: 36px; flex: 0 0 auto;
+      }
+      .fmt-picker-cancel:hover { background: var(--hover); color: var(--ink); }
+      .fmt-picker-done { padding: 7px 12px; min-height: 36px; font-size: 13.5px; border-radius: 8px; flex: 0 0 auto; }
       /* Build -123: the format popover's two appended sections
          — Theme colors and Recently used. The popover can now
          outgrow a short screen, so it caps and scrolls as one
@@ -5606,7 +5660,20 @@
       <div class="fmt-swatches" id="fmtSwatches"></div>
       <div class="fmt-custom" id="fmtCustomRow" hidden>
         <span>Custom color</span>
-        <input type="color" id="fmtCustomColor" value="#e03131" aria-label="Custom text color" />
+        <button type="button" class="fmt-well-btn" id="fmtWellBtn" aria-label="Custom color — open the color picker" aria-haspopup="true" aria-expanded="false"></button>
+        <span class="fmt-well-hex" id="fmtWellHex">#e03131</span>
+      </div>
+      <div class="fmt-picker" id="fmtPicker" hidden role="dialog" aria-label="Custom color picker">
+        <div class="fmt-sv" id="fmtSv" aria-label="Saturation and brightness spectrum"><span class="fmt-sv-thumb" id="fmtSvThumb"></span></div>
+        <div class="fmt-hue" id="fmtHue" aria-label="Hue slider"><span class="fmt-hue-thumb" id="fmtHueThumb"></span></div>
+        <div class="fmt-picker-foot">
+          <span class="fmt-picker-preview" id="fmtPickerPreview"></span>
+          <input class="fmt-picker-hex" id="fmtCustomColor" type="text" value="#e03131" aria-label="Custom color hex value" spellcheck="false" autocapitalize="off" />
+        </div>
+        <div class="fmt-picker-actions">
+          <button type="button" class="fmt-picker-cancel" id="fmtPickerCancel">Cancel</button>
+          <button type="button" class="btn-primary fmt-picker-done" id="fmtPickerDone">Done</button>
+        </div>
       </div>
       <div id="fmtSections"></div>
     </div>
@@ -14737,6 +14804,16 @@
         var fmtPopLabel = document.getElementById('fmtPopLabel');
         var fmtCustomRow = document.getElementById('fmtCustomRow');
         var fmtCustomColor = document.getElementById('fmtCustomColor');
+        var fmtWellBtn = document.getElementById('fmtWellBtn');
+        var fmtWellHex = document.getElementById('fmtWellHex');
+        var fmtPicker = document.getElementById('fmtPicker');
+        var fmtSv = document.getElementById('fmtSv');
+        var fmtSvThumb = document.getElementById('fmtSvThumb');
+        var fmtHue = document.getElementById('fmtHue');
+        var fmtHueThumb = document.getElementById('fmtHueThumb');
+        var fmtPickerPreview = document.getElementById('fmtPickerPreview');
+        var fmtPickerDone = document.getElementById('fmtPickerDone');
+        var fmtPickerCancel = document.getElementById('fmtPickerCancel');
         var fmtMode = null;
         var FMT_X_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
 
@@ -14774,7 +14851,7 @@
             }
           } catch (e) {}
         }
-        function closeFmtPop() { fmtPop.hidden = true; fmtMode = null; fmtSelSnap = null; }
+        function closeFmtPop() { fmtClosePicker(); fmtPop.hidden = true; fmtMode = null; fmtSelSnap = null; }
         function toHex6(color) {
           var m = /^#([0-9a-f]{6})$/i.exec(color || '');
           if (m) return '#' + m[1].toLowerCase();
@@ -14821,9 +14898,10 @@
           } catch (e) { return []; }
         }
         /* Only custom-well picks enter the pool (this is called
-           from the custom color input's change handler, nowhere
-           else): preset palette picks and Theme-color picks do
-           not. Re-picking a pooled color moves it to the front. */
+           from the in-page custom picker's Done commit — build
+           -124 — nowhere else): preset palette picks and
+           Theme-color picks do not. Re-picking a pooled color
+           moves it to the front. */
         function rememberCustomColor(hex) {
           if (!hex) return;
           var h = toHex6(hex);
@@ -15028,6 +15106,7 @@
           fmtMode = mode;
           var ed = editorHandle.editor;
           fmtSnapSelection(ed);
+          fmtClosePicker();
           fmtPopLabel.textContent = mode === 'highlight' ? 'Highlight' : 'Text color';
           fmtSwatches.innerHTML = '';
           if (mode === 'highlight') {
@@ -15054,7 +15133,6 @@
           } else {
             fmtCustomRow.hidden = false;
             var curC = ed.getAttributes('textStyle').color || null;
-            if (curC) fmtCustomColor.value = toHex6(curC);
             TEXT_COLORS.forEach(function (hex) {
               var b = document.createElement('button');
               b.type = 'button';
@@ -15093,6 +15171,7 @@
             var curT = ed.getAttributes('textStyle').color || null;
             if (curT) curFmtHex = toHex6(curT);
           }
+          fmtWellSeed(curFmtHex || fmtWellValue);
           fmtBuildSections(mode, curFmtHex);
           fmtPop.hidden = false;
           var r = anchor.getBoundingClientRect();
@@ -15105,24 +15184,172 @@
           popNavPrime(fmtPop);
         }
         fmtPop.addEventListener('mousedown', function (ev) {
-          if (ev.target.closest && ev.target.closest('.fmt-swatch, .fmt-theme-row')) ev.preventDefault();
+          if (ev.target.closest && ev.target.closest('.fmt-swatch, .fmt-theme-row, .fmt-well-btn, .fmt-picker-done, .fmt-picker-cancel')) ev.preventDefault();
         });
+        /* ---------------- Build -124: the custom well is an
+           in-page picker ----------------
+           Diagnosis (the user's screen recording, 2026-11-02):
+           with the Text color popover open he tapped Custom
+           color, the iOS native Colors panel opened on its
+           Spectrum tab, and mid-drag the app popover closed
+           and the intermediate color was applied; a beat later
+           the native panel vanished too, because its anchor
+           input lived inside the now-hidden popover. The well
+           was a native <input type="color"> whose ONLY listener
+           was 'change' (this module never listened for
+           'input'), and on iOS the native well fires 'change'
+           DURING a spectrum drag — at drag-segment ends, not
+           only at the picker's dismissal the way desktop
+           browsers fire it. So the first mid-drag 'change' ran
+           the swatch-style apply + closeFmtPop() with whatever
+           color the drag had reached, and every such event
+           also pushed its intermediate value into the Recently
+           used pool (-123 recorded in the same handler), so a
+           single drag could seed the pool with colors the user
+           never chose. The remedy is the one build -53 already
+           proved in Theme Styles for this same defect — its
+           comment there: "the native popover closed mid-drag"
+           — no native well at all. This picker is claimed for
+           the whole drag: pointer capture on the spectrum and
+           hue surfaces, and drag updates are paint only (the
+           thumbs, the preview chip, the hex field) — no editor
+           apply, no pool write, no popover teardown can happen
+           mid-drag because no drag event reaches an apply.
+           Done is the single commit: the pool gains the final
+           hex exactly once, and the color lands through the
+           same -122-guarded apply a swatch tap uses
+           (applyTextColor / applyHighlightHex restore the
+           open-time selection snapshot and preserve the
+           scroll, then close the popover — closing at commit
+           is correct; only the prematurity was the defect).
+           Cancel, or any popover close, discards the pending
+           color untouched. Highlight mode shares this well
+           and commit — its custom row is hidden in that mode
+           today, but where it renders the commit dispatches
+           on fmtMode exactly as the old handler did. */
+        var fmtWellValue = '#e03131';
+        var fmtPkRgb = tsHexToRgb(fmtWellValue);
+        var fmtPkHsv = tsRgbToHsv(fmtPkRgb.r, fmtPkRgb.g, fmtPkRgb.b);
+        function fmtWellSeed(hex) {
+          fmtWellValue = toHex6(hex || fmtWellValue);
+          fmtPkRgb = tsHexToRgb(fmtWellValue);
+          fmtPkHsv = tsRgbToHsv(fmtPkRgb.r, fmtPkRgb.g, fmtPkRgb.b);
+          fmtWellBtn.style.background = fmtWellValue;
+          fmtWellHex.textContent = fmtWellValue;
+          fmtPkRender();
+        }
+        function fmtPkRender() {
+          var hex = tsRgbToHex(fmtPkRgb.r, fmtPkRgb.g, fmtPkRgb.b);
+          fmtSv.style.background = 'linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, rgba(255,255,255,0)), hsl(' + Math.round(fmtPkHsv.h) + ', 100%, 50%)';
+          fmtSvThumb.style.left = (fmtPkHsv.s * 100) + '%';
+          fmtSvThumb.style.top = ((1 - fmtPkHsv.v) * 100) + '%';
+          fmtSvThumb.style.background = hex;
+          fmtHueThumb.style.left = (fmtPkHsv.h / 360 * 100) + '%';
+          fmtHueThumb.style.background = 'hsl(' + Math.round(fmtPkHsv.h) + ', 100%, 50%)';
+          fmtPickerPreview.style.background = hex;
+          if (document.activeElement !== fmtCustomColor) fmtCustomColor.value = hex;
+        }
+        function fmtClosePicker() {
+          if (!fmtPicker) return;
+          fmtPicker.hidden = true;
+          if (fmtWellBtn) fmtWellBtn.setAttribute('aria-expanded', 'false');
+        }
+        function fmtOpenPicker() {
+          fmtWellSeed(fmtWellValue);
+          fmtPicker.hidden = false;
+          fmtWellBtn.setAttribute('aria-expanded', 'true');
+          fmtPkRender();
+          if (fmtPicker.scrollIntoView) fmtPicker.scrollIntoView({ block: 'nearest' });
+        }
+        function fmtDragSurface(el, onPos) {
+          el.addEventListener('pointerdown', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+            onPos(ev);
+            function mv(e2) { onPos(e2); }
+            function up() {
+              el.removeEventListener('pointermove', mv);
+              el.removeEventListener('pointerup', up);
+              el.removeEventListener('pointercancel', up);
+            }
+            el.addEventListener('pointermove', mv);
+            el.addEventListener('pointerup', up);
+            el.addEventListener('pointercancel', up);
+          });
+        }
+        fmtDragSurface(fmtSv, function (ev) {
+          var r = fmtSv.getBoundingClientRect();
+          if (!r.width || !r.height) return;
+          fmtPkHsv.s = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+          fmtPkHsv.v = Math.max(0, Math.min(1, 1 - (ev.clientY - r.top) / r.height));
+          fmtPkRgb = tsHsvToRgb(fmtPkHsv.h, fmtPkHsv.s, fmtPkHsv.v);
+          fmtPkRender();
+        });
+        fmtDragSurface(fmtHue, function (ev) {
+          var r = fmtHue.getBoundingClientRect();
+          if (!r.width) return;
+          fmtPkHsv.h = Math.max(0, Math.min(359.9, (ev.clientX - r.left) / r.width * 360));
+          fmtPkRgb = tsHsvToRgb(fmtPkHsv.h, fmtPkHsv.s, fmtPkHsv.v);
+          fmtPkRender();
+        });
+        fmtWellBtn.addEventListener('click', function () {
+          if (fmtPicker.hidden) fmtOpenPicker();
+          else fmtClosePicker();
+        });
+        /* The hex field (it carries the old well's id, so the
+           tab module's text-session resign list still finds
+           it): typing a valid hex re-aims the pending color —
+           paint only, like a drag. Enter commits it as Done;
+           Escape folds the picker without applying. */
         fmtCustomColor.addEventListener('change', function () {
-          if (fmtMode === 'textcolor') {
-            /* Build -123: a custom-well pick is the one door
-               into the Recently used pool. */
-            rememberCustomColor(fmtCustomColor.value);
-            applyTextColor(fmtCustomColor.value);
-          } else if (fmtMode === 'highlight') {
-            /* Build -123: the well is nominally hidden in
-               Highlight mode, but where it does render, a pick
-               is a custom highlight like any other — it feeds
-               the same Recently used pool and applies as a hex
-               highlight instead of sitting inert. */
-            rememberCustomColor(fmtCustomColor.value);
-            applyHighlightHex(fmtCustomColor.value);
+          var v = fmtCustomColor.value.trim();
+          if (/^#?[0-9a-f]{6}$/i.test(v)) {
+            fmtPkRgb = tsHexToRgb(v);
+            fmtPkHsv = tsRgbToHsv(fmtPkRgb.r, fmtPkRgb.g, fmtPkRgb.b);
+          }
+          fmtPkRender();
+        });
+        /* A pasted or typed hex re-aims the pending color the
+           moment it parses — paint only, like a drag move;
+           the field keeps the user's text while it has focus
+           (fmtPkRender never rewrites the focused field). */
+        fmtCustomColor.addEventListener('input', function () {
+          var v = fmtCustomColor.value.trim();
+          if (/^#?[0-9a-f]{6}$/i.test(v)) {
+            fmtPkRgb = tsHexToRgb(v);
+            fmtPkHsv = tsRgbToHsv(fmtPkRgb.r, fmtPkRgb.g, fmtPkRgb.b);
+            fmtPkRender();
           }
         });
+        fmtCustomColor.addEventListener('keydown', function (ev) {
+          ev.stopPropagation();
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            var v = fmtCustomColor.value.trim();
+            if (/^#?[0-9a-f]{6}$/i.test(v)) {
+              fmtPkRgb = tsHexToRgb(v);
+              fmtPkHsv = tsRgbToHsv(fmtPkRgb.r, fmtPkRgb.g, fmtPkRgb.b);
+              fmtWellCommit();
+            } else fmtPkRender();
+          } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            fmtClosePicker();
+          }
+        });
+        function fmtWellCommit() {
+          if (fmtMode !== 'textcolor' && fmtMode !== 'highlight') return;
+          var hex = tsRgbToHex(fmtPkRgb.r, fmtPkRgb.g, fmtPkRgb.b);
+          fmtWellValue = hex;
+          /* The one pool write of a custom pick: the committed
+             color, once. Drag intermediates never reach here. */
+          rememberCustomColor(hex);
+          fmtClosePicker();
+          if (fmtMode === 'highlight') applyHighlightHex(hex);
+          else applyTextColor(hex);
+        }
+        fmtPickerDone.addEventListener('click', fmtWellCommit);
+        fmtPickerCancel.addEventListener('click', function () { fmtClosePicker(); });
 
         /* ---------------- code copy buttons ---------------- */
         var COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
