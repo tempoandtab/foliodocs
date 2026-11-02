@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-115" />
+    <meta name="folio-build" content="20261102-116" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3244,6 +3244,16 @@
          note stay above it. */
       .share-manager-search { margin-top: 10px; }
       .share-manager-search .text-input { width: 100%; }
+      /* The manager's door in the Share panel (build -116):
+         a quiet footer utility under the link list — set off
+         by a hairline, centered, and visibly smaller than the
+         panel's primary actions. */
+      .share-manager-door {
+        margin-top: 20px; padding-top: 14px;
+        border-top: 1px solid var(--line-soft); text-align: center;
+      }
+      .share-manager-door[hidden] { display: none; }
+      .share-manager-door-btn { font-size: 12.5px; padding: 6px 12px; min-height: 32px; }
       .share-manager-list { margin-top: 4px; max-height: 54dvh; overflow-y: auto; }
       .share-manager-group { margin-top: 16px; }
       .share-manager-group:first-child { margin-top: 6px; }
@@ -5491,6 +5501,16 @@
             <div id="shareBundlePanel" hidden></div>
             <div class="pop-label" style="margin-top:14px" id="shareAddToLabel" hidden>Add to a share bundle</div>
             <div id="shareAddToPanel"></div>
+            <!-- Build -116: the global share-link manager's
+                 door inside the Share surface — a quiet footer
+                 utility at the bottom of the link list, smaller
+                 than the panel's primary actions. Hidden while
+                 the panel itself was opened FROM the manager
+                 (a link's settings), where Back already returns
+                 to the manager and a door here would loop. -->
+            <div class="share-manager-door" id="shareManagerDoor">
+              <button class="btn-ghost share-manager-door-btn" id="shareManagerDoorBtn" type="button" data-tip="Every share link, set, and wiki across all of your documents">Manage all share links</button>
+            </div>
           </div>
         </div>
 
@@ -5689,7 +5709,7 @@
         </div>
         <p class="form-note">Every share link, set, and wiki across all of your documents, grouped by the document each link belongs to. Tap a link to open its settings &mdash; adding documents, the wiki switch, watch rules, comments, and revoking all happen there, exactly as in that document&rsquo;s own Share panel.</p>
         <div class="share-manager-search">
-          <input class="text-input" id="shareManagerSearch" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search by document title" aria-label="Search share links by document title" />
+          <input class="text-input" id="shareManagerSearch" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search by document title or link name" aria-label="Search share links by document title or link name" />
         </div>
         <p class="form-note" id="shareManagerNote" hidden></p>
         <div class="share-manager-list" id="shareManagerList"></div>
@@ -9199,32 +9219,12 @@
           }
           treeItem(COLLAPSE_ALL_SVG, 'Collapse all folders', 'collapse-all-folders', false);
           treeItem(EXPAND_ALL_SVG, 'Expand all folders', 'expand-all-folders', true);
-          /* Build -115: the global share-link manager rides in
-             this same header menu — it is a library-wide door,
-             like the folder commands above, not a per-document
-             one. Its row is built like a tree row (same lead
-             slot, same label geometry) but runs the manager. */
-          var shareMgrSep = document.createElement('div');
-          shareMgrSep.className = 'menu-sep';
-          viewMenuEl.appendChild(shareMgrSep);
-          var shareMgrBtn = document.createElement('button');
-          shareMgrBtn.type = 'button';
-          shareMgrBtn.className = 'menu-item';
-          shareMgrBtn.setAttribute('role', 'menuitem');
-          shareMgrBtn.setAttribute('data-manager-menu-item', '');
-          var shareMgrLead = document.createElement('span');
-          shareMgrLead.className = 'check lead-icon';
-          shareMgrLead.innerHTML = SHARE_SVG;
-          shareMgrBtn.appendChild(shareMgrLead);
-          var shareMgrLabel = document.createElement('span');
-          shareMgrLabel.className = 'm-label';
-          shareMgrLabel.textContent = 'Manage share links';
-          shareMgrBtn.appendChild(shareMgrLabel);
-          shareMgrBtn.addEventListener('click', function () {
-            closeViewMenu();
-            openShareManager();
-          });
-          viewMenuEl.appendChild(shareMgrBtn);
+          /* Build -116: the share-link manager's door moved
+             OUT of this header menu (the user found a
+             library-wide manager odd here) — it lives in the
+             Share panel's footer and the Share button's
+             right-click menu now; the action bar keeps its
+             door. Nothing share-related remains in this menu. */
           viewMenuEl.className = 'menu open';
           viewMenuOpen = true;
           document.getElementById('docsViewBtn').setAttribute('aria-expanded', 'true');
@@ -27312,6 +27312,12 @@
           } catch (e) {}
           var panel = modal.querySelector('.panel');
           if (panel) panel.setAttribute('aria-labelledby', SHARE_VIEW_TITLES[name]);
+          /* Build -116: the Main view's manager door hides
+             while a manager return is pending — the panel was
+             opened from the manager, Back already leads back
+             to it, and a door to it here would loop. */
+          var managerDoorEl = document.getElementById('shareManagerDoor');
+          if (managerDoorEl) managerDoorEl.hidden = !!shareManagerReturn;
           /* A follow-on view implies the shell is up: the
              watch prompt opens it straight from the editor,
              and the sweep is swapped in from Main's Review
@@ -27726,7 +27732,12 @@
                count; the container holds exactly the member
                rows and nothing else, so folding never hides
                the actions, watch rules or drift notice below. */
-            var memberCount = bundle.members.filter(function (m) { return m.token !== bundle.rootToken; }).length;
+            /* Build -116: the count — and the list below —
+               include the set's ROOT document. It used to be
+               filtered out of both, so the one document the
+               link was created from was the only member of
+               its own set the panel never named. */
+            var memberCount = bundle.members.length;
             var memberTarget = wrap;
             if (memberCount) {
               var folded = bundleDocsFolded(bundle);
@@ -27764,10 +27775,24 @@
               wrap.appendChild(membersWrap);
               memberTarget = membersWrap;
             }
+            /* Build -116: the root renders FIRST, as a member
+               row in every respect but one — it carries a
+               muted Root badge and NO Remove button: the root
+               anchors the set (it is the document this link
+               was created from) and cannot be removed from
+               it, so the missing button reads as by-design
+               next to the badge, not as a broken row. */
+            var rootMemberRow = bundleRootMember(bundle);
+            var orderedMembers = [];
+            if (rootMemberRow) orderedMembers.push(rootMemberRow);
             bundle.members.forEach(function (m) {
-              if (m.token === bundle.rootToken) return;
+              if (m !== rootMemberRow) orderedMembers.push(m);
+            });
+            orderedMembers.forEach(function (m) {
+              var isRootRow = m === rootMemberRow;
               var row = document.createElement('div');
               row.className = 'share-row';
+              if (isRootRow) row.setAttribute('data-bundle-root-row', '');
               var meta = document.createElement('div');
               meta.className = 'share-meta';
               var title = document.createElement('div');
@@ -27779,6 +27804,13 @@
               link.textContent = shareLinkFor(m.token);
               meta.appendChild(link);
               row.appendChild(meta);
+              if (isRootRow) {
+                var rootBadge = document.createElement('span');
+                rootBadge.className = 'bundle-badge';
+                rootBadge.textContent = 'Root';
+                rootBadge.setAttribute('data-tip', 'The document this share link was created from \u2014 it anchors the set and can\u2019t be removed from it');
+                row.appendChild(rootBadge);
+              }
               var copy = document.createElement('button');
               copy.type = 'button';
               copy.className = 'btn-ghost';
@@ -27786,20 +27818,22 @@
               copy.setAttribute('data-tip', 'Copy link');
               copy.addEventListener('click', function () { copyText(shareLinkFor(m.token), copy); });
               row.appendChild(copy);
-              /* Remove (build -60): a bundle-created share is
-                 revoked with the member; a pre-existing share
-                 is only detached, and its own link survives.
-                 The tip names which of the two will happen. */
-              var remove = document.createElement('button');
-              remove.type = 'button';
-              remove.className = 'btn-ghost btn-danger-ghost';
-              remove.textContent = 'Remove';
-              remove.setAttribute('data-bundle-remove', m.token);
-              remove.setAttribute('data-tip', m.created === true
-                ? 'Remove from this set and revoke this document\u2019s link'
-                : 'Remove from this set \u2014 this document\u2019s own link keeps working');
-              remove.addEventListener('click', function () { removeBundleMember(bundle, m, remove); });
-              row.appendChild(remove);
+              if (!isRootRow) {
+                /* Remove (build -60): a bundle-created share is
+                   revoked with the member; a pre-existing share
+                   is only detached, and its own link survives.
+                   The tip names which of the two will happen. */
+                var remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'btn-ghost btn-danger-ghost';
+                remove.textContent = 'Remove';
+                remove.setAttribute('data-bundle-remove', m.token);
+                remove.setAttribute('data-tip', m.created === true
+                  ? 'Remove from this set and revoke this document\u2019s link'
+                  : 'Remove from this set \u2014 this document\u2019s own link keeps working');
+                remove.addEventListener('click', function () { removeBundleMember(bundle, m, remove); });
+                row.appendChild(remove);
+              }
               memberTarget.appendChild(row);
             });
             var actions = document.createElement('div');
@@ -28957,9 +28991,13 @@
         /* The search is by document (build -115): a link
            stays visible when the text matches its ROOT
            document's title OR ANY MEMBER document's title —
-           a case-insensitive substring match on titles. An
-           empty search shows everything. The two empty states
-           are distinct: no links exist at all, vs. links exist
+           a case-insensitive substring match on titles.
+           Build -116: the link's own NAME matches too — its
+           alias, the same display name its list row shows —
+           so a set is findable by the name its owner gave
+           it, not only by the documents in it. An empty
+           search shows everything. The two empty states are
+           distinct: no links exist at all, vs. links exist
            but none match the search. */
         function renderShareManager() {
           var listEl = document.getElementById('shareManagerList');
@@ -28997,6 +29035,7 @@
           shareManagerGroups.forEach(function (g) {
             var matches = g.entries.filter(function (e) {
               if (!q) return true;
+              if (e.alias && e.alias.toLowerCase().indexOf(q) !== -1) return true;
               if (e.rootTitle.toLowerCase().indexOf(q) !== -1) return true;
               return e.memberTitles.some(function (t) {
                 return t.toLowerCase().indexOf(q) !== -1;
@@ -29026,8 +29065,8 @@
             var noMatch = document.createElement('div');
             noMatch.className = 'list-empty';
             noMatch.textContent = 'No share links match \u201C' + (input ? input.value.trim() : '') +
-              '\u201D \u2014 no document with that title is the root of, or a member of, a shared set. ' +
-              'Search matches the document a link belongs to and every document in its set.';
+              '\u201D \u2014 no link carries that name, and no document with that title is the root of, or a member of, a shared set. ' +
+              'Search matches a link\u2019s name, the document a link belongs to, and every document in its set.';
             listEl.appendChild(noMatch);
           }
         }
@@ -29144,6 +29183,14 @@
         });
         document.getElementById('shareManagerSearch').addEventListener('input', function () {
           renderShareManager();
+        });
+        /* Build -116: the Share panel's footer door swaps the
+           shell for the manager — the same one-overlay-at-a-
+           time discipline the manager's own link settings
+           observe in reverse. */
+        document.getElementById('shareManagerDoorBtn').addEventListener('click', function () {
+          hideShareShell();
+          openShareManager();
         });
         document.addEventListener('keydown', function (ev) {
           if (ev.key === 'Escape' && !document.getElementById('shareManagerModal').hidden) {
@@ -30686,7 +30733,52 @@
           }).catch(function () { btn.disabled = false; });
         });
 
-        document.getElementById('shareBtn').addEventListener('click', openShareModal);
+        /* Build -116: the Share button's own menu. Left-click
+           is unchanged — it opens the Share panel. Right-click
+           (and long-press, on the app's touch-menu pattern:
+           a 550ms hold that stamps its time so the trailing
+           synthesized click is swallowed) opens the shared
+           right-click menu instead, carrying the plain click's
+           action first so the menu explains itself, and the
+           share-link manager second — the manager's door out
+           of the Documents header menu lives here now. */
+        var shareBtnEl = document.getElementById('shareBtn');
+        var shareBtnLpAt = 0;
+        function openShareBtnMenu(anchor) {
+          openRcMenu(anchor, function (el) {
+            el.appendChild(rcMenuItem({
+              icon: SHARE_SVG, label: 'Share this document\u2026',
+              run: function () { openShareModal(); },
+            }));
+            el.appendChild(rcMenuItem({
+              icon: SHARE_SVG, label: 'Manage share links\u2026',
+              run: function () { openShareManager(); },
+            }));
+          });
+        }
+        shareBtnEl.addEventListener('click', function () {
+          if (Date.now() - shareBtnLpAt < 400) return; // the long-press already opened the menu
+          openShareModal();
+        });
+        rcOn(shareBtnEl, function (b) {
+          if (Date.now() - shareBtnLpAt < 600) return; // the long-press just opened this menu
+          openShareBtnMenu(b);
+        });
+        var shareBtnLpTimer = null;
+        shareBtnEl.addEventListener('pointerdown', function (ev) {
+          if (!ev.isPrimary) return; // a second finger is a secondary tap, not a long-press
+          if (ev.pointerType === 'mouse') return; // a mouse hold is no long-press; right-click covers it
+          shareBtnLpTimer = setTimeout(function () {
+            shareBtnLpTimer = null;
+            shareBtnLpAt = Date.now();
+            openShareBtnMenu(shareBtnEl);
+          }, 550);
+        });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (t) {
+          shareBtnEl.addEventListener(t, function () {
+            if (shareBtnLpTimer) { clearTimeout(shareBtnLpTimer); shareBtnLpTimer = null; }
+          });
+        });
         /* Print: the topbar button and ⌘P / Ctrl+P both run the
            shared print flow for the open document. The shortcut
            is intercepted (the browser would otherwise print the
@@ -32522,6 +32614,19 @@
               isSet: !!sec,
               wikiOn: wiki ? wiki.getAttribute('aria-checked') === 'true' : null,
               memberRows: sec ? sec.querySelectorAll('.share-row').length : 0,
+              /* Build -116: the set list's rows in order —
+                 the root first, badged, with no Remove; the
+                 members after it, removable. */
+              setRows: sec ? Array.prototype.map.call(sec.querySelectorAll('.share-row'), function (r) {
+                var t = r.querySelector('.share-perm');
+                var b = r.querySelector('.bundle-badge');
+                return {
+                  title: t ? t.textContent : '',
+                  isRoot: r.hasAttribute('data-bundle-root-row'),
+                  badge: b ? b.textContent : null,
+                  hasRemove: !!r.querySelector('[data-bundle-remove]'),
+                };
+              }) : [],
               watchPresent: sec ? !!sec.querySelector('[data-bundle-watch]') : false,
               reviewCount: review ? Number(review.getAttribute('data-watch-review-count')) : null,
               standaloneVisible: !document.getElementById('shareSettingsStandalone').hidden,
@@ -32770,6 +32875,66 @@
           managerClose: function () {
             closeShareManager();
             return window.FolioShareBundle.managerState();
+          },
+          /* ---- build -116: the manager's moved doors ---- */
+          /* The Share panel's footer door: present in Main,
+             hidden while a manager return is pending. */
+          shareDoorState: function () {
+            var door = document.getElementById('shareManagerDoor');
+            return {
+              present: !!door,
+              hidden: door ? door.hidden : null,
+              view: shareShellOpen() ? shareCurrentView : null,
+              returnPending: !!shareManagerReturn,
+            };
+          },
+          /* Clicks the panel's footer door and settles to
+             the manager state it opens. */
+          clickShareDoor: function () {
+            var btn = document.getElementById('shareManagerDoorBtn');
+            if (!btn) return Promise.resolve(null);
+            btn.click();
+            return new Promise(function (res) {
+              setTimeout(function () { res(window.FolioShareBundle.managerState()); }, 150);
+            });
+          },
+          /* The Documents header menu's item labels, read
+             with the menu open — the manager's row must NOT
+             be among them anymore. */
+          headerMenuLabels: function () {
+            var items = [];
+            document.querySelectorAll('#viewMenu .menu-item').forEach(function (el) {
+              var l = el.querySelector('.m-label');
+              items.push(l ? l.textContent : el.textContent);
+            });
+            return { open: viewMenuOpen, items: items };
+          },
+          /* Fires a real contextmenu at the Share button and
+             reads the right-click menu it opens. */
+          shareBtnMenu: function () {
+            var btn = document.getElementById('shareBtn');
+            if (!btn) return null;
+            btn.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            var items = [];
+            document.querySelectorAll('#rcMenu .menu-item').forEach(function (el) {
+              var l = el.querySelector('.m-label');
+              items.push(l ? l.textContent : el.textContent);
+            });
+            return { open: rcMenuOpen, items: items };
+          },
+          /* Clicks one item of the open Share-button menu by
+             its label and settles to the manager state. */
+          shareBtnMenuClick: function (label) {
+            var found = null;
+            document.querySelectorAll('#rcMenu .menu-item').forEach(function (el) {
+              var l = el.querySelector('.m-label');
+              if (l && l.textContent === label) found = el;
+            });
+            if (!found) return Promise.resolve(null);
+            found.click();
+            return new Promise(function (res) {
+              setTimeout(function () { res(window.FolioShareBundle.managerState()); }, 150);
+            });
           },
         };
 
