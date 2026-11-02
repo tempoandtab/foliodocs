@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-109" />
+    <meta name="folio-build" content="20261101-110" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -978,6 +978,19 @@
       .fold-chev:hover { background: rgba(128, 128, 128, 0.18); color: var(--ink); }
       .fold-chev svg { width: 15px; height: 15px; transition: transform 0.15s ease; }
       .fold-chev.is-folded svg { transform: rotate(-90deg); }
+      /* Build -110: while the margin context rail is showing
+         on a foldable heading, the rail's own fold button IS
+         that heading's fold control — the rail module marks
+         the heading's in-margin chevron .rail-fold-hosted and
+         it stands down, so the two controls never paint over
+         each other in the gutter strip they share (the rail
+         hugs the page's left edge since -109, squarely in the
+         chevron's column). The mark is removed the moment the
+         rail moves off the heading or hides, and the chevron
+         returns exactly as it was. Headings only: list-item
+         and quote chevrons keep their own column and are
+         never marked. */
+      .fold-chev.rail-fold-hosted { display: none !important; }
       /* Item and quote anchors ride a body-text line, whose
          center sits lower than a heading's; a list item's
          chevron also steps left past its bullet, into the
@@ -18871,6 +18884,39 @@
         var railEl = null, railBtns = {};
         var railScrollHide = false, railScrollTimer = null;
         var railPress = null;
+        /* Build -110: the fold chevron the rail currently
+           hosts for a heading (see railHostFoldChev below) —
+           tracked so its stand-down mark is always removed
+           when the rail moves on, whatever moves it. */
+        var railHostedChev = null;
+        function railClearHostedChev() {
+          if (!railHostedChev) return;
+          try { railHostedChev.classList.remove('rail-fold-hosted'); } catch (e) {}
+          railHostedChev = null;
+        }
+        /* While the rail shows on a foldable heading, its
+           own fold button is that heading's fold control, so
+           the heading's separate in-margin chevron stands
+           down (.rail-fold-hosted): one control, no
+           duplication, and zero overlap in the gutter strip
+           the two used to share. The chevron is the fold
+           plugin's widget inside the heading's own DOM; the
+           plugin recreates that widget when the fold state
+           flips, and every recreation is followed by an
+           updateContextRail (selection and folds-changed
+           both repaint the rail), which re-marks the fresh
+           button before the next paint. */
+        function railHostFoldChev(ed, pos) {
+          var host = null, chev = null;
+          try { host = ed.view.nodeDOM(pos); } catch (e) { host = null; }
+          if (host && host.querySelector) {
+            try { chev = host.querySelector('.fold-chev'); } catch (e) { chev = null; }
+          }
+          if (chev) {
+            chev.classList.add('rail-fold-hosted');
+            railHostedChev = chev;
+          }
+        }
         function railTouchOK() {
           try { return window.matchMedia('(max-width: 860px), (pointer: coarse)').matches; }
           catch (e) { return false; }
@@ -19141,6 +19187,15 @@
         }
         function updateContextRail() {
           if (!railEl) return;
+          /* Every repaint first releases the previously
+             hosted chevron; the heading branch below re-hosts
+             it only if this repaint still shows the rail's
+             fold button for that same heading, so a hidden
+             rail — or one that moved to another block — never
+             leaves a chevron suppressed behind it. The clear
+             and any re-host happen in the same task, before
+             the next paint, so the chevron never flickers. */
+          railClearHostedChev();
           var ed = editorHandle && editorHandle.editor;
           if (!ed || !ed.view || !ed.view.editable || railScrollHide || !railTouchOK()) { railEl.hidden = true; return; }
           var rc = railContext();
@@ -19184,6 +19239,10 @@
               railBtns.fold.hidden = false;
               railBtns.fold.classList.toggle('is-folded', !!h.fold.folded);
               railBtns.fold.setAttribute('aria-label', h.fold.folded ? 'Unfold section' : 'Fold section');
+              /* The rail's fold button now speaks for this
+                 heading — stand its in-margin chevron down
+                 so the pill never covers it (build -110). */
+              railHostFoldChev(ed, h.pos);
             }
             railBtns.promote.hidden = !h.canPromote;
             railBtns.demote.hidden = !h.canDemote;
@@ -19364,6 +19423,10 @@
             scroller.addEventListener('scroll', function () {
               railScrollHide = true;
               railEl.hidden = true;
+              /* The rail is gone while scrolling, so its
+                 hosted chevron comes back at once rather
+                 than waiting for the settle repaint. */
+              railClearHostedChev();
               if (railScrollTimer) clearTimeout(railScrollTimer);
               railScrollTimer = setTimeout(function () {
                 railScrollHide = false;
