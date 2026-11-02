@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-114" />
+    <meta name="folio-build" content="20261102-115" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3234,6 +3234,28 @@
       .share-link-item-sub { font-size: 12.5px; color: var(--ink-3); }
       .share-link-item-chev { flex: 0 0 auto; color: var(--ink-3); font-size: 20px; line-height: 1; }
       .create-link-row { margin: 2px 0 14px; }
+      /* ---------------- Manage all share links (build -115) ----------------
+         The global manager's list: one group per root document
+         (its title as the group head, in the bundle-set-head
+         register), the root's links under it as the Share
+         panel's own .share-link-item rows, so a link reads
+         identically in both places. The list is the modal's
+         one scroll region; the search field and the partial
+         note stay above it. */
+      .share-manager-search { margin-top: 10px; }
+      .share-manager-search .text-input { width: 100%; }
+      .share-manager-list { margin-top: 4px; max-height: 54dvh; overflow-y: auto; }
+      .share-manager-group { margin-top: 16px; }
+      .share-manager-group:first-child { margin-top: 6px; }
+      .share-manager-group-head {
+        display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+        font-size: 12px; font-weight: 700; letter-spacing: .04em;
+        text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px;
+      }
+      .share-manager-group-count {
+        font-size: 12px; font-weight: 600; letter-spacing: 0;
+        text-transform: none; color: var(--ink-3);
+      }
       .settings-perm-line {
         display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
         font-size: 13.5px; color: var(--ink-2); margin: 2px 0 10px;
@@ -5654,6 +5676,23 @@
             <button class="btn-ghost btn-danger-ghost" id="shareSettingsRevoke" type="button" data-tip="Revoke this link — it stops working right away">Revoke this link</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="shareManagerModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shareManagerTitle" style="max-width:640px">
+        <div class="panel-head">
+          <h2 id="shareManagerTitle">Manage share links</h2>
+          <button class="icon-btn" id="shareManagerClose" type="button" aria-label="Close share link manager" data-tip="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="form-note">Every share link, set, and wiki across all of your documents, grouped by the document each link belongs to. Tap a link to open its settings &mdash; adding documents, the wiki switch, watch rules, comments, and revoking all happen there, exactly as in that document&rsquo;s own Share panel.</p>
+        <div class="share-manager-search">
+          <input class="text-input" id="shareManagerSearch" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search by document title" aria-label="Search share links by document title" />
+        </div>
+        <p class="form-note" id="shareManagerNote" hidden></p>
+        <div class="share-manager-list" id="shareManagerList"></div>
       </div>
     </div>
 
@@ -9160,6 +9199,32 @@
           }
           treeItem(COLLAPSE_ALL_SVG, 'Collapse all folders', 'collapse-all-folders', false);
           treeItem(EXPAND_ALL_SVG, 'Expand all folders', 'expand-all-folders', true);
+          /* Build -115: the global share-link manager rides in
+             this same header menu — it is a library-wide door,
+             like the folder commands above, not a per-document
+             one. Its row is built like a tree row (same lead
+             slot, same label geometry) but runs the manager. */
+          var shareMgrSep = document.createElement('div');
+          shareMgrSep.className = 'menu-sep';
+          viewMenuEl.appendChild(shareMgrSep);
+          var shareMgrBtn = document.createElement('button');
+          shareMgrBtn.type = 'button';
+          shareMgrBtn.className = 'menu-item';
+          shareMgrBtn.setAttribute('role', 'menuitem');
+          shareMgrBtn.setAttribute('data-manager-menu-item', '');
+          var shareMgrLead = document.createElement('span');
+          shareMgrLead.className = 'check lead-icon';
+          shareMgrLead.innerHTML = SHARE_SVG;
+          shareMgrBtn.appendChild(shareMgrLead);
+          var shareMgrLabel = document.createElement('span');
+          shareMgrLabel.className = 'm-label';
+          shareMgrLabel.textContent = 'Manage share links';
+          shareMgrBtn.appendChild(shareMgrLabel);
+          shareMgrBtn.addEventListener('click', function () {
+            closeViewMenu();
+            openShareManager();
+          });
+          viewMenuEl.appendChild(shareMgrBtn);
           viewMenuEl.className = 'menu open';
           viewMenuOpen = true;
           document.getElementById('docsViewBtn').setAttribute('aria-expanded', 'true');
@@ -27279,6 +27344,12 @@
           var doc = currentDoc();
           if (!doc) return;
           shareModalDocId = doc.id;
+          /* Build -115: a panel opened the ordinary way is not
+             a manager return — any stale manager context (and
+             its settings Back label) is cleared here. */
+          shareManagerReturn = null;
+          var settingsBackBtn = document.getElementById('shareSettingsBack');
+          if (settingsBackBtn) settingsBackBtn.textContent = '\u2039 Links';
           shareSettingsToken = null;
           shareWizard = null;
           shareFlowReturn = 'main';
@@ -28488,10 +28559,17 @@
           }
         }
         document.getElementById('shareSettingsBack').addEventListener('click', function () {
+          /* Build -115: a settings view entered from the
+             Manage-all manager returns to the manager, not to
+             this document's link list. */
+          if (shareManagerReturn) { returnToShareManager(); return; }
           showShareView('main');
           loadLinkList();
         });
-        document.getElementById('shareSettingsClose').addEventListener('click', closeShareModal);
+        document.getElementById('shareSettingsClose').addEventListener('click', function () {
+          if (shareManagerReturn) { returnToShareManager(); return; }
+          closeShareModal();
+        });
         document.getElementById('shareSettingsCopy').addEventListener('click', function () {
           copyText(document.getElementById('shareSettingsLinkInput').value, this);
         });
@@ -28622,10 +28700,455 @@
               localAliasSet(entry.token, '');
               shareSettingsToken = null;
               loadShareList();
-              showShareView('main');
               if (typeof folioToast === 'function') folioToast('Link revoked \u2014 it stops working right away.', 3600);
+              /* Build -115: revoked from the manager, the
+                 settings view is over — return to the manager
+                 (its fresh list no longer carries this link). */
+              if (shareManagerReturn) { returnToShareManager(); return; }
+              showShareView('main');
             }).catch(function () { btn.disabled = false; });
           });
+        });
+
+        /* ---------------- manage all share links (build -115) ----------------
+           A global manager over EVERY link the owner has: the
+           per-doc panel's link list, widened to all documents
+           at once. Aggregation reads the shares store the way
+           the panel does, one level up: every share row the
+           owner's RLS lets through (no document filter), each
+           row's bundle read back through fetchShareBundle (the
+           remote manifest, falling back to this device's local
+           copy), and the rows grouped back into links by set
+           identity exactly as loadLinkList groups one
+           document's rows — a set surfaces once, at its root
+           row; member rows of a set are the set's members, not
+           links of their own; anything else is a standalone
+           link. Within a root, entries keep the panel's own
+           order (the rows' created_at descending, the order
+           docShares returns); roots are then sorted by title
+           for the grouped display. When the backend can't be
+           read — signed out, offline, an error — the manager
+           shows everything locally known instead: the local
+           bundle records (localBundles) are complete sets in
+           their own right, and a quiet note says the list may
+           be partial. Nothing here mutates: tapping a link
+           opens that link's EXISTING settings view in the
+           Share shell, seeded with the manager's own entry and
+           refreshed by the panel's normal list load, so every
+           mutation (add / remove documents, wiki, watch,
+           permission, alias, comments, revoke) runs through
+           the settings view's own paths with their own gates.
+           Exiting that settings view — Back, the ×, Escape,
+           or a revoke that ends it — returns here with the
+           search text and scroll position restored, over a
+           freshly collected list. Aliases shown here are the
+           owner's own names in the owner's own manager; the
+           public payload is untouched, as everywhere. */
+        var shareManagerEntries = [];
+        var shareManagerGroups = [];
+        var shareManagerPartial = false;
+        var shareManagerLoading = false;
+        /* Set while a link's settings view was entered FROM
+           the manager: the search text and scroll position to
+           restore when the settings view exits. Null whenever
+           the Share shell was opened any other way (the
+           panel's own open path clears it). */
+        var shareManagerReturn = null;
+        /* A share row's document as a library document: the
+           recorded id may be a local id or a remote id (the
+           drift check's two-namespace rule), resolved through
+           the id map in both directions. */
+        function resolveDocByRemoteId(remoteId) {
+          if (!remoteId || typeof remoteId !== 'string') return null;
+          var direct = lib.docs.find(function (d) { return d.id === remoteId; });
+          if (direct) return direct;
+          try {
+            var lid = localIdFor('docs', remoteId);
+            if (lid && lid !== remoteId) {
+              var byLocal = lib.docs.find(function (d) { return d.id === lid; });
+              if (byLocal) return byLocal;
+            }
+          } catch (e) {}
+          return lib.docs.find(function (d) { return remoteIdFor('docs', d.id) === remoteId; }) || null;
+        }
+        function managerEntry(token, perm, alias, bundle, rootDoc, rootTitle) {
+          return {
+            token: token,
+            perm: perm || 'view',
+            alias: alias || '',
+            bundle: bundle || null,
+            created_at: null,
+            rootDocId: rootDoc ? rootDoc.id : null,
+            rootTitle: rootTitle || 'Untitled',
+            memberTitles: bundle
+              ? bundle.members.map(function (m) { return m.title || 'Untitled'; })
+              : [rootTitle || 'Untitled'],
+            memberCount: bundle ? bundle.members.length : 1,
+          };
+        }
+        /* The locally known half: every set in this device's
+           local bundle records, minus the tokens / bundle keys
+           the caller has already accounted for (the maps are
+           mutated as entries are taken, so the online pass and
+           this one can share them). A local set's permission
+           and alias come from the session's root-token facts
+           when known, else the local alias store. */
+        function localShareManagerEntries(seenTokens, seenBundles) {
+          var out = [];
+          localBundles().forEach(function (b) {
+            var bk = bundleKeyOf(b);
+            if (!bk || seenBundles[bk] || seenTokens[b.rootToken]) return;
+            seenBundles[bk] = true;
+            seenTokens[b.rootToken] = true;
+            var rootDoc = bundleRootDoc(b);
+            var info = b.rootToken ? bundleInfoByRootToken[b.rootToken] : null;
+            var alias = (info && info.alias) || localAliasFor(b.rootToken);
+            var perm = info ? info.perm : 'view';
+            out.push(managerEntry(
+              b.rootToken, perm, alias,
+              b.members.length > 1 ? b : null,
+              rootDoc,
+              rootDoc ? (rootDoc.title || 'Untitled') : bundleRootTitle(b)
+            ));
+          });
+          return out;
+        }
+        function collectAllShareLinks() {
+          var localOnly = function () {
+            return { entries: localShareManagerEntries({}, {}), partial: true };
+          };
+          if (!sb || !sbUser) return Promise.resolve(localOnly());
+          var cols = shareAliasColOk
+            ? 'token, document_id, permission, created_at, alias'
+            : 'token, document_id, permission, created_at';
+          var run = function (c) {
+            return sb.from('shares').select(c).order('created_at', { ascending: false });
+          };
+          return run(cols).then(function (first) {
+            /* The alias-less retry, mirroring docShares: a
+               missing alias column retires the column for the
+               session and the enumeration proceeds without it
+               (aliases then come from the local store). */
+            if (first && first.error && shareAliasColOk) {
+              shareAliasColOk = false;
+              return run('token, document_id, permission, created_at');
+            }
+            return first;
+          }).then(function (res) {
+            if (!res || res.error || !res.data) return localOnly();
+            return Promise.all(res.data.map(function (row) {
+              return fetchShareBundle(row.token).then(function (b) { return { row: row, b: b }; });
+            })).then(function (results) {
+              var entries = [];
+              var seenTokens = {};
+              var seenBundles = {};
+              results.forEach(function (r) {
+                var row = r.row;
+                var b = r.b;
+                noteBundleInfo(row.token, row.permission || 'view', aliasForRow(row));
+                if (b && b.members.length > 1) {
+                  if (b.rootToken !== row.token) return;
+                  var bk = bundleKeyOf(b);
+                  if (!bk || seenBundles[bk]) return;
+                  seenBundles[bk] = true;
+                  seenTokens[row.token] = true;
+                  var rootDocB = bundleRootDoc(b);
+                  var eB = managerEntry(
+                    row.token, row.permission, aliasForRow(row), b, rootDocB,
+                    rootDocB ? (rootDocB.title || 'Untitled') : bundleRootTitle(b)
+                  );
+                  eB.created_at = row.created_at || null;
+                  entries.push(eB);
+                  return;
+                }
+                if (b && b.rootToken && b.rootToken !== row.token) return;
+                if (seenTokens[row.token]) return;
+                seenTokens[row.token] = true;
+                var doc = resolveDocByRemoteId(row.document_id);
+                /* A row whose document is not in this library
+                   has no title to group or search by; the
+                   per-doc panels never surface it either. */
+                if (!doc) return;
+                var eS = managerEntry(row.token, row.permission, aliasForRow(row), null, doc, doc.title || 'Untitled');
+                eS.created_at = row.created_at || null;
+                entries.push(eS);
+              });
+              /* Local sets with no server row at all join
+                 their roots' groups, after the server's own
+                 entries for that root. */
+              localShareManagerEntries(seenTokens, seenBundles).forEach(function (e) {
+                entries.push(e);
+              });
+              var partial = false;
+              try { if (typeof navigator !== 'undefined' && navigator.onLine === false) partial = true; } catch (e) {}
+              return { entries: entries, partial: partial };
+            });
+          }).catch(function () { return localOnly(); });
+        }
+        /* Groups by root document, roots sorted by title
+           (the manager's display order); entries inside a
+           group keep collection order, which is the per-doc
+           panel's own order for that root. */
+        function groupShareManagerEntries(entries) {
+          var byKey = {};
+          var groups = [];
+          (entries || []).forEach(function (e) {
+            var key = e.rootDocId || ('title:' + e.rootTitle.toLowerCase());
+            if (!byKey[key]) {
+              byKey[key] = { rootDocId: e.rootDocId, rootTitle: e.rootTitle, entries: [] };
+              groups.push(byKey[key]);
+            }
+            byKey[key].entries.push(e);
+          });
+          groups.sort(function (a, b) {
+            var ta = a.rootTitle.toLowerCase();
+            var tb = b.rootTitle.toLowerCase();
+            if (ta < tb) return -1;
+            if (ta > tb) return 1;
+            var ka = String(a.rootDocId || '');
+            var kb = String(b.rootDocId || '');
+            return ka < kb ? -1 : (ka > kb ? 1 : 0);
+          });
+          return groups;
+        }
+        /* One link's row in the manager: the Share panel's
+           own link-item shape — the link's heading (its alias,
+           or the panel's generated heading via linkDisplayName)
+           over its permission and set facts — plus the Wiki
+           badge as its own chip, the way the Add-to-bundle
+           rows wear it. The root document's title is the group
+           head above the row. */
+        function managerEntryEl(e) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'share-link-item share-manager-entry';
+          btn.setAttribute('data-manager-item', e.token);
+          btn.setAttribute('data-manager-perm', e.perm);
+          btn.setAttribute('aria-label', 'Open settings for ' + linkDisplayName(e) + ' \u2014 ' + e.rootTitle);
+          var main = document.createElement('span');
+          main.className = 'share-link-item-main';
+          var head = document.createElement('span');
+          head.className = 'share-link-item-head';
+          head.textContent = linkDisplayName(e);
+          main.appendChild(head);
+          var sub = document.createElement('span');
+          sub.className = 'share-link-item-sub';
+          var parts = [e.perm === 'comment' ? 'Can comment' : 'View only'];
+          parts.push(e.bundle
+            ? e.memberCount + (e.memberCount === 1 ? ' document' : ' documents')
+            : 'Single document');
+          sub.textContent = parts.join(' \u00B7 ');
+          main.appendChild(sub);
+          btn.appendChild(main);
+          if (e.bundle && e.bundle.wiki) {
+            var badge = document.createElement('span');
+            badge.className = 'bundle-badge';
+            badge.textContent = 'Wiki';
+            btn.appendChild(badge);
+          }
+          var chev = document.createElement('span');
+          chev.className = 'share-link-item-chev';
+          chev.setAttribute('aria-hidden', 'true');
+          chev.textContent = '\u203A';
+          btn.appendChild(chev);
+          btn.addEventListener('click', function () { openManagerLinkSettings(e); });
+          return btn;
+        }
+        /* The search is by document (build -115): a link
+           stays visible when the text matches its ROOT
+           document's title OR ANY MEMBER document's title —
+           a case-insensitive substring match on titles. An
+           empty search shows everything. The two empty states
+           are distinct: no links exist at all, vs. links exist
+           but none match the search. */
+        function renderShareManager() {
+          var listEl = document.getElementById('shareManagerList');
+          var noteEl = document.getElementById('shareManagerNote');
+          var input = document.getElementById('shareManagerSearch');
+          if (!listEl) return;
+          listEl.innerHTML = '';
+          if (shareManagerLoading) {
+            if (noteEl) noteEl.hidden = true;
+            var loading = document.createElement('div');
+            loading.className = 'list-empty';
+            loading.textContent = 'Loading share links\u2026';
+            listEl.appendChild(loading);
+            return;
+          }
+          if (noteEl) {
+            if (shareManagerPartial) {
+              noteEl.textContent = (!sb || !sbUser)
+                ? 'You\u2019re signed out \u2014 showing only links saved on this device, so the list may be partial.'
+                : 'Showing everything known on this device \u2014 the full list couldn\u2019t be loaded, so it may be partial.';
+              noteEl.hidden = false;
+            } else {
+              noteEl.hidden = true;
+            }
+          }
+          if (!shareManagerEntries.length) {
+            var none = document.createElement('div');
+            none.className = 'list-empty';
+            none.textContent = 'No share links yet \u2014 open a document\u2019s Share panel and create a link, and it will be listed here.';
+            listEl.appendChild(none);
+            return;
+          }
+          var q = input ? input.value.trim().toLowerCase() : '';
+          var visible = 0;
+          shareManagerGroups.forEach(function (g) {
+            var matches = g.entries.filter(function (e) {
+              if (!q) return true;
+              if (e.rootTitle.toLowerCase().indexOf(q) !== -1) return true;
+              return e.memberTitles.some(function (t) {
+                return t.toLowerCase().indexOf(q) !== -1;
+              });
+            });
+            if (!matches.length) return;
+            visible += matches.length;
+            var wrap = document.createElement('div');
+            wrap.className = 'share-manager-group';
+            wrap.setAttribute('data-manager-root', g.rootDocId || '');
+            var head = document.createElement('div');
+            head.className = 'share-manager-group-head';
+            var name = document.createElement('span');
+            name.className = 'share-manager-group-name';
+            name.textContent = g.rootTitle;
+            head.appendChild(name);
+            var count = document.createElement('span');
+            count.className = 'share-manager-group-count';
+            count.textContent = matches.length + (matches.length === 1 ? ' link' : ' links');
+            head.appendChild(count);
+            wrap.appendChild(head);
+            matches.forEach(function (e) { wrap.appendChild(managerEntryEl(e)); });
+            listEl.appendChild(wrap);
+          });
+          if (!visible) {
+            listEl.innerHTML = '';
+            var noMatch = document.createElement('div');
+            noMatch.className = 'list-empty';
+            noMatch.textContent = 'No share links match \u201C' + (input ? input.value.trim() : '') +
+              '\u201D \u2014 no document with that title is the root of, or a member of, a shared set. ' +
+              'Search matches the document a link belongs to and every document in its set.';
+            listEl.appendChild(noMatch);
+          }
+        }
+        function openShareManager(saved) {
+          var modal = document.getElementById('shareManagerModal');
+          if (!modal) return;
+          modal.hidden = false;
+          var input = document.getElementById('shareManagerSearch');
+          if (input && saved && typeof saved.query === 'string') input.value = saved.query;
+          shareManagerLoading = true;
+          renderShareManager();
+          collectAllShareLinks().then(function (out) {
+            shareManagerLoading = false;
+            shareManagerEntries = out.entries;
+            shareManagerPartial = !!out.partial;
+            shareManagerGroups = groupShareManagerEntries(out.entries);
+            renderShareManager();
+            if (saved && saved.scroll) {
+              var listEl = document.getElementById('shareManagerList');
+              if (listEl) {
+                try { listEl.scrollTop = saved.scroll; } catch (e) {}
+                setTimeout(function () {
+                  try { listEl.scrollTop = saved.scroll; } catch (e) {}
+                }, 30);
+              }
+            }
+          }).catch(function () {
+            shareManagerLoading = false;
+            shareManagerEntries = localShareManagerEntries({}, {});
+            shareManagerPartial = true;
+            shareManagerGroups = groupShareManagerEntries(shareManagerEntries);
+            renderShareManager();
+          });
+          if (input && !saved) {
+            /* Focus on a timer, the action bar's own lesson:
+               the overlay host's restack can land after a
+               synchronous focus and take it back. */
+            setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
+          }
+        }
+        function closeShareManager() {
+          var modal = document.getElementById('shareManagerModal');
+          if (modal) modal.hidden = true;
+        }
+        /* Tapping a link in the manager: the manager closes
+           and the link's EXISTING settings view opens in the
+           Share shell, scoped to that link's root document —
+           the editor's open document does not change. The
+           shell is seeded with the manager's own entry so the
+           settings render immediately (and offline); the
+           panel's normal list load then refreshes the shell
+           from the backend exactly as a settings view opened
+           from the panel itself is refreshed. */
+        function openManagerLinkSettings(entry) {
+          if (!entry || !entry.token) return;
+          var input = document.getElementById('shareManagerSearch');
+          var listEl = document.getElementById('shareManagerList');
+          shareManagerReturn = {
+            query: input ? input.value : '',
+            scroll: listEl ? listEl.scrollTop : 0,
+          };
+          closeShareManager();
+          var rootDoc = entry.rootDocId
+            ? lib.docs.find(function (d) { return d.id === entry.rootDocId; })
+            : null;
+          if (!rootDoc && entry.bundle) rootDoc = bundleRootDoc(entry.bundle);
+          var rootMember = entry.bundle ? bundleRootMember(entry.bundle) : null;
+          shareModalDocId = rootDoc ? rootDoc.id
+            : (rootMember && rootMember.doc ? rootMember.doc : shareModalDocId);
+          shareSettingsToken = null;
+          shareWizard = null;
+          shareFlowReturn = 'main';
+          document.getElementById('shareDocName').textContent = entry.rootTitle || 'Untitled';
+          document.getElementById('shareNewLink').hidden = true;
+          /* The manager only lists links this owner can
+             manage; the settings view is the surface, so the
+             shell shows its main area rather than the
+             signed-out notice. Its data paths still fail soft
+             exactly as they do from the panel. */
+          document.getElementById('shareSignedOut').hidden = true;
+          document.getElementById('shareMain').hidden = false;
+          shareLinkEntries = [{
+            token: entry.token, perm: entry.perm, alias: entry.alias || '',
+            bundle: entry.bundle || null, created_at: entry.created_at || null,
+          }];
+          sharePanelBundles = entry.bundle ? [{ bundle: entry.bundle, perm: entry.perm }] : [];
+          sharePanelPerms = {};
+          if (entry.bundle) sharePanelPerms[bundleKeyOf(entry.bundle)] = entry.perm;
+          sharePanelBundle = entry.bundle || null;
+          sharePanelRootPerm = entry.perm;
+          var backBtn = document.getElementById('shareSettingsBack');
+          if (backBtn) backBtn.textContent = '\u2039 All links';
+          document.getElementById('shareModal').hidden = false;
+          openLinkSettings(entry.token);
+          if (sb && sbUser && rootDoc) loadShareList();
+        }
+        /* Exiting a manager-entered settings view lands back
+           here: the shell closes and the manager reopens over
+           a freshly collected list (a rename, a permission
+           flip, a revoke, a grown set all show as they now
+           stand), with the saved search text and scroll
+           position restored. */
+        function returnToShareManager() {
+          var ret = shareManagerReturn;
+          shareManagerReturn = null;
+          var backBtn = document.getElementById('shareSettingsBack');
+          if (backBtn) backBtn.textContent = '\u2039 Links';
+          hideShareShell();
+          openShareManager(ret || undefined);
+        }
+        document.getElementById('shareManagerClose').addEventListener('click', closeShareManager);
+        document.getElementById('shareManagerModal').addEventListener('click', function (ev) {
+          if (ev.target === this) closeShareManager();
+        });
+        document.getElementById('shareManagerSearch').addEventListener('input', function () {
+          renderShareManager();
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && !document.getElementById('shareManagerModal').hidden) {
+            closeShareManager();
+          }
         });
 
         /* ---------------- create link wizard (build -74) ----------------
@@ -30121,7 +30644,10 @@
             if (shareSettingsToken === pending.share.token) shareSettingsToken = null;
             closeShareRevokeModal();
             loadShareList();
-            if (!shareSettingsToken) showShareView('main');
+            if (!shareSettingsToken) {
+              if (shareManagerReturn) { returnToShareManager(); return; }
+              showShareView('main');
+            }
           }).catch(function () { btn.disabled = false; });
         });
         document.getElementById('shareRevokeAllBtn').addEventListener('click', function () {
@@ -30155,6 +30681,7 @@
             if (shareSettingsToken === pending.bundle.rootToken) shareSettingsToken = null;
             closeShareRevokeModal();
             loadShareList();
+            if (!shareSettingsToken && shareManagerReturn) { returnToShareManager(); return; }
             if (shareCurrentView === 'settings' && !shareSettingsToken) showShareView('main');
           }).catch(function () { btn.disabled = false; });
         });
@@ -30199,7 +30726,9 @@
             case 'sweep': closeWatchSweepModal(); break;
             case 'watch': closeWatchPrompt(); break;
             case 'wizard': closeShareWizard(); break;
-            case 'settings': showShareView('main'); loadLinkList(); break;
+            case 'settings':
+              if (shareManagerReturn) { returnToShareManager(); break; }
+              showShareView('main'); loadLinkList(); break;
             default: closeShareModal();
           }
         }
@@ -32133,6 +32662,115 @@
               }, 60);
             });
           },
+          /* ---- build -115: manage all share links ---- */
+          /* Opens the real manager (its aggregation runs
+             against the stub backend when one is installed,
+             the local bundle records otherwise) and settles to
+             its rendered state. */
+          openManager: function () {
+            openShareManager();
+            return new Promise(function (res) {
+              setTimeout(function () { res(window.FolioShareBundle.managerState()); }, 150);
+            });
+          },
+          managerState: function () {
+            var modal = document.getElementById('shareManagerModal');
+            var groups = [];
+            document.querySelectorAll('#shareManagerList .share-manager-group').forEach(function (g) {
+              var name = g.querySelector('.share-manager-group-name');
+              var items = [];
+              g.querySelectorAll('[data-manager-item]').forEach(function (el) {
+                var head = el.querySelector('.share-link-item-head');
+                var sub = el.querySelector('.share-link-item-sub');
+                var badge = el.querySelector('.bundle-badge');
+                items.push({
+                  token: el.getAttribute('data-manager-item'),
+                  perm: el.getAttribute('data-manager-perm'),
+                  head: head ? head.textContent : '',
+                  sub: sub ? sub.textContent : '',
+                  wiki: badge ? badge.textContent === 'Wiki' : false,
+                });
+              });
+              groups.push({
+                rootTitle: name ? name.textContent : '',
+                rootDocId: g.getAttribute('data-manager-root'),
+                items: items,
+              });
+            });
+            var empty = document.querySelector('#shareManagerList .list-empty');
+            var note = document.getElementById('shareManagerNote');
+            var total = 0;
+            groups.forEach(function (g) { total += g.items.length; });
+            return {
+              open: modal ? !modal.hidden : null,
+              query: document.getElementById('shareManagerSearch').value,
+              groups: groups,
+              totalItems: total,
+              emptyText: empty ? empty.textContent : null,
+              note: note && !note.hidden ? note.textContent : null,
+              partial: shareManagerPartial,
+              loading: shareManagerLoading,
+              entries: shareManagerEntries.map(function (e) {
+                return {
+                  token: e.token, perm: e.perm, alias: e.alias || '',
+                  rootTitle: e.rootTitle, rootDocId: e.rootDocId,
+                  members: e.memberCount, wiki: e.bundle ? e.bundle.wiki === true : null,
+                  memberTitles: e.memberTitles.slice(),
+                };
+              }),
+              returnPending: !!shareManagerReturn,
+            };
+          },
+          /* Types into the manager's real search field (the
+             input event drives the same filter a keystroke
+             does) and reads the list back. */
+          managerSearch: function (q) {
+            var input = document.getElementById('shareManagerSearch');
+            if (!input) return null;
+            input.value = q || '';
+            input.dispatchEvent(new Event('input'));
+            return window.FolioShareBundle.managerState();
+          },
+          managerSetScroll: function (v) {
+            var l = document.getElementById('shareManagerList');
+            if (l) l.scrollTop = v;
+            return l ? l.scrollTop : null;
+          },
+          managerScroll: function () {
+            var l = document.getElementById('shareManagerList');
+            return l ? l.scrollTop : null;
+          },
+          /* Clicks a rendered manager row and settles to the
+             settings state it lands in. */
+          managerClick: function (token) {
+            var el = document.querySelector('#shareManagerList [data-manager-item="' + token + '"]');
+            if (!el) return Promise.resolve(null);
+            el.click();
+            return new Promise(function (res) {
+              setTimeout(function () {
+                res({
+                  settings: window.FolioShareBundle.settingsState(),
+                  managerOpen: !document.getElementById('shareManagerModal').hidden,
+                  shareOpen: shareShellOpen(),
+                  currentDocId: lib.currentId,
+                  manager: window.FolioShareBundle.managerState(),
+                });
+              }, 150);
+            });
+          },
+          /* Exits the open settings view through its real Back
+             button and settles to the manager state it lands
+             back in. */
+          managerBack: function () {
+            document.getElementById('shareSettingsBack').click();
+            return new Promise(function (res) {
+              setTimeout(function () { res(window.FolioShareBundle.managerState()); }, 200);
+            });
+          },
+          managerClose: function () {
+            closeShareManager();
+            return window.FolioShareBundle.managerState();
+          },
         };
 
         /* ---------------- backend boot ---------------- */
@@ -33117,7 +33755,7 @@
            screen, shortcuts stand down (the modal's own keys,
            and the legacy ⌘P fallback, still work there). */
         function scAnyOverlayOpen() {
-          var ids = ['shareModal', 'deleteModal', 'shortcutsModal', 'syncDetailsModal', 'themeModal', 'tsImportModal', 'authOverlay', 'shareView', 'bookOverlay', 'clipOverlay'];
+          var ids = ['shareModal', 'shareManagerModal', 'deleteModal', 'shortcutsModal', 'syncDetailsModal', 'themeModal', 'tsImportModal', 'authOverlay', 'shareView', 'bookOverlay', 'clipOverlay'];
           for (var i = 0; i < ids.length; i++) {
             var el = document.getElementById(ids[i]);
             if (el && !el.hidden) return true;
@@ -33848,6 +34486,7 @@
           push('select-documents', 'Select documents', '', 'General', function () { enterSelectMode(lib.currentId); });
           push('clipboard-history', 'Clipboard history', '', 'General', function () { openClipboardHistory(); });
           push('copy-doc-text', 'Copy document text', '', 'General', function () { copyDocText(lib.currentId); });
+          push('manage-share-links', 'Manage share links', '', 'General', function () { openShareManager(); });
           pushRegistry('Formatting');
           pushRegistry('Table');
           if (abInTable()) {
@@ -33930,6 +34569,7 @@
           'select-documents': CHECKLIST_SVG,
           'clipboard-history': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
           'copy-doc-text': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+          'manage-share-links': SHARE_SVG,
           'button-labels': LABEL_ICONS_TEXT_SVG,
           'theme': PALETTE_SVG,
           'sync-now': SYNC_NOW_SVG,
