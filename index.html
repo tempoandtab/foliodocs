@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-121" />
+    <meta name="folio-build" content="20261102-122" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -9684,7 +9684,7 @@
           var t = tplById(id);
           if (!t || !window.FolioKit) return;
           if (tplEditingId === id && tplSessions[id]) {
-            if (focusEditor !== false && window.innerWidth > 900) { try { tplSessions[id].handle.focus(); } catch (e) {} }
+            if (focusEditor !== false && window.innerWidth > 900) folioFocusPreservingSelection(tplSessions[id].handle);
             return;
           }
           var s = tplSessionFor(t);
@@ -9714,7 +9714,7 @@
           tplSyncInsertButtons();
           refreshToolbar();
           if (window.innerWidth <= 900) document.body.classList.remove('nav-open');
-          if (focusEditor !== false && window.innerWidth > 900) { try { s.handle.focus(); } catch (e) {} }
+          if (focusEditor !== false && window.innerWidth > 900) folioFocusPreservingSelection(s.handle);
         }
         /* Hand the stage back to the documents: the template
            session stays parked (its content is already saved
@@ -9945,6 +9945,13 @@
           refreshToolbar();
         }
         function tplInsertInput() {
+          /* Build -122: scroll guard — the authoring insert is
+             a toolbar press; its raw-transaction caret landing
+             already dodges the focus strand, and the guard
+             keeps the view where the author was looking. */
+          return folioPreserveView(function () { return tplInsertInputInner(); });
+        }
+        function tplInsertInputInner() {
           if (!tplEditingId || !editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor;
           var from = ed.state.selection.from;
@@ -10017,7 +10024,11 @@
              close (×, backdrop, Escape) drops it, so a stale
              snapshot can never hijack a later insert. */
           if (!keepSel) tplPickerSel = null;
-          if (editorHandle && !tplEditingId) { try { editorHandle.focus(); } catch (e) {} }
+          /* Build -122: focus through the selection-preserving
+             door — on a pick, the insert's own snapshot restore
+             still runs after this and outranks it; on a plain
+             close, the reader's caret now survives too. */
+          if (editorHandle && !tplEditingId) folioFocusPreservingSelection(editorHandle);
         }
         (function wireTplChrome() {
           var nb = document.getElementById('newTplBtn');
@@ -10992,7 +11003,7 @@
         function outlineKbExit(refocus) {
           outlineKb = false;
           if (outlineEl) outlineEl.querySelectorAll('.kb-focus').forEach(function (el) { el.classList.remove('kb-focus'); });
-          if (refocus && editorHandle) editorHandle.editor.chain().focus().run();
+          if (refocus && editorHandle) folioPreserveView(function () { editorHandle.editor.chain().focus().run(); });
         }
         function outlineKbMove(dir) {
           var items = outlineKbItems();
@@ -12584,6 +12595,118 @@
         var editorHandle = null;
         var editorScroll = document.getElementById('editorScroll');
 
+        /* ---------------- scroll guard (build -122) ----------------
+           The sweep fix for the whole scroll-zeroing family
+           (-117 return-sync, -119 template picker, and now the
+           text-color picker). The mechanism, proven in the
+           table-bar and border-menu fixes: any press OUTSIDE
+           the editor empties the DOM selection (that is what
+           dismisses iOS's edit menu); when the command that
+           press triggered then runs chain().focus() — or even
+           a bare view.dispatch, per the border menu — Safari
+           momentarily lands the caret at the very start of
+           the document and scrolls it into view, so the editor
+           jumps to the top even though ProseMirror's own state
+           selection (and therefore the command's target) was
+           never wrong. The mousedown preventDefault guards on
+           the toolbars and popovers mask this on desktop and
+           do NOT prevent it on iOS — the table bar had one and
+           still needed runTableCmd.
+           folioPreserveView is that runTableCmd pattern made
+           the shared chokepoint: snapshot the scroller (and
+           the window) before the command, restore immediately,
+           on the next frame, and once settled — plus a minimal
+           caret nudge in the template-insert rhythm, so a
+           command that legitimately moves the caret a short
+           way still ends with it in view, while a view torn
+           to the top is always put back. Two safety rails:
+           the restore only runs while the SAME document (or
+           template) is still on stage, so a pick that opens
+           another document — an intentional jump — is never
+           fought; and when the selection is a range, the
+           nudge stands down if either end is already visible,
+           so restyling a long selection never drags the view
+           to one of its ends. Every editor-mutating door that
+           an outside press can reach routes through here
+           (the format popover's apply functions, the toolbar,
+           the selection / insert rows, the menu-item funnels,
+           the rail runs, the callout / divider / link /
+           spellcheck applies, history jumps, the action bar),
+           so a future action added to any of those surfaces
+           inherits the immunity instead of re-shipping the
+           bug. Doors that were already guarded (runTableCmd,
+           the template insert, tab swaps, the border menu in
+           the editor bundle) keep their own bespoke guards. */
+        function folioViewDocKey() {
+          if (typeof tplEditingId !== 'undefined' && tplEditingId) return 't:' + tplEditingId;
+          if (typeof tabDisplayedId !== 'undefined' && tabDisplayedId) return 'd:' + tabDisplayedId;
+          return null;
+        }
+        function folioPreserveView(fn) {
+          var top = editorScroll ? editorScroll.scrollTop : 0;
+          var wy = window.scrollY || window.pageYOffset || 0;
+          var key = folioViewDocKey();
+          var restore = function () {
+            if (key !== null && folioViewDocKey() !== key) return;
+            if (!editorScroll) return;
+            if (editorScroll.scrollTop !== top) editorScroll.scrollTop = top;
+            if ((window.scrollY || window.pageYOffset || 0) !== wy) window.scrollTo(0, wy);
+            try {
+              var ed = editorHandle && editorHandle.editor;
+              if (!ed || !ed.state || !ed.state.selection) return;
+              var sel = ed.state.selection;
+              var box = editorScroll.getBoundingClientRect();
+              var cf = ed.view.coordsAtPos(sel.from);
+              var ct = sel.to !== sel.from ? ed.view.coordsAtPos(sel.to) : cf;
+              var vis = function (c) { return c.bottom >= box.top && c.top <= box.bottom; };
+              if (vis(cf) || vis(ct)) return;
+              if (cf.top >= box.bottom) editorScroll.scrollTop += cf.bottom - (box.bottom - 14);
+              else if (ct.bottom <= box.top) editorScroll.scrollTop -= (box.top + 14) - ct.top;
+            } catch (e) {}
+          };
+          var out;
+          try { out = fn(); } finally {
+            restore();
+            if (window.requestAnimationFrame) requestAnimationFrame(restore);
+            setTimeout(restore, 140);
+          }
+          return out;
+        }
+        /* The focus companion (build -122): a bare handle
+           focus() can strand the SELECTION at the document's
+           start when the editor's DOM selection was destroyed
+           while its session was parked (display:none) or a
+           modal was up — the -119 mechanism, found again by
+           the sweep's probe in the tab-return door: switch
+           away and back, and the next insert landed at the
+           top of the document even though the scroll (the
+           -117/-120 guards) restored perfectly. Snapshot the
+           session's own selection before focusing and put it
+           back if the focus collapsed it to exactly 0 — the
+           house rule for this family: restore only from
+           exactly 0, so a caret anyone deliberately placed
+           is never fought. Used by every door that focuses a
+           parked session back into view: tab switches,
+           openDoc's tab path, template sessions, and the
+           template picker's close. */
+        function folioFocusPreservingSelection(handle) {
+          if (!handle || !handle.editor) return;
+          var ed = handle.editor;
+          var before = null;
+          try { var s = ed.state.selection; if (s) before = { from: s.from, to: s.to }; } catch (e) {}
+          try { handle.focus(); } catch (e) {}
+          if (!before || (before.from === 0 && before.to === 0)) return;
+          try {
+            var now = ed.state.selection;
+            if (now && now.from === 0 && now.to === 0) {
+              var sz = ed.state.doc.content.size;
+              var f = Math.max(0, Math.min(before.from, sz));
+              var t = Math.max(f, Math.min(before.to, sz));
+              ed.chain().setTextSelection({ from: f, to: t }).run();
+            }
+          } catch (e) {}
+        }
+
         /* ---------------- keyboard / visual viewport ----------------
            iOS Safari does not resize the layout viewport when the
            on-screen keyboard opens — it pans the visual viewport to the
@@ -12944,8 +13067,13 @@
            that just hid. */
         function foldRefocus(caretPos) {
           if (!editorHandle) return;
-          try { editorHandle.editor.chain().focus().setTextSelection(caretPos).run(); }
-          catch (e) { try { editorHandle.focus(); } catch (e2) {} }
+          /* Build -122: scroll guard — folds are toggled from
+             menus and the rail (outside presses), and this
+             refocus is their shared landing. */
+          folioPreserveView(function () {
+            try { editorHandle.editor.chain().focus().setTextSelection(caretPos).run(); }
+            catch (e) { try { editorHandle.focus(); } catch (e2) {} }
+          });
         }
         function foldSetAtCaret(folded) {
           var ms = foldMenuState();
@@ -13033,7 +13161,10 @@
               foldsRestoring = false;
               updateContextRail();
               scheduleSpellScan();
-              if (focusEditor && window.innerWidth > 900) editorHandle.focus();
+              /* Build -122: focus through the selection-
+                 preserving door (fresh opens no-op: their
+                 session's selection starts at 0 by design). */
+              if (focusEditor && window.innerWidth > 900) folioFocusPreservingSelection(editorHandle);
             } else {
               /* The content swap drops the previous document's
                  folds (their anchors are gone) and would report
@@ -14577,7 +14708,41 @@
         var fmtMode = null;
         var FMT_X_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
 
-        function closeFmtPop() { fmtPop.hidden = true; fmtMode = null; }
+        /* Build -122: the selection the format popover was
+           opened over, snapshotted at open time (the
+           tplPickerSel pattern from -119). A pick must apply
+           to THIS selection: the presses between open and
+           pick — above all the native colour well's, which
+           takes real DOM focus — can strand the live
+           selection at the document's start before the apply
+           ever runs, and then the colour would land at the
+           top of the document as well as scrolling it there.
+           Restored inside the applies below, before the
+           toggle checks read the selection; cleared on every
+           close so a stale snapshot can never hijack a later
+           apply (the keyboard shortcut's apply-last-color
+           path never sets one and uses the live selection). */
+        var fmtSelSnap = null;
+        function fmtSnapSelection(ed) {
+          try {
+            var s = ed.state.selection;
+            fmtSelSnap = s ? { from: s.from, to: s.to } : null;
+          } catch (e) { fmtSelSnap = null; }
+        }
+        function fmtRestoreSelection(ed) {
+          if (!fmtSelSnap) return;
+          var snap = fmtSelSnap;
+          try {
+            var cur = ed.state.selection;
+            if (cur.from !== snap.from || cur.to !== snap.to) {
+              var sz = ed.state.doc.content.size;
+              var f = Math.max(0, Math.min(snap.from, sz));
+              var t = Math.max(f, Math.min(snap.to, sz));
+              ed.chain().setTextSelection({ from: f, to: t }).run();
+            }
+          } catch (e) {}
+        }
+        function closeFmtPop() { fmtPop.hidden = true; fmtMode = null; fmtSelSnap = null; }
         function toHex6(color) {
           var m = /^#([0-9a-f]{6})$/i.exec(color || '');
           if (m) return '#' + m[1].toLowerCase();
@@ -14587,12 +14752,19 @@
         }
         function applyHighlight(colorId) {
           if (!editorHandle) return;
-          var ed = editorHandle.editor;
-          var chain = ed.chain().focus();
-          if (!colorId || ed.isActive('highlight', { color: colorId })) chain.unsetHighlight().run();
-          else chain.setHighlight({ color: colorId }).run();
-          closeFmtPop();
-          refreshToolbar();
+          /* Build -122: scroll-guarded like applyTextColor —
+             a swatch pick is an outside press, and the chain's
+             focus() could tear the view to the top (and, if
+             the selection was stranded, paint the wrong text). */
+          folioPreserveView(function () {
+            var ed = editorHandle.editor;
+            fmtRestoreSelection(ed);
+            var chain = ed.chain().focus();
+            if (!colorId || ed.isActive('highlight', { color: colorId })) chain.unsetHighlight().run();
+            else chain.setHighlight({ color: colorId }).run();
+            closeFmtPop();
+            refreshToolbar();
+          });
         }
         /* The last text color picked from the picker, kept per
            device like the other UI preferences, so the "apply
@@ -14612,19 +14784,33 @@
         }
         function applyTextColor(hex) {
           if (!editorHandle) return;
-          var ed = editorHandle.editor;
-          var chain = ed.chain().focus();
-          if (!hex) chain.unsetTextColor().run();
-          else chain.setTextColor(hex).run();
-          rememberTextColor(hex || null);
-          closeFmtPop();
-          refreshToolbar();
+          /* Build -122: the reported bug. Picking a colour —
+             swatch or the native custom well — is an outside
+             press; the chain's focus() landed the caret at
+             the document start and Safari scrolled it into
+             view, zeroing the page scroll (and, when the
+             press had stranded the selection, colouring the
+             text at the top instead of the reader's). The
+             guard restores the view; the open-time selection
+             snapshot is re-asserted first so the colour lands
+             where it was picked. */
+          folioPreserveView(function () {
+            var ed = editorHandle.editor;
+            fmtRestoreSelection(ed);
+            var chain = ed.chain().focus();
+            if (!hex) chain.unsetTextColor().run();
+            else chain.setTextColor(hex).run();
+            rememberTextColor(hex || null);
+            closeFmtPop();
+            refreshToolbar();
+          });
         }
         function openFmtPop(mode, anchor) {
           if (!editorHandle) return;
           if (fmtMode === mode && !fmtPop.hidden) { closeFmtPop(); return; }
           fmtMode = mode;
           var ed = editorHandle.editor;
+          fmtSnapSelection(ed);
           fmtPopLabel.textContent = mode === 'highlight' ? 'Highlight' : 'Text color';
           fmtSwatches.innerHTML = '';
           if (mode === 'highlight') {
@@ -14893,6 +15079,13 @@
           var btn = ev.target.closest('.tb-btn');
           if (!btn || btn.disabled || !editorHandle) return;
           var cmd = btn.getAttribute('data-cmd');
+          /* Build -122: every toolbar command runs inside the
+             scroll guard — a toolbar tap is an outside press,
+             and its chain().focus() is the family's original
+             shape (see folioPreserveView). Popover branches
+             (highlight / text color / table) only open their
+             popover here; their picks carry their own guards. */
+          folioPreserveView(function () {
           var chain = editorHandle.editor.chain().focus();
           if (cmd === 'heading') chain.toggleHeading({ level: headingShownLevel }).run();
           else if (cmd === 'bold') chain.toggleBold().run();
@@ -14911,6 +15104,7 @@
           else if (cmd === 'undo') chain.undo().run();
           else if (cmd === 'redo') chain.redo().run();
           refreshToolbar();
+          });
         });
         // Keep editor selection when tapping toolbar buttons.
         document.getElementById('toolbar').addEventListener('mousedown', function (ev) {
@@ -14926,8 +15120,10 @@
            selection. */
         if (focusUndoBtn) focusUndoBtn.addEventListener('click', function () {
           if (focusUndoBtn.disabled || !editorHandle) return;
-          editorHandle.editor.chain().focus().undo().run();
-          refreshToolbar();
+          folioPreserveView(function () {
+            editorHandle.editor.chain().focus().undo().run();
+            refreshToolbar();
+          });
         });
 
         /* ---------------- toolbar overflow menu ----------------
@@ -16038,7 +16234,10 @@
         function tabFocusEditor() {
           if (!editorHandle) return;
           if (window.innerWidth <= 900) return;
-          try { editorHandle.focus(); } catch (e) {}
+          /* Build -122: focus through the selection-preserving
+             door — a parked session's caret must survive the
+             switch back (see folioFocusPreservingSelection). */
+          folioFocusPreservingSelection(editorHandle);
         }
         function activateTab(id, focus) {
           var r = tabRecord(id);
@@ -19012,7 +19211,11 @@
             b.addEventListener('click', function () {
               closeClipboardHistory();
               if (editorHandle && editorHandle.editor) {
-                try { editorHandle.editor.chain().focus().insertContent(entry.nodes).run(); } catch (e) {}
+                /* Build -122: scroll guard — a history pick is
+                   an outside press inserting at the caret. */
+                folioPreserveView(function () {
+                  try { editorHandle.editor.chain().focus().insertContent(entry.nodes).run(); } catch (e) {}
+                });
               }
             });
             clipListEl.appendChild(b);
@@ -19426,8 +19629,13 @@
           if (!b || !editorHandle) return;
           var rows = Number(b.getAttribute('data-r')), cols = Number(b.getAttribute('data-c'));
           closeTblPop();
-          editorHandle.editor.chain().focus().insertFolioTable({ rows: rows, cols: cols, withHeaderRow: true }).run();
-          refreshToolbar();
+          /* Build -122: scroll guard — the size grid's pick is
+             an outside press (its mousedown guard masks this
+             on desktop only, the table-bar lesson). */
+          folioPreserveView(function () {
+            editorHandle.editor.chain().focus().insertFolioTable({ rows: rows, cols: cols, withHeaderRow: true }).run();
+            refreshToolbar();
+          });
         });
         tblPop.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
 
@@ -19869,6 +20077,11 @@
         }
         function runSelCmd(btn, anchor) {
           if (!editorHandle || !btn) return;
+          /* Build -122: scroll guard — the selection row's
+             commands, and every menu proxy that runs them, are
+             outside presses whose chain().focus() could tear
+             the view to the top. */
+          folioPreserveView(function () {
           var cmd = btn.getAttribute('data-sel');
           var ed = editorHandle.editor;
           if (cmd === 'highlight') { openFmtPop('highlight', anchor || btn); return; }
@@ -19908,6 +20121,7 @@
             refreshToolbar();
             return;
           }
+          });
         }
         ctxSelTools.addEventListener('mousedown', function (ev) {
           if (ev.target.closest && ev.target.closest('button')) ev.preventDefault();
@@ -19928,6 +20142,11 @@
            by wordCount(). */
         function runInsCmd(btn, anchor) {
           if (!editorHandle || !btn) return;
+          /* Build -122: scroll guard — same outside-press
+             family as runSelCmd; the branches that only open
+             a popover (table, template) are unaffected, their
+             picks carry their own guards. */
+          folioPreserveView(function () {
           var cmd = btn.getAttribute('data-ins');
           var ed = editorHandle.editor;
           if (cmd === 'table') { openTblPop(anchor || btn); return; }
@@ -19943,6 +20162,7 @@
           else if (cmd === 'tplinput') { tplInsertInput(); return; }
           else return;
           refreshToolbar();
+          });
         }
         ctxInsertTools.addEventListener('mousedown', function (ev) {
           if (ev.target.closest && ev.target.closest('button')) ev.preventDefault();
@@ -20027,6 +20247,11 @@
           try { return selectionInCallout(); } catch (e) { return false; }
         }
         function insertCalloutWith(cfg) {
+          /* Build -122: scroll guard — callout inserts arrive
+             from outside presses (rows, menus, the composer). */
+          return folioPreserveView(function () { return insertCalloutWithInner(cfg); });
+        }
+        function insertCalloutWithInner(cfg) {
           if (!editorHandle || !editorHandle.editor) return false;
           if (calloutGateActive()) return false;
           var ed = editorHandle.editor;
@@ -20172,6 +20397,10 @@
           refreshToolbar();
         }
         function calloutDelete(pos) {
+          /* Build -122: scroll guard (dispatch + refocus). */
+          return folioPreserveView(function () { return calloutDeleteInner(pos); });
+        }
+        function calloutDeleteInner(pos) {
           if (!editorHandle) return;
           var ed = editorHandle.editor, st = ed.state;
           var hit = calloutAtPos(st, pos);
@@ -20417,6 +20646,10 @@
            in place — a marker paragraph is prepended and the
            quote's own blocks become the body, untouched. */
         function convertQuoteToCallout(pos, cfg) {
+          /* Build -122: scroll guard (dispatch + caret land). */
+          return folioPreserveView(function () { return convertQuoteToCalloutInner(pos, cfg); });
+        }
+        function convertQuoteToCalloutInner(pos, cfg) {
           if (!editorHandle || !editorHandle.editor) return false;
           var ed = editorHandle.editor, st = ed.state;
           var node = null;
@@ -20452,6 +20685,13 @@
             rect ? { left: rect.left, top: rect.top, bottom: rect.bottom, right: rect.right } : null);
         }
         function calloutPopPick(pick) {
+          /* Build -122: scroll guard — edit-mode picks dispatch
+             against the callout and refocus the editor; the
+             composer's picks only restyle the pending config
+             and are unaffected. */
+          return folioPreserveView(function () { return calloutPopPickInner(pick); });
+        }
+        function calloutPopPickInner(pick) {
           var st = calloutPopState;
           if (!st) return;
           if (st.mode === 'insert') {
@@ -20670,6 +20910,11 @@
           return null;
         }
         function listIndentRun(dir) {
+          /* Build -122: scroll guard — rail presses are
+             outside presses (see folioPreserveView). */
+          return folioPreserveView(function () { return listIndentRunInner(dir); });
+        }
+        function listIndentRunInner(dir) {
           var ctx = listItemContext();
           if (!ctx) return false;
           if (dir > 0 && !ctx.canIndent) return false;
@@ -20688,6 +20933,10 @@
            rebuilt with the two items swapped, in one
            transaction, and the caret follows its item. */
         function listMoveRun(dir) {
+          /* Build -122: scroll guard (rail). */
+          return folioPreserveView(function () { return listMoveRunInner(dir); });
+        }
+        function listMoveRunInner(dir) {
           var ctx = listItemContext();
           if (!ctx) return false;
           if (dir < 0 && !ctx.canMoveUp) return false;
@@ -20738,6 +20987,10 @@
           };
         }
         function headingStepRun(dir) {
+          /* Build -122: scroll guard (rail). */
+          return folioPreserveView(function () { return headingStepRunInner(dir); });
+        }
+        function headingStepRunInner(dir) {
           var ctx = headingContext();
           if (!ctx) return false;
           var nl = ctx.level + dir;
@@ -20772,6 +21025,10 @@
           return { pos: sel.$from.before(1), node: sel.$from.node(1) };
         }
         function blockMoveRun(blockPos, dir) {
+          /* Build -122: scroll guard (rail). */
+          return folioPreserveView(function () { return blockMoveRunInner(blockPos, dir); });
+        }
+        function blockMoveRunInner(blockPos, dir) {
           if (!editorHandle || !editorHandle.editor) return false;
           var ed = editorHandle.editor, st = ed.state, doc = st.doc;
           var node = null;
@@ -20799,6 +21056,10 @@
           return true;
         }
         function blockDuplicateRun(blockPos) {
+          /* Build -122: scroll guard (rail). */
+          return folioPreserveView(function () { return blockDuplicateRunInner(blockPos); });
+        }
+        function blockDuplicateRunInner(blockPos) {
           if (!editorHandle || !editorHandle.editor) return false;
           var ed = editorHandle.editor, st = ed.state;
           var node = null;
@@ -20815,6 +21076,10 @@
           return true;
         }
         function blockDeleteRun(blockPos) {
+          /* Build -122: scroll guard (rail). */
+          return folioPreserveView(function () { return blockDeleteRunInner(blockPos); });
+        }
+        function blockDeleteRunInner(blockPos) {
           if (!editorHandle || !editorHandle.editor) return false;
           var ed = editorHandle.editor, st = ed.state, doc = st.doc;
           var node = null;
@@ -21300,7 +21565,7 @@
             h.textContent = opts.hint;
             b.appendChild(h);
           }
-          if (opts.run) b.addEventListener('click', function () { (opts.close || closeEditorMenu)(); opts.run(); });
+          if (opts.run) b.addEventListener('click', function () { (opts.close || closeEditorMenu)(); folioPreserveView(function () { opts.run(); }); });
           return b;
         }
         /* An item proxying a real toolbar / table-bar button,
@@ -21974,6 +22239,12 @@
           return null;
         }
         function spellReplaceWord(hit, suggLower) {
+          /* Build -122: scroll guard — a suggestion pick is a
+             menu press, and the replacement's refocus could
+             tear the view to the top. */
+          return folioPreserveView(function () { return spellReplaceWordInner(hit, suggLower); });
+        }
+        function spellReplaceWordInner(hit, suggLower) {
           if (!editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor, st = ed.state;
           var text = spellMirrorCase(hit.word, suggLower);
@@ -23144,7 +23415,10 @@
         }
         function cancelLinkComposer() {
           closeLinkPop();
-          if (editorHandle) { try { editorHandle.editor.chain().focus().run(); } catch (e) {} }
+          /* Build -122: scroll guard — cancelling hands focus
+             back from the composer's fields; the hand-back
+             must not tear the view to the top. */
+          if (editorHandle) folioPreserveView(function () { try { editorHandle.editor.chain().focus().run(); } catch (e) {} });
         }
         /* Split the text block holding [from, to) around a
            new preview card: text before stays in a block
@@ -23404,6 +23678,14 @@
           focusCaretAfter(ed, st.from + dispText.length + 1);
         }
         function confirmLinkComposer() {
+          /* Build -122: scroll guard — the composer held real
+             DOM focus in its fields; every conversion it
+             applies ends in a refocus that could tear the view
+             to the top. The guard's caret nudge keeps the
+             newly landed caret in view instead. */
+          return folioPreserveView(function () { return confirmLinkComposerInner(); });
+        }
+        function confirmLinkComposerInner() {
           var st = linkPopState;
           if (!st || !editorHandle || !editorHandle.editor) { closeLinkPop(); return; }
           var linkVal = (wikiLinkInput.value || '').trim();
@@ -23961,7 +24243,7 @@
             h.textContent = opts.hint;
             b.appendChild(h);
           }
-          if (opts.run) b.addEventListener('click', function () { closeRcMenu(); opts.run(); });
+          if (opts.run) b.addEventListener('click', function () { closeRcMenu(); folioPreserveView(function () { opts.run(); }); });
           return b;
         }
         function openRcMenu(anchorEl, buildFn, width) {
@@ -24004,6 +24286,12 @@
            the ordinary single-step command n times, so the
            jump lands exactly where repeated ⌘Z would. */
         function jumpHistory(dir, count) {
+          /* Build -122: scroll guard — a history-list pick is a
+             menu press whose closing refocus could tear the
+             view to the top, away from the step just landed. */
+          return folioPreserveView(function () { return jumpHistoryInner(dir, count); });
+        }
+        function jumpHistoryInner(dir, count) {
           if (!editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor;
           for (var i = 0; i < count; i++) {
@@ -24343,6 +24631,13 @@
           }
         }
         function divPopPick(pick) {
+          /* Build -122: scroll guard — edit-mode picks dispatch
+             a restyle of the divider (the border menu's lesson:
+             even a bare dispatch after an outside press can
+             re-settle the editor at the top on iOS). */
+          return folioPreserveView(function () { return divPopPickInner(pick); });
+        }
+        function divPopPickInner(pick) {
           var st = divPopState;
           if (!st) return;
           /* Same ring rule as the callout composer: the
@@ -24370,6 +24665,10 @@
           refreshToolbar();
         }
         function insertDividerWith(style, color) {
+          /* Build -122: scroll guard (chain focus + dispatch). */
+          return folioPreserveView(function () { return insertDividerWithInner(style, color); });
+        }
+        function insertDividerWithInner(style, color) {
           if (!editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor;
           var before = {};
@@ -34597,9 +34896,15 @@
         }
         function scChain(fn) {
           if (!editorHandle) return;
-          var chain = editorHandle.editor.chain().focus();
-          fn(chain);
-          refreshToolbar();
+          /* Build -122: scroll guard — registry commands run
+             from the keyboard (focus already in the editor,
+             guard a no-op) but also from the action bar and
+             menus, where the focus state is an outside press's. */
+          folioPreserveView(function () {
+            var chain = editorHandle.editor.chain().focus();
+            fn(chain);
+            refreshToolbar();
+          });
         }
         /* The anchor a format popover should open under when its
            real button is folded away or the bars are hidden: the
@@ -35570,7 +35875,10 @@
              the caret back too. The editor-only popovers get it;
              the sidebar popovers (folder, theme) just close. */
           if ((pop === fmtPop || pop === tblFillPop || pop === tblBorderColorPop || pop === tblPop || pop === document.getElementById('calloutPop') || pop === document.getElementById('divPop')) && editorHandle) {
-            editorHandle.editor.chain().focus().run();
+            /* Build -122: scroll guard — Esc's caret hand-back
+               is a bare refocus after an outside interaction;
+               it must not tear the view to the top. */
+            folioPreserveView(function () { editorHandle.editor.chain().focus().run(); });
           }
         }
         /* The border menu is built by the editor bundle on a
@@ -36354,7 +36662,8 @@
           if (t && t !== document.body && document.contains(t) && t.focus) {
             try { t.focus({ preventScroll: true }); } catch (e) { try { t.focus(); } catch (e2) {} }
           } else if (editorHandle) {
-            editorHandle.editor.chain().focus().run();
+            /* Build -122: scroll guard on the fallback refocus. */
+            folioPreserveView(function () { editorHandle.editor.chain().focus().run(); });
           }
         }
         function abRunAction(a) {
@@ -36365,7 +36674,13 @@
              pick would find. */
           abRecord(a.id);
           closeActionBar(true);
-          a.run();
+          /* Build -122: scroll guard — the bar's focus restore
+             lands before the run, in exactly the stranded
+             state the guard exists for. Actions that open a
+             different document skip the restore (the guard
+             keys on the document on stage), so jumps still
+             jump. */
+          folioPreserveView(function () { a.run(); });
         }
         function abPlace() {
           var vv = window.visualViewport;
@@ -36753,7 +37068,8 @@
           if (t && t !== document.body && document.contains(t) && t.focus) {
             try { t.focus({ preventScroll: true }); } catch (e) { try { t.focus(); } catch (e2) {} }
           } else if (editorHandle) {
-            editorHandle.editor.chain().focus().run();
+            /* Build -122: scroll guard on the fallback refocus. */
+            folioPreserveView(function () { editorHandle.editor.chain().focus().run(); });
           }
         }
         function omniRun(e, inNewTab) {
