@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-116" />
+    <meta name="folio-build" content="20261102-117" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14918,10 +14918,29 @@
         /* Swap the visible editor to doc id's session. `fresh`
            (a plain in-tab navigation, Back/Forward included)
            starts at the top, as openDoc always did; a tab
-           switch restores the session's own scroll. */
+           switch restores the session's own scroll. A swap to
+           the document ALREADY on screen is neither: it is a
+           refresh of the same view (a sync merge that adopted a
+           newer copy of the open document reopens it this way,
+           as do library-wide tag edits), so it keeps the live
+           scroll — build -117. It used to take the `fresh` leg
+           and zero the container, which is exactly the reported
+           leave-and-return defect: the foreground sync cycle
+           reopens the open document while the editor sits
+           unfocused (backgrounding blurred it, so the merge's
+           editing guard stands down), the parked session is
+           never recreated so the caret survives untouched, and
+           only the scroll landed back at the top. The re-asserts
+           below follow the runTableCmd pattern: if a later
+           layout pass in the same reopen (the fold restore that
+           runs right after this swap in openDoc) drops the
+           container to the top again, put the reader's place
+           back — but only ever from exactly 0, so a position
+           anyone deliberately scrolled to is never fought. */
         function tabSwapEditorTo(id, fresh) {
           var doc = tabDoc(id);
           if (!doc) return;
+          var sameDoc = id === tabDisplayedId;
           if (tabDisplayedId && tabSessions[tabDisplayedId]) {
             tabSessions[tabDisplayedId].scroll = editorScroll.scrollTop;
           }
@@ -14932,7 +14951,30 @@
           });
           editorHandle = s.handle;
           tabDisplayedId = id;
-          editorScroll.scrollTop = fresh ? 0 : (s.scroll || 0);
+          if (sameDoc) {
+            var keepTop = s.scroll || 0;
+            /* A pending leave-and-return snapshot (below) for
+               this document outranks a container the platform
+               zeroed while the app was away: whichever of the
+               guard and a return-sync reopen runs second must
+               still land the reader at the snapshotted place,
+               never at the zeroed one. */
+            if (keepTop === 0 && typeof folioReturnScroll !== 'undefined' && folioReturnScroll &&
+                folioReturnScroll.docId === id && folioReturnScroll.top > 0) {
+              keepTop = folioReturnScroll.top;
+              s.scroll = keepTop;
+            }
+            editorScroll.scrollTop = keepTop;
+            if (keepTop > 0) {
+              var reassertScroll = function () {
+                if (tabDisplayedId === id && editorScroll.scrollTop === 0) editorScroll.scrollTop = keepTop;
+              };
+              if (window.requestAnimationFrame) requestAnimationFrame(reassertScroll);
+              setTimeout(reassertScroll, 140);
+            }
+          } else {
+            editorScroll.scrollTop = fresh ? 0 : (s.scroll || 0);
+          }
         }
         function tabDestroySession(id) {
           var s = tabSessions[id];
@@ -17867,6 +17909,57 @@
           tabRender();
           setTimeout(function () { tabSyncSlim(); tabLayout(); }, 60);
         })();
+
+        /* ----- leave-and-return scroll guard (build -117) -----
+           The other half of the scroll-to-top-on-return defect.
+           Per-tab scroll is otherwise sampled only at tab swap,
+           so nothing ever recorded where the reader was when the
+           app went away. A home-screen app that iOS keeps alive
+           across the switch can come back with its compositing
+           layers rebuilt and the inner scroller's offset lost —
+           the page never reloaded, the editor's selection (pure
+           document state) survives, and only #editorScroll sits
+           at 0. So: snapshot the displayed document's scroll as
+           the page hides (and keep the session's saved scroll
+           current with it), and on the return, if the same
+           document is still displayed and the container is
+           sitting at exactly 0, put the snapshot back — once
+           immediately and again as layout settles, since a
+           restore written while the returning view is still
+           short gets clamped away. Any nonzero position found
+           on return is left strictly alone: it is either the
+           position the platform kept, or one the return sync's
+           same-document reopen preserved (tabSwapEditorTo), or
+           the reader's own. A snapshot is spent by the return
+           that consumes it, and a document change spends it
+           too — a genuine navigation still starts at the top. */
+        var folioReturnScroll = null;
+        function folioSnapshotReturnScroll() {
+          if (!editorScroll || !tabDisplayedId) return;
+          var top = editorScroll.scrollTop || 0;
+          folioReturnScroll = { docId: tabDisplayedId, top: top };
+          if (tabSessions[tabDisplayedId]) tabSessions[tabDisplayedId].scroll = top;
+        }
+        function folioRestoreReturnScroll() {
+          var snap = folioReturnScroll;
+          folioReturnScroll = null;
+          if (!snap || !editorScroll) return;
+          if (tabDisplayedId !== snap.docId || !(snap.top > 0)) return;
+          var attempts = 0;
+          (function attemptRestore() {
+            attempts++;
+            if (tabDisplayedId === snap.docId && editorScroll.scrollTop === 0) {
+              editorScroll.scrollTop = snap.top;
+            }
+            if (attempts < 3) setTimeout(attemptRestore, attempts === 1 ? 160 : 320);
+          })();
+        }
+        document.addEventListener('visibilitychange', function () {
+          if (document.hidden) folioSnapshotReturnScroll();
+          else folioRestoreReturnScroll();
+        });
+        window.addEventListener('pagehide', folioSnapshotReturnScroll);
+        window.addEventListener('pageshow', folioRestoreReturnScroll);
 
 
         /* ---------------- surround selection on typing ---------------- */
