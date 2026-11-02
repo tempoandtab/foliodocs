@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261101-110" />
+    <meta name="folio-build" content="20261102-111" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -6482,15 +6482,56 @@
           var e = st.themes[tid];
           return (e && e.vals[key]) || null;
         }
-        function tsResolved(tid, key, shippedBase) {
-          return tsResolvedIn(tsStore(), tid, key, shippedBase);
+        /* The heading keys (build -111): H1–H6 are the settings
+           whose COLOR carries the WCAG contrast floor at
+           resolution time (see tsAdaptHeadingColor and the
+           build -111 note there). Subtitle is deliberately
+           NOT in this list — the floor has only ever covered
+           H1–H6, and a subtitle is quiet by design. */
+        var TS_HEADING_KEYS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+        function tsIsHeadingKey(key) { return TS_HEADING_KEYS.indexOf(key) >= 0; }
+        /* The page surface a theme's headings actually render
+           on, as a resolution against an explicit store sees
+           it: the theme's own pal-surface overlay when one is
+           set (palette slots resolve per theme, Global slot
+           included), otherwise the theme's shipped surface.
+           The editor scope's live surface is this same value —
+           applyThemedStyles paints the palette overlay onto
+           <html> as --surface — so every scope adapts against
+           the ground the reader will actually see. */
+        function tsEffectiveSurfaceIn(st, tid) {
+          var ov = tsOverlayIn(st, tid, 'pal-surface');
+          if (ov && ov.color) return ov.color;
+          var sh = tsShipped(tid, 'pal-surface');
+          return (sh && sh.color) || '#ffffff';
         }
-        function tsResolvedIn(st, tid, key, shippedBase) {
+        function tsResolved(tid, key, shippedBase, surfOverride) {
+          return tsResolvedIn(tsStore(), tid, key, shippedBase, surfOverride);
+        }
+        function tsResolvedIn(st, tid, key, shippedBase, surfOverride) {
           var base = shippedBase || tsShipped(tid, key);
           var out = {};
           Object.keys(base).forEach(function (k) { out[k] = base[k]; });
           var ov = tsOverlayIn(st, tid, key);
           if (ov) Object.keys(ov).forEach(function (k) { out[k] = ov[k]; });
+          /* Resolution-time heading contrast (build -111):
+             the effective H1–H6 color is the stored color
+             adapted for THIS theme, derived from the pristine
+             stored value on every call — the store is never
+             rewritten, so switching themes is lossless
+             (A → B → A renders exactly as never having
+             switched) and no scope needs the style re-applied
+             after a switch. Applies to heading colors from
+             any source (a color scheme, a type preset's theme
+             ink, or a color set by hand in this modal) and
+             from either slot (Global or per-theme): the
+             adaptation sits after the slot merge above, so
+             it cannot tell — and does not care — where the
+             value came from. surfOverride is print's white
+             page (see applyThemeScopeVars). */
+          if (out.color && tsIsHeadingKey(key)) {
+            out.color = tsAdaptHeadingColor(out.color, tid, st, surfOverride);
+          }
           return out;
         }
         function tsVarFor(key, lever) {
@@ -6524,7 +6565,19 @@
             (def.levers || []).forEach(function (lever) {
               var varName = tsVarFor(def.id, lever);
               if (!varName) return;
-              var css = ov ? tsLeverCss(lever, ov[lever], false) : null;
+              var v = ov ? ov[lever] : null;
+              /* Build -111: a heading color reaches the page
+                 adapted for the ACTIVE theme, exactly as
+                 tsResolvedIn resolves it for the share and
+                 print scopes — this scope reads the bare
+                 overlay, so it adapts here. The stored value
+                 is untouched; only the painted variable is
+                 derived. A theme switch re-runs this function
+                 (applyTheme is wrapped below), so the painted
+                 colors re-derive for the new theme on their
+                 own. */
+              if (lever === 'color' && v && tsIsHeadingKey(def.id)) v = tsAdaptHeadingColor(v, themeId);
+              var css = ov ? tsLeverCss(lever, v, false) : null;
               if (css) root.style.setProperty(varName, css);
               else root.style.removeProperty(varName);
             });
@@ -6560,7 +6613,13 @@
             }
             var flagged = !!st.shareDefault[def.id];
             var base = forPrint ? tsPrintShipped(def.id) : tsShipped(tid, def.id);
-            var val = flagged ? base : tsResolvedIn(st, tid, def.id, base);
+            /* Build -111: print renders on its fixed white
+               page whatever the active theme, so its heading
+               colors adapt against white; the share scope
+               adapts against the resolving theme's own
+               surface inside tsResolvedIn. A flagged setting
+               still renders its shipped base untouched. */
+            var val = flagged ? base : tsResolvedIn(st, tid, def.id, base, forPrint ? '#ffffff' : undefined);
             (def.levers || []).forEach(function (lever) {
               var varName = tsVarFor(def.id, lever);
               if (!varName) return;
@@ -6874,7 +6933,32 @@
            of scope (the floor covers H1–H6) and passes through
            unadapted. Type presets carry no colors at all —
            their headings wear the theme's own ink, which
-           clears the floor on every theme by a wide margin. */
+           clears the floor on every theme by a wide margin.
+           Build -111: apply-time adaptation alone was not
+           enough — a scheme applied under one theme bakes
+           THAT theme's adaptation into the store (into the
+           shared Global slot for headings, which are Global
+           by default), and nothing re-adapted the stored
+           colors when the base theme changed, so pale
+           dark-theme colors rode onto light paper (and vice
+           versa) until the user re-applied the scheme by
+           hand. Adaptation is now a property of RESOLUTION,
+           not of application: tsResolvedIn and the editor
+           scope (applyThemedStyles) run every H1–H6 color —
+           scheme-applied or set by hand, Global or per-theme
+           — through tsAdaptHeadingColor for the theme being
+           resolved, deriving from the pristine stored value
+           each time and never writing the result back. The
+           apply-time pass through tsSchemeColors stays (it
+           keeps previews and swatches truthful), but it is
+           no longer load-bearing: on the theme a scheme was
+           applied under, resolution adaptation is a no-op
+           over the baked value, and on any other theme it is
+           what makes the headings legible. The adaptation's
+           ground is the theme's EFFECTIVE page surface (its
+           pal-surface overlay when set, else the shipped
+           surface), so a hand-darkened page re-grounds the
+           headings too. */
         function tsRgbToHsl(r, g, b) {
           r /= 255; g /= 255; b /= 255;
           var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
@@ -6910,8 +6994,18 @@
           return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
         }
         var TS_CONTRAST_FLOOR = 4.5;
-        function tsAdaptHeadingColor(hex, tid) {
-          var surf = tsShipped(tid, 'pal-surface').color;
+        /* Adapt one heading color for one theme: lightness
+           only (hue and saturation preserved), stepping away
+           from the theme's effective surface until the color
+           clears the floor; a color already clearing it is
+           returned byte-identical, which is what makes
+           resolution-time adaptation lossless on the theme a
+           value was written under. `st` is the store to read
+           the surface from (the share scope passes the
+           owner's snapshot store); `surfOverride` replaces
+           the surface outright (print's fixed white page). */
+        function tsAdaptHeadingColor(hex, tid, st, surfOverride) {
+          var surf = surfOverride || tsEffectiveSurfaceIn(st || tsStore(), tid);
           if (!surf || tsContrastRatio(hex, surf) >= TS_CONTRAST_FLOOR) return hex;
           var rgb = tsHexToRgb(hex);
           var hsl = tsRgbToHsl(rgb.r, rgb.g, rgb.b);
