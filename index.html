@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-111" />
+    <meta name="folio-build" content="20261102-112" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -219,6 +219,183 @@
         --shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
         --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.35);
       }
+      /* Six new base themes (build -112): Binding Midnight, Frost,
+         Ember, Plum, Abyss, Meadow. Like Binding Dark, EVERY token
+         is set in each block, and every dark-scoped rule in this
+         sheet (accent overrides, callouts, marks, table tints,
+         hover filters, folder tints, doc-star, active tab) names
+         the new dark themes alongside Midnight / Binding Dark.
+         Binding Midnight: surfaces and darkness from Midnight,
+         identity from Binding — gilt accent, cream ink, and an
+         ink-green tint in the chrome and hairlines. */
+      :root[data-theme="binding-midnight"] {
+        color-scheme: dark;
+        --bg: #121511;
+        --surface: #1f221e;
+        --sidebar: #141713;
+        --sidebar-ink: #f1ead6;
+        --ink: #f1ead6;
+        --ink-2: #c9c2a8;
+        --ink-3: #8f8d7c;
+        --line: #6b5d33;
+        --line-soft: #2c2e26;
+        --accent: #e3b95c;
+        --accent-ink: #241a05;
+        --accent-soft: #38331c;
+        --chip-bg: #2a3324;
+        --chip-ink: #cfe0b8;
+        --missing-bg: #45301f;
+        --missing-ink: #eda76c;
+        --tag-bg: #3d3420;
+        --tag-ink: #e6c87a;
+        --danger: #e08a7d;
+        --hover: rgba(241, 234, 214, 0.08);
+        --th-bg: #2a2c24;
+        --folder-bg: rgba(241, 234, 214, 0.06);
+        --active: rgba(227, 185, 92, 0.18);
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+        --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.35);
+      }
+      :root[data-theme="frost"] {
+        color-scheme: light;
+        --bg: #dde7ee;
+        --surface: #eef3f7;
+        --sidebar: #d5e0e9;
+        --sidebar-ink: #2c3e4f;
+        --ink: #243447;
+        --ink-2: #556b7e;
+        --ink-3: #8a9dad;
+        --line: #b9c9d6;
+        --line-soft: #d3dee7;
+        --accent: #2f5d8a;
+        --accent-ink: #ffffff;
+        --accent-soft: #dde8f2;
+        --chip-bg: #dfe9f3;
+        --chip-ink: #27517a;
+        --missing-bg: #f8e9dc;
+        --missing-ink: #a34d21;
+        --tag-bg: #e3e9f2;
+        --tag-ink: #3a5a7a;
+        --danger: #b3372a;
+        --hover: rgba(36, 52, 71, 0.07);
+        --th-bg: #e2ebf2;
+        --folder-bg: rgba(36, 52, 71, 0.05);
+        --active: rgba(47, 93, 138, 0.14);
+        --shadow: 0 12px 40px rgba(36, 52, 71, 0.2), 0 2px 8px rgba(36, 52, 71, 0.11);
+        --paper-shadow: 0 1px 2px rgba(36, 52, 71, 0.06), 0 10px 34px rgba(36, 52, 71, 0.08);
+      }
+      :root[data-theme="ember"] {
+        color-scheme: dark;
+        --bg: #1a110d;
+        --surface: #2a1c14;
+        --sidebar: #170f0b;
+        --sidebar-ink: #f3e6d3;
+        --ink: #f5ead9;
+        --ink-2: #cbb59d;
+        --ink-3: #96806c;
+        --line: #5c4030;
+        --line-soft: #3a281c;
+        --accent: #e09a52;
+        --accent-ink: #2a1605;
+        --accent-soft: #402a18;
+        --chip-bg: #402e1e;
+        --chip-ink: #f0c48f;
+        --missing-bg: #4a2c1c;
+        --missing-ink: #f0b48c;
+        --tag-bg: #45351c;
+        --tag-ink: #ecd28a;
+        --danger: #e88a6d;
+        --hover: rgba(245, 234, 217, 0.08);
+        --th-bg: #38251a;
+        --folder-bg: rgba(245, 234, 217, 0.06);
+        --active: rgba(224, 154, 82, 0.18);
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+        --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.35);
+      }
+      :root[data-theme="plum"] {
+        color-scheme: dark;
+        --bg: #1e1224;
+        --surface: #2a1a30;
+        --sidebar: #1a0f20;
+        --sidebar-ink: #f0e6f2;
+        --ink: #f2e8f5;
+        --ink-2: #c9b3d1;
+        --ink-3: #9a84a6;
+        --line: #6b5433;
+        --line-soft: #3a263f;
+        --accent: #c39bd8;
+        --accent-ink: #24102e;
+        --accent-soft: #3d2a4a;
+        --chip-bg: #3a2a44;
+        --chip-ink: #dcbfe8;
+        --missing-bg: #45301f;
+        --missing-ink: #eda76c;
+        --tag-bg: #40351d;
+        --tag-ink: #ecd28a;
+        --danger: #e08a9d;
+        --hover: rgba(242, 232, 245, 0.08);
+        --th-bg: #352040;
+        --folder-bg: rgba(242, 232, 245, 0.06);
+        --active: rgba(195, 155, 216, 0.18);
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+        --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.35);
+      }
+      :root[data-theme="abyss"] {
+        color-scheme: dark;
+        --bg: #050607;
+        --surface: #0d1013;
+        --sidebar: #07090b;
+        --sidebar-ink: #dde3e6;
+        --ink: #e6ebed;
+        --ink-2: #aeb9be;
+        --ink-3: #6f7d83;
+        --line: #2e3a40;
+        --line-soft: #1a2126;
+        --accent: #7fb3c2;
+        --accent-ink: #0a1a1f;
+        --accent-soft: #1c2e35;
+        --chip-bg: #1e3038;
+        --chip-ink: #b3d2da;
+        --missing-bg: #3a2c1e;
+        --missing-ink: #eda76c;
+        --tag-bg: #2e2e24;
+        --tag-ink: #d8d8a8;
+        --danger: #e08a7d;
+        --hover: rgba(230, 235, 237, 0.07);
+        --th-bg: #161c20;
+        --folder-bg: rgba(230, 235, 237, 0.05);
+        --active: rgba(127, 179, 194, 0.16);
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.45);
+        --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 34px rgba(0, 0, 0, 0.4);
+      }
+      :root[data-theme="meadow"] {
+        color-scheme: light;
+        --bg: #cdd9bd;
+        --surface: #e3ecd9;
+        --sidebar: #c2d0ac;
+        --sidebar-ink: #2e4023;
+        --ink: #2a3d22;
+        --ink-2: #5a6e4c;
+        --ink-3: #8a9a76;
+        --line: #aebf97;
+        --line-soft: #cbd8b4;
+        --accent: #3f7031;
+        --accent-ink: #ffffff;
+        --accent-soft: #d3e2c2;
+        --chip-bg: #d3e4c4;
+        --chip-ink: #2e5b24;
+        --missing-bg: #f4ddc2;
+        --missing-ink: #9c5426;
+        --tag-bg: #e8e3b8;
+        --tag-ink: #6d6110;
+        --danger: #b03a26;
+        --hover: rgba(42, 61, 34, 0.07);
+        --th-bg: #d5e0c4;
+        --folder-bg: rgba(42, 61, 34, 0.05);
+        --active: rgba(63, 112, 49, 0.15);
+        --shadow: 0 12px 40px rgba(42, 61, 34, 0.2), 0 2px 8px rgba(42, 61, 34, 0.11);
+        --paper-shadow: 0 1px 2px rgba(42, 61, 34, 0.06), 0 10px 34px rgba(42, 61, 34, 0.08);
+      }
       /* Binding chrome overrides: the surfaces that sit on
          the green --bg / --sidebar grounds but paint with the
          cream-page ink tokens. Everything here is scoped to
@@ -279,7 +456,7 @@
         --chip-ink: #7c560c;
         --active: rgba(156, 109, 14, 0.15);
       }
-      :root[data-theme="midnight"][data-accent="terracotta"], :root[data-theme="binding-dark"][data-accent="terracotta"] {
+      :root[data-theme="midnight"][data-accent="terracotta"], :root[data-theme="binding-dark"][data-accent="terracotta"] , :root[data-theme="binding-midnight"][data-accent="terracotta"] , :root[data-theme="ember"][data-accent="terracotta"] , :root[data-theme="plum"][data-accent="terracotta"] , :root[data-theme="abyss"][data-accent="terracotta"] {
         --accent: #e59a72;
         --accent-ink: #2a160b;
         --accent-soft: #3f2a1e;
@@ -287,7 +464,7 @@
         --chip-ink: #f0b48c;
         --active: rgba(229, 154, 114, 0.18);
       }
-      :root[data-theme="midnight"][data-accent="ocean"], :root[data-theme="binding-dark"][data-accent="ocean"] {
+      :root[data-theme="midnight"][data-accent="ocean"], :root[data-theme="binding-dark"][data-accent="ocean"] , :root[data-theme="binding-midnight"][data-accent="ocean"] , :root[data-theme="ember"][data-accent="ocean"] , :root[data-theme="plum"][data-accent="ocean"] , :root[data-theme="abyss"][data-accent="ocean"] {
         --accent: #93bde0;
         --accent-ink: #0e1f30;
         --accent-soft: #22374a;
@@ -295,7 +472,7 @@
         --chip-ink: #a9cdec;
         --active: rgba(147, 189, 224, 0.16);
       }
-      :root[data-theme="midnight"][data-accent="marigold"], :root[data-theme="binding-dark"][data-accent="marigold"] {
+      :root[data-theme="midnight"][data-accent="marigold"], :root[data-theme="binding-dark"][data-accent="marigold"] , :root[data-theme="binding-midnight"][data-accent="marigold"] , :root[data-theme="ember"][data-accent="marigold"] , :root[data-theme="plum"][data-accent="marigold"] , :root[data-theme="abyss"][data-accent="marigold"] {
         --accent: #e3b95c;
         --accent-ink: #2a1f05;
         --accent-soft: #3a3119;
@@ -388,7 +565,7 @@
       .side-hr { border: 0; border-top: 1px solid var(--line); margin: 6px 8px 4px; }
       .doc-star { flex: 0 0 auto; display: inline-flex; color: #b07d10; }
       .doc-star svg { width: 13px; height: 13px; }
-      :root[data-theme="midnight"] .doc-star, :root[data-theme="binding-dark"] .doc-star { color: #e3b95c; }
+      :root[data-theme="midnight"] .doc-star, :root[data-theme="binding-dark"] .doc-star , :root[data-theme="binding-midnight"] .doc-star , :root[data-theme="ember"] .doc-star , :root[data-theme="plum"] .doc-star , :root[data-theme="abyss"] .doc-star { color: #e3b95c; }
       .new-doc-btn {
         display: inline-flex; align-items: center; gap: 4px;
         font-size: 12px; font-weight: 600; letter-spacing: 0;
@@ -1038,12 +1215,12 @@
         --callout: #c62f3b; --callout-bg: rgba(198, 47, 59, 0.08);
         --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M5.4 1h5.2L15 5.4v5.2L10.6 15H5.4L1 10.6V5.4Zm1.95 3h1.3v4.6h-1.3Zm0 5.7h1.3v1.5h-1.3Z'/%3E%3C/svg%3E");
       }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-note, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-note { --callout: #6ea8fe; --callout-bg: rgba(110, 168, 254, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-info, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-info { --callout: #38bdf8; --callout-bg: rgba(56, 189, 248, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-tip, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-tip { --callout: #45c07e; --callout-bg: rgba(69, 192, 126, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-important, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-important { --callout: #b392f0; --callout-bg: rgba(179, 146, 240, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-warning, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-warning { --callout: #e3b341; --callout-bg: rgba(227, 179, 65, 0.13); }
-      :root[data-theme="midnight"] .folio-prose blockquote.callout-caution, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-caution { --callout: #ff7b72; --callout-bg: rgba(255, 123, 114, 0.12); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-note, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-note , :root[data-theme="binding-midnight"] .folio-prose blockquote.callout-note , :root[data-theme="ember"] .folio-prose blockquote.callout-note , :root[data-theme="plum"] .folio-prose blockquote.callout-note , :root[data-theme="abyss"] .folio-prose blockquote.callout-note { --callout: #6ea8fe; --callout-bg: rgba(110, 168, 254, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-info, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-info , :root[data-theme="binding-midnight"] .folio-prose blockquote.callout-info , :root[data-theme="ember"] .folio-prose blockquote.callout-info , :root[data-theme="plum"] .folio-prose blockquote.callout-info , :root[data-theme="abyss"] .folio-prose blockquote.callout-info { --callout: #38bdf8; --callout-bg: rgba(56, 189, 248, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-tip, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-tip , :root[data-theme="binding-midnight"] .folio-prose blockquote.callout-tip , :root[data-theme="ember"] .folio-prose blockquote.callout-tip , :root[data-theme="plum"] .folio-prose blockquote.callout-tip , :root[data-theme="abyss"] .folio-prose blockquote.callout-tip { --callout: #45c07e; --callout-bg: rgba(69, 192, 126, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-important, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-important , :root[data-theme="binding-midnight"] .folio-prose blockquote.callout-important , :root[data-theme="ember"] .folio-prose blockquote.callout-important , :root[data-theme="plum"] .folio-prose blockquote.callout-important , :root[data-theme="abyss"] .folio-prose blockquote.callout-important { --callout: #b392f0; --callout-bg: rgba(179, 146, 240, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-warning, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-warning , :root[data-theme="binding-midnight"] .folio-prose blockquote.callout-warning , :root[data-theme="ember"] .folio-prose blockquote.callout-warning , :root[data-theme="plum"] .folio-prose blockquote.callout-warning , :root[data-theme="abyss"] .folio-prose blockquote.callout-warning { --callout: #e3b341; --callout-bg: rgba(227, 179, 65, 0.13); }
+      :root[data-theme="midnight"] .folio-prose blockquote.callout-caution, :root[data-theme="binding-dark"] .folio-prose blockquote.callout-caution , :root[data-theme="binding-midnight"] .folio-prose blockquote.callout-caution , :root[data-theme="ember"] .folio-prose blockquote.callout-caution , :root[data-theme="plum"] .folio-prose blockquote.callout-caution , :root[data-theme="abyss"] .folio-prose blockquote.callout-caution { --callout: #ff7b72; --callout-bg: rgba(255, 123, 114, 0.12); }
       .folio-prose ul, .folio-prose ol { padding-left: 1.35em; }
       .folio-prose ul { margin: var(--ts-ul-before, 0) 0 var(--ts-ul-after, 0.9em); font-family: var(--ts-ul-font, inherit); font-size: var(--ts-ul-size, 1em); color: var(--ts-ul-color, inherit); }
       .folio-prose ol { margin: var(--ts-ol-before, 0) 0 var(--ts-ol-after, 0.9em); font-family: var(--ts-ol-font, inherit); font-size: var(--ts-ol-size, 1em); color: var(--ts-ol-color, inherit); }
@@ -1122,7 +1299,7 @@
       }
       .wiki-link:hover { filter: brightness(0.96); text-decoration: underline; }
       .wiki-link--missing { background: var(--missing-bg); color: var(--missing-ink); }
-      :root[data-theme="midnight"] .wiki-link:hover, :root[data-theme="binding-dark"] .wiki-link:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .wiki-link:hover, :root[data-theme="binding-dark"] .wiki-link:hover , :root[data-theme="binding-midnight"] .wiki-link:hover , :root[data-theme="ember"] .wiki-link:hover , :root[data-theme="plum"] .wiki-link:hover , :root[data-theme="abyss"] .wiki-link:hover { filter: brightness(1.15); }
 
       /* ---------------- Highlight & text color ---------------- */
       .folio-prose mark {
@@ -1135,12 +1312,12 @@
       .folio-prose mark[data-color="pink"] { background: #ffc9d6; }
       .folio-prose mark[data-color="blue"] { background: #a5d8ff; }
       .folio-prose mark[data-color="orange"] { background: #ffd8a8; }
-      :root[data-theme="midnight"] .folio-prose mark, :root[data-theme="binding-dark"] .folio-prose mark { background: var(--ts-highlight, #7a5f14); }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="yellow"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="yellow"] { background: #7a5f14; }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="green"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="green"] { background: #2e5b34; }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="pink"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="pink"] { background: #6e3548; }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="blue"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="blue"] { background: #2c4a73; }
-      :root[data-theme="midnight"] .folio-prose mark[data-color="orange"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="orange"] { background: #7a4a17; }
+      :root[data-theme="midnight"] .folio-prose mark, :root[data-theme="binding-dark"] .folio-prose mark , :root[data-theme="binding-midnight"] .folio-prose mark , :root[data-theme="ember"] .folio-prose mark , :root[data-theme="plum"] .folio-prose mark , :root[data-theme="abyss"] .folio-prose mark { background: var(--ts-highlight, #7a5f14); }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="yellow"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="yellow"] , :root[data-theme="binding-midnight"] .folio-prose mark[data-color="yellow"] , :root[data-theme="ember"] .folio-prose mark[data-color="yellow"] , :root[data-theme="plum"] .folio-prose mark[data-color="yellow"] , :root[data-theme="abyss"] .folio-prose mark[data-color="yellow"] { background: #7a5f14; }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="green"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="green"] , :root[data-theme="binding-midnight"] .folio-prose mark[data-color="green"] , :root[data-theme="ember"] .folio-prose mark[data-color="green"] , :root[data-theme="plum"] .folio-prose mark[data-color="green"] , :root[data-theme="abyss"] .folio-prose mark[data-color="green"] { background: #2e5b34; }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="pink"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="pink"] , :root[data-theme="binding-midnight"] .folio-prose mark[data-color="pink"] , :root[data-theme="ember"] .folio-prose mark[data-color="pink"] , :root[data-theme="plum"] .folio-prose mark[data-color="pink"] , :root[data-theme="abyss"] .folio-prose mark[data-color="pink"] { background: #6e3548; }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="blue"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="blue"] , :root[data-theme="binding-midnight"] .folio-prose mark[data-color="blue"] , :root[data-theme="ember"] .folio-prose mark[data-color="blue"] , :root[data-theme="plum"] .folio-prose mark[data-color="blue"] , :root[data-theme="abyss"] .folio-prose mark[data-color="blue"] { background: #2c4a73; }
+      :root[data-theme="midnight"] .folio-prose mark[data-color="orange"], :root[data-theme="binding-dark"] .folio-prose mark[data-color="orange"] , :root[data-theme="binding-midnight"] .folio-prose mark[data-color="orange"] , :root[data-theme="ember"] .folio-prose mark[data-color="orange"] , :root[data-theme="plum"] .folio-prose mark[data-color="orange"] , :root[data-theme="abyss"] .folio-prose mark[data-color="orange"] { background: #7a4a17; }
       .hl-demo {
         background: #ffe066; color: #22261f;
         padding: 1px 8px; border-radius: 4px; font-weight: 700; font-size: 15px; line-height: 1.35;
@@ -1261,12 +1438,12 @@
       .folio-prose td[data-bg="blue"], .folio-prose th[data-bg="blue"] { background: #d3ebff; }
       .folio-prose td[data-bg="orange"], .folio-prose th[data-bg="orange"] { background: #ffe8cc; }
       .folio-prose td[data-bg="gray"], .folio-prose th[data-bg="gray"] { background: #efeee8; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="yellow"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="yellow"], :root[data-theme="midnight"] .folio-prose th[data-bg="yellow"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="yellow"] { background: #6e5716; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="green"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="green"], :root[data-theme="midnight"] .folio-prose th[data-bg="green"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="green"] { background: #2c5230; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="pink"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="pink"], :root[data-theme="midnight"] .folio-prose th[data-bg="pink"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="pink"] { background: #653244; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="blue"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="blue"], :root[data-theme="midnight"] .folio-prose th[data-bg="blue"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="blue"] { background: #2a4468; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="orange"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="orange"], :root[data-theme="midnight"] .folio-prose th[data-bg="orange"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="orange"] { background: #6e4517; }
-      :root[data-theme="midnight"] .folio-prose td[data-bg="gray"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="gray"], :root[data-theme="midnight"] .folio-prose th[data-bg="gray"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="gray"] { background: #2e312b; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="yellow"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="yellow"], :root[data-theme="midnight"] .folio-prose th[data-bg="yellow"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="yellow"] , :root[data-theme="binding-midnight"] .folio-prose td[data-bg="yellow"], :root[data-theme="ember"] .folio-prose td[data-bg="yellow"], :root[data-theme="plum"] .folio-prose td[data-bg="yellow"], :root[data-theme="abyss"] .folio-prose td[data-bg="yellow"], :root[data-theme="binding-midnight"] .folio-prose th[data-bg="yellow"] , :root[data-theme="ember"] .folio-prose th[data-bg="yellow"] , :root[data-theme="plum"] .folio-prose th[data-bg="yellow"] , :root[data-theme="abyss"] .folio-prose th[data-bg="yellow"] { background: #6e5716; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="green"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="green"], :root[data-theme="midnight"] .folio-prose th[data-bg="green"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="green"] , :root[data-theme="binding-midnight"] .folio-prose td[data-bg="green"], :root[data-theme="ember"] .folio-prose td[data-bg="green"], :root[data-theme="plum"] .folio-prose td[data-bg="green"], :root[data-theme="abyss"] .folio-prose td[data-bg="green"], :root[data-theme="binding-midnight"] .folio-prose th[data-bg="green"] , :root[data-theme="ember"] .folio-prose th[data-bg="green"] , :root[data-theme="plum"] .folio-prose th[data-bg="green"] , :root[data-theme="abyss"] .folio-prose th[data-bg="green"] { background: #2c5230; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="pink"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="pink"], :root[data-theme="midnight"] .folio-prose th[data-bg="pink"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="pink"] , :root[data-theme="binding-midnight"] .folio-prose td[data-bg="pink"], :root[data-theme="ember"] .folio-prose td[data-bg="pink"], :root[data-theme="plum"] .folio-prose td[data-bg="pink"], :root[data-theme="abyss"] .folio-prose td[data-bg="pink"], :root[data-theme="binding-midnight"] .folio-prose th[data-bg="pink"] , :root[data-theme="ember"] .folio-prose th[data-bg="pink"] , :root[data-theme="plum"] .folio-prose th[data-bg="pink"] , :root[data-theme="abyss"] .folio-prose th[data-bg="pink"] { background: #653244; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="blue"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="blue"], :root[data-theme="midnight"] .folio-prose th[data-bg="blue"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="blue"] , :root[data-theme="binding-midnight"] .folio-prose td[data-bg="blue"], :root[data-theme="ember"] .folio-prose td[data-bg="blue"], :root[data-theme="plum"] .folio-prose td[data-bg="blue"], :root[data-theme="abyss"] .folio-prose td[data-bg="blue"], :root[data-theme="binding-midnight"] .folio-prose th[data-bg="blue"] , :root[data-theme="ember"] .folio-prose th[data-bg="blue"] , :root[data-theme="plum"] .folio-prose th[data-bg="blue"] , :root[data-theme="abyss"] .folio-prose th[data-bg="blue"] { background: #2a4468; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="orange"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="orange"], :root[data-theme="midnight"] .folio-prose th[data-bg="orange"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="orange"] , :root[data-theme="binding-midnight"] .folio-prose td[data-bg="orange"], :root[data-theme="ember"] .folio-prose td[data-bg="orange"], :root[data-theme="plum"] .folio-prose td[data-bg="orange"], :root[data-theme="abyss"] .folio-prose td[data-bg="orange"], :root[data-theme="binding-midnight"] .folio-prose th[data-bg="orange"] , :root[data-theme="ember"] .folio-prose th[data-bg="orange"] , :root[data-theme="plum"] .folio-prose th[data-bg="orange"] , :root[data-theme="abyss"] .folio-prose th[data-bg="orange"] { background: #6e4517; }
+      :root[data-theme="midnight"] .folio-prose td[data-bg="gray"], :root[data-theme="binding-dark"] .folio-prose td[data-bg="gray"], :root[data-theme="midnight"] .folio-prose th[data-bg="gray"], :root[data-theme="binding-dark"] .folio-prose th[data-bg="gray"] , :root[data-theme="binding-midnight"] .folio-prose td[data-bg="gray"], :root[data-theme="ember"] .folio-prose td[data-bg="gray"], :root[data-theme="plum"] .folio-prose td[data-bg="gray"], :root[data-theme="abyss"] .folio-prose td[data-bg="gray"], :root[data-theme="binding-midnight"] .folio-prose th[data-bg="gray"] , :root[data-theme="ember"] .folio-prose th[data-bg="gray"] , :root[data-theme="plum"] .folio-prose th[data-bg="gray"] , :root[data-theme="abyss"] .folio-prose th[data-bg="gray"] { background: #2e312b; }
       /* Cell alignment (data-align / data-valign on the cell,
          set by the table bar's alignment menu): text-align is
          inherited by the blocks inside the cell, and the
@@ -1357,7 +1534,7 @@
         font-size: 12px; font-weight: 700; color: var(--ink-2);
       }
       .tbl-swatch:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .tbl-swatch:hover, :root[data-theme="binding-dark"] .tbl-swatch:hover { filter: brightness(1.18); }
+      :root[data-theme="midnight"] .tbl-swatch:hover, :root[data-theme="binding-dark"] .tbl-swatch:hover , :root[data-theme="binding-midnight"] .tbl-swatch:hover , :root[data-theme="ember"] .tbl-swatch:hover , :root[data-theme="plum"] .tbl-swatch:hover , :root[data-theme="abyss"] .tbl-swatch:hover { filter: brightness(1.18); }
       .tbl-swatch.on { box-shadow: inset 0 0 0 2px var(--ink); }
       .tbl-swatch .bsw { width: 15px; height: 15px; border-radius: 3px; display: block; }
       .tbl-pop { width: 218px; }
@@ -1587,7 +1764,7 @@
         font-weight: 700; font-size: 16px; background: var(--surface);
       }
       .fmt-swatch:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .fmt-swatch:hover, :root[data-theme="binding-dark"] .fmt-swatch:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .fmt-swatch:hover, :root[data-theme="binding-dark"] .fmt-swatch:hover , :root[data-theme="binding-midnight"] .fmt-swatch:hover , :root[data-theme="ember"] .fmt-swatch:hover , :root[data-theme="plum"] .fmt-swatch:hover , :root[data-theme="abyss"] .fmt-swatch:hover { filter: brightness(1.15); }
       .fmt-swatch.on { box-shadow: inset 0 0 0 2px var(--ink); }
       .fmt-swatch-none { color: var(--ink-2); }
       .fmt-custom {
@@ -1735,7 +1912,7 @@
         font-size: 19px; line-height: 1; color: var(--ink);
       }
       .callout-glyph-tile:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .callout-glyph-tile:hover, :root[data-theme="binding-dark"] .callout-glyph-tile:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .callout-glyph-tile:hover, :root[data-theme="binding-dark"] .callout-glyph-tile:hover , :root[data-theme="binding-midnight"] .callout-glyph-tile:hover , :root[data-theme="ember"] .callout-glyph-tile:hover , :root[data-theme="plum"] .callout-glyph-tile:hover , :root[data-theme="abyss"] .callout-glyph-tile:hover { filter: brightness(1.15); }
       .callout-glyph-tile.on { box-shadow: inset 0 0 0 2px var(--ink); }
       .callout-glyph-tile .cg-mask {
         width: 20px; height: 20px; background: var(--ink);
@@ -1772,7 +1949,7 @@
         font-size: 20px; line-height: 1; color: var(--ink-2);
       }
       .fp-tile:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .fp-tile:hover, :root[data-theme="binding-dark"] .fp-tile:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .fp-tile:hover, :root[data-theme="binding-dark"] .fp-tile:hover , :root[data-theme="binding-midnight"] .fp-tile:hover , :root[data-theme="ember"] .fp-tile:hover , :root[data-theme="plum"] .fp-tile:hover , :root[data-theme="abyss"] .fp-tile:hover { filter: brightness(1.15); }
       .fp-tile.on { box-shadow: inset 0 0 0 2px var(--ink); }
       .fp-custom {
         display: flex; align-items: center; gap: 9px;
@@ -1845,14 +2022,14 @@
         box-decoration-break: clone; -webkit-box-decoration-break: clone;
       }
       .tag-chip:hover { filter: brightness(0.96); text-decoration: underline; }
-      :root[data-theme="midnight"] .tag-chip:hover, :root[data-theme="binding-dark"] .tag-chip:hover { filter: brightness(1.15); }
+      :root[data-theme="midnight"] .tag-chip:hover, :root[data-theme="binding-dark"] .tag-chip:hover , :root[data-theme="binding-midnight"] .tag-chip:hover , :root[data-theme="ember"] .tag-chip:hover , :root[data-theme="plum"] .tag-chip:hover , :root[data-theme="abyss"] .tag-chip:hover { filter: brightness(1.15); }
       .side-tag {
         display: inline-flex; align-items: center; gap: 6px;
         font-size: 12.5px; font-weight: 600; color: var(--tag-ink);
         background: var(--tag-bg); padding: 5px 10px; border-radius: 999px; min-height: 28px;
       }
       .side-tag:hover { filter: brightness(0.96); }
-      :root[data-theme="midnight"] .side-tag:hover, :root[data-theme="binding-dark"] .side-tag:hover { filter: brightness(1.12); }
+      :root[data-theme="midnight"] .side-tag:hover, :root[data-theme="binding-dark"] .side-tag:hover , :root[data-theme="binding-midnight"] .side-tag:hover , :root[data-theme="ember"] .side-tag:hover , :root[data-theme="plum"] .side-tag:hover , :root[data-theme="abyss"] .side-tag:hover { filter: brightness(1.12); }
       .side-tag.on { box-shadow: inset 0 0 0 2px var(--tag-ink); }
       .side-tag-count { font-size: 11px; font-weight: 700; opacity: 0.7; }
       /* Tag favorites: a starred tag's chip carries a small
@@ -1902,7 +2079,7 @@
         background: var(--folder-bg);
       }
       .folder.tinted { background: color-mix(in srgb, var(--fb) 9%, transparent); }
-      :root[data-theme="midnight"] .folder.tinted, :root[data-theme="binding-dark"] .folder.tinted { background: color-mix(in srgb, var(--fb) 17%, transparent); }
+      :root[data-theme="midnight"] .folder.tinted, :root[data-theme="binding-dark"] .folder.tinted , :root[data-theme="binding-midnight"] .folder.tinted , :root[data-theme="ember"] .folder.tinted , :root[data-theme="plum"] .folder.tinted , :root[data-theme="abyss"] .folder.tinted { background: color-mix(in srgb, var(--fb) 17%, transparent); }
       .folder-head {
         display: flex; align-items: center; gap: 3px;
         padding: 4px 6px 4px 2px; border-radius: 9px; min-height: 38px; cursor: pointer;
@@ -1929,7 +2106,7 @@
         background: color-mix(in srgb, var(--fb) 16%, transparent);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 35%, transparent);
       }
-      :root[data-theme="midnight"] .folder-badge.tinted, :root[data-theme="binding-dark"] .folder-badge.tinted {
+      :root[data-theme="midnight"] .folder-badge.tinted, :root[data-theme="binding-dark"] .folder-badge.tinted , :root[data-theme="binding-midnight"] .folder-badge.tinted , :root[data-theme="ember"] .folder-badge.tinted , :root[data-theme="plum"] .folder-badge.tinted , :root[data-theme="abyss"] .folder-badge.tinted {
         background: color-mix(in srgb, var(--fb) 30%, transparent);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 45%, transparent);
         color: color-mix(in srgb, var(--fb) 60%, #ffffff);
@@ -2577,6 +2754,7 @@
       /* ---------------- Theme popover ---------------- */
       .theme-pop {
         position: absolute; left: 12px; right: 12px; bottom: 62px; z-index: 60;
+        max-height: calc(100dvh - 84px); overflow-y: auto; overscroll-behavior: contain;
         background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
         box-shadow: var(--shadow); padding: 8px;
       }
@@ -3934,8 +4112,14 @@
       }
       :root[data-theme="midnight"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="sepia"] .folio-tab.active { background: var(--surface); }
+      :root[data-theme="frost"] .folio-tab.active { background: var(--surface); }
+      :root[data-theme="meadow"] .folio-tab.active { background: var(--surface); }
       :root[data-theme="binding"] .folio-tab.active { background: var(--surface); }
-      :root[data-theme="binding-dark"] .folio-tab.active { background: var(--surface); }
+      :root[data-theme="binding-dark"] .folio-tab.active ,
+      :root[data-theme="binding-midnight"] .folio-tab.active ,
+      :root[data-theme="ember"] .folio-tab.active ,
+      :root[data-theme="plum"] .folio-tab.active ,
+      :root[data-theme="abyss"] .folio-tab.active { background: var(--surface); }
       .tab-rail.slim { --tab-x: 14px; --tab-strip: 14px; width: 44px; flex-basis: 44px; }
       :root[data-focus="on"] .tab-rail { display: none; }
       .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
@@ -5739,6 +5923,12 @@
           { id: 'midnight', name: 'Midnight', surface: '#1d1f1c', tone: '#131512' },
           { id: 'binding', name: 'Binding', surface: '#f2e3bd', tone: '#12332a' },
           { id: 'binding-dark', name: 'Binding Dark', surface: '#1c3d2e', tone: '#0d2b20' },
+          { id: 'binding-midnight', name: 'Binding Midnight', surface: '#1f221e', tone: '#121511' },
+          { id: 'frost', name: 'Frost', surface: '#eef3f7', tone: '#dde7ee' },
+          { id: 'ember', name: 'Ember', surface: '#2a1c14', tone: '#1a110d' },
+          { id: 'plum', name: 'Plum', surface: '#2a1a30', tone: '#1e1224' },
+          { id: 'abyss', name: 'Abyss', surface: '#0d1013', tone: '#050607' },
+          { id: 'meadow', name: 'Meadow', surface: '#e3ecd9', tone: '#cdd9bd' },
         ];
         var ACCENTS = [
           { id: 'forest', name: 'Forest', color: '#2e6b4c' },
@@ -6300,17 +6490,17 @@
           { id: 'highlight', label: 'Default highlight color', group: 'Inline styles', levers: ['color'], global0: false },
         ];
         var TS_PALETTE = [
-          { id: 'pal-bg', label: 'Page background', cssVar: '--bg', shipped: { paper: '#f4f1ea', sepia: '#ecdfc6', midnight: '#131512', binding: '#12332a', 'binding-dark': '#0d2b20' } },
-          { id: 'pal-surface', label: 'Surface (paper)', cssVar: '--surface', shipped: { paper: '#fffdf7', sepia: '#faf2df', midnight: '#1d1f1c', binding: '#f2e3bd', 'binding-dark': '#1c3d2e' } },
-          { id: 'pal-sidebar', label: 'Sidebar', cssVar: '--sidebar', shipped: { paper: '#eceade', sepia: '#e6d6b8', midnight: '#191b18', binding: '#0f2d22', 'binding-dark': '#09231a' } },
-          { id: 'pal-sidebar-ink', label: 'Sidebar text', cssVar: '--sidebar-ink', shipped: { paper: '#33382f', sepia: '#4c3a26', midnight: '#d7d9d0', binding: '#f1ead6', 'binding-dark': '#f1ead6' } },
-          { id: 'pal-ink', label: 'Ink / text', cssVar: '--ink', shipped: { paper: '#22261f', sepia: '#3e2f1f', midnight: '#eceee6', binding: '#26302a', 'binding-dark': '#f1ead6' } },
-          { id: 'pal-ink2', label: 'Muted text', cssVar: '--ink-2', shipped: { paper: '#62665b', sepia: '#77644a', midnight: '#a3a79b', binding: '#5f6b52', 'binding-dark': '#b3bfa5' },
+          { id: 'pal-bg', label: 'Page background', cssVar: '--bg', shipped: { paper: '#f4f1ea', sepia: '#ecdfc6', midnight: '#131512', binding: '#12332a', 'binding-dark': '#0d2b20', 'binding-midnight': '#121511', frost: '#dde7ee', ember: '#1a110d', plum: '#1e1224', abyss: '#050607', meadow: '#cdd9bd' } },
+          { id: 'pal-surface', label: 'Surface (paper)', cssVar: '--surface', shipped: { paper: '#fffdf7', sepia: '#faf2df', midnight: '#1d1f1c', binding: '#f2e3bd', 'binding-dark': '#1c3d2e', 'binding-midnight': '#1f221e', frost: '#eef3f7', ember: '#2a1c14', plum: '#2a1a30', abyss: '#0d1013', meadow: '#e3ecd9' } },
+          { id: 'pal-sidebar', label: 'Sidebar', cssVar: '--sidebar', shipped: { paper: '#eceade', sepia: '#e6d6b8', midnight: '#191b18', binding: '#0f2d22', 'binding-dark': '#09231a', 'binding-midnight': '#141713', frost: '#d5e0e9', ember: '#170f0b', plum: '#1a0f20', abyss: '#07090b', meadow: '#c2d0ac' } },
+          { id: 'pal-sidebar-ink', label: 'Sidebar text', cssVar: '--sidebar-ink', shipped: { paper: '#33382f', sepia: '#4c3a26', midnight: '#d7d9d0', binding: '#f1ead6', 'binding-dark': '#f1ead6', 'binding-midnight': '#f1ead6', frost: '#2c3e4f', ember: '#f3e6d3', plum: '#f0e6f2', abyss: '#dde3e6', meadow: '#2e4023' } },
+          { id: 'pal-ink', label: 'Ink / text', cssVar: '--ink', shipped: { paper: '#22261f', sepia: '#3e2f1f', midnight: '#eceee6', binding: '#26302a', 'binding-dark': '#f1ead6', 'binding-midnight': '#f1ead6', frost: '#243447', ember: '#f5ead9', plum: '#f2e8f5', abyss: '#e6ebed', meadow: '#2a3d22' } },
+          { id: 'pal-ink2', label: 'Muted text', cssVar: '--ink-2', shipped: { paper: '#62665b', sepia: '#77644a', midnight: '#a3a79b', binding: '#5f6b52', 'binding-dark': '#b3bfa5', 'binding-midnight': '#c9c2a8', frost: '#556b7e', ember: '#cbb59d', plum: '#c9b3d1', abyss: '#aeb9be', meadow: '#5a6e4c' },
             note: 'Used for the default color of Subtitle and Blockquote text in documents, and for quieter interface text \u2014 outline items and the icon buttons in the topbar and context rail.' },
-          { id: 'pal-ink3', label: 'Faint text', cssVar: '--ink-3', shipped: { paper: '#969a8d', sepia: '#a68f6b', midnight: '#6f7368', binding: '#a79b7d', 'binding-dark': '#87937c' },
+          { id: 'pal-ink3', label: 'Faint text', cssVar: '--ink-3', shipped: { paper: '#969a8d', sepia: '#a68f6b', midnight: '#6f7368', binding: '#a79b7d', 'binding-dark': '#87937c', 'binding-midnight': '#8f8d7c', frost: '#8a9dad', ember: '#96806c', plum: '#9a84a6', abyss: '#6f7d83', meadow: '#8a9a76' },
             note: 'Used only for labels, counts and hints \u2014 the placeholder text in an empty document, sidebar section labels and empty-state text, the document count, the \u201cSaved\u201d indicator, document dots, fold chevrons and the fold ellipsis, and divider colors. It never colors document text.' },
-          { id: 'pal-accent', label: 'Accent', cssVar: '--accent', shipped: { paper: '#2e6b4c', sepia: '#2e6b4c', midnight: '#8ec7a5', binding: '#a97e1f', 'binding-dark': '#e3b95c' } },
-          { id: 'pal-line', label: 'Borders', cssVar: '--line', shipped: { paper: '#ddd8c8', sepia: '#d8c69e', midnight: '#33362f', binding: '#c9bb90', 'binding-dark': '#665a30' } },
+          { id: 'pal-accent', label: 'Accent', cssVar: '--accent', shipped: { paper: '#2e6b4c', sepia: '#2e6b4c', midnight: '#8ec7a5', binding: '#a97e1f', 'binding-dark': '#e3b95c', 'binding-midnight': '#e3b95c', frost: '#2f5d8a', ember: '#e09a52', plum: '#c39bd8', abyss: '#7fb3c2', meadow: '#3f7031' } },
+          { id: 'pal-line', label: 'Borders', cssVar: '--line', shipped: { paper: '#ddd8c8', sepia: '#d8c69e', midnight: '#33362f', binding: '#c9bb90', 'binding-dark': '#665a30', 'binding-midnight': '#6b5d33', frost: '#b9c9d6', ember: '#5c4030', plum: '#6b5433', abyss: '#2e3a40', meadow: '#aebf97' } },
         ];
         var TS_ICON_DEF = { id: 'iconSet', label: 'Icon set', group: 'Icons' };
         var TS_ALL_DEFS = TS_DEFS.concat(TS_PALETTE.map(function (p) {
@@ -6320,11 +6510,50 @@
           for (var i = 0; i < TS_ALL_DEFS.length; i++) if (TS_ALL_DEFS[i].id === key) return TS_ALL_DEFS[i];
           return null;
         }
+        /* Default color schemes for the build -112 themes:
+           each new theme's seeded Theme Styles set wears its
+           scheme's PRISTINE colors (the register that matches
+           the theme \u2014 the dark set for dark themes, the light
+           set for light ones; Ember / Plum are single-set
+           schemes, so their shipped colors are the pristine
+           values). Never an adaptation computed against
+           another theme's surface: build -111 adapts per
+           theme at resolution time as usual. The five
+           original themes have no entry \u2014 their defaults
+           are unchanged. */
+        var TS_THEME_DEFAULT_SCHEME = { 'binding-midnight': 'binding-midnight', frost: 'frost', ember: 'ember', plum: 'plum', abyss: 'abyss', meadow: 'meadow' };
+        var TS_THEME_DEFAULT_COLORS = {
+          'binding-midnight': { h1: '#e3b95c', h2: '#dfc27a', h3: '#e9d69b', h4: '#f0e3ba', h5: '#efe6c8', h6: '#d9c68f', subtitle: '#bdb08a' },
+          frost: { h1: '#2f5d8a', h2: '#386a99', h3: '#4275a6', h4: '#527fa8', h5: '#6489ad', h6: '#7794b3', subtitle: '#5f7b90' },
+          ember: { h1: '#93381b', h2: '#a4431f', h3: '#b04e26', h4: '#ba5930', h5: '#c3643c', h6: '#cb714c', subtitle: '#a06a4e' },
+          plum: { h1: '#552f7d', h2: '#61388c', h3: '#6c419a', h4: '#774aa6', h5: '#8254b0', h6: '#8f61ba', subtitle: '#7d679a' },
+          abyss: { h1: '#9fc6d1', h2: '#b3d2da', h3: '#c6dde3', h4: '#d8e8ec', h5: '#e6eef0', h6: '#a8bcc2', subtitle: '#9fb2ba' },
+          meadow: { h1: '#20502f', h2: '#2e6034', h3: '#3f6d2f', h4: '#5d7434', h5: '#6f7030', h6: '#7d7440', subtitle: '#61705a' },
+        };
+        function tsDefaultSchemeEntry(tid) {
+          var cols = TS_THEME_DEFAULT_COLORS[tid];
+          if (!cols) return null;
+          var entry = { vals: {}, g: {} };
+          ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'subtitle'].forEach(function (k) {
+            if (cols[k]) { entry.vals[k] = { color: cols[k] }; entry.g[k] = false; }
+          });
+          return Object.keys(entry.vals).length ? entry : null;
+        }
+        function tsSeedThemeDefaults() {
+          var st = tsStore();
+          Object.keys(TS_THEME_DEFAULT_SCHEME).forEach(function (tid) {
+            if (!st.themes[tid]) {
+              var e = tsDefaultSchemeEntry(tid);
+              if (e) st.themes[tid] = e;
+            }
+          });
+        }
         /* The dark base themes (build -87): Midnight and Binding
-           Dark. Every shipped default or scheme that ships light
-           and dark value sets resolves through this one check, so
-           a future dark theme joins by extending this list. */
-        function tsIsDark(tid) { return tid === 'midnight' || tid === 'binding-dark'; }
+           Dark, plus the build -112 dark themes. Every shipped
+           default or scheme that ships light and dark value
+           sets resolves through this one check, so a future
+           dark theme joins by extending this list. */
+        function tsIsDark(tid) { return tid === 'midnight' || tid === 'binding-dark' || tid === 'binding-midnight' || tid === 'ember' || tid === 'plum' || tid === 'abyss'; }
         function tsShipped(tid, key) {
           switch (key) {
             case 'h1': return { size: 34, weight: 600 };
@@ -6360,17 +6589,18 @@
           var ink = tsShipped(tid, 'pal-ink').color;
           var ink2 = tsShipped(tid, 'pal-ink2').color;
           var accent = tsShipped(tid, 'pal-accent').color;
-          function hs(size) {
-            return { font: 'newsreader', size: size, color: ink, weight: 600, before: Math.round(size * 135) / 100, after: Math.round(size * 50) / 100 };
+          var defCols = TS_THEME_DEFAULT_COLORS[tid] || null;
+          function hs(size, k) {
+            return { font: 'newsreader', size: size, color: (defCols && defCols[k]) || ink, weight: 600, before: Math.round(size * 135) / 100, after: Math.round(size * 50) / 100 };
           }
           switch (key) {
-            case 'h1': return hs(34);
-            case 'h2': return hs(27);
-            case 'h3': return hs(22);
-            case 'h4': return hs(19);
-            case 'h5': return hs(17);
-            case 'h6': return hs(15);
-            case 'subtitle': return { font: 'newsreader', size: 19.5, color: ink2, weight: 400, before: 0, after: 17.55 };
+            case 'h1': return hs(34, 'h1');
+            case 'h2': return hs(27, 'h2');
+            case 'h3': return hs(22, 'h3');
+            case 'h4': return hs(19, 'h4');
+            case 'h5': return hs(17, 'h5');
+            case 'h6': return hs(15, 'h6');
+            case 'subtitle': return { font: 'newsreader', size: 19.5, color: (defCols && defCols.subtitle) || ink2, weight: 400, before: 0, after: 17.55 };
             case 'paragraph': return { font: 'newsreader', size: 19.5, color: ink, weight: 400, before: 0, after: 17.55 };
             case 'bullet': return { font: 'newsreader', size: 19.5, color: ink, before: 0, after: 17.55 };
             case 'ordered': return { font: 'newsreader', size: 19.5, color: ink, before: 0, after: 17.55 };
@@ -6690,6 +6920,10 @@
             TS_PRESET_KEYS.forEach(function (k) { if (tsIsGlobal(themeId, k)) delete st.global[k]; });
           }
           delete st.themes[themeId];
+          /* Build -112: a theme with a default color scheme
+             resets TO that scheme's seeded set, not to blank. */
+          var seedAfterReset = tsDefaultSchemeEntry(themeId);
+          if (seedAfterReset) st.themes[themeId] = seedAfterReset;
           tsTouchAndPersist();
         }
 
@@ -7119,6 +7353,21 @@
              their theme's overlays and simply go on applying
              as ordinary lever values; nothing here reads the
              'binding' scheme id anymore. */
+          /* Build -112 schemes: the namesake schemes for the
+             three new themes no existing scheme fit. Dual-set,
+             like the other multi-register schemes \u2014 the light
+             set tuned for pale pages, the dark set for dark
+             ones; tsSchemeColors picks by theme and adapts
+             for contrast. Each is applicable under ANY theme. */
+          { id: 'binding-midnight', name: 'Binding Midnight', blurb: 'Gilt and cream in Binding\u2019s register \u2014 bright gold at the top softening toward cream as the levels descend.',
+            colorsLight: { h1: '#8a6414', h2: '#96701a', h3: '#a07c22', h4: '#a8893a', h5: '#96782e', h6: '#8a6d2a', subtitle: '#7d6f4d' },
+            colorsDark: { h1: '#e3b95c', h2: '#dfc27a', h3: '#e9d69b', h4: '#f0e3ba', h5: '#efe6c8', h6: '#d9c68f', subtitle: '#bdb08a' } },
+          { id: 'frost', name: 'Frost', blurb: 'Steel blues and slate \u2014 cool, pale and quiet, darkest at H1 and icing over as the levels descend.',
+            colorsLight: { h1: '#2f5d8a', h2: '#386a99', h3: '#4275a6', h4: '#527fa8', h5: '#6489ad', h6: '#7794b3', subtitle: '#5f7b90' },
+            colorsDark: { h1: '#a9cdec', h2: '#b5d4ef', h3: '#c2dcf3', h4: '#cfe4f6', h5: '#dbedfa', h6: '#9fc2e2', subtitle: '#aebfd0' } },
+          { id: 'abyss', name: 'Abyss', blurb: 'Silver and desaturated steel-cyan \u2014 a deep-water register, bright as drowned metal at the top.',
+            colorsLight: { h1: '#1f4d5a', h2: '#265c6a', h3: '#2f6a79', h4: '#3a7787', h5: '#4a8494', h6: '#5f91a0', subtitle: '#5a737c' },
+            colorsDark: { h1: '#9fc6d1', h2: '#b3d2da', h3: '#c6dde3', h4: '#d8e8ec', h5: '#e6eef0', h6: '#a8bcc2', subtitle: '#9fb2ba' } },
         ];
         /* The color set a scheme wears on a given theme:
            the dual-set schemes pick light or a dark theme's
@@ -7888,6 +8137,12 @@
            newly active theme's set. */
         var tsApplyThemeOrig = applyTheme;
         applyTheme = function () { tsApplyThemeOrig(); applyThemedStyles(); };
+        /* Build -112: seed the new themes' default-scheme sets
+           on first sight (no persisted entry for the theme yet);
+           existing entries \u2014 user edits included \u2014 are never
+           overwritten. In-memory here; the next persist carries
+           it, exactly like other first-run normalizations. */
+        tsSeedThemeDefaults();
         applyThemedStyles();
 
         /* ---------------- tag favorites & colors ----------------
@@ -32235,18 +32490,28 @@
             run: function () { navPrevDoc(); } },
           { id: 'nav-next-doc', combo: 'mod+alt+arrowdown', hint: '⌘⌥↓', group: 'General', label: 'Next document',
             run: function () { navNextDoc(); } },
-          /* File tabs (Phase 1): vertical chords for a vertical
-             rail — the app claims ⌘⇧↑ / ⌘⇧↓ globally, giving up
-             the editor's select-to-document-start/end on them
-             (⌘⇧←/→ keep line-edge selection). ⌥Q toggles to the
-             previously active tab (MRU); ⌥W opens the Book. The
-             Option glyphs (œ, ∑) resolve through the
-             dispatcher's Option-character table. All four are
-             field-safe (SC_SAFE_IN_FIELD below): like Zen, the
-             chords type no text. */
-          { id: 'tab-next', combo: 'mod+shift+arrowdown', hint: '⌘⇧↓', group: 'General', label: 'Next tab',
+          /* File tabs (Phase 1): one-hand chords for stepping
+             the stack — ⌥⌃A moves DOWN one tab (next in tab
+             order), ⌥⌃Q moves UP one tab (previous), both
+             through the same tabStep functions and wrap-around
+             as ever. Build -112: REBOUND from ⌘⇧↓ / ⌘⇧↑, which
+             needed two hands; the old combos are gone, not
+             kept as aliases (the editor's ⌘⇧↑/↓ selection
+             behavior is the browser's again). In registry
+             form the ⌃ is the dispatcher's mod part (meta or
+             ctrl, as with every ⌘⌥ chord here), so the combos
+             are mod+alt+a / mod+alt+q; the presses resolve
+             through the code-first path (KeyA / KeyQ) and,
+             where ev.code is missing, the Option glyphs
+             (å for A, œ for Q) translate back through the
+             dispatcher's Option-character table. ⌥Q BY ITSELF
+             stays the MRU toggle below — a different combo
+             (alt+q, no mod part) — and ⌥W opens the Book. All
+             four are field-safe (SC_SAFE_IN_FIELD below):
+             like Zen, the chords type no text. */
+          { id: 'tab-next', combo: 'mod+alt+a', hint: '⌥⌃A', group: 'General', label: 'Next tab',
             run: function () { tabStep(1); } },
-          { id: 'tab-prev', combo: 'mod+shift+arrowup', hint: '⌘⇧↑', group: 'General', label: 'Previous tab',
+          { id: 'tab-prev', combo: 'mod+alt+q', hint: '⌥⌃Q', group: 'General', label: 'Previous tab',
             run: function () { tabStep(-1); } },
           { id: 'tab-recent', combo: 'alt+q', hint: '⌥Q', group: 'General', label: 'Switch to previous tab',
             run: function () { tabMruToggle(); } },
