@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-118" />
+    <meta name="folio-build" content="20261102-119" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -9239,6 +9239,21 @@
         var tplSession = null;
         var tplSaveTimer = null;
         var tplMenuTplId = null;
+        /* Build -119: the editor scroll at the moment the
+           template picker opened, consumed by the insert that
+           follows a pick (see tplInsertIntoCurrentDoc). */
+        var tplPickerScrollTop = null;
+        /* Build -119 (repair): the caret/selection at the same
+           moment. Probe bisection: the row-menu door inserts
+           exactly at the caret, while the picker door lands at
+           the document's start — the picker's own close calls
+           editorHandle.focus() before the insert reads the
+           selection, and that focus strands the selection at
+           the start once the row press has emptied the DOM
+           selection. The insert restores this snapshot before
+           computing its insert point; a cancelled picker
+           clears it (see closeTplPicker). */
+        var tplPickerSel = null;
         var renamingTplId = null;
         var pendingDeleteTplId = null;
         var folioSyncReopening = false;
@@ -9377,7 +9392,22 @@
             function commit(save) {
               if (done) return;
               done = true;
-              if (save && input.value.trim()) { t.name = input.value.trim(); t.updated = Date.now(); tplTouch(); tplSave(); }
+              if (save && input.value.trim()) {
+                t.name = input.value.trim(); t.updated = Date.now(); tplTouch(); tplSave();
+                /* Build -119: a sidebar rename of the template
+                   currently being edited must reach the topbar
+                   title too — it names this template, and
+                   without this hand-off it (like the tab spine,
+                   see tabDisplayTitle) kept the old name until
+                   the template was closed and reopened. */
+                if (tplEditingId === t.id) {
+                  var ti = document.getElementById('titleInput');
+                  if (ti && document.activeElement !== ti) {
+                    ti.value = t.name;
+                    try { fitTitleHeight(); fitTitlePhone(); } catch (e) {}
+                  }
+                }
+              }
               renamingTplId = null;
               renderDocList();
             }
@@ -9423,10 +9453,31 @@
           tplMenuEl.innerHTML = '';
           tplMenuTplId = null;
         }
+        /* Build -119 (repair): snapshot the reader's place —
+           editor scroll and selection — at the moment an
+           insert door (the picker, a template's ⋯ menu)
+           opens. The presses outside the editor on the way to
+           the insert collapse both by degrees (probe-measured:
+           a deep scroll reaching the insert partially zeroed,
+           the selection stranded at the document's start), so
+           the insert restores from this snapshot rather than
+           trusting whatever the live editor reports by then.
+           Every insert door snapshots at open and the insert
+           consumes the snapshot, so a stale one can never be
+           picked up: there is no third door. */
+        function tplSnapshotPlace() {
+          tplPickerScrollTop = editorScroll ? editorScroll.scrollTop : null;
+          tplPickerSel = null;
+          try {
+            var pst = editorHandle && editorHandle.editor && editorHandle.editor.state;
+            if (pst && pst.selection) tplPickerSel = { from: pst.selection.from, to: pst.selection.to };
+          } catch (e) { tplPickerSel = null; }
+        }
         function openTplMenu(id, anchor, x, y) {
           var t = tplById(id);
           if (!t || !tplMenuEl) return;
           if (anchor && typeof x !== 'number' && tplMenuTplId === id && tplMenuEl.classList.contains('open')) { closeTplMenu(); return; }
+          tplSnapshotPlace();
           closeDocMenu(); closeMoveMenu(); closeFolderMenu(); closeViewMenu(); closeDocBarMenu(); closeTopMenu();
           tplMenuTplId = id;
           tplMenuEl.innerHTML = '';
@@ -9488,6 +9539,13 @@
               tplSaveSoon();
               renderOutline(json);
               wordCount(json);
+              /* Build -119: parity with the document sessions'
+                 onUpdate (folioEditorOpts) — without this the
+                 spellchecker never rescanned a template, so
+                 the previous document's squiggles stayed
+                 painted over the template at their old offsets
+                 (the reported random red squiggles). */
+              try { scheduleSpellScan(); } catch (e) {}
             },
           }));
           try { handle.editor.view.dom.setAttribute('spellcheck', 'false'); } catch (e) {}
@@ -9523,6 +9581,15 @@
           var badge = document.getElementById('tplBadge');
           if (badge) badge.hidden = false;
           editorScroll.scrollTop = 0;
+          /* Build -119: the spellchecker's flagged ranges
+             belong to the document just left — drop them and
+             rescan for THIS template (openDoc does the same
+             via scheduleSpellScan on its swaps). Without it
+             the old ranges repainted over the template on the
+             next layout repaint, landing under unrelated words
+             and on empty lines. */
+          try { spellFlagged = []; spellRender(); } catch (e) {}
+          try { scheduleSpellScan(); } catch (e) {}
           renderDocList();
           renderOutline(t.content);
           wordCount(t.content);
@@ -9635,9 +9702,56 @@
         }
         function tplInsertIntoCurrentDoc(t) {
           if (!t) return;
-          if (tplEditingId) openDoc(lib.currentId, false);
+          /* Build -119: snapshot the reader's place BEFORE
+             anything refocuses the editor. The pick that leads
+             here is a press outside the editor, which empties
+             the DOM selection; the focus() calls in the insert
+             chain (and in closeTplPicker, which runs first on
+             the picker door) can then drop the caret at the
+             document's start and the browser scrolls it into
+             view — the page lands at the top (the runTableCmd
+             comment tells the same story for table commands).
+             Each door's own snapshot, taken when it opened
+             (tplSnapshotPlace), outranks the entry values,
+             which those presses may have collapsed partially
+             rather than to zero. Restored below, after the
+             caret lands. The same presses strand the
+             SELECTION itself at the document's start
+             (probe-bisected: with no snapshot restore the
+             template landed at the top of the document from
+             a caret proven mid-document), so the door's
+             selection snapshot is restored first, before the
+             insert point is read. */
+          var wasTplEditing = !!tplEditingId;
+          if (wasTplEditing) openDoc(lib.currentId, false);
+          var keepTop = editorScroll ? editorScroll.scrollTop : 0;
+          var keepWinY = window.scrollY || window.pageYOffset || 0;
+          /* The door's snapshot outranks the entry value
+             outright: the presses that lead here can collapse
+             the scroll PARTIALLY, not only to zero, so an
+             entry value that merely looks plausible may
+             already be the ruined one. */
+          if (!wasTplEditing && tplPickerScrollTop != null) keepTop = tplPickerScrollTop;
+          tplPickerScrollTop = null;
           if (!editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor;
+          /* Restore the picker's open-time selection before
+             reading the insert point: the pick closes with a
+             focus() that leaves the live selection at the
+             document's start, which would insert the template
+             at the top no matter where the reader's caret was.
+             A bare selection change — no history step. The
+             menu doors never set the snapshot and skip this. */
+          if (wasTplEditing) tplPickerSel = null;
+          if (tplPickerSel) {
+            var snapSel = tplPickerSel; tplPickerSel = null;
+            try {
+              var szMax = ed.state.doc.content.size;
+              var sFrom = Math.max(0, Math.min(snapSel.from, szMax));
+              var sTo = Math.max(sFrom, Math.min(snapSel.to, szMax));
+              ed.chain().setTextSelection({ from: sFrom, to: sTo }).run();
+            } catch (e) {}
+          }
           var before = ed.state.doc.content.size;
           var from = ed.state.selection.from;
           var blocks = (tplPrepareForInsert(t.content).content) || [];
@@ -9666,6 +9780,33 @@
             }
             else ed.chain().focus().setTextSelection(Math.min(end, ed.state.doc.content.size)).run();
           } catch (e) { try { ed.chain().focus().run(); } catch (e2) {} }
+          /* Build -119: give the reader their place back.
+             Restore the pre-insert scroll immediately, on the
+             next frame, and once settled (the runTableCmd
+             rhythm — a focus that lands in a later frame can
+             re-zero the container after an immediate restore).
+             The insert happened AT the caret, so the restored
+             offset keeps the insertion point where the reader
+             was looking; the nudge in the same pass only ever
+             moves the view the minimum needed to reveal the
+             landed caret (the first input) when it somehow
+             sits outside the visible area — it never drags a
+             visible caret to a new anchor. */
+          var caretPosForView = first ? first.pos + 1 : Math.min(end, ed.state.doc.content.size);
+          var restoreInsertScroll = function () {
+            if (!editorScroll) return;
+            if (editorScroll.scrollTop !== keepTop) editorScroll.scrollTop = keepTop;
+            if ((window.scrollY || window.pageYOffset || 0) !== keepWinY) window.scrollTo(0, keepWinY);
+            try {
+              var c = ed.view.coordsAtPos(caretPosForView);
+              var box = editorScroll.getBoundingClientRect();
+              if (c.bottom > box.bottom - 14) editorScroll.scrollTop += c.bottom - (box.bottom - 14);
+              else if (c.top < box.top + 14) editorScroll.scrollTop -= (box.top + 14) - c.top;
+            } catch (e) {}
+          };
+          restoreInsertScroll();
+          if (window.requestAnimationFrame) requestAnimationFrame(restoreInsertScroll);
+          setTimeout(restoreInsertScroll, 140);
           refreshToolbar();
         }
         function tplInsertInput() {
@@ -9700,6 +9841,10 @@
           var modal = document.getElementById('tplPickerModal');
           var list = document.getElementById('tplPickerList');
           if (!modal || !list) return;
+          /* Build -119: remember where the reader was looking
+             when the picker opened — the insert that follows a
+             pick restores to here (see tplInsertIntoCurrentDoc). */
+          tplSnapshotPlace();
           list.innerHTML = '';
           if (!tplStore.items.length) {
             var e = document.createElement('p');
@@ -9721,7 +9866,7 @@
               meta.textContent = n ? (n + (n === 1 ? ' input' : ' inputs')) : '';
               b.appendChild(meta);
               b.addEventListener('click', function () {
-                closeTplPicker();
+                closeTplPicker(true);
                 tplInsertIntoCurrentDoc(tplById(t.id));
               });
               list.appendChild(b);
@@ -9729,9 +9874,14 @@
           }
           modal.hidden = false;
         }
-        function closeTplPicker() {
+        function closeTplPicker(keepSel) {
           var modal = document.getElementById('tplPickerModal');
           if (modal) modal.hidden = true;
+          /* A pick keeps the open-time selection snapshot for
+             the insert that immediately follows; every other
+             close (×, backdrop, Escape) drops it, so a stale
+             snapshot can never hijack a later insert. */
+          if (!keepSel) tplPickerSel = null;
           if (editorHandle && !tplEditingId) { try { editorHandle.focus(); } catch (e) {} }
         }
         (function wireTplChrome() {
@@ -14982,6 +15132,30 @@
         function tabDoc(id) {
           return lib.docs.find(function (d) { return d.id === id; }) || null;
         }
+        /* Build -119: the label a tab SHOWS. While a template
+           is being edited it owns the stage in front of the
+           ACTIVE tab — the topbar names the template and the
+           paper shows its content — so the active tab's spine
+           (and its Book row) name the template too; every
+           other tab, and the active tab the moment the stage
+           hands back, names its document. Template renames
+           reach the spine through this one reader: both
+           rename doors (the title field and the sidebar
+           rename input) already end in renderDocList, which
+           re-renders the tabs from here, so the spine follows
+           a rename live instead of keeping the name the
+           template had when it was opened (the reported
+           desync: sidebar and topbar renamed, tab didn't). */
+        function tabDisplayTitle(r) {
+          var d = r ? tabDoc(r.docId) : null;
+          var t = d ? (d.title || 'Untitled') : 'Untitled';
+          if (r && typeof tplEditingId !== 'undefined' && tplEditingId &&
+              r.docId === tabActiveId && typeof tplById === 'function') {
+            var tpl = tplById(tplEditingId);
+            if (tpl) t = tpl.name || 'Untitled template';
+          }
+          return t;
+        }
         function tabIndexOf(id) {
           for (var i = 0; i < tabRecords.length; i++) if (tabRecords[i].docId === id) return i;
           return -1;
@@ -16791,9 +16965,9 @@
             el.className = 'folio-tab' + (isActive ? ' active' : '');
             el.setAttribute('role', 'tab');
             el.setAttribute('aria-selected', isActive ? 'true' : 'false');
-            el.setAttribute('aria-label', d.title || 'Untitled');
+            el.setAttribute('aria-label', tabDisplayTitle(r));
             el.setAttribute('data-doc-id', r.docId);
-            el.setAttribute('data-tip', d.title || 'Untitled');
+            el.setAttribute('data-tip', tabDisplayTitle(r));
             /* Build -108: a member of an EXPANDED group is
                marked .is-grouped, whose --tab-strip override
                (see the Stack CSS) clamps its hover stretch
@@ -16852,7 +17026,7 @@
             if (tabFolder && tabFolder.color) el.style.setProperty('--tab-lc', tabFolder.color);
             var nm = document.createElement('span');
             nm.className = 'folio-tab-name';
-            nm.textContent = d.title || 'Untitled';
+            nm.textContent = tabDisplayTitle(r);
             el.appendChild(nm);
             var x = document.createElement('button');
             x.type = 'button';
@@ -17036,7 +17210,7 @@
           });
           var gapsTotal = gaps.reduce(function (a, b) { return a + b; }, 0);
           tabLayoutCache.forEach(function (c) {
-            c.vh = tabNaturalHeight(c.ghead ? c.unitLabel : (tabDoc(c.rec.docId) ? tabDoc(c.rec.docId).title : ''));
+            c.vh = tabNaturalHeight(c.ghead ? c.unitLabel : (c.rec ? tabDisplayTitle(c.rec) : ''));
             sum += c.vh;
             if (c.vh < minNat) minNat = c.vh;
           });
@@ -18258,7 +18432,7 @@
           row.appendChild(stripe);
           var nm = document.createElement('span');
           nm.className = 'book-row-name';
-          nm.textContent = d.title || 'Untitled';
+          nm.textContent = tabDisplayTitle(r);
           row.appendChild(nm);
           if (r.docId === tabActiveId) {
             var here = document.createElement('span');
@@ -20924,7 +21098,11 @@
 
            Never checked: code blocks, inline code, link text,
            URLs, e-mail addresses, @mentions, #tags, numbers,
-           acronyms, and camelCase names. Contractions and
+           acronyms, camelCase names, and (build -119) the text
+           inside template input boxes — placeholder text while
+           authoring a template, an in-progress fill-in while
+           using one; once a box is committed its text is plain
+           prose and is checked like any other. Contractions and
            possessives resolve through their stems ("don't",
            "era's" pass). Lookup ignores case, and a
            hyphenated compound passes when the whole form or
@@ -20943,6 +21121,16 @@
         var spellIgnoredByDoc = Object.create(null);
         var spellFlagged = [];
         var spellDirty = true;
+        /* Build -119: the editor handle spellFlagged was
+           scanned FROM. A repaint (spellRender) paints those
+           ranges against the CURRENT editor — after a session
+           swap (document ↔ template, tab ↔ tab) the ranges
+           belong to another document entirely, and painting
+           them anyway was the random-squiggle defect: marks
+           under ordinary words and floating on empty lines.
+           The handle stamp lets spellRender refuse a foreign
+           document's ranges outright. */
+        var spellPaintHandle = null;
         var spellScanTimer = null;
         var spellLayer = null;
         var spellRepaintQueued = false;
@@ -21265,23 +21453,38 @@
         function spellScanNow() {
           spellDirty = false;
           spellFlagged = [];
+          spellPaintHandle = editorHandle || null;
           if (!spellReady || !editorHandle || !editorHandle.editor || editorHandle.editor.isEditable === false) {
             spellRender();
             return;
           }
           var ed = editorHandle.editor, doc = ed.state.doc, ignored = spellIgnoredSet();
-          doc.descendants(function (node, pos) {
+          doc.descendants(function (node, pos, parent) {
             if (!node.isText) return true;
             var skip = false;
             (node.marks || []).forEach(function (mk) {
               if (mk.type.name === 'code' || mk.type.name === 'link') skip = true;
             });
+            /* Build -119: text inside a template input is
+               never spellchecked — in a template the box's
+               text is a placeholder for someone else's words,
+               and in a document it is a fill-in still in
+               progress, where flagging a half-typed word is
+               noise. The treatment is the same in both: the
+               moment a box is committed (Tab), its text
+               becomes ordinary prose and is checked like any
+               other. Skipping by parentage (and by ancestor,
+               below) touches no offsets: every other text
+               node is scanned at its own document position,
+               so words after an input keep their true ranges. */
+            if (parent && parent.type && parent.type.name === 'templateInput') skip = true;
             if (!skip) {
               var $p = null;
               try { $p = doc.resolve(Math.min(pos + 1, pos + node.nodeSize - 1)); } catch (e) { $p = null; }
               if ($p) {
                 for (var d = 1; d <= $p.depth; d++) {
-                  if ($p.node(d).type.name === 'codeBlock') { skip = true; break; }
+                  var ancName = $p.node(d).type.name;
+                  if (ancName === 'codeBlock' || ancName === 'templateInput') { skip = true; break; }
                 }
               }
             }
@@ -21311,6 +21514,9 @@
           if (!layer) return;
           layer.innerHTML = '';
           if (!spellFlagged.length || !editorHandle || !editorHandle.editor) return;
+          /* Build -119: never paint one editor's ranges over
+             another editor's page (see spellPaintHandle). */
+          if (spellPaintHandle && spellPaintHandle !== editorHandle) return;
           var ed = editorHandle.editor, paper = layer.parentNode;
           var pr = paper.getBoundingClientRect();
           var cl = paper.clientLeft || 0, ct = paper.clientTop || 0;
@@ -21336,7 +21542,15 @@
         function spellQueueRepaint() {
           if (spellRepaintQueued) return;
           spellRepaintQueued = true;
-          requestAnimationFrame(function () { spellRepaintQueued = false; spellRender(); });
+          requestAnimationFrame(function () {
+            spellRepaintQueued = false;
+            /* Build -119: a layout repaint while the document
+               has changed since the last scan must rescan, not
+               re-measure the stale ranges — repainting those
+               was how a previous document's squiggles surfaced
+               over a freshly opened template. */
+            if (spellDirty) spellScanNow(); else spellRender();
+          });
         }
         /* Damerau distance (optimal string alignment: one
            adjacent transposition costs one edit — "recieve"
@@ -33983,6 +34197,70 @@
            or the editor already delivers (Copy) — listed so its
            hint and reference row exist, never intercepted. */
         function scClickBtn(el) { if (el) el.click(); }
+        /* Build -119: ⌘Enter / ⌘⇧Enter — the open-line pair
+           (Vim's o / O, in this app's chords). Insert ONE empty
+           paragraph below (⌘Enter) or above (⌘⇧Enter) the
+           block the caret sits in, WITHOUT splitting that
+           block at the caret — mid-line, line-start, and
+           line-end all behave the same — and land the caret
+           in the new blank line. One transaction, so one undo
+           step.
+           Which block: the caret's own textblock when its
+           parent takes a paragraph sibling in place (a
+           paragraph or heading in the document body, in a
+           table cell, or in a blockquote — a callout is a
+           blockquote here, so the blank line lands inside the
+           callout); a caret in a list item takes the whole
+           LIST as its block, so the blank paragraph lands
+           after / before the list rather than splitting it or
+           minting an empty item; any other caret (on a table,
+           a divider, a bare block) takes its top-level block.
+           The registry dispatcher owns the chords in the
+           capture phase, so the editor keymap's own Mod-Enter
+           (a hard break) never sees them; while Omnisearch is
+           open ⌘Enter keeps its open-in-new-tab meaning (the
+           dispatcher checks that context first — the two are
+           disjoint), and the callout / divider composers keep
+           their ⌘Enter commit while they are open. */
+        function folioInsertBlankLine(above) {
+          if (!editorHandle || !editorHandle.editor) return;
+          var ed = editorHandle.editor, st = ed.state, sel = st.selection;
+          if (!sel || !sel.$from) return;
+          var paraType = st.schema && st.schema.nodes ? st.schema.nodes.paragraph : null;
+          if (!paraType) return;
+          try {
+            var $pos = above ? sel.$from : sel.$to;
+            var insertPos = -1;
+            for (var d = $pos.depth; d >= 1; d--) {
+              var node = $pos.node(d);
+              var parent = d > 0 ? $pos.node(d - 1) : null;
+              var pn = parent && parent.type ? parent.type.name : '';
+              var nn = node && node.type ? node.type.name : '';
+              if (nn === 'bulletList' || nn === 'orderedList') { insertPos = above ? $pos.before(d) : $pos.after(d); break; }
+              if (node.isTextblock) {
+                if (pn === 'doc' || pn === 'tableCell' || pn === 'tableHeader' || pn === 'blockquote') {
+                  insertPos = above ? $pos.before(d) : $pos.after(d); break;
+                }
+                continue; /* listItem and other parents: keep ascending */
+              }
+              if (d === 1) { insertPos = above ? $pos.before(1) : $pos.after(1); break; }
+            }
+            if (insertPos < 0) {
+              if ($pos.depth < 1) return;
+              insertPos = above ? $pos.before(1) : $pos.after(1);
+            }
+            var tr = st.tr.insert(insertPos, paraType.create());
+            tr.scrollIntoView();
+            ed.view.dispatch(tr);
+            /* Land the caret in the new blank line as a bare
+               selection change after the insert — the pattern
+               the template insert uses: it adds no undo step
+               of its own, so the pair stays one ⌘Z. */
+            try { ed.chain().setTextSelection(insertPos + 1).run(); } catch (e) {}
+            try { ed.view.focus(); } catch (e) {}
+            refreshToolbar();
+          } catch (e) {}
+        }
         function scChain(fn) {
           if (!editorHandle) return;
           var chain = editorHandle.editor.chain().focus();
@@ -34346,6 +34624,23 @@
             run: function () { scChain(function (c) { c.toggleHeading({ level: 4 }).run(); }); } },
           { id: 'para', combo: 'mod+alt+0', hint: '⌘⌥0', group: 'Formatting', label: 'Body text',
             run: function () { scChain(function (c) { c.setParagraph().run(); }); } },
+          /* Build -119: the open-line pair — a blank paragraph
+             below / above the caret's block without splitting
+             it, caret landing in the blank line (the full
+             block rules live on folioInsertBlankLine). The
+             dispatcher's capture phase owns both chords, so
+             the editor keymap's Mod-Enter hard break never
+             fires for them; ⌘Enter's Omnisearch meaning (open
+             in new tab) is checked by the dispatcher before
+             the registry is consulted, so the two bindings
+             coexist in disjoint contexts, and the callout /
+             divider composers keep their ⌘Enter commit while
+             open for the same reason. Not field-safe: in the
+             title field ⌘Enter keeps focusing the editor. */
+          { id: 'blank-line-below', combo: 'mod+enter', hint: '⌘Enter', group: 'Formatting', label: 'Insert blank line below',
+            run: function () { folioInsertBlankLine(false); } },
+          { id: 'blank-line-above', combo: 'mod+shift+enter', hint: '⌘⇧Enter', group: 'Formatting', label: 'Insert blank line above',
+            run: function () { folioInsertBlankLine(true); } },
           { id: 'bullet', combo: 'mod+shift+8', hint: '⌘⇧8', group: 'Formatting', label: 'Bullet list',
             run: function () { scChain(function (c) { c.toggleBulletList().run(); }); } },
           { id: 'ordered', combo: 'mod+shift+7', hint: '⌘⇧7', group: 'Formatting', label: 'Numbered list',
@@ -35135,10 +35430,13 @@
              composer's commit — the same act as its footer's
              Insert callout button — from anywhere in the menu.
              Plain Enter keeps its per-item pick behavior (the
-             no-modifier branch above owns it), and the
-             registry has no ⌘Enter binding to defer to. The
-             chord is swallowed only when the composer actually
-             commits; anywhere else ⌘Enter passes through. */
+             no-modifier branch above owns it). Build -119: the
+             registry DOES own ⌘Enter now (the open-line pair,
+             blank-line-below/above in Formatting) — this check
+             runs first, so while a composer is open its commit
+             wins and the open-line pair applies everywhere
+             else; the chord is swallowed only when the
+             composer actually commits. */
           if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && ev.key === 'Enter') {
             var calloutPopEl2 = document.getElementById('calloutPop');
             if (calloutPopEl2 && !calloutPopEl2.hidden &&
