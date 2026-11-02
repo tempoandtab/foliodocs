@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-119" />
+    <meta name="folio-build" content="20261102-120" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4163,6 +4163,26 @@
         border: 1px solid var(--accent); border-radius: 999px; padding: 3px 9px;
       }
       .tpl-badge[hidden] { display: none; }
+      /* Build -120: the template TAB's own marker — a gilt
+         TEMPLATE segment at the head of the tab's vertical
+         name, visible at rest on the stack (not hover-only,
+         not just the title bar's pill), shrinking with the
+         name in the slim / sliver states. The tab's spine
+         also takes the accent gilt (tabRender sets --tab-lc
+         for template tabs). The Book carries the same tag
+         as a pill beside the row's name. */
+      .folio-tab-tpl-tag {
+        background: var(--accent); color: var(--accent-ink);
+        border-radius: 3px; padding: 4px 0;
+        font-size: 0.72em; font-weight: 800; letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .book-row-tpl-tag {
+        flex: 0 0 auto; font-size: 10px; font-weight: 700;
+        letter-spacing: 0.06em; text-transform: uppercase;
+        color: var(--accent); background: var(--accent-soft);
+        border: 1px solid var(--accent); border-radius: 999px; padding: 2px 7px;
+      }
       /* The mode-swapped buttons carry `hidden`, but their
          own display rules (.new-doc-btn / .tb-btn set
          inline-flex) would otherwise win over the attribute:
@@ -9237,6 +9257,16 @@
         var tplStore = { updated: 0, items: [] };
         var tplEditingId = null;
         var tplSession = null;
+        /* Build -120: one parked session PER template (the
+           doc tabs' tabSessions pattern) — switching between
+           template tabs, or away and back, keeps each
+           template's caret, scroll and undo stack. tplSession
+           still names the session on stage. folioTplJustLeft
+           is tplLeave's note to tabSwapEditorTo that the
+           container's scroll was the template's, not the
+           document's (see tplLeave). */
+        var tplSessions = {};
+        var folioTplJustLeft = false;
         var tplSaveTimer = null;
         var tplMenuTplId = null;
         /* Build -119: the editor scroll at the moment the
@@ -9520,8 +9550,7 @@
 
         /* ----- editing a template ----- */
         function tplSessionFor(t) {
-          if (tplSession && tplSession.tplId === t.id) return tplSession;
-          tplDestroySession();
+          if (tplSessions[t.id]) { tplSession = tplSessions[t.id]; return tplSession; }
           var mount = document.createElement('div');
           mount.className = 'doc-session tpl-session';
           mount.setAttribute('data-tpl-editor', '1');
@@ -9551,28 +9580,68 @@
           try { handle.editor.view.dom.setAttribute('spellcheck', 'false'); } catch (e) {}
           try { handle.editor.view.dom.setAttribute('autocomplete', 'off'); } catch (e) {}
           try { attachCodeCopy(mount, handle.editor); } catch (e) {}
-          tplSession = { tplId: t.id, mount: mount, handle: handle };
+          tplSession = { tplId: t.id, mount: mount, handle: handle, scroll: 0 };
+          tplSessions[t.id] = tplSession;
           return tplSession;
         }
-        function tplDestroySession() {
-          if (!tplSession) return;
-          try { if (tplSession.handle && tplSession.handle.destroy) tplSession.handle.destroy(); } catch (e) {}
-          if (tplSession.mount && tplSession.mount.parentElement) tplSession.mount.parentElement.removeChild(tplSession.mount);
-          tplSession = null;
+        function tplDestroySession(id) {
+          var s = id ? tplSessions[id] : tplSession;
+          if (!s) return;
+          try { if (s.handle && s.handle.destroy) s.handle.destroy(); } catch (e) {}
+          if (s.mount && s.mount.parentElement) s.mount.parentElement.removeChild(s.mount);
+          delete tplSessions[s.tplId];
+          if (tplSession === s) tplSession = null;
         }
         function tplOpen(id, focusEditor) {
           var t = tplById(id);
           if (!t || !window.FolioKit) return;
           closeTplMenu();
-          if (tplEditingId === id && tplSession) {
-            if (focusEditor !== false && window.innerWidth > 900) { try { tplSession.handle.focus(); } catch (e) {} }
+          /* Build -120: opening a template for editing ALWAYS
+             mints (or activates) its own TAB — it never swaps
+             into the active tab. The phantom swap it replaces
+             loaded the template into the active tab's stage
+             while that tab's record still named its document,
+             so the next tab switch re-rendered the tab from
+             its record and the document snapped back (and the
+             template session was discarded with it). Now the
+             template is a distinct tab kind ({kind:'template',
+             tplId, docId:'tpl:'+id}); the doc tab the user was
+             on keeps its parked session — undo stack, history,
+             scroll, caret — completely untouched, and switching
+             back to it is lossless. Edits made in the old
+             phantom state were never lost, and still are not:
+             the session's onUpdate writes straight back to the
+             template record (tplById) on every change. */
+          if (typeof folioTabsReady !== 'undefined' && folioTabsReady && typeof tabIndexOf === 'function') {
+            var tabId = 'tpl:' + id;
+            if (tabIndexOf(tabId) === -1) {
+              tabRecords.push({ docId: tabId, kind: 'template', tplId: id, group: null, nav: { stack: [tabId], idx: 0 } });
+            }
+            activateTab(tabId, focusEditor !== false);
+            return;
+          }
+          tplShowStage(id, focusEditor);
+        }
+        /* Put template id's parked session on stage — the
+           template tab's content swap, twin of tabSwapEditorTo
+           for documents: every other session, doc and template
+           alike, parks with its scroll, caret and undo stack
+           intact. */
+        function tplShowStage(id, focusEditor) {
+          var t = tplById(id);
+          if (!t || !window.FolioKit) return;
+          if (tplEditingId === id && tplSessions[id]) {
+            if (focusEditor !== false && window.innerWidth > 900) { try { tplSessions[id].handle.focus(); } catch (e) {} }
             return;
           }
           var s = tplSessionFor(t);
-          if (tabDisplayedId && tabSessions[tabDisplayedId]) tabSessions[tabDisplayedId].scroll = editorScroll.scrollTop;
+          if (tplEditingId && tplSessions[tplEditingId]) tplSessions[tplEditingId].scroll = editorScroll.scrollTop;
+          else if (tabDisplayedId && tabSessions[tabDisplayedId]) tabSessions[tabDisplayedId].scroll = editorScroll.scrollTop;
           Object.keys(tabSessions).forEach(function (k) { tabSessions[k].mount.style.display = 'none'; });
+          Object.keys(tplSessions).forEach(function (k) { tplSessions[k].mount.style.display = 'none'; });
           s.mount.style.display = '';
           editorHandle = s.handle;
+          tplSession = s;
           tplEditingId = id;
           document.getElementById('titleInput').value = t.name || 'Untitled template';
           fitTitleHeight();
@@ -9580,14 +9649,10 @@
           document.body.classList.add('tpl-editing');
           var badge = document.getElementById('tplBadge');
           if (badge) badge.hidden = false;
-          editorScroll.scrollTop = 0;
-          /* Build -119: the spellchecker's flagged ranges
-             belong to the document just left — drop them and
-             rescan for THIS template (openDoc does the same
-             via scheduleSpellScan on its swaps). Without it
-             the old ranges repainted over the template on the
-             next layout repaint, landing under unrelated words
-             and on empty lines. */
+          editorScroll.scrollTop = s.scroll || 0;
+          /* Build -119 (carried): the spellchecker's flagged
+             ranges belong to the view just left — drop them
+             and rescan for THIS template. */
           try { spellFlagged = []; spellRender(); } catch (e) {}
           try { scheduleSpellScan(); } catch (e) {}
           renderDocList();
@@ -9607,8 +9672,14 @@
            stands down instead (see the pull merge). */
         function tplLeave() {
           if (!tplEditingId) return;
+          var leaving = tplSessions[tplEditingId] || tplSession;
+          if (leaving) { leaving.scroll = editorScroll.scrollTop; leaving.mount.style.display = 'none'; }
           tplEditingId = null;
-          if (tplSession) tplSession.mount.style.display = 'none';
+          /* The container's scroll right now is the TEMPLATE's,
+             not the displayed document's: tabSwapEditorTo must
+             not park it into the document session it is about
+             to show (its guard reads this flag). */
+          folioTplJustLeft = true;
           document.body.classList.remove('tpl-editing');
           var badge = document.getElementById('tplBadge');
           if (badge) badge.hidden = true;
@@ -9659,18 +9730,29 @@
           pendingDeleteTplId = null;
         }
         function tplDelete(id) {
+          var tabId = 'tpl:' + id;
+          var hadTab = typeof tabIndexOf === 'function' && tabIndexOf(tabId) !== -1;
           var wasEditing = tplEditingId === id;
           tplStore.items = tplStore.items.filter(function (t) { return t.id !== id; });
           tplTouch();
           tplSave();
-          if (tplSession && tplSession.tplId === id) tplDestroySession();
-          if (wasEditing) {
+          /* Build -120: a deleted template's TAB closes through
+             the ordinary close path (neighbor activation comes
+             free when it was the active tab), its parked session
+             is destroyed, and it must not linger in the Reopen
+             stack or the MRU. */
+          if (hadTab && typeof closeTab === 'function') closeTab(tabId);
+          tplDestroySession(id);
+          if (typeof tabClosedStack !== 'undefined') tabClosedStack = tabClosedStack.filter(function (x) { return x !== tabId; });
+          if (typeof tabMru !== 'undefined') tabMru = tabMru.filter(function (x) { return x !== tabId; });
+          if (wasEditing && tplEditingId === id) {
+            /* No neighbor existed to take the stage. */
             tplEditingId = null;
             document.body.classList.remove('tpl-editing');
             var badge = document.getElementById('tplBadge');
             if (badge) badge.hidden = true;
             tplSyncInsertButtons();
-            openDoc(lib.currentId, false);
+            if (lib.currentId && tabDoc(lib.currentId)) { tabPendingFill = true; openDoc(lib.currentId, false); }
           }
           renderDocList();
         }
@@ -12838,6 +12920,29 @@
              up the next time it is shown through a real open). */
           if (tplEditingId) {
             if (folioSyncReopening) return;
+            /* Build -120: while a TEMPLATE tab holds the stage,
+               a plain open of a document must not land in (and
+               rename) the template's tab. A doc with its own tab
+               is jumped to; any other doc takes over the most
+               recent doc tab beneath the template, or a fresh
+               tab when none is open. A reopen of the document
+               behind the template keeps the old courtesy below:
+               tplLeave hands the stage back to its tab. */
+            if (folioTabsReady && typeof tabRecIsTpl === 'function' && tabRecIsTpl(tabRecord(tabActiveId))) {
+              if (tabIndexOf(id) !== -1) { activateTab(id, focusEditor); return; }
+              if (id !== lib.currentId) {
+                var homeTab = null;
+                for (var mi = 0; mi < tabMru.length && !homeTab; mi++) {
+                  var mrec = tabRecord(tabMru[mi]);
+                  if (mrec && !tabRecIsTpl(mrec)) homeTab = mrec;
+                }
+                if (!homeTab) {
+                  for (var ri2 = 0; ri2 < tabRecords.length && !homeTab; ri2++) if (!tabRecIsTpl(tabRecords[ri2])) homeTab = tabRecords[ri2];
+                }
+                if (homeTab) activateTab(homeTab.docId, false);
+                else { openDocInNewTab(id); return; }
+              }
+            }
             tplLeave();
           }
           /* File tabs (Phase 1): a document already open in
@@ -15132,29 +15237,30 @@
         function tabDoc(id) {
           return lib.docs.find(function (d) { return d.id === id; }) || null;
         }
-        /* Build -119: the label a tab SHOWS. While a template
-           is being edited it owns the stage in front of the
-           ACTIVE tab — the topbar names the template and the
-           paper shows its content — so the active tab's spine
-           (and its Book row) name the template too; every
-           other tab, and the active tab the moment the stage
-           hands back, names its document. Template renames
-           reach the spine through this one reader: both
-           rename doors (the title field and the sidebar
-           rename input) already end in renderDocList, which
-           re-renders the tabs from here, so the spine follows
-           a rename live instead of keeping the name the
-           template had when it was opened (the reported
-           desync: sidebar and topbar renamed, tab didn't). */
+        /* Build -120: template tabs are a distinct tab KIND.
+           A template record is { docId:'tpl:'+tplId,
+           kind:'template', tplId, group:null, nav } — docId
+           stays the tab's unique key everywhere the stack
+           already keys by it (index, MRU, hover, drag, the
+           Book), while kind/tplId say what it edits. Template
+           tabs are never filed in groups and never enter a
+           workspace's saved open set (tabSerializeSet). */
+        function tabIsTplId(id) { return typeof id === 'string' && id.indexOf('tpl:') === 0; }
+        function tabTplIdOf(tabId) { return tabIsTplId(tabId) ? tabId.slice(4) : null; }
+        function tabRecIsTpl(r) { return !!(r && tabIsTplId(r.docId)); }
+        /* The label a tab SHOWS, read live from its record's
+           owner: a document tab names its document; a template
+           tab names its TEMPLATE (read from the template store
+           on every render, so a rename through either door —
+           the title field, the sidebar rename — reaches the
+           spine and the Book live, the -119 propagation kept). */
         function tabDisplayTitle(r) {
-          var d = r ? tabDoc(r.docId) : null;
-          var t = d ? (d.title || 'Untitled') : 'Untitled';
-          if (r && typeof tplEditingId !== 'undefined' && tplEditingId &&
-              r.docId === tabActiveId && typeof tplById === 'function') {
-            var tpl = tplById(tplEditingId);
-            if (tpl) t = tpl.name || 'Untitled template';
+          if (tabRecIsTpl(r)) {
+            var tpl = typeof tplById === 'function' ? tplById(tabTplIdOf(r.docId)) : null;
+            return tpl ? (tpl.name || 'Untitled template') : 'Untitled template';
           }
-          return t;
+          var d = r ? tabDoc(r.docId) : null;
+          return d ? (d.title || 'Untitled') : 'Untitled';
         }
         function tabIndexOf(id) {
           for (var i = 0; i < tabRecords.length; i++) if (tabRecords[i].docId === id) return i;
@@ -15260,7 +15366,7 @@
         function wsSyncMembership() {
           var def = wsDef();
           var m = {};
-          tabRecords.forEach(function (r) { if (r.group && wsGroupById(r.group)) m[r.docId] = r.group; });
+          tabRecords.forEach(function (r) { if (!tabRecIsTpl(r) && r.group && wsGroupById(r.group)) m[r.docId] = r.group; });
           if (JSON.stringify(def.membership || {}) !== JSON.stringify(m)) {
             def.membership = m;
             wsDefsSave();
@@ -15273,6 +15379,7 @@
         function setTabGroup(docId, gid) {
           var r = tabRecord(docId);
           if (!r) return;
+          if (tabRecIsTpl(r)) return; /* Build -120: template tabs never join groups. */
           if (gid && !wsGroupById(gid)) gid = null;
           /* Filing the ACTIVE tab into a collapsed group
              would file the divider being read: expand the
@@ -15692,9 +15799,13 @@
         }
         function tabSaveNav() {
           var r = tabRecord(tabActiveId);
-          if (r) r.nav = { stack: navStack.slice(), idx: navIdx };
+          /* A template tab owns no doc history: the global
+             navStack under it is parked doc state (or its own
+             placeholder), never the template's to overwrite. */
+          if (r && !tabRecIsTpl(r)) r.nav = { stack: navStack.slice(), idx: navIdx };
         }
         function tabLoadNav(r) {
+          if (tabRecIsTpl(r)) { navStack = [r.docId]; navIdx = 0; navPaint(); return; }
           var st = r.nav && Array.isArray(r.nav.stack) ? r.nav.stack.filter(function (x) { return navDocExists(x); }) : [];
           if (!st.length) st = [r.docId];
           navStack = st;
@@ -15708,9 +15819,22 @@
           if (i !== -1) tabMru.splice(i, 1);
           tabMru.unshift(id);
         }
+        /* The serialized active pointer when a TEMPLATE tab is
+           the live one: the most recent DOC tab (the stage a
+           restore should land on), or null. */
+        function tabSerializeDocActive() {
+          for (var i = 0; i < tabMru.length; i++) { var r = tabRecord(tabMru[i]); if (r && !tabRecIsTpl(r)) return r.docId; }
+          var dr = tabRecords.filter(function (r) { return !tabRecIsTpl(r); });
+          return dr.length ? dr[0].docId : null;
+        }
         function tabSerializeSet() {
           return {
-            tabs: tabRecords.map(function (r) {
+            /* Build -120: template tabs are NOT recorded in a
+               workspace's open set — a restore never brings
+               one back (a workspace switch closes them like
+               doc tabs; their edits autosave, so nothing is
+               lost). */
+            tabs: tabRecords.filter(function (r) { return !tabRecIsTpl(r); }).map(function (r) {
               return {
                 docId: r.docId, group: r.group || null, nav: r.nav,
                 /* Phase 2: the tab's reference — doc id, the
@@ -15720,7 +15844,7 @@
                 refScroll: typeof r.refScroll === 'number' ? r.refScroll : 0,
               };
             }),
-            active: tabActiveId,
+            active: tabIsTplId(tabActiveId) ? tabSerializeDocActive() : tabActiveId,
             closed: tabClosedStack.slice(0, 25),
             /* Phase 3: the active workspace's collapse states
                ride its per-device open set. */
@@ -15796,8 +15920,18 @@
           var doc = tabDoc(id);
           if (!doc) return;
           var sameDoc = id === tabDisplayedId;
-          if (tabDisplayedId && tabSessions[tabDisplayedId]) {
+          /* Build -120: if the stage was just handed back from
+             a template (tplLeave), the container's scroll is
+             the template's — it was already parked into the
+             template's own session there, and must not be
+             written over this document session's saved place. */
+          if (typeof folioTplJustLeft !== 'undefined' && folioTplJustLeft) {
+            folioTplJustLeft = false;
+          } else if (tabDisplayedId && tabSessions[tabDisplayedId]) {
             tabSessions[tabDisplayedId].scroll = editorScroll.scrollTop;
+          }
+          if (typeof tplSessions !== 'undefined') {
+            Object.keys(tplSessions).forEach(function (k) { tplSessions[k].mount.style.display = 'none'; });
           }
           var s = tabSessionFor(doc, true);
           if (!s) return;
@@ -15856,6 +15990,27 @@
         function activateTab(id, focus) {
           var r = tabRecord(id);
           if (!r) return;
+          /* Build -120: a template tab activates its TEMPLATE
+             session, never openDoc — lib.currentId, the doc
+             nav, and the parked doc session beneath are not
+             touched, so returning to that doc tab is lossless
+             (its session was parked, never swapped into). */
+          if (tabRecIsTpl(r)) {
+            if (id === tabActiveId && typeof tplEditingId !== 'undefined' && tplEditingId === r.tplId) {
+              tabEnsureVisible(id);
+              if (focus) tabFocusEditor();
+              return;
+            }
+            tabSaveNav();
+            tabActiveId = id;
+            tabLoadNav(r);
+            tabMruTouch(id);
+            tplShowStage(r.tplId, focus !== false);
+            tabPersist();
+            tabRender();
+            tabEnsureVisible(id);
+            return;
+          }
           /* Phase 3: a filed tab reached from any door (sidebar,
              Omnisearch, wikilink, the Book) unfolds its group
              first — activation always lands on a visible tab. */
@@ -15902,6 +16057,24 @@
            openDoc itself). Keep the active record pointing at
            the document now shown. */
         function tabAfterPlainOpen(id) {
+          /* Build -120: a plain open that lands while a
+             TEMPLATE tab is active files the document under
+             its OWN record — the template record is never
+             renamed into a document (the -86 rename path
+             below is for doc records only). */
+          var activeRec0 = tabRecord(tabActiveId);
+          if (activeRec0 && tabRecIsTpl(activeRec0) && !tabPendingFill) {
+            if (!tabRecord(id)) {
+              tabRecords.push({ docId: id, group: (function () { var mg = wsDef().membership && wsDef().membership[id]; return mg && wsGroupById(mg) ? mg : null; })(), nav: { stack: navStack.slice(), idx: navIdx } });
+            }
+            tabActiveId = id;
+            tabSaveNav();
+            tabMruTouch(id);
+            tabPersist();
+            tabRender();
+            tabEnsureVisible(id);
+            return;
+          }
           if (tabPendingFill) {
             tabPendingFill = false;
             if (tabIndexOf(id) === -1) tabRecords.push({ docId: id, group: (function () { var mg = wsDef().membership && wsDef().membership[id]; return mg && wsGroupById(mg) ? mg : null; })(), nav: { stack: navStack.slice(), idx: navIdx } });
@@ -15956,7 +16129,12 @@
           closeTabMenu();
           var wasActive = id === tabActiveId;
           tabRecords.splice(i, 1);
-          if (tabDoc(id)) {
+          /* Build -120: a template tab joins the Reopen stack
+             as its 'tpl:' id and reopens AS a template tab
+             (reopenClosedTab); within a session only — the
+             workspace restore filter keeps it out of saved
+             sets, like the tab itself. */
+          if (tabDoc(id) || (tabIsTplId(id) && typeof tplById === 'function' && tplById(tabTplIdOf(id)))) {
             tabClosedStack = tabClosedStack.filter(function (x) { return x !== id; });
             tabClosedStack.unshift(id);
           }
@@ -15965,6 +16143,13 @@
             tabActiveId = null;
             var next = tabRecords[Math.min(i, tabRecords.length - 1)];
             if (next) { tabPersist(); activateTab(next.docId, true); return; }
+            if (tabIsTplId(id) && typeof tplEditingId !== 'undefined' && tplEditingId) {
+              /* The last tab was the template's: hand the stage
+                 back to the current document, which fills a
+                 fresh tab through tabPendingFill. */
+              tplLeave();
+              if (lib.currentId && tabDoc(lib.currentId)) { tabPendingFill = true; openDoc(lib.currentId, false); return; }
+            }
           }
           tabPersist();
           tabRender();
@@ -15974,7 +16159,7 @@
           var keep = [];
           tabRecords.forEach(function (r) {
             if (r.docId === id) keep.push(r);
-            else if (tabDoc(r.docId)) {
+            else if (tabDoc(r.docId) || tabRecIsTpl(r)) {
               tabClosedStack = tabClosedStack.filter(function (x) { return x !== r.docId; });
               tabClosedStack.unshift(r.docId);
             }
@@ -15987,7 +16172,7 @@
         }
         function closeAllTabs() {
           tabRecords.slice().forEach(function (r) {
-            if (tabDoc(r.docId)) {
+            if (tabDoc(r.docId) || tabRecIsTpl(r)) {
               tabClosedStack = tabClosedStack.filter(function (x) { return x !== r.docId; });
               tabClosedStack.unshift(r.docId);
             }
@@ -15997,10 +16182,21 @@
           tabMru = [];
           tabPersist();
           tabRender();
+          /* Build -120: if a template held the stage, hand it
+             back — its tab is gone with the rest. */
+          if (typeof tplEditingId !== 'undefined' && tplEditingId) {
+            tplLeave();
+            if (lib.currentId && tabDoc(lib.currentId)) { tabPendingFill = true; openDoc(lib.currentId, false); }
+          }
         }
         function reopenClosedTab() {
           while (tabClosedStack.length) {
             var id = tabClosedStack.shift();
+            if (tabIsTplId(id)) {
+              var rtpl = typeof tplById === 'function' ? tplById(tabTplIdOf(id)) : null;
+              if (rtpl && tabIndexOf(id) === -1) { tplOpen(rtpl.id); return; }
+              continue;
+            }
             if (tabDoc(id) && tabIndexOf(id) === -1) { openDocInNewTab(id); return; }
           }
           tabPersist();
@@ -16307,7 +16503,26 @@
             });
           } catch (e) {}
         }
+        /* Build -120: a template tab's menu — no reference or
+           group doors (a template is neither a document nor
+           groupable); just the close doors, in the same menu
+           surface with the same native-menu resign. */
+        function openTplTabMenu(id, x, y) {
+          var tpl = typeof tplById === 'function' ? tplById(tabTplIdOf(id)) : null;
+          if (!tpl) return;
+          tabResignTextSession();
+          if (tabMenuFor === id && tabMenuEl.classList.contains('open')) { closeTabMenu(); return; }
+          closeDocMenu(); closeFolderMenu(); closeMoveMenu(); closeViewMenu(); closeTopMenu();
+          tabMenuFor = id;
+          tabHoverPinSet({ docId: id });
+          tabMenuEl.innerHTML = '';
+          tabMenuHead((tpl.name || 'Untitled template') + ' · Template');
+          tabMenuItem('Close tab', 'danger', function () { closeTab(id); });
+          tabMenuItem('Close other tabs', 'danger', function () { closeOtherTabs(id); });
+          tabMenuShow(x, y);
+        }
         function openTabMenu(id, x, y) {
+          if (tabIsTplId(id)) { openTplTabMenu(id, x, y); return; }
           if (!tabDoc(id)) return;
           /* -82: resign BEFORE the toggle check and before
              anything renders, so no invocation path — tab
@@ -16956,18 +17171,20 @@
               return;
             }
             var r = it.rec;
-            var d = tabDoc(r.docId);
-            if (!d) return;
+            var isTplTab = tabRecIsTpl(r);
+            var d = isTplTab ? null : tabDoc(r.docId);
+            if (!isTplTab && !d) return;
             var isActive = r.docId === tabActiveId;
             var rank = isActive ? 0 : nextRank++;
             var effRank = Math.min(rank, 6);
             var el = document.createElement('div');
-            el.className = 'folio-tab' + (isActive ? ' active' : '');
+            el.className = 'folio-tab' + (isActive ? ' active' : '') + (isTplTab ? ' is-template' : '');
             el.setAttribute('role', 'tab');
             el.setAttribute('aria-selected', isActive ? 'true' : 'false');
-            el.setAttribute('aria-label', tabDisplayTitle(r));
+            el.setAttribute('aria-label', isTplTab ? 'Template: ' + tabDisplayTitle(r) : tabDisplayTitle(r));
             el.setAttribute('data-doc-id', r.docId);
-            el.setAttribute('data-tip', tabDisplayTitle(r));
+            el.setAttribute('data-tip', isTplTab ? 'Template · ' + tabDisplayTitle(r) : tabDisplayTitle(r));
+            if (isTplTab) el.setAttribute('data-tpl-tab', tabTplIdOf(r.docId));
             /* Build -108: a member of an EXPANDED group is
                marked .is-grouped, whose --tab-strip override
                (see the Stack CSS) clamps its hover stretch
@@ -17024,9 +17241,28 @@
                fallback is deliberately NOT used here. */
             var tabFolder = d && d.folderId ? folderById(d.folderId) : null;
             if (tabFolder && tabFolder.color) el.style.setProperty('--tab-lc', tabFolder.color);
+            /* Build -120: a template tab's spine is the accent
+               gilt in every theme — the stack-side twin of its
+               TEMPLATE tag and the title bar's gilt pill. */
+            if (isTplTab) el.style.setProperty('--tab-lc', 'var(--accent)');
             var nm = document.createElement('span');
             nm.className = 'folio-tab-name';
-            nm.textContent = tabDisplayTitle(r);
+            if (isTplTab) {
+              /* Build -120: the visible-at-rest template
+                 marker — a gilt TEMPLATE segment leading the
+                 tab's vertical name (see .folio-tab-tpl-tag),
+                 on the tab face itself, in every stack state
+                 that shows the name at all. */
+              var tplTag = document.createElement('span');
+              tplTag.className = 'folio-tab-tpl-tag';
+              tplTag.textContent = 'Template';
+              nm.appendChild(tplTag);
+              var tplNm = document.createElement('span');
+              tplNm.textContent = tabDisplayTitle(r);
+              nm.appendChild(tplNm);
+            } else {
+              nm.textContent = tabDisplayTitle(r);
+            }
             el.appendChild(nm);
             var x = document.createElement('button');
             x.type = 'button';
@@ -17210,7 +17446,7 @@
           });
           var gapsTotal = gaps.reduce(function (a, b) { return a + b; }, 0);
           tabLayoutCache.forEach(function (c) {
-            c.vh = tabNaturalHeight(c.ghead ? c.unitLabel : (c.rec ? tabDisplayTitle(c.rec) : ''));
+            c.vh = tabNaturalHeight(c.ghead ? c.unitLabel : (c.rec ? (tabRecIsTpl(c.rec) ? 'Template ' + tabDisplayTitle(c.rec) : tabDisplayTitle(c.rec)) : ''));
             sum += c.vh;
             if (c.vh < minNat) minNat = c.vh;
           });
@@ -18333,7 +18569,7 @@
                   });
                 }
                 rest.splice(k, 0, rec);
-                rec.group = newGroup;
+                rec.group = tabRecIsTpl(rec) ? null : newGroup; /* Build -120: template tabs never join groups. */
                 tabRecords = rest;
                 wsSyncMembership();
                 tabSuppressClick = true;
@@ -18420,7 +18656,8 @@
           return bookListEl ? Array.prototype.slice.call(bookListEl.querySelectorAll('.book-row')) : [];
         }
         function bookMakeRow(r) {
-          var d = tabDoc(r.docId);
+          var isTplRow = tabRecIsTpl(r);
+          var d = isTplRow ? null : tabDoc(r.docId);
           var row = document.createElement('div');
           row.className = 'book-row' + (r.docId === tabActiveId ? ' active' : '') + (r.group && wsGroupById(r.group) ? ' grouped' : '');
           row.setAttribute('role', 'button');
@@ -18428,12 +18665,18 @@
           row.setAttribute('data-doc-id', r.docId);
           var stripe = document.createElement('span');
           stripe.className = 'book-row-stripe';
-          stripe.style.background = tabFolderColor(d);
+          stripe.style.background = isTplRow ? 'var(--accent)' : tabFolderColor(d);
           row.appendChild(stripe);
           var nm = document.createElement('span');
           nm.className = 'book-row-name';
           nm.textContent = tabDisplayTitle(r);
           row.appendChild(nm);
+          if (isTplRow) {
+            var btag = document.createElement('span');
+            btag.className = 'book-row-tpl-tag';
+            btag.textContent = 'Template';
+            row.appendChild(btag);
+          }
           if (r.docId === tabActiveId) {
             var here = document.createElement('span');
             here.className = 'book-row-here';
@@ -18535,8 +18778,8 @@
                filed ones included (spec §5: filed ≠ closed,
                and the Book still lists them). */
             tabRecords.forEach(function (r) {
-              var d = tabDoc(r.docId);
-              if (!d || !matches(d)) return;
+              if (!tabRecIsTpl(r) && !tabDoc(r.docId)) return;
+              if (q && tabDisplayTitle(r).toLowerCase().indexOf(q) === -1) return;
               shown++;
               bookListEl.appendChild(bookMakeRow(r));
             });
@@ -18548,7 +18791,7 @@
             var headedGroups = {};
             tabRecords.forEach(function (r) {
               var d = tabDoc(r.docId);
-              if (!d) return;
+              if (!tabRecIsTpl(r) && !d) return;
               var g = r.group && wsGroupById(r.group) ? wsGroupById(r.group) : null;
               if (g && !headedGroups[g.id]) {
                 headedGroups[g.id] = 1;
@@ -18790,6 +19033,13 @@
            too — a genuine navigation still starts at the top. */
         var folioReturnScroll = null;
         function folioSnapshotReturnScroll() {
+          /* Build -120: while a template tab holds the stage,
+             the scroll is the TEMPLATE session's — park it
+             there, never into the document behind it. */
+          if (typeof tplEditingId !== 'undefined' && tplEditingId && typeof tplSessions !== 'undefined' && tplSessions[tplEditingId]) {
+            if (editorScroll) tplSessions[tplEditingId].scroll = editorScroll.scrollTop || 0;
+            return;
+          }
           if (!editorScroll || !tabDisplayedId) return;
           var top = editorScroll.scrollTop || 0;
           folioReturnScroll = { docId: tabDisplayedId, top: top };
@@ -25183,8 +25433,16 @@
         function clearTitlePhoneDisplay() {
           titleInput.style.removeProperty('font-size');
           if (titleShownTruncated) {
-            var doc = currentDoc();
-            if (doc) titleInput.value = doc.title;
+            /* Build -120: while a template tab holds the stage
+               the field names the TEMPLATE, not the document
+               behind it (see fitTitlePhone). */
+            if (typeof tplEditingId !== 'undefined' && tplEditingId && typeof tplById === 'function') {
+              var ctpl = tplById(tplEditingId);
+              if (ctpl) titleInput.value = ctpl.name || 'Untitled template';
+            } else {
+              var doc = currentDoc();
+              if (doc) titleInput.value = doc.title;
+            }
             titleShownTruncated = false;
           }
         }
@@ -25194,8 +25452,19 @@
             clearTitlePhoneDisplay();
             return;
           }
-          var doc = currentDoc();
-          var full = doc ? doc.title : titleInput.value;
+          /* Build -120: the name the phone field must fit is
+             the TEMPLATE's while its tab holds the stage —
+             reading currentDoc() here painted the document
+             behind the template over the field at phone
+             widths while the page showed the template. */
+          var full = titleInput.value;
+          if (typeof tplEditingId !== 'undefined' && tplEditingId && typeof tplById === 'function') {
+            var ftpl = tplById(tplEditingId);
+            if (ftpl) full = ftpl.name || 'Untitled template';
+          } else {
+            var doc = currentDoc();
+            full = doc ? doc.title : titleInput.value;
+          }
           /* The text box: the field's width minus its own
              horizontal padding (8px a side), plus a hair of
              safety so a borderline fit never clips a glyph. */
