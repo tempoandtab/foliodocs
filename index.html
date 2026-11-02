@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-120" />
+    <meta name="folio-build" content="20261102-121" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4170,13 +4170,66 @@
          name in the slim / sliver states. The tab's spine
          also takes the accent gilt (tabRender sets --tab-lc
          for template tabs). The Book carries the same tag
-         as a pill beside the row's name. */
-      .folio-tab-tpl-tag {
+         as a pill beside the row's name.
+         Build -121 (supersedes the -120 placement): the
+         marker leaves the name and becomes a SPINE BAND —
+         a slim gilt strip flush along the tab's LEFT EDGE,
+         spanning the tab's full height, with TEMPLATE
+         written vertically inside it in the tab names' own
+         register (vertical-rl, rotated 180deg, so it reads
+         bottom-to-top like every name on the stack). The
+         band is a child of the tab element itself, so it
+         moves, stretches, compresses and reorders with the
+         tab by construction — never a separate floating
+         element — and the tab's name reclaims the full
+         spine, offset right of the band by the tab's
+         padding-left. tabLayout keeps measuring a template
+         tab's natural height from 'Template ' + title, so
+         the band's lettering always has room at rest.
+         Hover: the band holds the leftmost column of the
+         stretched tab, so a template tab's x / ... buttons
+         seat just RIGHT of the band inside the revealed
+         strip (below) instead of on the gilt. Where the
+         tab is too narrow for band + name (deep ranks,
+         tabLayout adds .tpl-band-bare under 28px), the band
+         stands down and the tab falls back to its accent
+         gilt spine (tabRender's --tab-lc) with the buttons
+         back at their ordinary inset; in slivers the band
+         stays but its lettering hides — a <26px tab cannot
+         hold 8 letters. The Book's pill and the title bar's
+         badge are unchanged. */
+      .folio-tab.is-template { --tpl-band-w: 17px; padding-left: var(--tpl-band-w); }
+      .tab-rail.slim .folio-tab.is-template { --tpl-band-w: 14px; }
+      .folio-tab-tpl-band {
+        position: absolute; left: 0; top: 0; bottom: 0;
+        width: var(--tpl-band-w, 17px);
         background: var(--accent); color: var(--accent-ink);
-        border-radius: 3px; padding: 4px 0;
-        font-size: 0.72em; font-weight: 800; letter-spacing: 0.1em;
-        text-transform: uppercase;
+        border-radius: 7px 0 0 7px;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; pointer-events: none;
       }
+      .folio-tab-tpl-band-txt {
+        writing-mode: vertical-rl; transform: rotate(180deg);
+        font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+        text-transform: uppercase; white-space: nowrap;
+        max-height: calc(100% - 10px); overflow: hidden;
+      }
+      .tab-rail.slim .folio-tab-tpl-band-txt { font-size: 8px; letter-spacing: 0.1em; }
+      .folio-tab.sliver .folio-tab-tpl-band-txt { display: none; }
+      .folio-tab.is-template.tpl-band-bare { padding-left: 0; }
+      .folio-tab.is-template.tpl-band-bare .folio-tab-tpl-band { display: none; }
+      /* Build -121: a template tab's hover x / ... sit just
+         right of the spine band, inside the revealed strip,
+         clear of the gilt and of the name column behind
+         them (they ride the top / bottom corners, the name
+         rides the middle). Bare tabs (band stood down) take
+         the ordinary insets back. */
+      .tab-rail .folio-tab.is-template .folio-tab-x,
+      .tab-rail .folio-tab.is-template .folio-tab-menu { left: calc(var(--tpl-band-w, 17px) + 3px); }
+      .tab-rail .folio-tab.is-template.tpl-band-bare .folio-tab-x,
+      .tab-rail .folio-tab.is-template.tpl-band-bare .folio-tab-menu { left: 4px; }
+      .tab-rail.slim .folio-tab.is-template.tpl-band-bare .folio-tab-x,
+      .tab-rail.slim .folio-tab.is-template.tpl-band-bare .folio-tab-menu { left: 3px; }
       .book-row-tpl-tag {
         flex: 0 0 auto; font-size: 10px; font-weight: 700;
         letter-spacing: 0.06em; text-transform: uppercase;
@@ -17245,24 +17298,28 @@
                gilt in every theme — the stack-side twin of its
                TEMPLATE tag and the title bar's gilt pill. */
             if (isTplTab) el.style.setProperty('--tab-lc', 'var(--accent)');
+            if (isTplTab) {
+              /* Build -121: the template marker is a gilt
+                 SPINE BAND on the tab's own left edge, full
+                 height, TEMPLATE lettered vertically inside
+                 it (see .folio-tab-tpl-band) — a child of the
+                 tab element, so it rides the tab through
+                 stretch, compression and reorder. The -120
+                 on-face segment inside the name is removed:
+                 the name below is the template's title alone,
+                 over the full spine. */
+              var tplBand = document.createElement('span');
+              tplBand.className = 'folio-tab-tpl-band';
+              tplBand.setAttribute('aria-hidden', 'true');
+              var tplBandTxt = document.createElement('span');
+              tplBandTxt.className = 'folio-tab-tpl-band-txt';
+              tplBandTxt.textContent = 'Template';
+              tplBand.appendChild(tplBandTxt);
+              el.appendChild(tplBand);
+            }
             var nm = document.createElement('span');
             nm.className = 'folio-tab-name';
-            if (isTplTab) {
-              /* Build -120: the visible-at-rest template
-                 marker — a gilt TEMPLATE segment leading the
-                 tab's vertical name (see .folio-tab-tpl-tag),
-                 on the tab face itself, in every stack state
-                 that shows the name at all. */
-              var tplTag = document.createElement('span');
-              tplTag.className = 'folio-tab-tpl-tag';
-              tplTag.textContent = 'Template';
-              nm.appendChild(tplTag);
-              var tplNm = document.createElement('span');
-              tplNm.textContent = tabDisplayTitle(r);
-              nm.appendChild(tplNm);
-            } else {
-              nm.textContent = tabDisplayTitle(r);
-            }
+            nm.textContent = tabDisplayTitle(r);
             el.appendChild(nm);
             var x = document.createElement('button');
             x.type = 'button';
@@ -17532,8 +17589,16 @@
                edge on its own sheet — exactly like a document
                tab. (Build -104's wider group-head geometry is
                retired with the head itself.) */
+            var tabW = Math.max(16, rightEdge - gutter);
             c.el.style.setProperty('--tab-l', gutter + 'px');
-            c.el.style.setProperty('--tab-w', Math.max(16, rightEdge - gutter) + 'px');
+            c.el.style.setProperty('--tab-w', tabW + 'px');
+            /* Build -121: a template tab narrower than 28px
+               (deep ranks, either rail) has no room for the
+               spine band AND its name — the band stands down
+               (.tpl-band-bare) and the tab keeps its accent
+               gilt spine alone. Recomputed every layout, so a
+               tab that re-ranks shallower regains its band. */
+            if (c.rec && tabRecIsTpl(c.rec)) c.el.classList.toggle('tpl-band-bare', tabW < 28);
             /* Build -93: the tab's sheet, in the scroll
                content behind the paper — offset left by the
                same per-rank step its tab's right edge takes
