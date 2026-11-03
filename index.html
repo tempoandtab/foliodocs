@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-125" />
+    <meta name="folio-build" content="20261102-127" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1875,6 +1875,18 @@
         font-variant-numeric: tabular-nums;
       }
       .fmt-recent-swatches .fmt-swatch { width: 32px; height: 32px; border-radius: 8px; font-size: 14px; }
+      /* Build -126: a hairline ring for any color chip in this
+         popover whose color sits close to the popover's own
+         surface (the script adds .fmt-swatch-ring when the
+         color's distance from the effective surface is small),
+         so a near-surface color stays distinguishable as a
+         chip instead of melting into the popover. The ring is
+         chrome only — it never changes the color a tap
+         applies. A chip that is also .on keeps the solid
+         selection ring. */
+      .fmt-swatch-ring { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ink) 55%, transparent); }
+      .fmt-swatch.fmt-swatch-ring.on { box-shadow: inset 0 0 0 2px var(--ink); }
+      .fmt-theme-chip.fmt-swatch-ring { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ink) 55%, transparent); }
 
       /* ---------------- Wiki-link composer ----------------
          One popover, two fields — Link (the target, with the
@@ -14924,6 +14936,133 @@
             refreshToolbar();
           });
         }
+        /* ---------------- Build -126: theme-adaptive preset palettes ----
+           The preset swatches in this popover (TEXT_COLORS and
+           HL_COLORS) are tuned for light paper: on a dark theme
+           the text colors read as dark smudges on the dark page,
+           and the pastel highlights would leave the theme's
+           light body ink unreadable over them. Following the
+           build -111 pattern, adaptation is a property of
+           RESOLUTION, not storage: TEXT_COLORS / HL_COLORS stay
+           pristine forever, and each swatch's DISPLAYED hex and
+           APPLIED hex are both derived for the active theme at
+           the moment the picker renders — the chip shows exactly
+           what a tap applies (the same WYSIWYG contract as the
+           -123 Theme colors). Switching themes re-resolves;
+           A → B → A is identical; nothing is ever written back.
+           Scope: ONLY the preset palettes adapt. Theme colors
+           are already resolved per theme, Recently used holds
+           the user's literal picks, and the custom in-page
+           picker is exact by definition — none of those pass
+           through here. (The divider popover's separate use of
+           TEXT_COLORS is likewise untouched: it keeps the
+           pristine values.)
+           TEXT rule: the -111 recipe itself — tsAdaptHeadingColor
+           against the theme's effective page surface (its
+           pal-surface overlay when set, else the shipped
+           surface): lightness only, hue and saturation
+           preserved, stepping away from the surface until the
+           color clears the 4.5 WCAG floor (TS_CONTRAST_FLOOR).
+           A color already clearing it renders pristine, so on
+           light themes the palette comes out unchanged wherever
+           its colors already pass.
+           HIGHLIGHT rule (different geometry — a highlight is a
+           background): the resolved hex must satisfy two
+           constraints under the active theme — (a) it reads as
+           a visible patch against the page surface, measured as
+           an RGB distance of at least FMT_HL_MIN_DIST from the
+           surface (a pastel's visibility on light paper is
+           chroma distance, not luminance contrast: pale yellow
+           on cream has a contrast ratio near 1.1 yet reads
+           clearly, while orange on Binding's parchment, distance
+           ~27, genuinely melts in — distance is the honest
+           measure, and the app's own shipped dark highlight
+           variants sit at distance 67–113 from Midnight's
+           surface); and (b) the theme's effective body ink stays
+           readable over it at the same 4.5 floor. Lightness
+           steps (hue and saturation preserved, 0.02 at a time,
+           nearest change first, darker step first on a tie) in
+           whichever direction satisfies both — on dark themes
+           that yields deep saturated tints the light ink reads
+           over. If no step satisfies both, the fallback keeps
+           the candidate with the best ink contrast (ink
+           readability wins), then the best distance.
+           Verified at build time across all 11 themes × both
+           palettes: every text swatch resolves to ≥ 4.5 against
+           its surface and every highlight satisfies both
+           constraints — no exceptions. Light-theme highlights
+           stay pristine except pink on Sepia / Binding /
+           Meadow and orange on Binding (the genuinely
+           near-surface pastels, nudged one or two steps). */
+        var FMT_HL_MIN_DIST = 50;
+        function fmtContrastFloor() {
+          return (typeof TS_CONTRAST_FLOOR === 'number') ? TS_CONTRAST_FLOOR : 4.5;
+        }
+        /* The page surface the document actually renders on for
+           the active theme — the same effective surface -111
+           adapts against, palette overlay included. */
+        function fmtSurfaceHex() {
+          try { return toHex6(tsEffectiveSurfaceIn(tsStore(), themeId)); } catch (e) {}
+          var t = currentTheme();
+          return t ? toHex6(t.surface) : '#ffffff';
+        }
+        /* The active theme's effective body ink (pal-ink,
+           resolved the way fmtThemeColorEntries resolves it). */
+        function fmtInkHex() {
+          try {
+            var st = tsStore();
+            var v = tsResolvedIn(st, themeId, 'pal-ink', {});
+            var c = (v && v.color) || (tsShipped(themeId, 'pal-ink') || {}).color;
+            if (c) return toHex6(c);
+          } catch (e) {}
+          return '#22261f';
+        }
+        function fmtRgbDist(a, b) {
+          var x = tsHexToRgb(a), y = tsHexToRgb(b);
+          var dr = x.r - y.r, dg = x.g - y.g, db = x.b - y.b;
+          return Math.sqrt(dr * dr + dg * dg + db * db);
+        }
+        function fmtAdaptTextHex(hex) {
+          var pristine = toHex6(hex);
+          try { return toHex6(tsAdaptHeadingColor(pristine, themeId)); } catch (e) { return pristine; }
+        }
+        function fmtHlSatisfies(hex, surf, ink) {
+          return tsContrastRatio(ink, hex) >= fmtContrastFloor() && fmtRgbDist(hex, surf) >= FMT_HL_MIN_DIST;
+        }
+        function fmtAdaptHighlightHex(hex) {
+          var pristine = toHex6(hex);
+          var surf = fmtSurfaceHex(), ink = fmtInkHex();
+          if (fmtHlSatisfies(pristine, surf, ink)) return pristine;
+          var rgb = tsHexToRgb(pristine);
+          var hsl = tsRgbToHsl(rgb.r, rgb.g, rgb.b);
+          var best = null, bestInk = -1, bestDist = -1;
+          for (var k = 1; k <= 50; k++) {
+            var done = true;
+            for (var di = 0; di < 2; di++) {
+              var L = hsl.l + (di === 0 ? -1 : 1) * 0.02 * k;
+              if (L > 0 && L < 1) done = false;
+              L = Math.max(0, Math.min(1, L));
+              var c = tsHslToRgb(hsl.h, hsl.s, L);
+              var out = tsRgbToHex(c.r, c.g, c.b);
+              if (fmtHlSatisfies(out, surf, ink)) return out;
+              var ic = tsContrastRatio(ink, out), d = fmtRgbDist(out, surf);
+              if (ic > bestInk || (ic === bestInk && d > bestDist)) { best = out; bestInk = ic; bestDist = d; }
+            }
+            if (done) break;
+          }
+          return best || pristine;
+        }
+        /* The hairline ring: a chip whose color sits close to
+           the popover's own surface (same distance measure as
+           the highlight rule, or almost no luminance contrast
+           with it) gets .fmt-swatch-ring so it stays
+           distinguishable inside the picker itself. */
+        function fmtRingIfClose(el, hex) {
+          try {
+            var surf = fmtSurfaceHex();
+            if (fmtRgbDist(hex, surf) < FMT_HL_MIN_DIST || tsContrastRatio(hex, surf) < 1.3) el.classList.add('fmt-swatch-ring');
+          } catch (e) {}
+        }
         /* ---------------- Build -123: theme & recent colors ----
            Two sections appended at the bottom of this popover in
            both modes (see fmtBuildSections, called from
@@ -15067,6 +15206,9 @@
             var chip = document.createElement('span');
             chip.className = 'fmt-theme-chip';
             chip.style.background = entry.hex;
+            /* Build -126: ring only — the entry's color and
+               applied hex are untouched. */
+            fmtRingIfClose(chip, entry.hex);
             b.appendChild(chip);
             var lab = document.createElement('span');
             lab.className = 'fmt-theme-label';
@@ -15102,6 +15244,9 @@
             b.setAttribute('data-tip', hex);
             if (mode === 'highlight') b.style.background = hex;
             else { b.style.color = hex; b.textContent = 'A'; }
+            /* Build -126: ring only — the user's literal pick
+               is displayed and applied exactly as stored. */
+            fmtRingIfClose(b, hex);
             b.addEventListener('click', function () {
               if (mode === 'highlight') applyHighlightHex(hex);
               else applyTextColor(hex);
@@ -15162,13 +15307,24 @@
             fmtCustomRow.hidden = true;
             var cur = ed.getAttributes('highlight').color || null;
             HL_COLORS.forEach(function (c) {
+              /* Build -126: display and apply the theme-resolved
+                 hex (see fmtAdaptHighlightHex) — a preset pick is
+                 now a hex highlight, painted inline by the editor
+                 exactly like a -123 theme/recent pick, so the
+                 chip's hex is the rendered hex on this theme. A
+                 legacy id-colored highlight still marks its
+                 preset on. */
+              var resolved = fmtAdaptHighlightHex(c.css);
               var b = document.createElement('button');
               b.type = 'button';
-              b.className = 'fmt-swatch' + (cur === c.id ? ' on' : '');
-              b.style.background = c.css;
-              b.setAttribute('aria-label', c.name + ' highlight');
-              b.setAttribute('data-tip', c.name);
-              b.addEventListener('click', function () { applyHighlight(c.id); });
+              b.className = 'fmt-swatch' + ((cur === c.id || (cur && /^#[0-9a-f]{6}$/i.test(cur) && toHex6(cur) === resolved)) ? ' on' : '');
+              b.style.background = resolved;
+              b.setAttribute('data-pristine-hex', c.css.toLowerCase());
+              b.setAttribute('data-resolved-hex', resolved);
+              b.setAttribute('aria-label', c.name + ' highlight ' + resolved);
+              b.setAttribute('data-tip', c.name + ' ' + resolved);
+              fmtRingIfClose(b, resolved);
+              b.addEventListener('click', function () { applyHighlightHex(resolved); });
               fmtSwatches.appendChild(b);
             });
             var noneH = document.createElement('button');
@@ -15183,14 +15339,21 @@
             fmtCustomRow.hidden = false;
             var curC = ed.getAttributes('textStyle').color || null;
             TEXT_COLORS.forEach(function (hex) {
+              /* Build -126: display and apply the theme-resolved
+                 hex (see fmtAdaptTextHex) — the 'A' the reader
+                 sees is the color a tap sets on this theme. */
+              var resolved = fmtAdaptTextHex(hex);
               var b = document.createElement('button');
               b.type = 'button';
-              b.className = 'fmt-swatch' + (curC === hex ? ' on' : '');
-              b.style.color = hex;
+              b.className = 'fmt-swatch' + ((curC && toHex6(curC) === resolved) ? ' on' : '');
+              b.style.color = resolved;
               b.textContent = 'A';
-              b.setAttribute('aria-label', 'Text color ' + hex);
-              b.setAttribute('data-tip', hex);
-              b.addEventListener('click', function () { applyTextColor(hex); });
+              b.setAttribute('data-pristine-hex', hex.toLowerCase());
+              b.setAttribute('data-resolved-hex', resolved);
+              b.setAttribute('aria-label', 'Text color ' + resolved);
+              b.setAttribute('data-tip', resolved);
+              fmtRingIfClose(b, resolved);
+              b.addEventListener('click', function () { applyTextColor(resolved); });
               fmtSwatches.appendChild(b);
             });
             var noneC = document.createElement('button');
@@ -15750,6 +15913,12 @@
             var doc = currentDoc();
             doc.content = json;
             doc.updated = Date.now();
+            /* Build -127: keep the owning tab session's
+               freshness stamp in step with this write, so
+               tabSwapEditorTo can tell a session that wrote
+               the current lib state from one a sync merge
+               left behind (see tabSessionFor). */
+            try { if (typeof tabSessions !== 'undefined' && tabSessions[doc.id]) tabSessions[doc.id].seenUpdated = doc.updated; } catch (e) {}
             schedulePersist();
             scheduleSpellScan();
             renderOutline(json);
@@ -16649,24 +16818,69 @@
           document.getElementById('editorMount').appendChild(mount);
           var handle = window.FolioKit.createEditor(Object.assign({}, folioEditorOpts, {
             element: mount, content: doc.content,
+            /* Build -127: a session writes its OWN document,
+               never currentDoc(). The shared folioEditorOpts
+               onUpdate routes through lib.currentId, which is
+               only this session's document while it is the one
+               on stage; a transaction in a parked session (a
+               wiki-link refresh, a programmatic dispatch)
+               would otherwise land this document's stale JSON
+               in whichever document happened to be current.
+               The template sessions have always overridden
+               onUpdate for exactly this reason (tplSessionFor);
+               document sessions now do the same, keeping the
+               shared handler's side effects for when this
+               document is the one being edited on stage. */
+            onUpdate: function (json) {
+              var d = tabDoc(doc.id);
+              if (!d) return;
+              d.content = json;
+              d.updated = Date.now();
+              var own = tabSessions[doc.id];
+              if (own) own.seenUpdated = d.updated;
+              schedulePersist();
+              if (d.id === lib.currentId) {
+                scheduleSpellScan();
+                renderOutline(json);
+                wordCount(json);
+                renderTagsSection();
+                if (tagFilter) renderDocList();
+                checkTagTrigger(d);
+                if (typeof refLiveUpdate === 'function') refLiveUpdate(d);
+              }
+            },
           }));
           try { handle.editor.view.dom.setAttribute('spellcheck', 'false'); } catch (e) {}
           try { handle.editor.view.dom.setAttribute('autocomplete', 'off'); } catch (e) {}
           try { attachCodeCopy(mount, handle.editor); } catch (e) {}
-          s = tabSessions[doc.id] = { mount: mount, handle: handle, scroll: 0 };
+          s = tabSessions[doc.id] = { mount: mount, handle: handle, scroll: 0, seenUpdated: doc.updated || 0 };
           return s;
         }
         function tabAdoptInitialSession() {
           var cur = currentDoc();
           if (!cur || !editorHandle) return;
+          /* Build -127: the startup editor was created from
+             the shared folioEditorOpts, whose onUpdate routes
+             through currentDoc() — the one session the
+             per-session routing in tabSessionFor could not
+             cover, so the own-document guarantee would have
+             had exactly one exception. Tab init runs before
+             any editing, so there is nothing to preserve:
+             retire the startup editor and let the ordinary
+             session path create this document's session with
+             its own-document onUpdate, like every other
+             session. The fold restore is re-applied to the
+             new session, as the startup editor had it. */
+          try { if (editorHandle.destroy) editorHandle.destroy(); } catch (e) {}
+          editorHandle = null;
           var em = document.getElementById('editorMount');
-          var mount = document.createElement('div');
-          mount.className = 'doc-session';
-          mount.setAttribute('data-doc-id', cur.id);
-          while (em.firstChild) mount.appendChild(em.firstChild);
-          em.appendChild(mount);
-          tabSessions[cur.id] = { mount: mount, handle: editorHandle, scroll: 0 };
+          if (em) em.innerHTML = '';
+          var s = tabSessionFor(cur, true);
+          if (!s) return;
+          s.mount.style.display = '';
+          editorHandle = s.handle;
           tabDisplayedId = cur.id;
+          try { applyStoredFolds(); } catch (e) {}
         }
         /* Swap the visible editor to doc id's session. `fresh`
            (a plain in-tab navigation, Back/Forward included)
@@ -16709,6 +16923,58 @@
           }
           var s = tabSessionFor(doc, true);
           if (!s) return;
+          /* Build -127: a parked session is a snapshot of the
+             document taken when the session was created, and
+             nothing ever refreshed it: a sync merge that
+             adopted a newer copy into lib (or a library-wide
+             rewrite, like a rename retargeting wiki-links)
+             left the session holding the old text, so the tab
+             went on SHOWING the pre-merge version while the
+             status truthfully read Synced — the merge had
+             landed in lib; the screen never caught up. Worse,
+             the session's next edit wrote its stale JSON back
+             over the merged lib copy under a fresh timestamp,
+             re-asserting the old version as the newest state
+             for every device. Reload the session from lib
+             whenever the document moved on without it: the
+             text signature differs (a merge adoption, a
+             retarget), or the updated stamp differs and the
+             full JSON differs too (a formatting-only adoption;
+             bounded to one reload per stamp, so editor
+             serialization shapes can never retrigger it). A
+             session under the user's caret is never reloaded:
+             the merge defers to it, and its own writes keep
+             its stamp current, so it cannot look stale here. */
+          try {
+            if (s.handle && typeof s.handle.getJSON === 'function' && typeof s.handle.setContent === 'function') {
+              var sEd = s.handle.editor;
+              /* The focus half of this guard is only ever
+                 consulted for a SAME-document reopen: a parked
+                 session being swapped to from another document
+                 cannot be under the caret — and its editor's
+                 isFocused flag cannot be trusted anyway, since
+                 a surface hidden while focused never receives
+                 the blur that would clear it (the flag would
+                 veto every reload for any document that was
+                 ever focused, i.e. all of them). */
+              var sEditing = false;
+              try { sEditing = !!sameDoc && !!(sEd && (sEd.isFocused || (sEd.view && sEd.view.hasFocus && sEd.view.hasFocus()))); } catch (e) {}
+              if (!sEditing) {
+                var sJson = s.handle.getJSON();
+                if (docTextSignature(sJson) !== docTextSignature(doc.content)) {
+                  s.handle.setContent(doc.content);
+                  s.seenUpdated = doc.updated || 0;
+                  s.reloadedFor = doc.updated || 0;
+                } else if ((s.seenUpdated || 0) !== (doc.updated || 0)) {
+                  if (s.reloadedFor !== (doc.updated || 0) && JSON.stringify(sJson) !== JSON.stringify(doc.content)) {
+                    s.handle.setContent(doc.content);
+                    s.reloadedFor = doc.updated || 0;
+                  }
+                  s.seenUpdated = doc.updated || 0;
+                }
+              }
+            }
+          } catch (e) {}
           Object.keys(tabSessions).forEach(function (k) {
             tabSessions[k].mount.style.display = k === id ? '' : 'none';
           });
@@ -35175,6 +35441,35 @@
           document.addEventListener('visibilitychange', function () {
             if (!document.hidden) autoSyncCycle();
           });
+          /* Build -127: the push side of the edit debounce has
+             the mirror exposure. persist() reaches localStorage
+             within ~350ms of a keystroke, but the push waits
+             out scheduleSync's 1200ms timer — and a device
+             locked or an app closed inside that window (or
+             mid-push) kills the timer, stranding the newest
+             edits on this device until its next foreground
+             cycle, while any other device's pull reports an
+             honest Synced over a server that never received
+             them. Going hidden is the last reliable moment:
+             flush the debounced save and start the push NOW
+             instead of leaving it to a timer that may never
+             fire. The edits were never at risk of loss —
+             localStorage plus the signature bookkeeping
+             (pushed signatures record only on success) make
+             the next launch's cycle re-land anything this
+             flush could not get out — this only removes the
+             wait. */
+          function flushPendingSync() {
+            try {
+              if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; persist(true); }
+              if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
+              if (sb && sbUser) pushAll();
+            } catch (e) {}
+          }
+          document.addEventListener('visibilitychange', function () {
+            if (document.hidden) flushPendingSync();
+          });
+          window.addEventListener('pagehide', flushPendingSync);
           window.addEventListener('focus', function () { autoSyncCycle(); });
           // While the app sits open and visible, a light cycle
           // every 30 seconds bounds how stale this device can be:
