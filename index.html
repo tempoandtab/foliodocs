@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261103-128" />
+    <meta name="folio-build" content="20261103-129" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5054,6 +5054,21 @@
         .book-cover { max-width: none; min-height: var(--vvh, 100dvh); border-radius: 0; }
         .book-spread { flex-direction: column; }
         .book-page { max-height: none; overflow-y: visible; }
+        /* Build -129: stacked, the Book's close ✕ rides in the
+           Contents head instead (bookPlaceClose in the tabs
+           module moves the node). The head packs from the left
+           and the workspace name takes margin-left:auto, so it
+           keeps the right side exactly as the two-child
+           space-between layout put it, with the ✕ immediately
+           after it — both legible at the Book's top, neither
+           overlapping. The ✕ also gets a full-size touch
+           target here. Side-by-side layouts are untouched:
+           the button never enters this head there, and with
+           two children this arrangement renders identically
+           to the old space-between one anyway. */
+        .book-left .book-page-head { justify-content: flex-start; }
+        .book-left .book-ws-name { margin-left: auto; }
+        .book-left .book-close { margin-left: 6px; flex: 0 0 auto; width: 40px; height: 40px; font-size: 18px; }
       }
 
       /* ---------------- clipboard history ---------------- */
@@ -19727,6 +19742,7 @@
         function openBook() {
           if (!bookOverlay) return;
           closeTabMenu();
+          bookPlaceClose();
           bookOverlay.hidden = false;
           if (bookSearchEl) bookSearchEl.value = '';
           bookSel = 0;
@@ -19735,6 +19751,28 @@
         }
         function closeBook() {
           if (bookOverlay) bookOverlay.hidden = true;
+        }
+        /* Build -129: the close ✕ lives in the Workspaces
+           page's head — the Book's top-right corner only while
+           the two pages sit side by side. At phone widths the
+           spread stacks (Contents over Workspaces, see the
+           max-width:640px Book CSS) and that head lands
+           mid-screen, so there the SAME button node moves up
+           into the Contents head, after the current-workspace
+           name: the Book's top then carries both, legibly.
+           The node moves rather than a second button existing,
+           so its one click handler and whole-Book close
+           behavior travel with it unchanged, and crossing the
+           breakpoint either way (rotate, resize) puts it back
+           exactly where the side-by-side layout has it. */
+        var bookCloseBtnEl = document.getElementById('bookClose');
+        var bookLeftHeadEl = document.querySelector('.book-left .book-page-head');
+        var bookRightHeadEl = document.querySelector('.book-right .book-page-head');
+        var bookStackMq = window.matchMedia ? window.matchMedia('(max-width: 640px)') : null;
+        function bookPlaceClose() {
+          if (!bookCloseBtnEl) return;
+          var host = (bookStackMq && bookStackMq.matches) ? bookLeftHeadEl : bookRightHeadEl;
+          if (host && bookCloseBtnEl.parentNode !== host) host.appendChild(bookCloseBtnEl);
         }
         function bookRows() {
           return bookListEl ? Array.prototype.slice.call(bookListEl.querySelectorAll('.book-row')) : [];
@@ -19929,8 +19967,12 @@
           });
         });
         if (bookCloseAllBtn) bookCloseAllBtn.addEventListener('click', function () { closeAllTabs(); bookRender(); });
-        var bookCloseBtn = document.getElementById('bookClose');
-        if (bookCloseBtn) bookCloseBtn.addEventListener('click', function () { closeBook(); });
+        if (bookCloseBtnEl) bookCloseBtnEl.addEventListener('click', function () { closeBook(); });
+        bookPlaceClose();
+        if (bookStackMq) {
+          if (bookStackMq.addEventListener) bookStackMq.addEventListener('change', bookPlaceClose);
+          else if (bookStackMq.addListener) bookStackMq.addListener(bookPlaceClose);
+        }
         if (bookOverlay) {
           bookOverlay.addEventListener('click', function (ev) {
             if (ev.target === bookOverlay) closeBook();
