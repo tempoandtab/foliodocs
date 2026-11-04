@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261103-130" />
+    <meta name="folio-build" content="20261104-131" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2567,6 +2567,20 @@
       }
       .ab-item.danger { color: var(--danger); }
       .ab-item.kb-focus { background: var(--hover); }
+      /* Build -131: a variable result in the action bar is
+         not dressed as an action — it carries a scope pill
+         naming it a variable of this document / a global,
+         and its current value rides the hint slot, trimmed
+         to one line so a long value never crowds the name. */
+      .ab-item .ab-var-badge {
+        flex: 0 0 auto; margin-top: 2px;
+        font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        color: var(--ink-2); background: var(--accent-soft);
+        border-radius: 999px; padding: 2px 7px; white-space: nowrap;
+      }
+      .ab-item.ab-var .m-hint {
+        max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
       /* Build -130: the Omnisearch door pinned at the top of
          the phone action bar's results. Sticky, so it holds
          its place while the list scrolls beneath it; the
@@ -6168,7 +6182,7 @@
           </button>
         </div>
         <label class="form-note" for="varEditName" style="display:block;margin-top:2px">Name — starts with a letter; letters, digits and underscores after.</label>
-        <input class="text-input" id="varEditName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Variable name" style="width:100%;margin-top:6px" />
+        <input class="text-input" id="varEditName" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Variable name" style="width:100%;margin-top:6px" />
         <div id="varEditAnchorNote" hidden style="margin-top:12px"></div>
         <label class="form-note" for="varEditValue" style="display:block;margin-top:12px">Value</label>
         <input class="text-input" id="varEditValue" type="text" autocomplete="off" aria-label="Variable value" style="width:100%;margin-top:6px" />
@@ -6190,7 +6204,7 @@
         </div>
         <p class="form-note">&ldquo;<span id="varDefineText"></span>&rdquo; becomes the definition. Editing that text later updates the variable — and every reference to it — live.</p>
         <label class="form-note" for="varDefineName" style="display:block;margin-top:12px">New variable name — starts with a letter; letters, digits and underscores after.</label>
-        <input class="text-input" id="varDefineName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="New variable name" style="width:100%;margin-top:6px" />
+        <input class="text-input" id="varDefineName" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="New variable name" style="width:100%;margin-top:6px" />
         <p class="tag-modal-error" id="varDefineError" hidden></p>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
           <button class="btn-ghost" id="varDefineCancel" type="button">Cancel</button>
@@ -10320,6 +10334,127 @@
           ed.view.dispatch(tr);
           return true;
         }
+        /* ----- build -131: redefinition converts the old anchor -----
+           When a variable that has an inline definition is
+           REDEFINED — a new anchor assigned elsewhere, or a
+           value set in the panel — the previous anchor does
+           not stay behind as styled plain text and does not
+           keep the old value: it becomes a REFERENCE to the
+           variable, a chip rendering the new current value,
+           in the same single undoable step as the
+           redefinition itself. (Delete and Remove-definition
+           are unchanged: delete bakes references to plain
+           text, undefine returns the anchor to plain text —
+           varDetachAnchor / varBakeInEditor own those.)
+           A conversion removes the definition mark outright
+           — the anchored text nodes are replaced whole by
+           the varRef atom — so no definition chrome (wash,
+           dashed underline, name pill) can survive anywhere:
+           the pill is a decoration keyed to varDef marks,
+           and the converted range carries no such mark. */
+        /* The anchor's contiguous runs in the open editor:
+           groups of adjacent text ranges carrying vid's
+           varDef mark, optionally skipping any range that
+           overlaps [exFrom, exTo] (the range a redefinition
+           is about to claim as the NEW anchor). */
+        function varDefGroupsInEditor(st, vid, exFrom, exTo) {
+          var ranges = [];
+          st.doc.descendants(function (node, pos) {
+            if (node.isText && node.marks && node.marks.some(function (m) { return m.type.name === 'varDef' && m.attrs.vid === vid; })) {
+              if (typeof exFrom === 'number' && pos < exTo && pos + node.nodeSize > exFrom) return;
+              ranges.push([pos, pos + node.nodeSize]);
+            }
+          });
+          ranges.sort(function (a, b) { return a[0] - b[0]; });
+          var groups = [];
+          ranges.forEach(function (r) {
+            var g = groups[groups.length - 1];
+            if (g && r[0] <= g[1]) { if (r[1] > g[1]) g[1] = r[1]; }
+            else groups.push([r[0], r[1]]);
+          });
+          return groups;
+        }
+        /* Replace anchor groups on an existing transaction,
+           widest position first so earlier positions stay
+           valid. Shared by the standalone conversion and by
+           varDoDefine, which folds the conversion into the
+           same transaction that stamps the new anchor. */
+        function varConvertGroupsOnTr(tr, st, groups, attrs) {
+          if (!st.schema.nodes.varRef) return false;
+          var sorted = groups.slice().sort(function (a, b) { return b[0] - a[0]; });
+          sorted.forEach(function (g) {
+            tr.replaceWith(g[0], g[1], st.schema.nodes.varRef.create(attrs));
+          });
+          return sorted.length > 0;
+        }
+        /* Convert a variable's anchor in the OPEN editor
+           into a reference chip at the given (new) value —
+           one undoable transaction. Returns false when the
+           variable is not anchored on screen. */
+        function varConvertDefInEditor(vid, attrs) {
+          if (tplEditingId) return false;
+          if (!editorHandle || !editorHandle.editor) return false;
+          var ed = editorHandle.editor;
+          var st = ed.state;
+          if (!st.schema.nodes.varRef || !st.schema.marks.varDef) return false;
+          var groups = varDefGroupsInEditor(st, vid, null, null);
+          if (!groups.length) return false;
+          var tr = st.tr;
+          var done = varConvertGroupsOnTr(tr, st, groups, attrs);
+          if (done) ed.view.dispatch(tr);
+          return done;
+        }
+        /* The stored-document twin: in a content tree,
+           replace every run of sibling text nodes carrying
+           vid's varDef mark with a single varRef node.
+           Mutates the tree given; callers pass a clone. */
+        function varConvertDefJson(content, vid, attrs) {
+          var changed = false;
+          function flush(run, out) {
+            if (run) { out.push({ type: 'varRef', attrs: attrs }); changed = true; }
+          }
+          function walk(node) {
+            if (!node || typeof node !== 'object' || !Array.isArray(node.content)) return;
+            var out = [];
+            var run = false;
+            node.content.forEach(function (child) {
+              var isAnchor = child && child.type === 'text' && Array.isArray(child.marks) &&
+                child.marks.some(function (m) { return m.type === 'varDef' && m.attrs && m.attrs.vid === vid; });
+              if (isAnchor) { run = true; return; }
+              flush(run, out); run = false;
+              walk(child);
+              out.push(child);
+            });
+            flush(run, out);
+            node.content = out;
+          }
+          walk(content);
+          return changed;
+        }
+        /* Convert a variable's anchor — wherever it lives —
+           into a reference at its new value, and mark the
+           record unanchored. The caller owns the record's new
+           value (rec.value) and the save. Used by the panel
+           Save path; the define path folds its conversion
+           into its own transaction instead (see varDoDefine). */
+        function varConvertAnchorToRef(scope, rec, newValue) {
+          var homeId = scope === 'doc' ? varHomeDocIdOf(rec) : rec.anchorDoc;
+          var attrs = {
+            vid: rec.id,
+            vscope: scope === 'doc' ? 'd' : 'g',
+            vname: rec.name,
+            vvalue: newValue,
+          };
+          rec.anchor = false;
+          if (scope === 'global') { rec.anchorDoc = null; rec.anchorDocTitle = null; }
+          var home = homeId ? varDocById(homeId) : null;
+          if (!home) return;
+          if (home.id === lib.currentId && editorHandle) varConvertDefInEditor(rec.id, attrs);
+          else {
+            var clone = varClone(home.content);
+            if (varConvertDefJson(clone, rec.id, attrs)) { home.content = clone; home.updated = Date.now(); persist(true); }
+          }
+        }
         /* Detach a variable from its anchor, wherever the
            anchor lives: the open editor when the home
            document is on screen, else its stored content. */
@@ -10463,11 +10598,36 @@
           var st = ed.state;
           if (!st.schema.marks.varDef) return;
           closeVarDefineModal();
-          /* One transaction = one undo step. Re-defining a
-             range replaces any same-type mark under it, so
-             the previous anchor keeps whatever text remains
-             outside the new definition. */
+          /* Build -131: redefining an ANCHORED variable
+             converts its previous anchor into a reference at
+             the new value — folded into this same transaction
+             when the old anchor is in this document (one
+             transaction = one undo step), or rewritten in its
+             home document's stored content when an anchored
+             global's old anchor lives elsewhere. The new
+             anchor's text is the variable's new value, so the
+             converted chip renders exactly that. */
+          var newText = st.doc.textBetween(ctx.from, ctx.to, '');
+          var wasAnchored = !!rec.anchor;
+          var oldHomeId = scope === 'doc' ? ctx.docId : rec.anchorDoc;
           var tr = st.tr.addMark(ctx.from, ctx.to, st.schema.marks.varDef.create({ vid: rec.id, vname: rec.name }));
+          if (wasAnchored) {
+            var convAttrs = { vid: rec.id, vscope: scope === 'doc' ? 'd' : 'g', vname: rec.name, vvalue: newText };
+            if (oldHomeId === doc.id) {
+              /* addMark does not move positions, so the old
+                 anchor's groups (the new range excluded) can
+                 be replaced on this same transaction, widest
+                 first. */
+              var groups = varDefGroupsInEditor(st, rec.id, ctx.from, ctx.to);
+              if (groups.length) varConvertGroupsOnTr(tr, st, groups, convAttrs);
+            } else if (oldHomeId) {
+              var oldHome = varDocById(oldHomeId);
+              if (oldHome) {
+                var oldClone = varClone(oldHome.content);
+                if (varConvertDefJson(oldClone, rec.id, convAttrs)) { oldHome.content = oldClone; oldHome.updated = Date.now(); persist(true); }
+              }
+            }
+          }
           ed.view.dispatch(tr);
           var anchorText = varAnchorTextInContent(ed.getJSON(), rec.id);
           rec.anchor = true;
@@ -10592,6 +10752,28 @@
           var chain = editorHandle.editor.chain().focus();
           if (typeof ctx.from === 'number') chain.setTextSelection({ from: ctx.from, to: ctx.to });
           chain.insertContent({ type: 'varRef', attrs: { vid: effRec.id, vscope: effScope === 'doc' ? 'd' : 'g', vname: effRec.name, vvalue: value } }).run();
+        }
+        /* Build -131: insert a reference at the editor's
+           live caret — the action bar's door to the same
+           insertion the picker performs (varDoInsertRef
+           restores a captured selection; here the bar's own
+           focus restore has already put the caret back).
+           Shadowing resolves exactly as the picker's: a
+           shadowed global inserts its document variable. */
+        function varInsertRefAtCaret(scope, rec) {
+          if (tplEditingId) return;
+          if (!editorHandle || !editorHandle.editor) return;
+          var doc = currentDoc();
+          if (!doc) return;
+          var effScope = scope, effRec = rec;
+          if (scope === 'global') {
+            var shadow = varDocVarByName(doc.id, rec.name);
+            if (shadow) { effScope = 'doc'; effRec = shadow; }
+          }
+          var value = varRecordValue(effRec, effScope === 'doc' ? doc : null);
+          editorHandle.editor.chain().focus()
+            .insertContent({ type: 'varRef', attrs: { vid: effRec.id, vscope: effScope === 'doc' ? 'd' : 'g', vname: effRec.name, vvalue: value } })
+            .run();
         }
 
         /* ----- the Variables panel ----- */
@@ -10731,7 +10913,7 @@
             note.innerHTML = '';
             var p = document.createElement('p');
             p.className = 'form-note';
-            p.textContent = 'This variable is defined by text in ' + where + ' — its value is that text, and it updates as the text is edited. Saving a different value here detaches it: the text stays as plain text and the variable holds the value below instead. A variable holds a value or a text definition, never both.';
+            p.textContent = 'This variable is defined by text in ' + where + ' — its value is that text, and it updates as the text is edited. Saving a different value here redefines it: that text becomes a reference showing the new value, and the variable holds the value below instead. A variable holds a value or a text definition, never both.';
             note.appendChild(p);
             note.hidden = false;
           } else {
@@ -10786,7 +10968,15 @@
             if (rec.anchor) {
               var homeDoc = ctx.scope === 'doc' ? varDocById(ctx.docId) : (rec.anchorDoc ? varDocById(rec.anchorDoc) : null);
               var cur = varRecordValue(rec, homeDoc);
-              if (value !== cur) varDetachAnchor(ctx.scope, rec);
+              /* Build -131: setting a new value in the panel
+                 REDEFINES the variable, so its previous
+                 anchor becomes a reference at the new value
+                 (varConvertAnchorToRef) rather than plain
+                 text — in the same undoable step when the
+                 anchor is in the open editor. Saving the
+                 value the anchor already holds changes
+                 nothing about the anchor. */
+              if (value !== cur) varConvertAnchorToRef(ctx.scope, rec, value);
               if (!rec.anchor) rec.value = value;
             } else {
               rec.value = value;
@@ -11081,6 +11271,22 @@
         document.getElementById('varEditClose').addEventListener('click', closeVarEdit);
         document.getElementById('varEditCancel').addEventListener('click', closeVarEdit);
         document.getElementById('varEditSave').addEventListener('click', varSaveEdit);
+        /* Build -131: Enter in either field of the variable
+           edit modal presses Save — but only when BOTH fields
+           are filled out. With either field empty, Enter
+           submits nothing and closes nothing; it just moves
+           focus to the first empty field. */
+        function varEditEnter(ev) {
+          if (ev.key !== 'Enter') return;
+          ev.preventDefault();
+          var nameEl = document.getElementById('varEditName');
+          var valueEl = document.getElementById('varEditValue');
+          if (!nameEl.value.trim()) { nameEl.focus(); return; }
+          if (!valueEl.value) { valueEl.focus(); return; }
+          varSaveEdit();
+        }
+        document.getElementById('varEditName').addEventListener('keydown', varEditEnter);
+        document.getElementById('varEditValue').addEventListener('keydown', varEditEnter);
         document.getElementById('varEditModal').addEventListener('mousedown', function (ev) { if (ev.target === this) closeVarEdit(); });
         document.getElementById('varDefineClose').addEventListener('click', closeVarDefineModal);
         document.getElementById('varDefineCancel').addEventListener('click', closeVarDefineModal);
@@ -11107,6 +11313,7 @@
           valueOf: function (docId, attrs) { var d = varDocById(docId); return d ? varResolveValue(d, attrs) : null; },
           anchorText: function (docId, vid) { var d = varDocById(docId); return d ? varAnchorTextInContent(d.content, vid) : null; },
           bake: function (content, vid, value) { var c = varClone(content); var changed = varBakeJson(c, vid, value); return { changed: changed, content: c }; },
+          convert: function (content, vid, attrs) { var c = varClone(content); var changed = varConvertDefJson(c, vid, attrs); return { changed: changed, content: c }; },
           openPanel: function (docId) { openVarPanel(docId); },
           openPicker: function () { openVarPicker(); },
           openDefine: function () { openVarDefineModal(); },
@@ -38927,6 +39134,9 @@
            stable identity to record. */
         function abRecord(id) {
           if (!id || id === 'action-search') return;
+          /* Build -131: variable results are insertions, not
+             actions — never remembered as recents. */
+          if (id.indexOf('varref-') === 0) return;
           /* Document navigation is never a recent: Back /
              Forward / Previous / Next are how you MOVE, not
              things you did, and a flip through a few documents
@@ -39192,6 +39402,34 @@
         if (abPhoneMq && abPhoneMq.addEventListener) {
           abPhoneMq.addEventListener('change', function () { if (actionBarOpen) abRender(); });
         }
+        /* Build -131: variables are searchable by name in
+           the action bar — this document's variables plus
+           globals, matched like the actions are. Each match
+           is its own kind of result (the render loop badges
+           it with its scope and shows its current value);
+           running it inserts a reference at the caret and
+           the bar closes, the way running an action does. */
+        function abVariableItems(q) {
+          if (tplEditingId) return [];
+          var doc = currentDoc();
+          if (!doc) return [];
+          var items = [];
+          function mk(scope, rec) {
+            var value = varRecordValue(rec, scope === 'doc' ? doc : null);
+            items.push({
+              id: 'varref-' + rec.id,
+              label: rec.name,
+              hint: value === '' ? '(no value)' : value,
+              group: 'Variables',
+              isVar: true,
+              varScope: scope === 'doc' ? 'This document' : 'Global',
+              run: (function (s, r) { return function () { varInsertRefAtCaret(s, r); }; })(scope, rec),
+            });
+          }
+          varDocList(doc.id).forEach(function (r) { if (r.name.toLowerCase().indexOf(q) !== -1) mk('doc', r); });
+          varStore.globals.forEach(function (g) { if (g.name.toLowerCase().indexOf(q) !== -1) mk('global', g); });
+          return items;
+        }
         function abRender() {
           var q = (actionInput.value || '').trim().toLowerCase();
           var catalog = abCatalog();
@@ -39199,6 +39437,8 @@
           catalog.forEach(function (a) { byId[a.id] = a; });
           var sections = [];
           if (q) {
+            var varItems = abVariableItems(q);
+            if (varItems.length) sections.push({ head: 'Variables', items: varItems });
             var matched = catalog.filter(function (a) { return a.label.toLowerCase().indexOf(q) !== -1; });
             if (matched.length) sections.push({ head: null, items: matched });
           } else {
@@ -39246,17 +39486,25 @@
             sec.items.forEach(function (a) {
               var b = document.createElement('button');
               b.type = 'button';
-              b.className = 'ab-item' + (a.danger ? ' danger' : '');
+              b.className = 'ab-item' + (a.danger ? ' danger' : '') + (a.isVar ? ' ab-var' : '');
               b.setAttribute('role', 'option');
+              if (a.isVar) b.setAttribute('data-var-result', a.id);
               var ic = document.createElement('span');
               ic.className = 'ab-item-icon';
               ic.setAttribute('aria-hidden', 'true');
-              abIconInto(ic, a.id);
+              if (a.isVar) ic.innerHTML = VAR_SVG;
+              else abIconInto(ic, a.id);
               b.appendChild(ic);
               var s = document.createElement('span');
               s.className = 'm-label';
               s.textContent = a.label;
               b.appendChild(s);
+              if (a.isVar) {
+                var vb = document.createElement('span');
+                vb.className = 'ab-var-badge';
+                vb.textContent = 'Variable · ' + a.varScope;
+                b.appendChild(vb);
+              }
               if (a.hint) {
                 var h = document.createElement('span');
                 h.className = 'm-hint';
