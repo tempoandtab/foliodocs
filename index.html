@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261102-127" />
+    <meta name="folio-build" content="20261103-128" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2526,6 +2526,23 @@
       }
       .ab-input::placeholder { color: var(--ink-3); }
       .ab-key { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+      /* Build -128: Omnisearch's new-tab mode tag — the
+         visible cue that the + disc (or the Book's + door)
+         armed the one-shot mode: picks open in a new tab.
+         Shown only while the mode is armed; the ⌥Space key
+         hint trades places with it. */
+      .ab-mode {
+        flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+        text-transform: uppercase; color: var(--accent);
+        border: 1px solid var(--accent); border-radius: 999px; padding: 2px 8px;
+        white-space: nowrap;
+      }
+      .ab-mode[hidden] { display: none; }
+      .ab-key[hidden] { display: none; }
+      /* Build -128: result rows carry a long-press menu
+         (the touch door to "Open in new tab"), so the native
+         iOS long-press callout must never appear over them. */
+      #omniResults .ab-item { -webkit-touch-callout: none; }
       .ab-results {
         max-height: min(calc(var(--vvh, 100dvh) * 0.46), 430px); overflow-y: auto;
         border-top: 1px solid var(--line-soft); margin-top: 4px; padding-top: 4px;
@@ -5661,6 +5678,7 @@
     <div class="menu" id="docMenu" role="menu" aria-label="Document actions"></div>
     <div class="menu" id="tplMenu" role="menu" aria-label="Template actions"></div>
     <div class="menu" id="tabMenu" role="menu" aria-label="Tab actions"></div>
+    <div class="menu" id="omniMenu" role="menu" aria-label="Search result actions"></div>
     <div class="menu" id="tagMenu" role="menu" aria-label="Tag actions"></div>
     <div class="menu" id="docBarMenu" role="menu" aria-label="Document settings"></div>
     <div class="menu" id="topMenu" role="menu" aria-label="More actions"></div>
@@ -6133,6 +6151,7 @@
           <div class="book-page book-left">
             <div class="book-page-head"><span>Contents</span><span class="book-ws-name" id="bookWsName"></span></div>
             <input class="book-search" id="bookSearch" type="text" placeholder="Search open tabs" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search open tabs" />
+            <button class="book-house-btn" id="bookNewTab" type="button">+ Open a document in a new tab</button>
             <div id="bookList"></div>
           </div>
           <div class="book-page book-right">
@@ -6175,7 +6194,8 @@
       <div class="ab-box">
         <span class="ab-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
         <input class="ab-input" id="omniInput" type="text" placeholder="Search documents, folders, tags" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Omnisearch" />
-        <span class="ab-key">⌥Space</span>
+        <span class="ab-mode" id="omniModeTag" hidden>New tab</span>
+        <span class="ab-key" id="omniKeyHint">⌥Space</span>
       </div>
       <div class="ab-results" id="omniResults" role="listbox" aria-label="Search results"></div>
     </div>
@@ -19650,6 +19670,15 @@
         if (wsIndicatorEl) wsIndicatorEl.addEventListener('click', function () { openBook(); });
         var tabPillBtn = document.getElementById('tabPill');
         if (tabPillBtn) tabPillBtn.addEventListener('click', function () { openBook(); });
+        /* Build -128: the Book's + door — at phone widths
+           the tab rail (and its + disc) is display:none, so
+           the count pill + Book are the only tab doors left;
+           this button is the + disc's twin there. The Book
+           must fold FIRST: openOmni stands down while a modal
+           owns the screen (scAnyOverlayOpen counts the Book),
+           so the picker is opened only once the Book is shut. */
+        var bookNewTabBtn = document.getElementById('bookNewTab');
+        if (bookNewTabBtn) bookNewTabBtn.addEventListener('click', function () { closeBook(); openTabPicker(); });
         window.addEventListener('resize', function () { tabSyncSlim(); tabLayout(); tabAnchor(); });
         /* Build -93: there is deliberately NO scroll listener
            on the editor scroll area anymore. The -92 build
@@ -36784,6 +36813,21 @@
                opening folds the other), so this branch and the
                action bar's above can never contend. */
             if (omniOpen) {
+              /* Build -128: while the result-row menu is up it
+                 owns these keys — Esc folds just the menu, and
+                 the palette's own arrows / Enter / Tab stand
+                 down so nothing runs behind the menu. */
+              if (typeof omniMenuIsOpen === 'function' && omniMenuIsOpen()) {
+                if (ev.key === 'Escape') {
+                  closeOmniMenu();
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp' || ev.key === 'Enter' || ev.key === 'Tab') {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                }
+                return;
+              }
               if (ev.key === 'Escape') {
                 closeOmni(true);
                 ev.preventDefault();
@@ -37616,11 +37660,22 @@
         var omniBarEl = document.getElementById('omniBar');
         var omniInput = document.getElementById('omniInput');
         var omniResults = document.getElementById('omniResults');
+        var omniModeTag = document.getElementById('omniModeTag');
+        var omniKeyHint = document.getElementById('omniKeyHint');
+        var omniMenuEl = document.getElementById('omniMenu');
         var omniOpen = false;
         var omniReturnFocus = null;
         var omniItems = [];
         var omniEntries = [];
         var omniRingTimer = null;
+        /* Build -128: the result-row menu's state (long-press
+           / right-click on a document result). omniLongPressAt
+           follows the sidebar rows' pattern: stamping it when
+           the menu opens makes the row's trailing synthesized
+           click stand down, so lifting the finger never also
+           fires the row's normal open. */
+        var omniMenuEntry = null;
+        var omniLongPressAt = 0;
         /* The plain text of a document: every text node in
            its content tree, space-joined and whitespace-
            collapsed, so a body match reads as prose and the
@@ -37799,6 +37854,10 @@
           return sections;
         }
         function omniRender() {
+          /* A re-render rebuilds every row; a row menu left
+             open would point at a detached entry, so it folds
+             with the rows it was opened from. */
+          closeOmniMenu();
           var sections = omniCollect();
           omniResults.innerHTML = '';
           omniItems = [];
@@ -37850,7 +37909,15 @@
                 h.textContent = e.hint;
                 b.appendChild(h);
               }
-              b.addEventListener('click', function (ev) { omniRun(e, !!(ev && (ev.metaKey || ev.ctrlKey))); });
+              b.addEventListener('click', function (ev) {
+                if (Date.now() - omniLongPressAt < 400) return; // the long-press already opened the row menu
+                /* However long the press was held, a click that
+                   lands while this row's menu is still up is the
+                   long-press's own trailing click, never a pick. */
+                if (omniMenuIsOpen() && omniMenuEntry === e) return;
+                omniRun(e, !!(ev && (ev.metaKey || ev.ctrlKey)));
+              });
+              if (e.kind === 'doc') omniAttachRowMenu(b, e);
               omniResults.appendChild(b);
               omniItems.push(b);
               omniEntries.push(e);
@@ -37906,6 +37973,119 @@
             return;
           }
           e.run();
+        }
+        /* ---------------- Build -128: the result-row menu ----
+           Long-press (touch) or right-click on a DOCUMENT
+           result opens the app's standard .menu for that row,
+           carrying the one item touch users had no door to:
+           "Open in new tab". The item runs the identical path
+           ⌘Enter uses — omniRun(entry, true), which closes
+           Omnisearch and lands on the entry's runInNewTab
+           (openDocInNewTab, the one-tab-per-doc path) — so a
+           menu pick and a ⌘Enter pick can never drift apart.
+           The menu is available in plain mode and in the +
+           disc's new-tab mode alike (the pick is the same
+           either way there). Placement follows the other
+           menus: fixed, 224 wide, clamped to the window, and
+           the overlay host's -125 fit pass then keeps it
+           inside the *visible* viewport. Folder / tag / create
+           rows get no menu: they have no new-tab meaning. */
+        function omniMenuIsOpen() {
+          return !!(omniMenuEl && omniMenuEl.classList.contains('open'));
+        }
+        function closeOmniMenu() {
+          if (!omniMenuEl) return;
+          omniMenuEl.className = 'menu';
+          omniMenuEl.innerHTML = '';
+          omniMenuEntry = null;
+        }
+        function openOmniMenu(e, x, y) {
+          if (!omniMenuEl || !e || e.kind !== 'doc') return;
+          closeOmniMenu();
+          omniMenuEntry = e;
+          var head = document.createElement('div');
+          head.className = 'menu-head';
+          head.textContent = e.label || 'Document';
+          omniMenuEl.appendChild(head);
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-item';
+          b.setAttribute('role', 'menuitem');
+          var ic = document.createElement('span');
+          ic.className = 'm-icon';
+          ic.innerHTML = DOC_SVG;
+          b.appendChild(ic);
+          var s = document.createElement('span');
+          s.className = 'm-label';
+          s.textContent = 'Open in new tab';
+          b.appendChild(s);
+          b.addEventListener('click', function () {
+            var entry = omniMenuEntry;
+            closeOmniMenu();
+            if (entry) omniRun(entry, true);
+          });
+          omniMenuEl.appendChild(b);
+          omniMenuEl.className = 'menu open';
+          /* Raised through the overlay host like every other
+             menu, so it sits above the palette it belongs to
+             and the host's fit pass can keep it on screen. */
+          if (window.FolioOverlayHost) {
+            try { window.FolioOverlayHost.adopt(omniMenuEl); window.FolioOverlayHost.sync(); } catch (err) {}
+          }
+          var w = 224, h = omniMenuEl.offsetHeight;
+          omniMenuEl.style.left = Math.max(8, Math.min(x || 8, window.innerWidth - w - 8)) + 'px';
+          omniMenuEl.style.top = Math.max(8, Math.min(y || 8, window.innerHeight - h - 8)) + 'px';
+          var idx = omniEntries.indexOf(e);
+          if (idx !== -1) omniHighlight(idx);
+        }
+        /* The row doors, on the sidebar rows' exact pattern:
+           a 550ms press timer for touch / pen (a mouse hold is
+           no long-press — right-click covers it), cancelled by
+           lift, leave, cancel, or a drift past 12px (a scroll
+           of the results list must never pop the menu); a
+           contextmenu handler for right-click; and the shared
+           secondary-tap watcher (two-finger tap, secondary-
+           button fallback) the doc and folder rows use. Every
+           door stamps omniLongPressAt before opening, so the
+           press's trailing click is swallowed by the row's own
+           click guard above and the finger's lift opens
+           nothing. */
+        function omniAttachRowMenu(b, e) {
+          var lpTimer = null;
+          var lpX = 0, lpY = 0;
+          function lpClear() {
+            if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+          }
+          b.addEventListener('contextmenu', function (ev) {
+            ev.preventDefault();
+            if (Date.now() - secTapAt < 600) return; // the secondary tap already opened this menu
+            if (omniMenuIsOpen() && omniMenuEntry === e) return; // a late contextmenu after the long-press
+            omniLongPressAt = Date.now();
+            openOmniMenu(e, ev.clientX, ev.clientY);
+          });
+          b.addEventListener('pointerdown', function (ev) {
+            if (!ev.isPrimary) return; // a second finger is a secondary tap, not a long-press
+            if (ev.button !== 0) return; // right / middle presses have their own doors
+            if (ev.pointerType === 'mouse') return; // a mouse hold is no long-press; right-click covers it
+            lpX = ev.clientX; lpY = ev.clientY;
+            lpClear();
+            var sx = ev.clientX, sy = ev.clientY;
+            lpTimer = setTimeout(function () {
+              lpTimer = null;
+              omniLongPressAt = Date.now();
+              openOmniMenu(e, sx, sy);
+            }, 550);
+          });
+          b.addEventListener('pointermove', function (ev) {
+            if (lpTimer && (Math.abs(ev.clientX - lpX) > 12 || Math.abs(ev.clientY - lpY) > 12)) lpClear();
+          });
+          ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (t) {
+            b.addEventListener(t, lpClear);
+          });
+          watchSecondaryTap(b, function (x, y) {
+            omniLongPressAt = Date.now(); // swallow the tap's trailing click
+            openOmniMenu(e, x, y);
+          });
         }
         function omniRevealFolder(id) {
           if (!folderById(id)) return;
@@ -37978,6 +38158,7 @@
           omniOpen = true;
           omniBarEl.hidden = false;
           omniInput.value = '';
+          omniSyncModeCue();
           omniRender();
           omniPlace();
           if (window.visualViewport) window.visualViewport.addEventListener('resize', omniPlace);
@@ -38005,10 +38186,26 @@
           if (document.activeElement === omniInput) return;
           try { omniInput.focus({ preventScroll: true }); } catch (e) { try { omniInput.focus(); } catch (e2) {} }
         }
+        /* Build -128: the new-tab mode's visible cue — while
+           the one-shot mode is armed (the + disc, the Book's
+           + door, or the tab-new shortcut), the placeholder
+           says picks open in a new tab and the "New tab" tag
+           takes the key hint's place. Synced on every open
+           from the live flag and re-synced on close (which
+           clears the flag), so the cue can never stick into
+           the next plain Omnisearch. */
+        function omniSyncModeCue() {
+          var armed = !!omniNewTab;
+          if (omniInput) omniInput.placeholder = armed ? 'Search — results open in a new tab' : 'Search documents, folders, tags';
+          if (omniModeTag) omniModeTag.hidden = !armed;
+          if (omniKeyHint) omniKeyHint.hidden = armed;
+        }
         function closeOmni(restore) {
           if (!omniOpen) return;
           omniOpen = false;
           omniNewTab = false;
+          closeOmniMenu();
+          omniSyncModeCue();
           omniBarEl.hidden = true;
           if (window.visualViewport) window.visualViewport.removeEventListener('resize', omniPlace);
           if (restore) omniRestoreFocus();
@@ -38026,7 +38223,20 @@
         document.addEventListener('pointerdown', function (ev) {
           if (!omniOpen) return;
           if (omniBarEl.contains(ev.target)) return;
+          /* Build -128: a press on the result-row menu is a
+             press on Omnisearch's own surface, not an outside
+             tap — the palette stays up under its menu. */
+          if (omniMenuEl && omniMenuEl.contains(ev.target)) return;
           closeOmni(true);
+        }, true);
+        /* Build -128: the row menu folds on any press outside
+           itself — on the palette (the press then does its own
+           work: typing, another row's doors), or anywhere else
+           (the palette's own outside-tap fold above runs too). */
+        document.addEventListener('pointerdown', function (ev) {
+          if (!omniMenuIsOpen()) return;
+          if (omniMenuEl.contains(ev.target)) return;
+          closeOmniMenu();
         }, true);
 
         /* ---------------- header-chrome swipe gesture (touch) --
