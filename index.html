@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261105-133" />
+    <meta name="folio-build" content="20261105-134" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2117,6 +2117,15 @@
       .suggest-item.sel { background: var(--accent); color: var(--accent-ink); }
       .suggest-item.sel .s-tag { background: rgba(255,255,255,0.25); color: inherit; }
       .suggest-empty { padding: 10px; font-size: 14px; color: var(--ink-2); }
+      /* Build -134: @ variable menu rows — name, current
+         value, then the picker's badges (ƒx, scope). */
+      .suggest-item .s-val { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); font-size: 13px; font-weight: 400; }
+      .suggest-item.var-at-item .s-title { flex: 0 1 auto; }
+      .suggest-item.sel .s-val { color: inherit; opacity: 0.85; }
+      /* The formula field's @ menu rides above the variable
+         modal's overlay host; the document editor's menu
+         reuses #suggest at its usual layer. */
+      #fxAtPop { z-index: 1100; }
 
       .statusbar {
         display: flex; align-items: center; justify-content: space-between;
@@ -11659,6 +11668,7 @@
         }
         function closeVarEdit() {
           fxCloseTokenPop();
+          fxAtClose();
           document.getElementById('varEditModal').hidden = true;
           varEditCtx = null;
         }
@@ -11920,6 +11930,24 @@
             else fxRenderTextSeg(sg.text, frag);
           });
           el.appendChild(frag);
+          /* Build -134: a token chip at either edge of the
+             field gets an empty text node on its outer side —
+             a real caret home next to the chip. WebKit holds
+             no caret position flush against a non-editable
+             edge child: with a variable first or last, taps
+             and restores beside it landed unpredictably (the
+             reported jump to the end of the field when a
+             variable was last). An empty text node projects
+             as zero length and reads back as nothing, so the
+           segment model never sees it. */
+          function fxEdgePad(node, before) {
+            if (node && node.nodeType === 1 && node.classList && node.classList.contains('fx-token')) {
+              var pad = document.createTextNode('');
+              if (before) el.insertBefore(pad, node); else el.appendChild(pad);
+            }
+          }
+          fxEdgePad(el.firstChild, true);
+          fxEdgePad(el.lastChild, false);
         }
         function fxReadSegs() {
           var el = fxFieldEl();
@@ -11940,16 +11968,63 @@
           }
           return segs;
         }
+        /* Build -134: the caret projection is measured by
+           walking the field's DOM with the same accounting
+           fxSetCaret restores by (text nodes count their
+           length, a token chip counts its name), NOT by
+           Range.toString(). WebKit's range text does not
+           round-trip around contenteditable=false chips —
+           around a chip in last place the measured caret
+           and the real caret parted ways, the restore then
+           missed, and the browser's own fallback after the
+           re-render dropped the caret at the end of the
+           field. The walk reads the caret point in whatever
+           form the browser reports it: a text offset, the
+           field or a span as a child index, or a point
+           inside a chip (which reads as the chip's near
+           edge, matching the restore's snap). */
         function fxCaretProj() {
           var el = fxFieldEl();
           var sel = window.getSelection ? window.getSelection() : null;
           if (!el || !sel || !sel.rangeCount) return null;
           var r = sel.getRangeAt(0);
-          if (!el.contains(r.startContainer)) return null;
-          var pre = document.createRange();
-          pre.setStart(el, 0);
-          try { pre.setEnd(r.startContainer, r.startOffset); } catch (e) { return null; }
-          return pre.toString().length;
+          var c = r.startContainer, off = r.startOffset;
+          if (c !== el && !el.contains(c)) return null;
+          function plen(node) {
+            if (node.nodeType === 3) return node.length;
+            if (node.nodeType !== 1) return 0;
+            if (node.classList && node.classList.contains('fx-token')) return node.textContent.length;
+            var n = 0;
+            for (var i = 0; i < node.childNodes.length; i++) n += plen(node.childNodes[i]);
+            return n;
+          }
+          if (c === el) {
+            var t0 = 0;
+            for (var j = 0; j < off && j < el.childNodes.length; j++) t0 += plen(el.childNodes[j]);
+            return t0;
+          }
+          var total = 0, done = false;
+          function upto(node) {
+            if (done) return;
+            if (node === c) {
+              if (node.nodeType === 3) total += off;
+              else if (node.nodeType === 1 && node.classList && node.classList.contains('fx-token')) total += off > 0 ? node.textContent.length : 0;
+              else if (node.nodeType === 1) { for (var i = 0; i < off && i < node.childNodes.length; i++) total += plen(node.childNodes[i]); }
+              done = true;
+              return;
+            }
+            if (node.nodeType === 3) { total += node.length; return; }
+            if (node.nodeType === 1) {
+              if (node.classList && node.classList.contains('fx-token')) {
+                if (node.contains(c)) { total += (c.nodeType === 3 && off === 0) ? 0 : node.textContent.length; done = true; }
+                else total += node.textContent.length;
+                return;
+              }
+              for (var i = 0; i < node.childNodes.length; i++) { upto(node.childNodes[i]); if (done) return; }
+            }
+          }
+          for (var k = 0; k < el.childNodes.length && !done; k++) upto(el.childNodes[k]);
+          return total;
         }
         function fxSetCaret(proj) {
           var el = fxFieldEl();
@@ -11990,10 +12065,20 @@
              outlive it. */
           fxCloseTokenPop();
           var proj = fxCaretProj();
+          /* Build -134: if the caret could not be measured
+             this pass (WebKit can report a selection the
+             walk can't place while it re-settles around a
+             chip) but the field still holds focus, restore
+             the last known caret instead of leaving the
+             re-render to drop it at the end of the field. */
+          if (proj == null && fxLastProj != null && document.activeElement === fxFieldEl()) proj = fxLastProj;
           fxRenderSegs(fxReadSegs());
           if (proj != null) fxSetCaret(proj);
           fxUpdatePreview();
           fxMaybePromptDocPromote();
+          /* Build -134: the @ menu re-reads its trigger
+             after every re-render, caret restored. */
+          fxAtSync();
         }
         /* ----- global formulas meeting document variables
            (build -133 amendment) -----
@@ -12194,6 +12279,7 @@
           document.getElementById('varEditValueWrap').hidden = varEditMode !== 'value';
           document.getElementById('varEditFormulaWrap').hidden = varEditMode !== 'formula';
           if (varEditMode === 'formula') { fxRenderInsertList(); fxUpdatePreview(); }
+          else fxAtClose();
         }
         function fxRenderInsertList() {
           var list = document.getElementById('varEditInsertList');
@@ -12325,6 +12411,163 @@
           fxRenderSegs(out);
           fxSetCaret(newProj);
           fxUpdatePreview();
+        }
+        /* ----- the @ variable menu in the formula field
+           (build -134) -----
+           The document editor's @ menu, same behavior, one
+           surface over: typing @ in the expression field
+           opens the variable search; selection inserts a
+           name token where the @ and its filter text sat.
+           The trigger here may follow any non-word character
+           (an operator, a paren, a space) or the start of the
+           expression — formulas have no email addresses to
+           protect, and "eggs+@bl" is a natural thing to
+           type. In a GLOBAL formula the menu also lists the
+           document's variables that have no global namesake,
+           marked as the insert list marks them; choosing one
+           runs the same promote-first flow the list runs. */
+        var fxAtState = { active: false, items: [], selected: 0, query: '', range: null };
+        var fxAtDismissed = null;
+        function fxAtPopEl() {
+          var el = document.getElementById('fxAtPop');
+          if (!el) {
+            el = document.createElement('div');
+            el.id = 'fxAtPop';
+            el.className = 'suggest';
+            document.body.appendChild(el);
+          }
+          return el;
+        }
+        function fxAtTrigger() {
+          var proj = fxCaretProj();
+          if (proj == null) return null;
+          var text = '';
+          fxReadSegs().forEach(function (sg) {
+            text += sg.k === 'r' ? (varNameForId(sg.vid) || sg.n || '') : sg.text;
+          });
+          var before = text.slice(0, proj);
+          var m = before.match(/(?:^|[^\w])@([A-Za-z][A-Za-z0-9_]*)?$/);
+          if (!m) return null;
+          var start = before.length - m[0].length + (m[0].charAt(0) === '@' ? 0 : 1);
+          return { range: { from: start, to: proj }, query: m[1] || '' };
+        }
+        function fxAtItemsFor(query) {
+          var q = String(query || '').toLowerCase();
+          var out = [];
+          fxScopeEntries().forEach(function (en) {
+            if (q && en.rec.name.toLowerCase().indexOf(q) === -1) return;
+            out.push({ scope: en.scope, rec: en.rec, promo: false, scopeLabel: en.scope === 'doc' ? 'This doc' : 'Global' });
+          });
+          if (varEditCtx && varEditCtx.scope === 'global') {
+            var cdoc = fxCtxDoc();
+            if (cdoc) varDocList(cdoc.id).forEach(function (r) {
+              if (varGlobalByName(r.name)) return;
+              if (q && r.name.toLowerCase().indexOf(q) === -1) return;
+              out.push({ scope: 'doc', rec: r, promo: true, scopeLabel: 'This doc · promote to use' });
+            });
+          }
+          out.sort(function (a, b) {
+            var ai = a.rec.name.toLowerCase().indexOf(q), bi = b.rec.name.toLowerCase().indexOf(q);
+            if (ai !== bi) return ai - bi;
+            return a.rec.name.localeCompare(b.rec.name);
+          });
+          return out.slice(0, 8);
+        }
+        function fxAtPosition(rect, itemCount) {
+          var el = fxAtPopEl();
+          var width = Math.min(360, window.innerWidth * 0.88);
+          var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+          el.style.left = left + 'px';
+          var below = rect.bottom + 8;
+          var estHeight = Math.min(320, 60 + itemCount * 48);
+          if (below + estHeight > window.innerHeight - 8 && rect.top - estHeight - 8 > 0) {
+            el.style.top = (rect.top - estHeight - 8) + 'px';
+          } else {
+            el.style.top = below + 'px';
+          }
+        }
+        function renderFxAt() {
+          var el = fxAtPopEl();
+          if (!fxAtState.active) { el.className = 'suggest'; el.innerHTML = ''; return; }
+          el.className = 'suggest open';
+          el.innerHTML = '';
+          var head = document.createElement('div');
+          head.className = 'suggest-head';
+          head.textContent = 'Insert variable';
+          el.appendChild(head);
+          if (!fxAtState.items.length) {
+            var empty = document.createElement('div');
+            empty.className = 'suggest-empty';
+            empty.textContent = 'No variable by that name.';
+            el.appendChild(empty);
+          }
+          fxAtState.items.forEach(function (item, i) {
+            el.appendChild(varAtRow(item, i === fxAtState.selected, fxCtxDoc(), function () { fxAtChoose(i); }));
+          });
+          var sel = window.getSelection ? window.getSelection() : null;
+          var rect = null;
+          if (sel && sel.rangeCount) {
+            var rr = sel.getRangeAt(0).getBoundingClientRect();
+            if (rr && (rr.left || rr.bottom)) rect = { left: rr.left, top: rr.top, bottom: rr.bottom };
+          }
+          if (!rect) {
+            var fr = fxFieldEl().getBoundingClientRect();
+            rect = { left: fr.left, top: fr.top, bottom: fr.bottom };
+          }
+          fxAtPosition(rect, fxAtState.items.length);
+        }
+        function fxAtClose() {
+          if (!fxAtState.active) return;
+          fxAtState.active = false;
+          fxAtState.items = [];
+          fxAtState.range = null;
+          renderFxAt();
+        }
+        function fxAtSync() {
+          if (!varEditCtx || varEditMode !== 'formula') { fxAtClose(); return; }
+          var hit = fxAtTrigger();
+          if (!hit) { fxAtDismissed = null; fxAtClose(); return; }
+          if (fxAtDismissed && fxAtDismissed.from === hit.range.from && fxAtDismissed.query === hit.query) { fxAtClose(); return; }
+          fxAtDismissed = null;
+          var fresh = !fxAtState.active || fxAtState.query !== hit.query;
+          fxAtState.active = true;
+          fxAtState.query = hit.query;
+          fxAtState.range = hit.range;
+          fxAtState.items = fxAtItemsFor(hit.query);
+          if (fresh || fxAtState.selected >= fxAtState.items.length) fxAtState.selected = 0;
+          renderFxAt();
+        }
+        function fxAtDeleteTrigger(range) {
+          var segs = fxNormalizeSegs(fxReadSegs());
+          var out = [], acc = 0;
+          segs.forEach(function (sg) {
+            var len = sg.k === 'r' ? (varNameForId(sg.vid) || sg.n || '').length : sg.text.length;
+            var s0 = acc, s1 = acc + len;
+            acc = s1;
+            if (s1 <= range.from || s0 >= range.to) { out.push(sg); return; }
+            if (sg.k !== 't') { out.push(sg); return; }
+            var joined = sg.text.slice(0, Math.max(0, range.from - s0)) + sg.text.slice(Math.max(0, range.to - s0));
+            if (joined) out.push({ k: 't', text: joined });
+          });
+          fxRenderSegs(out);
+          fxSetCaret(range.from);
+          fxUpdatePreview();
+        }
+        function fxAtChoose(i) {
+          var item = fxAtState.items[i];
+          if (!item || !fxAtState.range) return;
+          var range = fxAtState.range;
+          fxAtClose();
+          if (item.promo) {
+            fxAskPromoteDocVar(item.rec, function (finalRec) {
+              if (!finalRec) return;
+              fxAtDeleteTrigger(range);
+              fxInsertRef('global', finalRec);
+            });
+            return;
+          }
+          fxAtDeleteTrigger(range);
+          fxInsertRef(item.scope, item.rec);
         }
         function varSaveEdit() {
           if (!varEditCtx) return;
@@ -12857,6 +13100,38 @@
         document.getElementById('varEditExpr').addEventListener('keydown', function (ev) {
           if (ev.key === 'Enter') varEditEnter(ev);
         });
+        /* Build -134: the @ menu's keys in this field, on
+           the capture path so they land ahead of the
+           Enter-to-save handler above (Enter and Tab belong
+           to the menu while it is open), plus trigger
+           re-reads on caret-only moves (arrows, taps) that
+           produce no input event. */
+        document.getElementById('varEditExpr').addEventListener('keydown', function (ev) {
+          if (!fxAtState.active) return;
+          if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            if (!fxAtState.items.length) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            var d = ev.key === 'ArrowDown' ? 1 : -1;
+            fxAtState.selected = (fxAtState.selected + d + fxAtState.items.length) % fxAtState.items.length;
+            renderFxAt();
+          } else if (ev.key === 'Enter' || ev.key === 'Tab') {
+            if (!fxAtState.items.length) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            fxAtChoose(fxAtState.selected);
+          } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (fxAtState.range) fxAtDismissed = { from: fxAtState.range.from, query: fxAtState.query };
+            fxAtClose();
+          }
+        }, true);
+        document.getElementById('varEditExpr').addEventListener('keyup', function (ev) {
+          if (ev.key === 'Enter' || ev.key === 'Tab' || ev.key === 'Escape') return;
+          fxAtSync();
+        });
+        document.getElementById('varEditExpr').addEventListener('click', function () { fxAtSync(); });
         document.getElementById('varEditExpr').addEventListener('click', function (ev) {
           var tok = ev.target && ev.target.closest ? ev.target.closest('.fx-token') : null;
           if (tok) {
@@ -16111,6 +16386,174 @@
           if (tagFilter) renderDocList();
         }
 
+        /* ---------------- @ variable suggestion popup (build -134) ----------------
+           Typing @ in document text opens a variable search
+           menu: both scopes, each row badged with its scope
+           and current value the way the variable picker
+           badges them. Typing further filters by name; arrow
+           keys move the highlight; Enter or Tab inserts a
+           reference chip at the caret, replacing the @ and
+           the typed filter; Esc dismisses; the menu closes
+           on a space or whenever the caret leaves the trigger
+           word. The trigger is @ only — [[ stays wikilinks
+           and # stays tags. Detection mirrors the tag
+           suggestion's query shape (the @ must sit at the
+           start of a textblock or after whitespace, never
+           mid-word, so an email address never summons it),
+           and runs from the editor's selection-change hook;
+           the keys are taken in a capture-phase listener on
+           the editor mount, ahead of the editor's own key
+           handling, only while the menu is open. */
+        var varAtState = { active: false, items: [], selected: 0, rect: null, query: '', range: null };
+        var varAtDismissed = null;
+
+        function varAtQueryAt(state) {
+          var t = state.selection;
+          if (!t || !t.empty) return null;
+          var n = t.$from;
+          if (!n || !n.parent || !n.parent.isTextblock || n.parent.type.name === 'codeBlock') return null;
+          var r = n.parent.textBetween(0, n.parentOffset, undefined, '￼');
+          var m = r.match(/(?:^|[\s￼])@([A-Za-z][A-Za-z0-9_]*)?$/);
+          if (!m) return null;
+          var s = r.length - m[0].length + (m[0].charAt(0) === '@' ? 0 : 1);
+          return { range: { from: n.pos - (r.length - s), to: n.pos }, query: m[1] || '' };
+        }
+        function varAtComputeItems(doc, query) {
+          var q = String(query || '').toLowerCase();
+          var out = [];
+          function push(scope, rec) {
+            if (q && rec.name.toLowerCase().indexOf(q) === -1) return;
+            out.push({ scope: scope, rec: rec });
+          }
+          if (doc) varDocList(doc.id).forEach(function (r) { push('doc', r); });
+          varStore.globals.forEach(function (r) { push('global', r); });
+          out.sort(function (a, b) {
+            var ai = a.rec.name.toLowerCase().indexOf(q), bi = b.rec.name.toLowerCase().indexOf(q);
+            if (ai !== bi) return ai - bi;
+            return a.rec.name.localeCompare(b.rec.name);
+          });
+          return out.slice(0, 8);
+        }
+        function varAtRow(item, isSel, doc, choose) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'suggest-item var-at-item' + (isSel ? ' sel' : '');
+          b.setAttribute('role', 'option');
+          var nm = document.createElement('span');
+          nm.className = 's-title';
+          nm.textContent = item.rec.name;
+          b.appendChild(nm);
+          var val = document.createElement('span');
+          val.className = 's-val';
+          val.textContent = varRecordValue(item.rec, item.scope === 'doc' ? doc : null);
+          b.appendChild(val);
+          if (varIsFormula(item.rec)) {
+            var fx = document.createElement('span');
+            fx.className = 'var-badge soft';
+            fx.textContent = 'ƒx';
+            b.appendChild(fx);
+          }
+          var sc = document.createElement('span');
+          sc.className = 'var-badge soft';
+          sc.textContent = item.scopeLabel || (item.scope === 'doc' ? 'This document' : 'Global');
+          b.appendChild(sc);
+          /* Keep the caret where it is while the tap lands. */
+          b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+          b.addEventListener('click', function () { choose(); });
+          return b;
+        }
+        function renderVarAt() {
+          if (!varAtState.active) {
+            if (!suggestState.active && !tagSuggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; }
+            return;
+          }
+          suggestEl.className = 'suggest open';
+          suggestEl.innerHTML = '';
+          var head = document.createElement('div');
+          head.className = 'suggest-head';
+          head.textContent = 'Insert variable';
+          suggestEl.appendChild(head);
+          var doc = currentDoc();
+          if (!varAtState.items.length) {
+            var empty = document.createElement('div');
+            empty.className = 'suggest-empty';
+            empty.textContent = 'No variable by that name.';
+            suggestEl.appendChild(empty);
+          }
+          varAtState.items.forEach(function (item, i) {
+            suggestEl.appendChild(varAtRow(item, i === varAtState.selected, doc, function () { varAtChoose(i); }));
+          });
+          if (varAtState.rect) positionSuggestPopup(varAtState.rect, varAtState.items.length);
+        }
+        function varAtClose() {
+          if (!varAtState.active) return;
+          varAtState.active = false;
+          varAtState.items = [];
+          varAtState.range = null;
+          renderVarAt();
+        }
+        function varAtSync() {
+          if (!editorHandle || !editorHandle.editor || tplEditingId) { varAtClose(); return; }
+          if (suggestState.active || tagSuggestState.active) { varAtClose(); return; }
+          var doc = currentDoc();
+          if (!doc) { varAtClose(); return; }
+          var hit = null;
+          try { hit = varAtQueryAt(editorHandle.editor.state); } catch (e) { hit = null; }
+          if (!hit) { varAtDismissed = null; varAtClose(); return; }
+          if (varAtDismissed && varAtDismissed.from === hit.range.from && varAtDismissed.query === hit.query) { varAtClose(); return; }
+          varAtDismissed = null;
+          var fresh = !varAtState.active || varAtState.query !== hit.query;
+          varAtState.active = true;
+          varAtState.query = hit.query;
+          varAtState.range = hit.range;
+          varAtState.items = varAtComputeItems(doc, hit.query);
+          if (fresh || varAtState.selected >= varAtState.items.length) varAtState.selected = 0;
+          var c = editorHandle.editor.view.coordsAtPos(hit.range.from);
+          varAtState.rect = { left: c.left, top: c.top, bottom: c.bottom };
+          renderVarAt();
+        }
+        function varAtChoose(i) {
+          var item = varAtState.items[i];
+          if (!item || !editorHandle || !editorHandle.editor) return;
+          var doc = currentDoc();
+          if (!doc) return;
+          var range = varAtState.range;
+          /* Shadowing resolves exactly as the picker's: a
+             shadowed global inserts its document variable. */
+          var effScope = item.scope, effRec = item.rec;
+          if (item.scope === 'global') {
+            var shadow = varDocVarByName(doc.id, item.rec.name);
+            if (shadow) { effScope = 'doc'; effRec = shadow; }
+          }
+          varAtClose();
+          if (!range) return;
+          editorHandle.editor.chain().focus()
+            .deleteRange({ from: range.from, to: range.to })
+            .insertContent({ type: 'varRef', attrs: varRefAttrsFor(doc, effScope, effRec) })
+            .run();
+        }
+        function varAtMenuKey(ev) {
+          if (!varAtState.active) return;
+          if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            if (!varAtState.items.length) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            var d = ev.key === 'ArrowDown' ? 1 : -1;
+            varAtState.selected = (varAtState.selected + d + varAtState.items.length) % varAtState.items.length;
+            renderVarAt();
+          } else if (ev.key === 'Enter' || ev.key === 'Tab') {
+            if (!varAtState.items.length) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            varAtChoose(varAtState.selected);
+          } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (varAtState.range) varAtDismissed = { from: varAtState.range.from, query: varAtState.query };
+            varAtClose();
+          }
+        }
+
         /* ---------------- editor wiring ---------------- */
         var editorHandle = null;
         var editorScroll = document.getElementById('editorScroll');
@@ -19347,7 +19790,7 @@
                the pane reloads from it when its tab is shown. */
             if (typeof refLiveUpdate === 'function') refLiveUpdate(doc);
           },
-          onSelectionChange: function () { refreshToolbar(); },
+          onSelectionChange: function () { refreshToolbar(); varAtSync(); },
           onNavigate: function (title) { navigateToTitle(title); },
           onSuggestion: function (state) {
             if (state.active) tagSuggestState.active = false;
@@ -19454,6 +19897,13 @@
              state. Autocorrect stays untouched, as above. */
           editorHandle.editor.view.dom.setAttribute('autocomplete', 'off');
         }
+
+        /* Build -134: the @ variable menu's keys, taken on
+           the capture path down to the editor so they land
+           ahead of the editor's own key handling (Enter and
+           Tab belong to the menu while it is open, not to
+           the document). Inert whenever the menu is closed. */
+        document.getElementById('editorMount').addEventListener('keydown', varAtMenuKey, true);
 
         attachCodeCopy(document.getElementById('editorMount'), editorHandle.editor);
         applyStoredFolds();
