@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261105-134" />
+    <meta name="folio-build" content="20261105-135" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -6341,7 +6341,7 @@
           <input class="text-input" id="varEditValue" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Variable value" style="width:100%;margin-top:6px" />
         </div>
         <div id="varEditFormulaWrap" hidden>
-          <p class="form-note" style="margin-top:12px">Formula — names become references to variables; operators + - * / % ^ and functions ROUND, ABS, MIN, MAX, SUM, AVERAGE. Hover or tap a name to see its current value. In a document formula, tapping a name also shows its scope — and lets you switch it to a same-named variable in the other scope, when one exists.</p>
+          <p class="form-note" style="margin-top:12px">Formula — names become references to variables; operators + - * / % ^, comparisons = != &lt; &lt;= &gt; &gt;= (giving 1 or 0), &amp; to join text, “quoted text”, and functions ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER, LOWER. Hover or tap a name to see its current value. In a document formula, tapping a name also shows its scope — and lets you switch it to a same-named variable in the other scope, when one exists.</p>
           <div class="fx-field" id="varEditExpr" contenteditable="true" role="textbox" aria-multiline="false" aria-label="Formula expression" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></div>
           <div class="fx-preview" id="varEditPreview" aria-live="polite"></div>
           <label class="form-note" for="varEditFormat" style="display:block;margin-top:12px">Result format — display only; formulas that use this one still compute with the raw result</label>
@@ -10165,7 +10165,7 @@
              stale last-good number can never be served. */
           if (rec && typeof rec.expr === 'string' && rec.expr) {
             var fr = fxEvalTop(rec);
-            return fr.ok ? fxFormat(fr.num, rec.fmt) : fr.code;
+            return fxResultDisplay(fr, rec.fmt);
           }
           if (rec && rec.anchor) {
             var homeId = rec.anchorDoc || (homeDoc && homeDoc.id) || null;
@@ -10247,11 +10247,29 @@
            every member #CYCLE! "part of a cycle"; a formula
            that merely depends on a cycle member renders the
            same code with "depends on" wording. Nothing
-           half-evaluates. */
+           half-evaluates.
+           Formulas v2 (build -135) widens the value model:
+           an evaluation now yields a TYPED result — a number,
+           a piece of text, or blank — and the ratified rules
+           ride on it. Double-quoted string literals, the &
+           join operator, and comparisons (= != < <= > >=,
+           yielding the number 1 or 0, text equality case-
+           insensitive) enter the grammar at spreadsheet
+           precedence (comparisons loosest, then &, then
+           + -, then * / %, then ^); IF(cond, then, else?)
+           is lazy and yields blank without its else;
+           CONCAT / LEN / UPPER / LOWER join the function
+           set. Truthiness: a nonzero number is true, empty
+           is false, the text "true" counts as true,
+           and any other text in a condition is #VALUE!.
+           Display formats bite only on numeric results —
+           text displays as-is and blank displays empty —
+           and downstream formulas always consume the raw
+           typed result, never the display text. */
         function varIsFormula(rec) {
           return !!(rec && typeof rec.expr === 'string' && rec.expr);
         }
-        var FX_FNS = { ROUND: 1, ABS: 1, MIN: 1, MAX: 1, SUM: 1, AVERAGE: 1 };
+        var FX_FNS = { ROUND: 1, ABS: 1, MIN: 1, MAX: 1, SUM: 1, AVERAGE: 1, IF: 1, CONCAT: 1, LEN: 1, UPPER: 1, LOWER: 1 };
         var fxGenSess = null;
         function fxInvalidate() { fxGenSess = null; }
         function fxNewSession(overrideRec, overrideCtx) {
@@ -10300,6 +10318,66 @@
             default: return fxGeneral(num);
           }
         }
+        /* ----- Formulas v2 typed results (build -135) -----
+           fxResultDisplay is the ONE display rule: the five
+           formats format numbers only; text shows as-is;
+           blank shows empty; an error shows its code. */
+        function fxResultDisplay(res, fmt) {
+          if (!res) return '#VALUE!';
+          if (!res.ok) return res.code;
+          if (res.kind === 'text') return res.text;
+          if (res.kind === 'blank') return '';
+          return fxFormat(res.num, fmt);
+        }
+        /* Coerce a typed result to a number for arithmetic
+           and the numeric functions: numbers pass, blank
+           counts as 0, text that reads as a plain decimal
+           parses, and any other text is #VALUE! naming its
+           source variable when it came from one. */
+        function fxToNum(v) {
+          if (v.kind === 'num') return { ok: true, num: v.num };
+          if (v.kind === 'blank') return { ok: true, num: 0 };
+          var n = fxParseNum(v.text);
+          if (n != null) return { ok: true, num: n };
+          return { ok: false, code: '#VALUE!', msg: '“' + (v.nm || String(v.text).slice(0, 24)) + '” isn’t a number' };
+        }
+        /* Coerce a typed result to text for & and the text
+           functions: text passes, blank is empty, numbers
+           render in the General format. */
+        function fxToText(v) {
+          if (v.kind === 'text') return v.text;
+          if (v.kind === 'blank') return '';
+          return fxGeneral(v.num);
+        }
+        /* The ratified truthiness: nonzero number true,
+           zero false, empty false, the text "true" true
+           (case-insensitive) — any other text as a condition
+           is a #VALUE! error, never a guess. */
+        function fxTruthy(v) {
+          if (v.kind === 'num') return { ok: true, truth: v.num !== 0 };
+          if (v.kind === 'blank') return { ok: true, truth: false };
+          var s = v.text.trim().toLowerCase();
+          if (s === '') return { ok: true, truth: false };
+          if (s === 'true') return { ok: true, truth: true };
+          return { ok: false, code: '#VALUE!', msg: '“' + (v.nm || String(v.text).slice(0, 24)) + '” can’t be used as a condition — a condition is a number, a comparison, or the text “true”' };
+        }
+        /* Three-way compare of typed results, or null when
+           a number meets text that doesn't read as one
+           (such a pair is unequal, and unorderable).
+           Numbers compare numerically — blank counts as 0,
+           numeric text parses; otherwise text compares
+           case-insensitively, blank as empty text. */
+        function fxCmp(a, b) {
+          var an = a.kind === 'num' ? a.num : (a.kind === 'blank' ? 0 : fxParseNum(a.text));
+          var bn = b.kind === 'num' ? b.num : (b.kind === 'blank' ? 0 : fxParseNum(b.text));
+          if (an != null && bn != null) return an < bn ? -1 : (an > bn ? 1 : 0);
+          if (a.kind !== 'num' && b.kind !== 'num') {
+            var at = a.kind === 'blank' ? '' : a.text.toLowerCase();
+            var bt = b.kind === 'blank' ? '' : b.text.toLowerCase();
+            return at < bt ? -1 : (at > bt ? 1 : 0);
+          }
+          return null;
+        }
         /* Lexer for raw expression text (the modal field's
            text segments, the FolioVars checker). Emits number
            / function / operator / paren / comma tokens and
@@ -10336,6 +10414,40 @@
               i += word.length;
               continue;
             }
+            if (c === '"') {
+              /* Formulas v2: a double-quoted string literal;
+                 a doubled quote inside is an escaped quote
+                 (the spreadsheet convention). */
+              var j = i + 1, str = '', closed = false;
+              while (j < s.length) {
+                var qc = s.charAt(j);
+                if (qc === '"') {
+                  if (s.charAt(j + 1) === '"') { str += '"'; j += 2; continue; }
+                  closed = true; j++; break;
+                }
+                str += qc; j++;
+              }
+              if (!closed) return { error: 'That text is missing its closing quote.' };
+              tokens.push({ t: 's', v: str });
+              i = j;
+              continue;
+            }
+            if (c === '&') { tokens.push({ t: 'o', v: '&' }); i++; continue; }
+            if (c === '=') { tokens.push({ t: 'o', v: '=' }); i++; continue; }
+            if (c === '!') {
+              if (s.charAt(i + 1) === '=') { tokens.push({ t: 'o', v: '!=' }); i += 2; continue; }
+              return { error: 'Unexpected character “!” in the formula — “not equal” is !=.' };
+            }
+            if (c === '<') {
+              if (s.charAt(i + 1) === '=') { tokens.push({ t: 'o', v: '<=' }); i += 2; }
+              else { tokens.push({ t: 'o', v: '<' }); i++; }
+              continue;
+            }
+            if (c === '>') {
+              if (s.charAt(i + 1) === '=') { tokens.push({ t: 'o', v: '>=' }); i += 2; }
+              else { tokens.push({ t: 'o', v: '>' }); i++; }
+              continue;
+            }
             if ('+-*/%^'.indexOf(c) !== -1) { tokens.push({ t: 'o', v: c }); i++; continue; }
             if (c === '(' || c === ')' || c === ',') { tokens.push({ t: c }); i++; continue; }
             return { error: 'Unexpected character “' + c + '” in the formula.' };
@@ -10345,23 +10457,45 @@
         function fxTokenLabel(tk) {
           if (!tk) return 'end of formula';
           if (tk.t === 'r') return tk.n || 'variable';
+          if (tk.t === 's') return '"' + tk.v + '"';
           if (tk.t === 'n' || tk.t === 'f' || tk.t === 'o' || tk.t === 'i') return tk.v;
           return tk.t;
         }
         /* Recursive-descent parser over a token array whose
            references are already bound ({t:'r', vid, s, n}).
-           Throws {fx: message} on any syntax error. Grammar:
-           expr := term (('+'|'-') term)*; term := factor
+           Throws {fx: message} on any syntax error. Grammar
+           (spreadsheet precedence, loosest first): expr :=
+           concat (compOp concat)*, compOp one of = != < <=
+           > >=; concat := additive ('&' additive)*;
+           additive := term (('+'|'-') term)*; term := factor
            (('*'|'/'|'%') factor)*; factor := unary ('^'
            factor)? (right-associative); unary := '-' unary |
-           primary; primary := number | reference | function
-           call | '(' expr ')'. */
+           primary; primary := number | string | reference |
+           function call | '(' expr ')'. */
         function fxParse(tokens) {
           var i = 0;
           function peek() { return tokens[i] || null; }
           function next() { return tokens[i++] || null; }
           function err(msg) { throw { fx: msg }; }
-          function parseExpr() {
+          var CMP_OPS = ['=', '!=', '<', '<=', '>', '>='];
+          function parseExpr() { return parseComparison(); }
+          function parseComparison() {
+            var l = parseConcat();
+            for (;;) {
+              var tk = peek();
+              if (tk && tk.t === 'o' && CMP_OPS.indexOf(tk.v) !== -1) { next(); var r = parseConcat(); l = { k: 'cmp', op: tk.v, l: l, r: r }; }
+              else return l;
+            }
+          }
+          function parseConcat() {
+            var l = parseAdditive();
+            for (;;) {
+              var tk = peek();
+              if (tk && tk.t === 'o' && tk.v === '&') { next(); var r = parseAdditive(); l = { k: 'cat', l: l, r: r }; }
+              else return l;
+            }
+          }
+          function parseAdditive() {
             var l = parseTerm();
             for (;;) {
               var tk = peek();
@@ -10393,6 +10527,7 @@
             var tk = next();
             if (!tk) err('The formula ends unexpectedly — an operator is missing its right-hand side.');
             if (tk.t === 'n') { var v = parseFloat(tk.v); if (!isFinite(v)) err('That number isn’t readable.'); return { k: 'num', v: v }; }
+            if (tk.t === 's') return { k: 'str', v: tk.v };
             if (tk.t === 'r') return { k: 'ref', tok: tk };
             if (tk.t === 'f') {
               var open = next();
@@ -10409,6 +10544,9 @@
                 }
               }
               if (tk.v === 'ABS' && args.length !== 1) err('ABS takes exactly one argument.');
+              if (tk.v === 'IF' && (args.length < 2 || args.length > 3)) err('IF takes a condition and a value, plus an optional second value: IF(condition, value if true, value if false).');
+              if (tk.v === 'LEN' && args.length !== 1) err('LEN takes exactly one argument.');
+              if ((tk.v === 'UPPER' || tk.v === 'LOWER') && args.length !== 1) err(tk.v + ' takes exactly one argument.');
               if (tk.v === 'ROUND' && (args.length < 1 || args.length > 2)) err('ROUND takes one argument, or two: ROUND(value, decimals).');
               if (FX_FNS[tk.v] && args.length < 1) err(tk.v + ' needs at least one argument.');
               return { k: 'fn', name: tk.v, args: args };
@@ -10511,65 +10649,141 @@
             }
             return r;
           }
+          /* Formulas v2: a plain variable contributes its
+             value AS TYPED — blank when empty, a number when
+             its text reads as one, text otherwise — and the
+             consuming operator or function coerces (or
+             errors) per its own rules. The name rides along
+             (nm) so a coercion error can name its source. */
           var text = varRecordValue(target, tScope === 'doc' ? ctx.doc : null);
+          if (text === '') return { ok: true, kind: 'blank', nm: target.name };
           var num = fxParseNum(text);
-          if (num == null) return { ok: false, code: '#VALUE!', msg: '“' + target.name + '” isn’t a number' };
-          return { ok: true, num: num };
+          if (num != null) return { ok: true, kind: 'num', num: num, nm: target.name };
+          return { ok: true, kind: 'text', text: text, nm: target.name };
         }
         function fxEvalAst(node, ctx, sess) {
           var a, b, i;
           switch (node.k) {
-            case 'num': return { ok: true, num: node.v };
+            case 'num': return { ok: true, kind: 'num', num: node.v };
+            case 'str': return { ok: true, kind: 'text', text: node.v };
             case 'ref': return fxEvalRef(node.tok, ctx, sess);
-            case 'un':
+            case 'un': {
               a = fxEvalAst(node.a, ctx, sess);
-              return a.ok ? { ok: true, num: -a.num } : a;
+              if (!a.ok) return a;
+              var un = fxToNum(a);
+              return un.ok ? { ok: true, kind: 'num', num: -un.num } : un;
+            }
+            case 'cat': {
+              a = fxEvalAst(node.l, ctx, sess);
+              if (!a.ok) return a;
+              b = fxEvalAst(node.r, ctx, sess);
+              if (!b.ok) return b;
+              return { ok: true, kind: 'text', text: fxToText(a) + fxToText(b) };
+            }
+            case 'cmp': {
+              a = fxEvalAst(node.l, ctx, sess);
+              if (!a.ok) return a;
+              b = fxEvalAst(node.r, ctx, sess);
+              if (!b.ok) return b;
+              var c = fxCmp(a, b);
+              if (c == null) {
+                /* A number against text that doesn't read as
+                   one: unequal by definition, unorderable —
+                   ordering asks are a #VALUE! error. */
+                if (node.op === '=') return { ok: true, kind: 'num', num: 0 };
+                if (node.op === '!=') return { ok: true, kind: 'num', num: 1 };
+                return { ok: false, code: '#VALUE!', msg: 'A number and that text can’t be ordered' };
+              }
+              var hit;
+              switch (node.op) {
+                case '=': hit = c === 0; break;
+                case '!=': hit = c !== 0; break;
+                case '<': hit = c < 0; break;
+                case '<=': hit = c <= 0; break;
+                case '>': hit = c > 0; break;
+                case '>=': hit = c >= 0; break;
+                default: return { ok: false, code: '#VALUE!', msg: 'Unknown comparison “' + node.op + '”.' };
+              }
+              return { ok: true, kind: 'num', num: hit ? 1 : 0 };
+            }
             case 'bin': {
               a = fxEvalAst(node.l, ctx, sess);
               if (!a.ok) return a;
               b = fxEvalAst(node.r, ctx, sess);
               if (!b.ok) return b;
+              var na = fxToNum(a);
+              if (!na.ok) return na;
+              var nb = fxToNum(b);
+              if (!nb.ok) return nb;
               var v;
               switch (node.op) {
-                case '+': v = a.num + b.num; break;
-                case '-': v = a.num - b.num; break;
-                case '*': v = a.num * b.num; break;
+                case '+': v = na.num + nb.num; break;
+                case '-': v = na.num - nb.num; break;
+                case '*': v = na.num * nb.num; break;
                 case '/':
-                  if (b.num === 0) return { ok: false, code: '#DIV/0!', msg: 'Division by zero' };
-                  v = a.num / b.num; break;
+                  if (nb.num === 0) return { ok: false, code: '#DIV/0!', msg: 'Division by zero' };
+                  v = na.num / nb.num; break;
                 case '%':
-                  if (b.num === 0) return { ok: false, code: '#DIV/0!', msg: 'Division by zero' };
-                  v = a.num % b.num; break;
-                case '^': v = Math.pow(a.num, b.num); break;
+                  if (nb.num === 0) return { ok: false, code: '#DIV/0!', msg: 'Division by zero' };
+                  v = na.num % nb.num; break;
+                case '^': v = Math.pow(na.num, nb.num); break;
                 default: return { ok: false, code: '#VALUE!', msg: 'Unknown operator “' + node.op + '”.' };
               }
               if (typeof v !== 'number' || !isFinite(v)) return { ok: false, code: '#NUM!', msg: 'That calculation doesn’t produce a usable number' };
-              return { ok: true, num: v };
+              return { ok: true, kind: 'num', num: v };
             }
             case 'fn': {
+              /* IF is lazy: the branch not taken never
+                 evaluates, so IF(x != 0, 1 / x, "—") is safe
+                 at x = 0. Without an else, false is blank. */
+              if (node.name === 'IF') {
+                var cond = fxEvalAst(node.args[0], ctx, sess);
+                if (!cond.ok) return cond;
+                var tr = fxTruthy(cond);
+                if (!tr.ok) return tr;
+                if (tr.truth) return fxEvalAst(node.args[1], ctx, sess);
+                if (node.args.length > 2) return fxEvalAst(node.args[2], ctx, sess);
+                return { ok: true, kind: 'blank' };
+              }
               var vals = [];
               for (i = 0; i < node.args.length; i++) {
                 var av = fxEvalAst(node.args[i], ctx, sess);
                 if (!av.ok) return av;
-                vals.push(av.num);
+                vals.push(av);
               }
               var out;
               switch (node.name) {
-                case 'ABS': out = Math.abs(vals[0]); break;
+                case 'CONCAT':
+                  return { ok: true, kind: 'text', text: vals.map(fxToText).join('') };
+                case 'LEN':
+                  return { ok: true, kind: 'num', num: fxToText(vals[0]).length };
+                case 'UPPER':
+                  return { ok: true, kind: 'text', text: fxToText(vals[0]).toUpperCase() };
+                case 'LOWER':
+                  return { ok: true, kind: 'text', text: fxToText(vals[0]).toLowerCase() };
+              }
+              var nums = [];
+              for (i = 0; i < vals.length; i++) {
+                var cn = fxToNum(vals[i]);
+                if (!cn.ok) return cn;
+                nums.push(cn.num);
+              }
+              switch (node.name) {
+                case 'ABS': out = Math.abs(nums[0]); break;
                 case 'ROUND': {
-                  var d = vals.length > 1 ? Math.trunc(vals[1]) : 0;
-                  var p = Math.pow(10, d);
-                  out = Math.round(vals[0] * p) / p;
+                  var d = nums.length > 1 ? Math.trunc(nums[1]) : 0;
+                  var pw = Math.pow(10, d);
+                  out = Math.round(nums[0] * pw) / pw;
                   break;
                 }
-                case 'MIN': out = Math.min.apply(null, vals); break;
-                case 'MAX': out = Math.max.apply(null, vals); break;
-                case 'SUM': out = vals.reduce(function (x, y) { return x + y; }, 0); break;
-                case 'AVERAGE': out = vals.reduce(function (x, y) { return x + y; }, 0) / vals.length; break;
+                case 'MIN': out = Math.min.apply(null, nums); break;
+                case 'MAX': out = Math.max.apply(null, nums); break;
+                case 'SUM': out = nums.reduce(function (x, y) { return x + y; }, 0); break;
+                case 'AVERAGE': out = nums.reduce(function (x, y) { return x + y; }, 0) / nums.length; break;
                 default: return { ok: false, code: '#NAME?', msg: 'No function named “' + node.name + '”' };
               }
               if (typeof out !== 'number' || !isFinite(out)) return { ok: false, code: '#NUM!', msg: 'That calculation doesn’t produce a usable number' };
-              return { ok: true, num: out };
+              return { ok: true, kind: 'num', num: out };
             }
           }
           return { ok: false, code: '#VALUE!', msg: 'This formula can’t be evaluated.' };
@@ -10583,6 +10797,7 @@
           var prev = null;
           (tokens || []).forEach(function (tk) {
             if (tk.t === 'r') { out += (varNameForId(tk.vid) || tk.n || 'variable'); prev = 'r'; }
+            else if (tk.t === 's') { out += '"' + String(tk.v).replace(/"/g, '""') + '"'; prev = 's'; }
             else if (tk.t === 'n') { out += tk.v; prev = 'n'; }
             else if (tk.t === 'f') { out += tk.v; prev = 'f'; }
             else if (tk.t === 'o') {
@@ -10639,7 +10854,7 @@
               if (dvOnly && !varGlobalByName(tk.v)) return { error: '“' + tk.v + '” is a document variable — a global formula can only use global variables. Promote it to global to use it here.', unknown: tk.v };
             }
             var nx = lexed.tokens[i + 1];
-            if (nx && nx.t === '(') return { error: 'Unknown function “' + tk.v + '” — the functions are ROUND, ABS, MIN, MAX, SUM and AVERAGE.' };
+            if (nx && nx.t === '(') return { error: 'Unknown function “' + tk.v + '” — the functions are ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER and LOWER.' };
             return { error: 'No variable named “' + tk.v + '”.', unknown: tk.v };
           }
           return { tokens: out };
@@ -11859,42 +12074,62 @@
           return true;
         }
         function fxRenderTextSeg(text, frag) {
-          var re = /[A-Za-z][A-Za-z0-9_]*/g;
-          var last = 0, m;
-          var selfName = document.getElementById('varEditName').value.trim();
-          while ((m = re.exec(text))) {
-            if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
-            var word = m[0];
-            var found = varEditCtx ? fxFindByNameIn(varEditCtx.scope, fxCtxDoc(), word) : null;
-            var docOnly = (!found && varEditCtx && varEditCtx.scope === 'global') ? fxDocOnlyByName(word) : null;
-            if (found) {
-              frag.appendChild(fxTokenSpan(found.rec.id, found.scope === 'doc' ? 'd' : 'g', word));
-            } else if (docOnly && !fxDeclinedPromote[docOnly.id]) {
-              /* A document variable named inside a global
-                 formula: not bindable as it stands, so it
-                 waits as a pending name until the promote
-                 prompt is answered (fxMaybePromptDocPromote
-                 asks it; tapping the name asks it too). */
-              var dn = document.createElement('span');
-              dn.className = 'fx-docname';
-              dn.setAttribute('role', 'button');
-              dn.setAttribute('data-vid', docOnly.id);
-              dn.textContent = word;
-              dn.setAttribute('data-tip', '“' + word + '” is a document variable — a global formula can only use globals');
-              frag.appendChild(dn);
-            } else if (selfName && word === selfName) {
-              frag.appendChild(fxTokenSpan(varEditCtx ? (varEditCtx.id || '__fx_self__') : '__fx_self__', varEditCtx && varEditCtx.scope === 'doc' ? 'd' : 'g', word));
-            } else if (Object.prototype.hasOwnProperty.call(FX_FNS, word.toUpperCase())) {
-              frag.appendChild(document.createTextNode(word));
-            } else {
-              var u = document.createElement('span');
-              u.className = 'fx-unknown';
-              u.textContent = word;
-              frag.appendChild(u);
+          /* Formulas v2: quoted stretches are string literals
+             — their contents are never scanned for variable
+             names (the "Serves " in "Serves " & servings is
+             text, not a name), so the segment is split at its
+             quotes first and only the bare stretches go
+             through the name scan below. A doubled quote
+             inside is an escaped quote, not the end. */
+          function renderPlain(chunk) {
+            var re = /[A-Za-z][A-Za-z0-9_]*/g;
+            var last = 0, m;
+            var selfName = document.getElementById('varEditName').value.trim();
+            while ((m = re.exec(chunk))) {
+              if (m.index > last) frag.appendChild(document.createTextNode(chunk.slice(last, m.index)));
+              var word = m[0];
+              var found = varEditCtx ? fxFindByNameIn(varEditCtx.scope, fxCtxDoc(), word) : null;
+              var docOnly = (!found && varEditCtx && varEditCtx.scope === 'global') ? fxDocOnlyByName(word) : null;
+              if (found) {
+                frag.appendChild(fxTokenSpan(found.rec.id, found.scope === 'doc' ? 'd' : 'g', word));
+              } else if (docOnly && !fxDeclinedPromote[docOnly.id]) {
+                var dn = document.createElement('span');
+                dn.className = 'fx-docname';
+                dn.setAttribute('role', 'button');
+                dn.setAttribute('data-vid', docOnly.id);
+                dn.textContent = word;
+                dn.setAttribute('data-tip', '“' + word + '” is a document variable — a global formula can only use globals');
+                frag.appendChild(dn);
+              } else if (selfName && word === selfName) {
+                frag.appendChild(fxTokenSpan(varEditCtx ? (varEditCtx.id || '__fx_self__') : '__fx_self__', varEditCtx && varEditCtx.scope === 'doc' ? 'd' : 'g', word));
+              } else if (Object.prototype.hasOwnProperty.call(FX_FNS, word.toUpperCase())) {
+                frag.appendChild(document.createTextNode(word));
+              } else {
+                var u = document.createElement('span');
+                u.className = 'fx-unknown';
+                u.textContent = word;
+                frag.appendChild(u);
+              }
+              last = m.index + word.length;
             }
-            last = m.index + word.length;
+            if (last < chunk.length) frag.appendChild(document.createTextNode(chunk.slice(last)));
           }
-          if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+          var i = 0, plainStart = 0;
+          while (i < text.length) {
+            if (text.charAt(i) !== '"') { i++; continue; }
+            if (i > plainStart) renderPlain(text.slice(plainStart, i));
+            var j = i + 1;
+            while (j < text.length) {
+              if (text.charAt(j) === '"') {
+                if (text.charAt(j + 1) === '"') { j += 2; continue; }
+                j++; break;
+              }
+              j++;
+            }
+            frag.appendChild(document.createTextNode(text.slice(i, j)));
+            i = j; plainStart = j;
+          }
+          if (plainStart < text.length) renderPlain(text.slice(plainStart));
         }
         /* A reference being typed INTO a longer word is not
            a reference: when an identifier character touches
@@ -12194,6 +12429,7 @@
           (tokens || []).forEach(function (tk) {
             if (tk.t === 'r') { flush(); segs.push({ k: 'r', vid: tk.vid, s: tk.s, n: tk.n }); }
             else if (tk.t === 'n') buf += tk.v;
+            else if (tk.t === 's') buf += '"' + String(tk.v).replace(/"/g, '""') + '"';
             else if (tk.t === 'f') buf += tk.v;
             else if (tk.t === 'o') buf += ' ' + tk.v + ' ';
             else if (tk.t === '(') buf += '(';
@@ -12266,7 +12502,8 @@
             pv.appendChild(document.createTextNode('= '));
             var b = document.createElement('span');
             b.className = 'fx-preview-result';
-            b.textContent = fxFormat(r.num, document.getElementById('varEditFormat').value);
+            var disp = fxResultDisplay(r, document.getElementById('varEditFormat').value);
+            b.textContent = disp === '' ? '(blank)' : disp;
             pv.appendChild(b);
           } else {
             pv.className = 'fx-preview err';
@@ -12446,6 +12683,16 @@
             text += sg.k === 'r' ? (varNameForId(sg.vid) || sg.n || '') : sg.text;
           });
           var before = text.slice(0, proj);
+          /* Formulas v2: an @ typed inside a quoted string
+             literal is text, not a trigger — count unescaped
+             quotes ahead of the caret to know. */
+          var inStr = false;
+          for (var qi = 0; qi < before.length; qi++) {
+            if (before.charAt(qi) !== '"') continue;
+            if (inStr && before.charAt(qi + 1) === '"') { qi++; continue; }
+            inStr = !inStr;
+          }
+          if (inStr) return null;
           var m = before.match(/(?:^|[^\w])@([A-Za-z][A-Za-z0-9_]*)?$/);
           if (!m) return null;
           var start = before.length - m[0].length + (m[0].charAt(0) === '@' ? 0 : 1);
@@ -12604,7 +12851,7 @@
             if (formula) {
               rec.expr = JSON.stringify(fxw.tokens);
               rec.fmt = fxSanitizeFmt(document.getElementById('varEditFormat').value);
-              rec.value = fxw.result.ok ? fxFormat(fxw.result.num, rec.fmt) : fxw.result.code;
+              rec.value = fxResultDisplay(fxw.result, rec.fmt);
             } else {
               rec.value = value;
             }
@@ -12619,7 +12866,7 @@
             rec.name = name;
             if (formula) {
               var fmt = fxSanitizeFmt(document.getElementById('varEditFormat').value);
-              var display = fxw.result.ok ? fxFormat(fxw.result.num, fmt) : fxw.result.code;
+              var display = fxResultDisplay(fxw.result, fmt);
               var wasAnchored = !!rec.anchor;
               rec.expr = JSON.stringify(fxw.tokens);
               rec.fmt = fmt;
@@ -13202,7 +13449,7 @@
             return {
               name: f.rec.name, scope: f.scope, expr: fxExprText(f.rec), fmt: f.rec.fmt || 'general',
               display: varRecordValue(f.rec, null),
-              ok: r.ok, num: r.ok ? r.num : null, code: r.ok ? null : r.code, msg: r.ok ? null : r.msg,
+              ok: r.ok, num: (r.ok && r.kind === 'num') ? r.num : null, kind: r.ok ? r.kind : null, code: r.ok ? null : r.code, msg: r.ok ? null : r.msg,
             };
           },
           checkExpr: function (text, docId, scope) {
@@ -13215,7 +13462,7 @@
             var sess = fxNewSession(null, null);
             var r = fxEvalAst(ast, { scope: sc, doc: doc }, sess);
             if (!r.ok) return { ok: false, syntax: false, code: r.code, error: r.msg };
-            return { ok: true, num: r.num, display: fxFormat(r.num, 'general') };
+            return { ok: true, num: r.kind === 'num' ? r.num : null, kind: r.kind, text: r.kind === 'text' ? r.text : null, display: fxResultDisplay(r, 'general') };
           },
           anchorText: function (docId, vid) { var d = varDocById(docId); return d ? varAnchorTextInContent(d.content, vid) : null; },
           bake: function (content, vid, value) { var c = varClone(content); var changed = varBakeJson(c, vid, value); return { changed: changed, content: c }; },
@@ -27244,10 +27491,14 @@
                and baking this one reference to plain text. */
             var vhit = ctx.hit;
             var vrec = varFindAny(vhit.node.attrs.vid);
-            var vname = (vrec && vrec.rec.name) || vhit.node.attrs.vname || 'variable';
+            var vbound = varResolveRef(varDocById(lib.currentId), vhit.node.attrs) || vrec;
+            var vname = (vbound && vbound.rec.name) || (vrec && vrec.rec.name) || vhit.node.attrs.vname || 'variable';
             el.appendChild(edMenuItem({
               icon: VAR_SVG, label: 'Variable “' + vname + '”…',
-              run: function () { openVarPanel(lib.currentId); }
+              run: function () {
+                if (vbound && vbound.rec) openVarEdit(vbound.scope, vbound.rec);
+                else openVarPanel(lib.currentId);
+              }
             }));
             if (vrec && vrec.rec.anchor) {
               var anchorDocId = vrec.scope === 'doc' ? varHomeDocIdOf(vrec.rec) : vrec.rec.anchorDoc;
@@ -27272,7 +27523,10 @@
             var dhit = ctx.hit;
             el.appendChild(edMenuItem({
               icon: VAR_SVG, label: 'Variable “' + dhit.name + '”…',
-              run: function () { openVarPanel(lib.currentId); }
+              run: function () {
+                if (dhit.rec) openVarEdit(dhit.scope, dhit.rec);
+                else openVarPanel(lib.currentId);
+              }
             }));
             if (dhit.rec) {
               el.appendChild(edMenuItem({
