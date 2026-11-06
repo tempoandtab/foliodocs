@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261106-140" />
+    <meta name="folio-build" content="20261106-141" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4385,7 +4385,14 @@
       .folio-prose .var-def-tag::before { content: attr(data-vname); }
       .folio-prose .var-ref {
         background: var(--accent-soft);
-        border: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+        /* Build -141: the reference's gilt outline quiets to
+           a hairline tint — the definition's gilt (its 16%
+           wash, dashed underline, and solid name pill) is
+           the louder signal now, so source and mirror read
+           apart at a glance instead of only at the span's
+           first word. The error state's border (below)
+           overrides this as before. */
+        border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
         border-radius: 6px; padding: 0 4px; white-space: nowrap; cursor: default;
       }
       .folio-prose .var-ref.ProseMirror-selectednode { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -4505,6 +4512,25 @@
          tap) and on WebKit too, where :focus-visible never
          painted for script-moved focus. */
       .var-src-seg:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+      /* Build -141: the Edit modal's anchor choice — where
+         a save puts an anchored variable's definition. Two
+         stacked options in the house panel register; the
+         chosen one wears the accent frame the input zones
+         wear on focus. In Formula mode both go quiet and
+         Move is forced (a formula can't live in the text),
+         with the reason printed under them. */
+      .var-anchor-choice { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+      .var-anchor-opt {
+        display: flex; gap: 8px; align-items: flex-start;
+        border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px;
+        background: var(--surface); cursor: pointer;
+      }
+      .var-anchor-opt.sel { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+      .var-anchor-opt.disabled { opacity: 0.55; cursor: default; box-shadow: none; }
+      .var-anchor-opt input { flex: 0 0 auto; margin-top: 2px; accent-color: var(--accent); }
+      .var-anchor-opt .var-anchor-t { display: block; font-size: 13.5px; font-weight: 700; }
+      .var-anchor-opt .var-anchor-d { display: block; font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+      .var-anchor-reason { font-size: 12.5px; color: var(--ink-2); margin-top: 8px; }
       /* The tokenizing expression field: a text-input-shaped
          contenteditable. Variable names inside it are token
          chips (paint only — the field's model is segments of
@@ -10114,6 +10140,17 @@
         var varPanelSelIndex = 0;
         var varPanelCaret = null;
         var varEditKbSave = false;
+        /* Build -141: the Edit modal's anchor choice for an
+           anchored variable — where a Save puts the
+           definition. varEditAnchorPick is the user's own
+           selection in Value mode ('keep' | 'move', 'keep'
+           preselected: editing a value no longer relocates
+           the variable by default); varEditAnchorChoice is
+           the EFFECTIVE choice the save obeys — Formula mode
+           forces it to 'move', because a formula can't live
+           in the text, and the modal says so. */
+        var varEditAnchorPick = 'keep';
+        var varEditAnchorChoice = 'keep';
         var varEditCtx = null;
         var varDefineCtx = null;
         var varPickCtx = null;
@@ -11467,6 +11504,122 @@
             if (varConvertDefJson(clone, rec.id, attrs)) { home.content = clone; home.updated = Date.now(); persist(true); }
           }
         }
+        /* ----- build -141: write a new value INTO the anchor -----
+           The Keep half of the modal's anchor choice: the
+           definition stays in the text, and the text itself
+           becomes the saved value — the anchor's runs are
+           replaced by a single run carrying the new text
+           under the same varDef mark (renamed with the
+           record), inheriting the first run's other marks.
+           One undoable transaction in the open editor; the
+           stored-document twin below does the same walk on
+           a content tree. An empty new value can't be an
+           anchor's text, so it removes the anchor text
+           outright and the variable lands unanchored at the
+           empty value (the caller in varWriteAnchorThrough
+           owns that bookkeeping). */
+        function varWriteDefTextInEditor(vid, newText, vname) {
+          if (tplEditingId) return false;
+          if (!editorHandle || !editorHandle.editor) return false;
+          var ed = editorHandle.editor;
+          var st = ed.state;
+          if (!st.schema.marks.varDef) return false;
+          var groups = varDefGroupsInEditor(st, vid, null, null);
+          if (!groups.length) return false;
+          var marks = null;
+          st.doc.descendants(function (node) {
+            if (marks) return false;
+            if (node.isText && node.marks && node.marks.some(function (m) { return m.type.name === 'varDef' && m.attrs.vid === vid; })) {
+              marks = node.marks.filter(function (m) { return m.type.name !== 'varDef'; });
+              return false;
+            }
+            return true;
+          });
+          var tr = st.tr;
+          var sorted = groups.slice().sort(function (a, b) { return b[0] - a[0]; });
+          sorted.forEach(function (g, i) {
+            var isFirst = g[0] === groups[0][0] && g[1] === groups[0][1];
+            if (isFirst && newText) {
+              var ms = (marks || []).concat([st.schema.marks.varDef.create({ vid: vid, vname: vname })]);
+              tr.replaceWith(g[0], g[1], st.schema.text(newText, ms));
+            } else {
+              tr.delete(g[0], g[1]);
+            }
+          });
+          ed.view.dispatch(tr);
+          return true;
+        }
+        /* The stored-document twin: replace the anchor's
+           runs with one text node carrying the new text
+           (later runs are dropped; an empty text drops every
+           run). Mutates the tree given; callers pass a clone.
+           The replacement keeps the first anchor node's
+           marks, its varDef mark renamed to vname. */
+        function varWriteDefTextJson(content, vid, newText, vname) {
+          var changed = false;
+          var replaced = false;
+          function isAnchorNode(child) {
+            return child && child.type === 'text' && Array.isArray(child.marks) &&
+              child.marks.some(function (m) { return m.type === 'varDef' && m.attrs && m.attrs.vid === vid; });
+          }
+          function walk(node) {
+            if (!node || typeof node !== 'object' || !Array.isArray(node.content)) return;
+            var out = [];
+            var run = null;
+            function flush() {
+              if (!run) return;
+              changed = true;
+              if (newText && !replaced) {
+                var marks = (run.marks || []).map(function (m) {
+                  if (m.type === 'varDef') return { type: 'varDef', attrs: { vid: vid, vname: vname } };
+                  return m;
+                });
+                out.push({ type: 'text', text: newText, marks: marks });
+                replaced = true;
+              }
+              run = null;
+            }
+            node.content.forEach(function (child) {
+              if (isAnchorNode(child)) {
+                if (!run) run = { marks: child.marks };
+                return;
+              }
+              flush();
+              walk(child);
+              out.push(child);
+            });
+            flush();
+            node.content = out;
+          }
+          walk(content);
+          return changed;
+        }
+        /* Write a saved value through to a variable's anchor,
+           wherever the anchor lives, keeping the variable
+           anchored. The record's value follows the text.
+           When the anchor can't be found anywhere (a stale
+           record), the variable degrades to a plain panel
+           value instead of losing the save. An empty value
+           removes the anchor text and unanchors (see the
+           editor helper above). */
+        function varWriteAnchorThrough(scope, rec, newText) {
+          var homeId = scope === 'doc' ? varHomeDocIdOf(rec) : rec.anchorDoc;
+          var home = homeId ? varDocById(homeId) : null;
+          var done = false;
+          if (home) {
+            if (home.id === lib.currentId && editorHandle) done = varWriteDefTextInEditor(rec.id, newText, rec.name);
+            else {
+              var clone = varClone(home.content);
+              if (varWriteDefTextJson(clone, rec.id, newText, rec.name)) { home.content = clone; home.updated = Date.now(); persist(true); done = true; }
+            }
+          }
+          rec.value = newText;
+          if (!done || !newText) {
+            rec.anchor = false;
+            if (scope === 'global') { rec.anchorDoc = null; rec.anchorDocTitle = null; }
+          }
+          return done;
+        }
         /* Detach a variable from its anchor, wherever the
            anchor lives: the open editor when the home
            document is on screen, else its stored content. */
@@ -12213,6 +12366,92 @@
             renderVarPanel();
           }, function () { /* declined at a confirm: nothing changes */ });
         }
+        /* Build -141: the anchor note is a CHOICE now, not a
+           warning. An anchored variable's modal asks where
+           this save puts the definition: Keep defined in
+           text (preselected — Save writes the edited value
+           back into the anchor text itself, and the pill
+           stays a definition) or Move definition to the
+           Variables panel (the -131 conversion, now chosen
+           rather than defaulted). Formula mode forces Move
+           and prints the reason: a formula's source is its
+           expression, which can't live in the text. The
+           radios ride one delegated change listener on the
+           note container (wired with the modal's buttons),
+           so a session restored from a snapshot — whose note
+           HTML is rebuilt — keeps working choices. */
+        function varEditRenderAnchorNote(rec, scope, homeDoc) {
+          var note = document.getElementById('varEditAnchorNote');
+          if (!note) return;
+          if (!rec || !rec.anchor) { note.hidden = true; note.innerHTML = ''; return; }
+          var where = scope === 'doc' ? 'this document' : '“' + (rec.anchorDocTitle || (homeDoc && homeDoc.title) || 'a document') + '”';
+          varEditAnchorPick = 'keep';
+          varEditAnchorChoice = 'keep';
+          note.innerHTML = '';
+          var p = document.createElement('p');
+          p.className = 'form-note';
+          p.textContent = 'This variable is defined by text in ' + where + ' — its value is that text, and editing that text updates it live. A variable has exactly one source, so choose where this save puts the definition:';
+          note.appendChild(p);
+          var wrap = document.createElement('div');
+          wrap.className = 'var-anchor-choice';
+          function opt(value, title, desc) {
+            var lab = document.createElement('label');
+            lab.className = 'var-anchor-opt';
+            lab.setAttribute('data-anchor-opt', value);
+            var inp = document.createElement('input');
+            inp.type = 'radio';
+            inp.name = 'varAnchorChoice';
+            inp.value = value;
+            lab.appendChild(inp);
+            var body = document.createElement('span');
+            var t = document.createElement('span');
+            t.className = 'var-anchor-t';
+            t.textContent = title;
+            body.appendChild(t);
+            var d = document.createElement('span');
+            d.className = 'var-anchor-d';
+            d.textContent = desc;
+            body.appendChild(d);
+            lab.appendChild(body);
+            return lab;
+          }
+          wrap.appendChild(opt('keep', 'Keep defined in text', 'Save writes the new value back into that text — the definition stays where it is.'));
+          wrap.appendChild(opt('move', 'Move definition to the Variables panel', 'That text becomes a reference showing the value, and the panel holds the definition instead.'));
+          note.appendChild(wrap);
+          var reason = document.createElement('p');
+          reason.className = 'var-anchor-reason';
+          reason.id = 'varEditAnchorReason';
+          reason.textContent = 'A formula can’t be written into the text, so saving a formula moves the definition to the panel — that text becomes a reference showing the result.';
+          reason.hidden = true;
+          note.appendChild(reason);
+          note.hidden = false;
+          varEditSyncAnchorChoice();
+        }
+        /* Paint the anchor choice from the current mode and
+           pick: Value mode honors the pick; Formula mode
+           forces Move, disables both radios, and shows the
+           reason. Also maintains the radios' roving tabindex
+           (the checked one is the group's one Tab stop). */
+        function varEditSyncAnchorChoice() {
+          var note = document.getElementById('varEditAnchorNote');
+          if (!note || note.hidden || !varEditCtx || !varEditCtx.wasAnchored) return;
+          var formula = varEditMode === 'formula';
+          varEditAnchorChoice = formula ? 'move' : varEditAnchorPick;
+          var radios = note.querySelectorAll('input[name="varAnchorChoice"]');
+          for (var i = 0; i < radios.length; i++) {
+            var on = radios[i].value === varEditAnchorChoice;
+            radios[i].checked = on;
+            radios[i].disabled = formula;
+            radios[i].tabIndex = on ? 0 : -1;
+            var lab = radios[i].closest ? radios[i].closest('.var-anchor-opt') : null;
+            if (lab) {
+              lab.classList.toggle('sel', on);
+              lab.classList.toggle('disabled', formula);
+            }
+          }
+          var reason = document.getElementById('varEditAnchorReason');
+          if (reason) reason.hidden = !formula;
+        }
         function openVarEdit(scope, rec, opts) {
           opts = opts || {};
           varAtMenusDismissForModal();
@@ -12264,7 +12503,7 @@
              opts.afterCancel let that caller finish its job —
              insert the reference the @-text promised — only
              once the modal's fate is known. */
-          varEditCtx = { scope: scope, id: rec ? rec.id : null, docId: doc ? doc.id : lib.currentId, afterSave: opts.afterSave || null, afterCancel: opts.afterCancel || null, returnFocus: returnFocus };
+          varEditCtx = { scope: scope, id: rec ? rec.id : null, docId: doc ? doc.id : lib.currentId, afterSave: opts.afterSave || null, afterCancel: opts.afterCancel || null, returnFocus: returnFocus, wasAnchored: !!(rec && rec.anchor) };
           document.getElementById('varEditTitle').textContent = rec ? 'Edit variable' : (scope === 'doc' ? 'New document variable' : 'New global variable');
           varFieldHygiene(document.getElementById('varEditName'));
           varFieldHygiene(document.getElementById('varEditValue'));
@@ -12288,19 +12527,10 @@
             fxLoadText('');
           }
           fxSetModeUI();
-          var note = document.getElementById('varEditAnchorNote');
-          if (rec && rec.anchor) {
-            var where = scope === 'doc' ? 'this document' : '“' + (rec.anchorDocTitle || (homeDoc && homeDoc.title) || 'a document') + '”';
-            note.innerHTML = '';
-            var p = document.createElement('p');
-            p.className = 'form-note';
-            p.textContent = 'This variable is defined by text in ' + where + ' — its value is that text, and it updates as the text is edited. Saving a value or a formula here redefines it: that text becomes a reference showing the new result, and the variable holds what you save instead. A variable has exactly one source — a value, a formula, or a text definition.';
-            note.appendChild(p);
-            note.hidden = false;
-          } else {
-            note.hidden = true;
-            note.innerHTML = '';
-          }
+          /* Build -141: the anchor note renders the Keep /
+             Move choice (and, for a formula record, opens
+             already in Formula mode with Move forced). */
+          varEditRenderAnchorNote(rec, scope, homeDoc);
           varEditSyncPromote();
           var err = document.getElementById('varEditError');
           err.hidden = true; err.textContent = '';
@@ -13033,6 +13263,10 @@
           document.getElementById('varEditFormulaWrap').hidden = varEditMode !== 'formula';
           if (varEditMode === 'formula') { fxUpdatePreview(); }
           else fxAtClose();
+          /* Build -141: the source switch drives the anchor
+             choice too — Formula forces Move, Value restores
+             the user's pick (varEditSyncAnchorChoice). */
+          varEditSyncAnchorChoice();
         }
         function fxInsertRef(scope, rec) {
           var el = fxFieldEl();
@@ -13278,6 +13512,8 @@
             fmt: document.getElementById('varEditFormat').value,
             segs: fxReadSegs(), caret: fxCaretProj(),
             declined: fxDeclinedPromote,
+            anchorPick: varEditAnchorPick,
+            anchorChoice: varEditAnchorChoice,
             noteHidden: note ? note.hidden : true,
             noteHTML: note ? note.innerHTML : ''
           };
@@ -13286,6 +13522,11 @@
           if (!snap || !snap.ctx) return;
           varEditCtx = snap.ctx;
           varEditMode = snap.mode;
+          /* Build -141: the parked session's anchor pick
+             rides along — fxSetModeUI below repaints the
+             choice onto the restored note HTML. */
+          if (snap.anchorPick) varEditAnchorPick = snap.anchorPick;
+          if (snap.anchorChoice) varEditAnchorChoice = snap.anchorChoice;
           fxDeclinedPromote = snap.declined || {};
           fxPromoteBusy = false;
           document.getElementById('varEditTitle').textContent = snap.ctx.id ? 'Edit variable' : (snap.ctx.scope === 'doc' ? 'New document variable' : 'New global variable');
@@ -13498,13 +13739,16 @@
               rec.expr = JSON.stringify(fxw.tokens);
               rec.fmt = fmt;
               rec.value = display;
-              /* Source switching follows the -131 rule:
-                 giving an anchored variable a formula
-                 REDEFINES it, so its previous anchor becomes
-                 a reference at the formula's result — the
-                 expression is set first, so the converted
-                 chip is stamped as the formula reference it
-                 now is. */
+              /* Build -141: a formula's save ALWAYS moves an
+                 anchored variable's definition to the panel —
+                 no longer a silent side effect: Formula mode
+                 forced the Move choice in the modal and
+                 printed the reason under it (a formula can't
+                 be written into the text). The conversion
+                 itself is the -131 one: the anchor becomes a
+                 reference at the formula's result, the
+                 expression set first so the chip is stamped
+                 as the formula reference it now is. */
               if (wasAnchored) varConvertAnchorToRef(ctx.scope, rec, display);
               if (rec.anchor) {
                 rec.anchor = false;
@@ -13517,16 +13761,26 @@
               if (rec.anchor) {
                 var homeDoc = ctx.scope === 'doc' ? varDocById(ctx.docId) : (rec.anchorDoc ? varDocById(rec.anchorDoc) : null);
                 var cur = varRecordValue(rec, homeDoc);
-                /* Build -131: setting a new value in the panel
-                   REDEFINES the variable, so its previous
-                   anchor becomes a reference at the new value
-                   (varConvertAnchorToRef) rather than plain
-                   text — in the same undoable step when the
-                   anchor is in the open editor. Saving the
-                   value the anchor already holds changes
-                   nothing about the anchor. */
-                if (value !== cur) varConvertAnchorToRef(ctx.scope, rec, value);
-                if (!rec.anchor) rec.value = value;
+                /* Build -141: the modal's anchor choice
+                   decides, not the fact that a value changed.
+                   Keep (preselected): the saved value is
+                   written back INTO the anchor text and the
+                   variable stays defined in text — an
+                   unchanged value writes nothing. Move: the
+                   -131 conversion runs because it was chosen,
+                   even when the value itself is unchanged —
+                   the anchored text becomes a reference at
+                   the value and the panel holds the
+                   definition. (A rename alone touches
+                   neither branch's text: references and
+                   definition marks re-stamp by id in the
+                   refresh below.) */
+                if (varEditAnchorChoice === 'move') {
+                  varConvertAnchorToRef(ctx.scope, rec, value);
+                  if (!rec.anchor) rec.value = value;
+                } else if (value !== cur) {
+                  varWriteAnchorThrough(ctx.scope, rec, value);
+                }
               } else {
                 rec.value = value;
               }
@@ -13969,6 +14223,40 @@
         document.getElementById('varEditClose').addEventListener('click', closeVarEdit);
         document.getElementById('varEditCancel').addEventListener('click', closeVarEdit);
         document.getElementById('varEditSave').addEventListener('click', varSaveEdit);
+        /* Build -141: the anchor choice's radios — one
+           delegated listener on the note container, so a
+           session restored from a snapshot (its note HTML
+           rebuilt from a string) keeps live choices without
+           rebinding. A pick updates the user's selection and
+           repaints the frames; the save reads the effective
+           choice (varEditAnchorChoice), which Formula mode
+           forces to Move regardless. */
+        document.getElementById('varEditAnchorNote').addEventListener('change', function (ev) {
+          var t = ev.target;
+          if (!t || t.name !== 'varAnchorChoice') return;
+          varEditAnchorPick = t.value === 'move' ? 'move' : 'keep';
+          varEditSyncAnchorChoice();
+        });
+        /* ...and its keyboard half: Up/Down belong to the
+           modal's zone travel (build -138's grammar), which
+           would otherwise strand the choice — the roving
+           stop rests on the checked radio and arrows walk
+           away from the group. So, exactly like the source
+           switch's own handler, Left/Right flip the pick
+           from either radio and focus follows the newly
+           checked one. In Formula mode the radios are
+           disabled and the handler never fires. */
+        document.getElementById('varEditAnchorNote').addEventListener('keydown', function (ev) {
+          var t = ev.target;
+          if (!t || t.name !== 'varAnchorChoice') return;
+          if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          varEditAnchorPick = ev.key === 'ArrowRight' ? 'move' : 'keep';
+          varEditSyncAnchorChoice();
+          var now = document.querySelector('#varEditAnchorNote input[name="varAnchorChoice"]:checked');
+          if (now) now.focus();
+        });
         /* Build -131: Enter in either field of the variable
            edit modal presses Save — but only when BOTH fields
            are filled out. With either field empty, Enter
@@ -14400,6 +14688,17 @@
            you arrow OUT of — Tab covers that leg. */
         function varEditZones() {
           var zones = [document.getElementById('varEditName')];
+          /* Build -141: the anchor choice, when it is
+             showing, is a zone between Name and Promote —
+             its checked radio is the group's one stop, the
+             same place Tab reaches it. In Formula mode the
+             radios are disabled (Move is forced), so the
+             zone drops out and travel skips it. */
+          var noteBox = document.getElementById('varEditAnchorNote');
+          if (noteBox && !noteBox.hidden && varEditCtx && varEditCtx.wasAnchored) {
+            var checkedRadio = noteBox.querySelector('input[name="varAnchorChoice"]:checked');
+            if (checkedRadio && !checkedRadio.disabled) zones.push(checkedRadio);
+          }
           /* Build -138: the Promote row, when it is showing
              its button, is a zone between Name and the
              switch — the same place Tab reaches it. (For a
@@ -14422,11 +14721,22 @@
           var zones = varEditZones();
           var idx = zones.indexOf(ae);
           if (idx === -1) {
-            /* The switch's inactive segment and the footer's
-               non-roving button still belong to their zones. */
-            if (ae.id === 'varEditSrcValue' || ae.id === 'varEditSrcFormula') idx = 1;
+            /* The switch's inactive segment, the anchor
+               choice's unchecked radio (reachable by click),
+               and the footer's non-roving button still
+               belong to their zones — resolved against the
+               zone list itself, since build -141's anchor
+               zone shifted the switch off its old fixed
+               index. */
+            if (ae.id === 'varEditSrcValue' || ae.id === 'varEditSrcFormula') {
+              idx = zones.indexOf(document.getElementById(varEditMode === 'value' ? 'varEditSrcValue' : 'varEditSrcFormula'));
+            } else if (ae.name === 'varAnchorChoice') {
+              var cz = document.querySelector('#varEditAnchorNote input[name="varAnchorChoice"]:checked');
+              idx = cz ? zones.indexOf(cz) : -1;
+            }
             else if (ae.id === 'varEditCancel' || ae.id === 'varEditSave') idx = zones.length - 1;
             else return false;
+            if (idx === -1) return false;
           }
           var d = ev.key === 'ArrowDown' ? 1 : -1;
           var next = zones[(idx + d + zones.length) % zones.length];
@@ -14513,6 +14823,10 @@
             return { ok: true, num: r.kind === 'num' ? r.num : null, kind: r.kind, text: r.kind === 'text' ? r.text : null, display: fxResultDisplay(r, 'general') };
           },
           anchorText: function (docId, vid) { var d = varDocById(docId); return d ? varAnchorTextInContent(d.content, vid) : null; },
+          /* Build -141: the Keep path's stored-tree walk,
+             exposed like convert above so the write-through
+             can be probed without driving the modal. */
+          writeAnchor: function (content, vid, text, vname) { var c = varClone(content); var changed = varWriteDefTextJson(c, vid, text, vname || 'variable'); return { changed: changed, content: c }; },
           bake: function (content, vid, value) { var c = varClone(content); var changed = varBakeJson(c, vid, value); return { changed: changed, content: c }; },
           convert: function (content, vid, attrs) { var c = varClone(content); var changed = varConvertDefJson(c, vid, attrs); return { changed: changed, content: c }; },
           openPanel: function (docId) { openVarPanel(docId); },
