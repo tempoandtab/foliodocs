@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261105-137" />
+    <meta name="folio-build" content="20261106-138" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -6349,6 +6349,7 @@
         <label class="form-note" for="varEditName" style="display:block;margin-top:2px">Name — starts with a letter; letters, digits and underscores after.</label>
         <input class="text-input" id="varEditName" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Variable name" style="width:100%;margin-top:6px" />
         <div id="varEditAnchorNote" hidden style="margin-top:12px"></div>
+        <div id="varEditPromote" hidden style="margin-top:12px"></div>
         <div class="var-src-seg" role="group" aria-label="Value source">
           <button class="var-src-btn" id="varEditSrcValue" type="button">Value</button>
           <button class="var-src-btn" id="varEditSrcFormula" type="button">Formula &#402;x</button>
@@ -11853,8 +11854,85 @@
            conflict confirm it may chain into — is open. */
         var fxDeclinedPromote = {};
         var fxPromoteBusy = false;
+        /* Build -138: a modal opening from an @ menu DISMISSES
+           that menu — it does not merely restack under it.
+           The Create rows already close their own menu before
+           calling openVarEdit; this is the same dismissal at
+           the one door every variable modal passes through,
+           plus the dismissed latch for the live trigger, so a
+           sync that refires off the focus / selection churn
+           of the opening itself (the iPad path that floated
+           the "+ Create" menu over the modal it spawned)
+           cannot resurrect the menu over the modal. */
+        function varAtMenusDismissForModal() {
+          try {
+            var fhit = fxAtTrigger();
+            if (fhit) fxAtDismissed = { from: fhit.range.from, query: fhit.query };
+          } catch (e) {}
+          try { fxAtClose(); } catch (e) {}
+          try {
+            if (editorHandle && editorHandle.editor) {
+              var dhit = varAtQueryAt(editorHandle.editor.state);
+              if (dhit) varAtDismissed = { from: dhit.range.from, query: dhit.query };
+            }
+          } catch (e) {}
+          try { varAtClose(); } catch (e) {}
+        }
+        /* Build -138: the Edit modal's scope row. A document
+           variable gains the Promote to global action (the
+           panel row's door, same varPromote semantics — the
+           promote follows the record's SAVED state; this
+           modal's unsaved edits, if then saved, land on the
+           surviving global, because a successful promote
+           re-points the session's context at it). A variable
+           that is already global shows its scope state
+           instead. The row is a full citizen of the modal's
+           keyboard model: a Tab stop in DOM order (Name →
+           Promote → switch → field → Format → footer) and a
+           zone in the Up/Down travel (varEditZones). */
+        function varEditSyncPromote() {
+          var box = document.getElementById('varEditPromote');
+          if (!box) return;
+          box.innerHTML = '';
+          if (!varEditCtx || !varEditCtx.id) { box.hidden = true; return; }
+          if (varEditCtx.scope === 'global') {
+            var p = document.createElement('p');
+            p.className = 'form-note';
+            p.textContent = 'This is a global variable — every document can use it.';
+            box.appendChild(p);
+            box.hidden = false;
+            return;
+          }
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn-ghost';
+          b.id = 'varEditPromoteBtn';
+          b.textContent = 'Promote to global';
+          b.addEventListener('click', varEditPromoteClick);
+          box.appendChild(b);
+          var n = document.createElement('p');
+          n.className = 'form-note';
+          n.style.marginTop = '6px';
+          n.textContent = 'Move this variable to the global list, so every document can use it.';
+          box.appendChild(n);
+          box.hidden = false;
+        }
+        function varEditPromoteClick() {
+          if (!varEditCtx || varEditCtx.scope !== 'doc' || !varEditCtx.id) return;
+          var rec = varDocVar(varEditCtx.docId, varEditCtx.id);
+          if (!rec) return;
+          varPromote(rec, function (finalRec) {
+            if (finalRec && varEditCtx) {
+              varEditCtx.scope = 'global';
+              varEditCtx.id = finalRec.id;
+              varEditSyncPromote();
+            }
+            renderVarPanel();
+          }, function () { /* declined at a confirm: nothing changes */ });
+        }
         function openVarEdit(scope, rec, opts) {
           opts = opts || {};
+          varAtMenusDismissForModal();
           var doc = varDocById(varPanelDocId || lib.currentId);
           /* Build -136: opts.prefillName seeds a new variable's
              name (the @ menus' Create row); opts.afterSave /
@@ -11898,6 +11976,7 @@
             note.hidden = true;
             note.innerHTML = '';
           }
+          varEditSyncPromote();
           var err = document.getElementById('varEditError');
           err.hidden = true; err.textContent = '';
           document.getElementById('varEditModal').hidden = false;
@@ -12166,6 +12245,20 @@
             while ((m = re.exec(chunk))) {
               if (m.index > last) frag.appendChild(document.createTextNode(chunk.slice(last, m.index)));
               var word = m[0];
+              /* Build -138: an identifier immediately after an
+                 @ is a menu QUERY being typed, never a
+                 reference — it stays plain text however often
+                 the field re-renders. (Without this, restoring
+                 a parked session after a Create-row save
+                 re-rendered the still-present "@name" text
+                 with the name — now a real variable — promoted
+                 to a token, and the create-return insert then
+                 added a second one beside it.) */
+              if (m.index > 0 && chunk.charAt(m.index - 1) === '@') {
+                frag.appendChild(document.createTextNode(word));
+                last = m.index + word.length;
+                continue;
+              }
               var found = varEditCtx ? fxFindByNameIn(varEditCtx.scope, fxCtxDoc(), word) : null;
               var docOnly = (!found && varEditCtx && varEditCtx.scope === 'global') ? fxDocOnlyByName(word) : null;
               if (found) {
@@ -12814,7 +12907,15 @@
             var s0 = acc, s1 = acc + len;
             acc = s1;
             if (s1 <= range.from || s0 >= range.to) { out.push(sg); return; }
-            if (sg.k !== 't') { out.push(sg); return; }
+            /* Build -138: a token whose projected span
+               overlaps the trigger range is part of what was
+               typed (an @-query promoted by a re-render — see
+               fxRenderTextSeg), so it is dropped WITH the
+               text, not kept: keeping it made the
+               create-return insert land a second token beside
+               it. The insert that follows is the one and only
+               token the gesture produces. */
+            if (sg.k !== 't') return;
             var joined = sg.text.slice(0, Math.max(0, range.from - s0)) + sg.text.slice(Math.max(0, range.to - s0));
             if (joined) out.push({ k: 't', text: joined });
           });
@@ -12856,6 +12957,7 @@
           document.getElementById('varEditFormat').value = snap.fmt;
           var note = document.getElementById('varEditAnchorNote');
           if (note) { note.innerHTML = snap.noteHTML; note.hidden = snap.noteHidden; }
+          varEditSyncPromote();
           var err = document.getElementById('varEditError');
           err.hidden = true; err.textContent = '';
           fxRenderSegs(snap.segs);
@@ -13225,6 +13327,12 @@
         }
         /* ----- generic confirm (promote conflicts, deletes) ----- */
         function openVarConfirm(title, text, okLabel, cb, cancelCb) {
+          /* Build -138: a confirm is a modal too — when one
+             is spawned from an @ menu (the promote prompt),
+             the menu dismisses rather than floating over it,
+             the same rule openVarEdit follows. */
+          try { fxAtClose(); } catch (e) {}
+          try { varAtClose(); } catch (e) {}
           document.getElementById('varConfirmTitle').textContent = title;
           document.getElementById('varConfirmText').textContent = text;
           document.getElementById('varConfirmOk').textContent = okLabel;
@@ -13405,6 +13513,13 @@
            not yet valid, Enter moves focus to the field and
            the blocking reason is already in the preview. */
         function varEditEnter(ev) {
+          /* Build -138: ⌥Enter is never a save — it is the
+             token popover's door (or nothing, outside the
+             expression field). Standing down here matters on
+             iPadOS, where this bubble listener on the field
+             can run ahead of the capture-phase popover
+             handler and swallow the chord as a save. */
+          if (ev.altKey) return;
           if (ev.key !== 'Enter') return;
           ev.preventDefault();
           var nameEl = document.getElementById('varEditName');
@@ -13456,8 +13571,12 @@
         function varSrcKey(ev) {
           var mode = null;
           if (ev.key === 'Enter' || ev.key === ' ') mode = varEditMode === 'value' ? 'formula' : 'value';
-          else if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') mode = 'formula';
-          else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') mode = 'value';
+          else if (ev.key === 'ArrowRight') mode = 'formula';
+          else if (ev.key === 'ArrowLeft') mode = 'value';
+          /* Build -138: Up/Down no longer flip the switch —
+             they travel between the modal's zones (the modal
+             keydown handler owns them). Left/Right and Enter
+             still flip, as ratified. */
           else return;
           ev.preventDefault();
           ev.stopPropagation();
@@ -13624,6 +13743,29 @@
             return;
           }
         }
+        /* Build -138: what counts as ⌥Enter. The -137 matcher
+           (key === 'Enter' && altKey, in a capture listener
+           on the field) passed the Chromium probe and was
+           dead on Andrew's iPad — the -134 family: WebKit
+           does not promise the Chromium event shape. Plausible
+           iPadOS deliveries of Option+Return differ in the
+           key value ('Enter' vs a newline character), lean on
+           code / keyCode instead, and — the sharpest suspect —
+           reach the field's bubble Enter-to-save listener
+           before the capture grammar handler under WebKit's
+           at-target ordering, so the chord saved instead of
+           opening the popover. The matcher therefore accepts
+           any Enter-shaped field alongside altKey,
+           varEditEnter itself stands down on altKey, and a
+           window-capture listener below takes the chord
+           before ANY element handler can. The device remains
+           the final verdict on the chord. */
+        function fxIsAltEnter(ev) {
+          if (!ev || !ev.altKey) return false;
+          return ev.key === 'Enter' || ev.key === '\n' || ev.key === '\r' ||
+            ev.code === 'Enter' || ev.code === 'NumpadEnter' ||
+            ev.keyCode === 13 || ev.which === 13;
+        }
         /* B2: ⌥Enter opens the token popover — the same one
            a tap opens (scope, current value, the scope
            switch where a namesake exists) — for the token
@@ -13632,6 +13774,11 @@
         function fxKbOpenTokenPop() {
           if (!varEditCtx || varEditCtx.scope !== 'doc') return;
           var proj = fxCaretProj();
+          /* The -134 caret lesson, applied here too: when
+             WebKit reports a selection the projection walk
+             cannot place, fall back to the last known caret
+             rather than doing nothing. */
+          if (proj == null) proj = fxLastProj;
           if (proj == null) return;
           var ranges = fxKbRanges();
           for (var i = 0; i < ranges.length; i++) {
@@ -13646,7 +13793,7 @@
         }
         document.getElementById('varEditExpr').addEventListener('keydown', function (ev) {
           if (!varEditCtx || varEditMode !== 'formula') return;
-          if (ev.key === 'Enter' && ev.altKey) {
+          if (fxIsAltEnter(ev)) {
             /* ⌥Enter is the popover's door, never a save:
                swallow it whether or not a token is there. */
             ev.preventDefault(); ev.stopPropagation();
@@ -13656,6 +13803,25 @@
           if (fxAtState.active) return;
           if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') fxKbStepToken(ev);
           else if (ev.key === 'Backspace' || ev.key === 'Delete') fxKbDeleteToken(ev);
+        }, true);
+        /* Build -138: the same chord taken at window capture —
+           ahead of the modal's handlers, the field's bubble
+           Enter-to-save listener, and any at-target ordering
+           quirk in how the event is delivered. Only fires
+           while the variable modal is up in Formula mode with
+           the expression field holding the keyboard. */
+        window.addEventListener('keydown', function (ev) {
+          if (!fxIsAltEnter(ev)) return;
+          if (!varEditCtx || varEditMode !== 'formula') return;
+          var modal = document.getElementById('varEditModal');
+          if (!modal || modal.hidden) return;
+          var confirmEl = document.getElementById('varConfirmModal');
+          if (confirmEl && !confirmEl.hidden) return;
+          var el = fxFieldEl();
+          if (!el) return;
+          if (ev.target !== el && !el.contains(ev.target) && document.activeElement !== el) return;
+          ev.preventDefault(); ev.stopPropagation();
+          fxKbOpenTokenPop();
         }, true);
         document.getElementById('varEditModal').addEventListener('keydown', function (ev) {
           /* A confirm stacked over this modal (the promote
@@ -13689,6 +13855,17 @@
             closeVarEdit();
             return;
           }
+          if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
+            /* Build -138: Up/Down travel between the modal's
+               zones, alongside Tab — except while the @ menu
+               owns them (its field handler navigates the
+               menu) and except on the Format dropdown, whose
+               Up/Down keep their native option-changing
+               behavior (varEditArrowZone stands down there). */
+            if (fxAtState.active) return;
+            if (varEditArrowZone(ev)) { ev.preventDefault(); ev.stopPropagation(); }
+            return;
+          }
           if (ev.key === 'Tab') {
             /* The trap: Tab cycles the zone stops and never
                leaves the modal. Middle stops are left to the
@@ -13713,6 +13890,54 @@
             if (target) { ev.preventDefault(); target.focus(); }
           }
         }, true);
+        /* Build -138: the modal's zones for Up/Down travel —
+           the same sections the -137 Tab walk cycles: Name →
+           the Promote row (when it carries its button) → the
+           source switch (its active segment) → the field
+           (the value input, or the expression field) → Format
+           (Formula mode only) → the footer (its roving stop).
+           Travel wraps at both ends, like the Tab trap. The
+           Format dropdown is a zone you can ARRIVE at, but
+           once focus is on it its Up/Down are its own
+           (native option changing), so it is never a zone
+           you arrow OUT of — Tab covers that leg. */
+        function varEditZones() {
+          var zones = [document.getElementById('varEditName')];
+          /* Build -138: the Promote row, when it is showing
+             its button, is a zone between Name and the
+             switch — the same place Tab reaches it. (For a
+             global variable the row is plain text, and for a
+             new variable it is hidden: no zone either way.) */
+          var promoteBox = document.getElementById('varEditPromote');
+          var promoteBtn = document.getElementById('varEditPromoteBtn');
+          if (promoteBtn && promoteBox && !promoteBox.hidden) zones.push(promoteBtn);
+          zones.push(document.getElementById(varEditMode === 'value' ? 'varEditSrcValue' : 'varEditSrcFormula'));
+          zones.push(varEditMode === 'value' ? document.getElementById('varEditValue') : fxFieldEl());
+          if (varEditMode === 'formula') zones.push(document.getElementById('varEditFormat'));
+          var cancel = document.getElementById('varEditCancel');
+          zones.push(cancel.tabIndex === 0 ? cancel : document.getElementById('varEditSave'));
+          return zones.filter(Boolean);
+        }
+        function varEditArrowZone(ev) {
+          var ae = document.activeElement;
+          if (!ae) return false;
+          if (ae.id === 'varEditFormat') return false;
+          var zones = varEditZones();
+          var idx = zones.indexOf(ae);
+          if (idx === -1) {
+            /* The switch's inactive segment and the footer's
+               non-roving button still belong to their zones. */
+            if (ae.id === 'varEditSrcValue' || ae.id === 'varEditSrcFormula') idx = 1;
+            else if (ae.id === 'varEditCancel' || ae.id === 'varEditSave') idx = zones.length - 1;
+            else return false;
+          }
+          var d = ev.key === 'ArrowDown' ? 1 : -1;
+          var next = zones[(idx + d + zones.length) % zones.length];
+          if (!next) return false;
+          next.focus();
+          if (next === fxFieldEl() && fxLastProj != null) fxSetCaret(fxLastProj);
+          return true;
+        }
         /* The footer's roving stop follows focus; its arrow
            keys move between Cancel and Save. */
         var varEditFooterEl = document.getElementById('varEditFooter');
@@ -16997,19 +17222,59 @@
            and runs from the editor's selection-change hook;
            the keys are taken in a capture-phase listener on
            the editor mount, ahead of the editor's own key
-           handling, only while the menu is open. */
+           handling, only while the menu is open.
+           Build -138: the trigger narrows to Andrew's rule —
+           in the document editor the menu opens only when
+           the @ is at the start of a line/paragraph or
+           preceded by a space (a hard break counts as a new
+           line; an @ right after a chip or other inline atom
+           no longer summons it). The formula field keeps its
+           own wider word-start trigger (expressions need @
+           directly after operators). And "@=" typed
+           immediately after a word offers the one-row
+           "+ Define <Word> Inline" menu instead (see
+           varAtDefineInline). */
         var varAtState = { active: false, items: [], selected: 0, rect: null, query: '', range: null };
         var varAtDismissed = null;
 
+        /* Whether the leaf node at a textblock-local offset
+           is a hard break — the one ￼ in the textBetween
+           projection that counts as "a new line" for the
+           -138 trigger rule (chips and other atoms do not). */
+        function varAtLeafIsBreak(n, off) {
+          var found = false;
+          n.parent.forEach(function (child, childOff) {
+            if (found) return;
+            if (off >= childOff && off < childOff + child.nodeSize) {
+              found = !!(child.type && child.type.name === 'hardBreak');
+            }
+          });
+          return found;
+        }
         function varAtQueryAt(state) {
           var t = state.selection;
           if (!t || !t.empty) return null;
           var n = t.$from;
           if (!n || !n.parent || !n.parent.isTextblock || n.parent.type.name === 'codeBlock') return null;
           var r = n.parent.textBetween(0, n.parentOffset, undefined, '￼');
-          var m = r.match(/(?:^|[\s￼])@([A-Za-z][A-Za-z0-9_]*)?$/);
+          /* Build -138: "@=" immediately after a word is the
+             inline-define trigger. The word before it is the
+             variable name, matched with the name grammar
+             itself (a letter, then letters / digits /
+             underscores) AND a non-word character (or the
+             block's start) before it — so a digit-led token
+             like "9lives@=" offers no menu: the match cannot
+             slide into the token's tail and call "lives" the
+             name, and a name the variable model would reject
+             is never offered. */
+          var dm = r.match(/(^|[^A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*)@=$/);
+          if (dm) {
+            return { define: true, name: dm[2], range: { from: n.pos - (dm[0].length - dm[1].length), to: n.pos }, query: '=' + dm[2] };
+          }
+          var m = r.match(/(?:^|[ ￼])@([A-Za-z][A-Za-z0-9_]*)?$/);
           if (!m) return null;
           var s = r.length - m[0].length + (m[0].charAt(0) === '@' ? 0 : 1);
+          if (m[0].charAt(0) === '￼' && !varAtLeafIsBreak(n, s - 1)) return null;
           return { range: { from: n.pos - (r.length - s), to: n.pos }, query: m[1] || '' };
         }
         function varAtComputeItems(doc, query) {
@@ -17044,6 +17309,23 @@
           b.type = 'button';
           b.className = 'suggest-item var-at-item' + (isSel ? ' sel' : '');
           b.setAttribute('role', 'option');
+          if (item.define) {
+            /* Build -138: the @= row — the Create row's look,
+               but choosing it defines the variable inline on
+               the spot (no modal): see varAtDefineInline. */
+            b.classList.add('var-at-create');
+            var dnm = document.createElement('span');
+            dnm.className = 's-title';
+            dnm.textContent = '+ Define \u201C' + item.name + '\u201D Inline';
+            b.appendChild(dnm);
+            var dbadge = document.createElement('span');
+            dbadge.className = 'var-badge soft';
+            dbadge.textContent = 'Inline definition';
+            b.appendChild(dbadge);
+            b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+            b.addEventListener('click', function () { choose(); });
+            return b;
+          }
           if (item.create) {
             /* Build -136: the + Create row — shared by both
                @ menus; `choose` routes it home. */
@@ -17117,6 +17399,11 @@
         function varAtSync() {
           if (!editorHandle || !editorHandle.editor || tplEditingId) { varAtClose(); return; }
           if (suggestState.active || tagSuggestState.active) { varAtClose(); return; }
+          /* Build -138: while a variable modal session is
+             live it owns the screen — the document menu
+             stands down, so selection churn behind the modal
+             can never float this menu over it. */
+          if (varEditCtx) { varAtClose(); return; }
           var doc = currentDoc();
           if (!doc) { varAtClose(); return; }
           var hit = null;
@@ -17128,7 +17415,9 @@
           varAtState.active = true;
           varAtState.query = hit.query;
           varAtState.range = hit.range;
-          varAtState.items = varAtComputeItems(doc, hit.query);
+          /* Build -138: a define hit offers exactly one row —
+             the inline definition of the word before "@=". */
+          varAtState.items = hit.define ? [{ define: true, name: hit.name }] : varAtComputeItems(doc, hit.query);
           if (fresh || varAtState.selected >= varAtState.items.length) varAtState.selected = 0;
           var c = editorHandle.editor.view.coordsAtPos(hit.range.from);
           varAtState.rect = { left: c.left, top: c.top, bottom: c.bottom };
@@ -17164,9 +17453,87 @@
             }
           });
         }
+        /* Build -138: the @= inline define. Choosing the row
+           replaces the name-word plus "@=" with an inline
+           definition of that variable whose initial value
+           text is "0" — Andrew's ratified default — as a
+           single undoable step, with NO modal. The record
+           resolves like every other name lookup (this
+           document first, then globals — the shadowing
+           order); a name that matches nothing mints a new
+           document variable. An existing variable follows
+           the established one-anchor rules, the same ones
+           varDoDefine implements for the define modal: a
+           panel variable gains its anchor here, an anchored
+           variable's anchor MOVES here (its previous anchor
+           becomes a reference at the new value, folded into
+           this same transaction when it lives in this
+           document, rewritten in its home document's stored
+           content when it does not), and a formula source is
+           retired — a variable has exactly one source. */
+        function varAtDefineInline(name) {
+          var range = varAtState.range;
+          var doc = currentDoc();
+          varAtClose();
+          if (!range || !doc || !editorHandle || !editorHandle.editor) return;
+          var ed = editorHandle.editor;
+          var st = ed.state;
+          if (!st.schema.marks.varDef || !st.schema.nodes.varRef) return;
+          var scope = 'doc';
+          var rec = varDocVarByName(doc.id, name);
+          if (!rec) {
+            var g = varGlobalByName(name);
+            if (g) { scope = 'global'; rec = g; }
+          }
+          if (!rec) {
+            rec = { id: uid(), name: name, value: '0', anchor: false };
+            if (!varStore.docVars[doc.id]) varStore.docVars[doc.id] = [];
+            varStore.docVars[doc.id].push(rec);
+          }
+          var wasAnchored = !!rec.anchor;
+          var oldHomeId = scope === 'doc' ? doc.id : rec.anchorDoc;
+          var convAttrs = { vid: rec.id, vscope: scope === 'doc' ? 'd' : 'g', vname: rec.name, vvalue: '0' };
+          var tr = st.tr;
+          var shift = 0;
+          if (wasAnchored && oldHomeId === doc.id) {
+            /* Convert the old anchor on this transaction
+               (its groups exclude the word + "@=" range);
+               groups ending before the range shrink it by
+               the length they lose, which the replacements
+               below are placed against. */
+            var groups = varDefGroupsInEditor(st, rec.id, range.from, range.to);
+            if (groups.length) {
+              groups.forEach(function (gp) { if (gp[1] <= range.from) shift += (gp[1] - gp[0]) - 1; });
+              varConvertGroupsOnTr(tr, st, groups, convAttrs);
+            }
+          } else if (wasAnchored && oldHomeId) {
+            var oldHome = varDocById(oldHomeId);
+            if (oldHome) {
+              var oldClone = varClone(oldHome.content);
+              if (varConvertDefJson(oldClone, rec.id, convAttrs)) { oldHome.content = oldClone; oldHome.updated = Date.now(); persist(true); }
+            }
+          }
+          var newFrom = range.from - shift;
+          tr.replaceWith(newFrom, range.to - shift, st.schema.text('0'));
+          tr.addMark(newFrom, newFrom + 1, st.schema.marks.varDef.create({ vid: rec.id, vname: rec.name }));
+          ed.view.dispatch(tr);
+          if (rec.expr) { delete rec.expr; delete rec.fmt; }
+          rec.anchor = true;
+          var anchorText = varAnchorTextInContent(ed.getJSON(), rec.id);
+          if (anchorText != null) rec.value = anchorText;
+          if (scope === 'global') {
+            rec.anchorDoc = doc.id;
+            rec.anchorDocTitle = doc.title || 'Untitled';
+          }
+          varSave();
+          varRefreshEditorRefs();
+          if (varPanelDocId) renderVarPanel();
+          try { ed.chain().setTextSelection({ from: newFrom + 1, to: newFrom + 1 }).run(); } catch (e) {}
+        }
         function varAtChoose(i) {
           var item = varAtState.items[i];
           if (!item || !editorHandle || !editorHandle.editor) return;
+          if (item.define) { varAtDefineInline(item.name); return; }
           if (item.create) { varAtCreate(); return; }
           var doc = currentDoc();
           if (!doc) return;
@@ -18740,9 +19107,17 @@
           return folioLibLoads[url];
         }
 
-        /* The toast pill (see .folio-toast): with a millisecond
-           argument it dismisses itself; without one it stays
-           until folioHideToast — the "Importing…" state. */
+        /* The toast pill (see .folio-toast): a plain
+           notification dismisses itself — 3.4s by default, or
+           the millisecond argument given. Only an explicit
+           ms of 0 stays until folioHideToast — the
+           "Importing…" state, the one caller that passes 0.
+           (Build -138: callers that passed nothing — the
+           variable promote / delete toasts among them — used
+           to inherit the sticky state by accident and never
+           dismissed; plain toasts now all behave alike, and
+           tapping one still dismisses it at once per the
+           -113 rider below.) */
         var folioToastTimer = null;
         function folioToast(msg, ms) {
           var el = document.getElementById('folioToast');
@@ -18750,7 +19125,8 @@
           el.textContent = msg;
           el.hidden = false;
           if (folioToastTimer) { clearTimeout(folioToastTimer); folioToastTimer = null; }
-          if (ms) folioToastTimer = setTimeout(function () { el.hidden = true; }, ms);
+          var dur = ms === undefined ? 3400 : ms;
+          if (dur) folioToastTimer = setTimeout(function () { el.hidden = true; }, dur);
         }
         function folioHideToast() {
           var el = document.getElementById('folioToast');
@@ -18835,7 +19211,7 @@
           });
         }
         function folioImportBinary(file, fallbackTitle, converter, targetFolderId) {
-          folioToast('Importing ' + file.name + '…');
+          folioToast('Importing ' + file.name + '…', 0);
           folioReadArrayBuffer(file).then(function (buf) {
             return converter(buf);
           }).then(function (parsed) {
