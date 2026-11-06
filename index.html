@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261106-138" />
+    <meta name="folio-build" content="20261106-139" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4429,13 +4429,31 @@
          print / share flattening above already strips chip
          chrome, and the baked text is the code itself. */
       .folio-prose .var-ref--err {
-        background: color-mix(in srgb, var(--danger) 13%, transparent);
-        border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+        background: color-mix(in srgb, var(--danger) 16%, transparent);
+        border-color: color-mix(in srgb, var(--danger) 68%, transparent);
+        color: var(--danger);
         font-weight: 600;
       }
       #printRoot .folio-prose .var-ref--err,
       .share-view .folio-prose .var-ref--err {
-        background: transparent; border: none; font-weight: inherit;
+        background: transparent; border: none; font-weight: inherit; color: inherit;
+      }
+      /* Build -139 (C): the same danger state for an inline
+         DEFINITION whose variable is in error — the wash and
+         dashed underline turn to the theme's danger, and the
+         name pill wears it too. The classes are painted by
+         the host (varPaintDefErrors), because the bundle's
+         mark rendering carries no error channel; print and
+         share flatten back to plain text like every other
+         piece of variable chrome. */
+      .folio-prose .var-def--err {
+        background: color-mix(in srgb, var(--danger) 16%, transparent);
+        border-bottom-color: color-mix(in srgb, var(--danger) 82%, transparent);
+      }
+      .folio-prose .var-def-tag--err { background: var(--danger); color: #fff; }
+      #printRoot .folio-prose .var-def--err,
+      .share-view .folio-prose .var-def--err {
+        background: transparent; border-bottom: none;
       }
       .var-fx-mark {
         margin-left: 6px; font-weight: 700; font-style: italic; color: var(--accent);
@@ -4458,6 +4476,14 @@
       }
       .var-src-btn + .var-src-btn { border-left: 1px solid var(--line); }
       .var-src-btn.active { background: var(--accent-soft); color: var(--ink); }
+      /* Build -139 (item 4): while the source switch is the
+         focused zone it wears the same border highlight the
+         input zones wear on :focus — painted on the segment
+         frame via :focus-within, so the indication shows
+         however focus arrived (Tab, ↑/↓ zone travel, or a
+         tap) and on WebKit too, where :focus-visible never
+         painted for script-moved focus. */
+      .var-src-seg:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
       /* The tokenizing expression field: a text-input-shaped
          contenteditable. Variable names inside it are token
          chips (paint only — the field's model is segments of
@@ -4485,6 +4511,14 @@
       .fx-unknown {
         text-decoration: underline wavy var(--danger) 1px;
         text-underline-offset: 3px;
+      }
+      /* Build -139 (C): a name token bound to a variable in
+         error wears the danger state, like the document
+         chips — theme-derived, so it reads in all themes. */
+      .fx-token--err {
+        background: color-mix(in srgb, var(--danger) 14%, transparent);
+        border-color: color-mix(in srgb, var(--danger) 62%, transparent);
+        color: var(--danger);
       }
       /* Build -133 amendment: a document variable's name
          typed (or pending) inside a GLOBAL formula — global
@@ -5112,6 +5146,15 @@
         max-height: calc(100% - 14px); overflow: hidden; white-space: nowrap;
         text-overflow: ellipsis; pointer-events: none; padding-right: 3px;
       }
+      /* Build -139: an emoji cluster inside a tab name is
+         counter-rotated upright. The name's register
+         (vertical-rl under a 180° flip) leaves every glyph
+         sitting at 270° — right for letters, which are read
+         rotated, wrong for a pictograph, which just lies on
+         its side. The wrapped cluster's own +90° brings it
+         to 360°: upright, in place, at the same position in
+         the string (transforms never move layout). */
+      .folio-tab-name .tab-emoji { display: inline-block; transform: rotate(90deg); }
       .tab-rail.slim .folio-tab-name { font-size: 11.5px; }
       .folio-tab.sliver .folio-tab-name { font-size: 10px; opacity: 0.85; }
       /* The hover-strip buttons: × closes (TOP-left corner),
@@ -9716,7 +9759,7 @@
             closeFn();
             tplAddFromDoc(d.id);
           }, 'add-as-template');
-          item(VAR_SVG, 'Variables…', '', '', function () {
+          item(VAR_SVG, 'Variables…', '', hintFor('variables'), function () {
             closeFn();
             openVarPanelFor(d.id);
           }, 'variables');
@@ -10195,6 +10238,25 @@
             if (t != null) return t;
           }
           return rec && typeof rec.value === 'string' ? rec.value : '';
+        }
+        /* Build -139 (C): the error code a variable's current
+           value carries, or null. A formula whose evaluation
+           fails answers its code (#VALUE!, #DIV/0!, #NAME?,
+           #CYCLE!); a plain value that IS one of the codes —
+           typed as a value, or baked from an errored formula —
+           answers it too. Every error-highlight surface
+           (document chips, inline definitions, formula-field
+           tokens) tests through here, so they can never
+           disagree about what counts as in error. */
+        var FX_ERROR_CODES = { '#VALUE!': 1, '#DIV/0!': 1, '#NAME?': 1, '#CYCLE!': 1 };
+        function varRecErrorCode(rec) {
+          if (!rec) return null;
+          if (varIsFormula(rec)) {
+            var r = fxEvalTop(rec);
+            return (r && !r.ok && r.code) ? r.code : null;
+          }
+          var v = varRecordValue(rec, null);
+          return FX_ERROR_CODES[v] ? v : null;
         }
         /* Resolve a reference (its node attrs) inside a
            document: identity first (the bound id), scope and
@@ -10893,6 +10955,12 @@
             attrs.vexpr = fxExprText(rec);
             if (!r.ok) { attrs.verr = r.code; attrs.vtip = r.msg; }
             else attrs.vtip = rec.name + ' = ' + attrs.vexpr;
+          } else {
+            /* Build -139 (C): a plain value that IS an error
+               code wears the same danger state on its chips
+               as an errored formula does. */
+            var ec = varRecErrorCode(rec);
+            if (ec) attrs.verr = ec;
           }
           return attrs;
         }
@@ -11149,6 +11217,33 @@
             tr.setMeta('addToHistory', false);
             ed.view.dispatch(tr);
           }
+          varPaintDefErrors();
+        }
+        /* Build -139 (C): paint the error state on inline
+           definitions in the open editor. The bundle's varDef
+           mark rendering carries no error channel (its class
+           is fixed), so the host toggles the danger classes
+           on the rendered spans and name pills directly,
+           keyed by the ids the mark and the pill widget
+           already carry. Called after every chip refresh and
+           (via varSyncFromEditor) after every edit: a render
+           that replaces a span drops its class, and the next
+           pass repaints it, so the state can never go stale
+           for long. Print and share never see the classes —
+           their flattening strips definition chrome whole. */
+        function varPaintDefErrors() {
+          if (!editorHandle || !editorHandle.editor || !editorHandle.editor.view || !editorHandle.editor.view.dom) return;
+          var dom = editorHandle.editor.view.dom;
+          var spans = dom.querySelectorAll('.var-def');
+          for (var i = 0; i < spans.length; i++) {
+            var f = varFindAny(spans[i].getAttribute('data-var-def'));
+            spans[i].classList.toggle('var-def--err', !!(f && varRecErrorCode(f.rec)));
+          }
+          var tags = dom.querySelectorAll('.var-def-tag');
+          for (var j = 0; j < tags.length; j++) {
+            var tf = varFindAny(tags[j].getAttribute('data-var-tag'));
+            tags[j].classList.toggle('var-def-tag--err', !!(tf && varRecErrorCode(tf.rec)));
+          }
         }
         /* The editor's onUpdate hook: keep anchored values in
            step with their text, heal records from content,
@@ -11189,6 +11284,12 @@
             varRefreshEditorRefs();
             if (varPanelDocId) renderVarPanel();
           }
+          /* Build -139 (C): an edit can move a definition's
+             variable into or out of error without touching
+             any record (a formula upstream changed) — repaint
+             the definition error state once this edit's
+             render has settled. */
+          if (typeof requestAnimationFrame === 'function') requestAnimationFrame(function () { varPaintDefErrors(); });
         }
         /* Strip a variable's definition marks in the OPEN
            editor (one undoable transaction). Returns false
@@ -11490,6 +11591,31 @@
           err.textContent = msg;
           err.hidden = false;
         }
+        /* Build -139 (item 5a): how to leave a freshly made
+           inline definition. A definition's value text traps
+           the caret — typing at its end EXTENDS the value —
+           so a definition created against the end of a line
+           (or directly against a following word) gets one
+           space appended after it, and the caret lands after
+           that space, outside the value. A space that already
+           follows is never doubled; punctuation after the
+           definition needs no help (the caret steps past it
+           and types outside the mark). The decision is read
+           from the document BEFORE the defining transaction,
+           and the space rides that same transaction, so the
+           creation plus its exit space are one undo step. */
+        function varFollowPlan(st, pos) {
+          var atEnd = false, follow = '';
+          try {
+            var $p = st.doc.resolve(pos);
+            atEnd = !!($p && $p.parent && $p.parent.isTextblock && $p.parentOffset >= $p.parent.content.size);
+          } catch (e) {}
+          if (!atEnd) {
+            try { follow = st.doc.textBetween(pos, pos + 1, '', '\uFFFC'); } catch (e) { follow = ''; }
+          }
+          var needSpace = atEnd || /[A-Za-z0-9_]/.test(follow);
+          return { needSpace: needSpace, step: (needSpace || follow) ? 1 : 0 };
+        }
         function varDoDefine(scope, rec) {
           var ctx = varDefineCtx;
           if (!ctx || !editorHandle || !editorHandle.editor) return;
@@ -11511,6 +11637,9 @@
           var newText = st.doc.textBetween(ctx.from, ctx.to, '');
           var wasAnchored = !!rec.anchor;
           var oldHomeId = scope === 'doc' ? ctx.docId : rec.anchorDoc;
+          /* Build -139 (5a): the exit space, decided on the
+             pre-transaction document (see varFollowPlan). */
+          var followPlan = varFollowPlan(st, ctx.to);
           var tr = st.tr.addMark(ctx.from, ctx.to, st.schema.marks.varDef.create({ vid: rec.id, vname: rec.name }));
           if (wasAnchored) {
             var convAttrs = { vid: rec.id, vscope: scope === 'doc' ? 'd' : 'g', vname: rec.name, vvalue: newText };
@@ -11529,6 +11658,15 @@
               }
             }
           }
+          /* Build -139 (5a): the space rides THIS
+             transaction (one undo step with the definition),
+             placed through the transaction's own mapping —
+             an old-anchor conversion folded in above may
+             have moved the definition's end — as an
+             explicitly unmarked text node, so the space can
+             never be absorbed into the value. */
+          var defEnd = tr.mapping.map(ctx.to);
+          if (followPlan.needSpace) tr.replaceWith(defEnd, defEnd, st.schema.text(' '));
           ed.view.dispatch(tr);
           var anchorText = varAnchorTextInContent(ed.getJSON(), rec.id);
           /* Build -133: a variable has exactly one source.
@@ -11544,6 +11682,12 @@
           varSave();
           varRefreshEditorRefs();
           if (varPanelDocId) renderVarPanel();
+          /* Build -139 (5a): land the caret just past the
+             exit — after the appended space, or after the
+             character that already followed — in the editor,
+             ready to keep typing outside the value. A
+             selection-only move: no history step of its own. */
+          try { ed.chain().focus().setTextSelection({ from: defEnd + followPlan.step, to: defEnd + followPlan.step }).run(); } catch (e) {}
         }
         function varCreateAndDefine() {
           if (!varDefineCtx) return;
@@ -12114,6 +12258,18 @@
           if (varEditCtx && varEditCtx.scope === 'doc' && (s || 'd') === 'g') {
             var mdoc = fxCtxDoc();
             if (mdoc && varDocVarByName(mdoc.id, nm)) span.classList.add('fx-token--alt');
+          }
+          /* Build -139 (C): a token bound to a variable in
+             error wears the danger state, like the document
+             chips — resolved with fxTokenTip's exact-binding
+             rule. The variable being authored itself is
+             skipped: its live state is the preview's job, and
+             its stored record can lag the field. */
+          if (varEditCtx && vid !== (varEditCtx.id || '__fx_self__')) {
+            var etgt = null;
+            if (varEditCtx.scope === 'global') { var eg = varGlobalById(vid); if (eg) etgt = eg; }
+            else { var er = fxResolveBound(fxCtxDoc(), vid, s); if (er) etgt = er.rec; }
+            if (etgt && varRecErrorCode(etgt)) span.classList.add('fx-token--err');
           }
           return span;
         }
@@ -13815,6 +13971,32 @@
           if (!varEditCtx || varEditMode !== 'formula') return;
           var modal = document.getElementById('varEditModal');
           if (!modal || modal.hidden) return;
+          var confirmEl = document.getElementById('varConfirmModal');
+          if (confirmEl && !confirmEl.hidden) return;
+          var el = fxFieldEl();
+          if (!el) return;
+          if (ev.target !== el && !el.contains(ev.target) && document.activeElement !== el) return;
+          ev.preventDefault(); ev.stopPropagation();
+          fxKbOpenTokenPop();
+        }, true);
+        /* Build -139 (item 1b, the one bounded attempt): the
+           SAME interception anchored at the modal itself, in
+           the capture phase — the last capture stop before
+           the event reaches the expression field, ahead of
+           the field's own Enter handling (capture grammar
+           and the bubble Enter-to-save alike) and ahead of
+           any default line-break insertion. The -138 window
+           capture and field handlers stay as they are; this
+           adds the modal-level claim the chord was missing.
+           It accepts exactly fxIsAltEnter's shapes (altKey
+           plus any Enter-shaped key / code / keyCode). If
+           iPadOS never delivers the press to the page at
+           all, no page-side handler can see it — that is an
+           evidence question for the device, not a reason to
+           stack more handlers. */
+        document.getElementById('varEditModal').addEventListener('keydown', function (ev) {
+          if (!fxIsAltEnter(ev)) return;
+          if (!varEditCtx || varEditMode !== 'formula') return;
           var confirmEl = document.getElementById('varConfirmModal');
           if (confirmEl && !confirmEl.hidden) return;
           var el = fxFieldEl();
@@ -17266,8 +17448,14 @@
              like "9lives@=" offers no menu: the match cannot
              slide into the token's tail and call "lives" the
              name, and a name the variable model would reject
-             is never offered. */
-          var dm = r.match(/(^|[^A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*)@=$/);
+             is never offered.
+             Build -139 (item 5): spaces may sit between the
+             word and "@=" ("Word @=") — the matched span
+             covers the word, the spaces, and "@=" together,
+             and choosing Define consumes all three as one
+             span (the range math below already runs off
+             dm[0]'s length, separator excluded). */
+          var dm = r.match(/(^|[^A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*) *@=$/);
           if (dm) {
             return { define: true, name: dm[2], range: { from: n.pos - (dm[0].length - dm[1].length), to: n.pos }, query: '=' + dm[2] };
           }
@@ -17514,8 +17702,15 @@
             }
           }
           var newFrom = range.from - shift;
-          tr.replaceWith(newFrom, range.to - shift, st.schema.text('0'));
-          tr.addMark(newFrom, newFrom + 1, st.schema.marks.varDef.create({ vid: rec.id, vname: rec.name }));
+          /* Build -139 (5a): the exit space, decided on the
+             pre-transaction document (see varFollowPlan) and
+             folded into this same replace — the definition
+             text carries the mark, the space never does, and
+             creation plus exit stay one undo step. */
+          var followPlan = varFollowPlan(st, range.to);
+          var defNodes = [st.schema.text('0', [st.schema.marks.varDef.create({ vid: rec.id, vname: rec.name })])];
+          if (followPlan.needSpace) defNodes.push(st.schema.text(' '));
+          tr.replaceWith(newFrom, range.to - shift, defNodes);
           ed.view.dispatch(tr);
           if (rec.expr) { delete rec.expr; delete rec.fmt; }
           rec.anchor = true;
@@ -17528,7 +17723,10 @@
           varSave();
           varRefreshEditorRefs();
           if (varPanelDocId) renderVarPanel();
-          try { ed.chain().setTextSelection({ from: newFrom + 1, to: newFrom + 1 }).run(); } catch (e) {}
+          /* Build -139 (5a): the caret lands past the exit —
+             after the appended space, or after the character
+             that already followed the "@=" span. */
+          try { ed.chain().setTextSelection({ from: newFrom + 1 + followPlan.step, to: newFrom + 1 + followPlan.step }).run(); } catch (e) {}
         }
         function varAtChoose(i) {
           var item = varAtState.items[i];
@@ -21091,6 +21289,84 @@
           var d = r ? tabDoc(r.docId) : null;
           return d ? (d.title || 'Untitled') : 'Untitled';
         }
+        /* Build -139: fill a stack tab's name element from a
+           title, keeping emoji UPRIGHT (see the .tab-emoji
+           rule). The title is segmented by grapheme cluster
+           — Intl.Segmenter where the platform offers it, a
+           code-point walk with the emoji glue rules (ZWJ
+           chains, skin tones, variation selectors, combining
+           marks, regional-indicator pairs) where it does
+           not — so a multi-codepoint emoji stays one unit,
+           and each pictographic cluster is wrapped in a
+           counter-rotated span at its own position in the
+           string. Letters are untouched and keep the tab's
+           vertical treatment; a title with no emoji fills
+           exactly as it always has. This is the STACK TAB
+           surface only — the title bar, sidebar, and Book
+           are horizontal and already correct. */
+        function tabCpIsPictographic(cp) {
+          return (cp >= 0x1F000 && cp <= 0x1FAFF) ||
+            (cp >= 0x2600 && cp <= 0x27BF) ||
+            (cp >= 0x2B00 && cp <= 0x2BFF) ||
+            (cp >= 0x231A && cp <= 0x23FA) ||
+            (cp >= 0x2194 && cp <= 0x21AA) ||
+            cp === 0x203C || cp === 0x2049 || cp === 0x00A9 || cp === 0x00AE ||
+            cp === 0x3030 || cp === 0x303D || cp === 0x3297 || cp === 0x3299;
+        }
+        function tabClusterIsEmoji(cluster) {
+          if (/^[#*0-9]\uFE0F?\u20E3$/.test(cluster)) return true;
+          var cps = Array.from(cluster);
+          for (var i = 0; i < cps.length; i++) {
+            if (tabCpIsPictographic(cps[i].codePointAt(0))) return true;
+          }
+          return false;
+        }
+        function tabGraphemes(str) {
+          if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+            try {
+              var seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+              return Array.from(seg.segment(str), function (s) { return s.segment; });
+            } catch (e) {}
+          }
+          var pts = Array.from(str);
+          var out = [];
+          for (var i = 0; i < pts.length; i++) {
+            var ch = pts[i], cp = ch.codePointAt(0);
+            var glue = out.length && (
+              cp === 0x200D ||                                  /* ZWJ joins to what precedes */
+              (cp >= 0xFE00 && cp <= 0xFE0F) ||                 /* variation selectors */
+              (cp >= 0x1F3FB && cp <= 0x1F3FF) ||               /* skin tones */
+              (cp >= 0x0300 && cp <= 0x036F) || cp === 0x20E3 || /* combining marks, keycap */
+              out[out.length - 1] === '\u200D' ||               /* and to what follows a ZWJ */
+              ((cp >= 0x1F1E6 && cp <= 0x1F1FF) &&              /* flags: regional indicators pair */
+                Array.from(out[out.length - 1]).length === 1 &&
+                out[out.length - 1].codePointAt(0) >= 0x1F1E6 && out[out.length - 1].codePointAt(0) <= 0x1F1FF));
+            if (glue) out[out.length - 1] += ch;
+            else out.push(ch);
+          }
+          return out;
+        }
+        function tabFillName(nmEl, title) {
+          var clusters = tabGraphemes(title || '');
+          var hasEmoji = false;
+          for (var i = 0; i < clusters.length; i++) if (tabClusterIsEmoji(clusters[i])) { hasEmoji = true; break; }
+          if (!hasEmoji) { nmEl.textContent = title || ''; return; }
+          nmEl.textContent = '';
+          var plain = '';
+          function flushPlain() {
+            if (plain) { nmEl.appendChild(document.createTextNode(plain)); plain = ''; }
+          }
+          clusters.forEach(function (cl) {
+            if (tabClusterIsEmoji(cl)) {
+              flushPlain();
+              var sp = document.createElement('span');
+              sp.className = 'tab-emoji';
+              sp.textContent = cl;
+              nmEl.appendChild(sp);
+            } else plain += cl;
+          });
+          flushPlain();
+        }
         function tabIndexOf(id) {
           for (var i = 0; i < tabRecords.length; i++) if (tabRecords[i].docId === id) return i;
           return -1;
@@ -21383,7 +21659,7 @@
               if (mm.lc) clone.style.setProperty('--tab-lc', mm.lc);
               var cn = document.createElement('span');
               cn.className = 'folio-tab-name';
-              cn.textContent = mm.label;
+              tabFillName(cn, mm.label);
               clone.appendChild(cn);
               tabScrollEl.appendChild(clone);
               var dy = tCenter - (pt.top + pt.height / 2);
@@ -23201,7 +23477,7 @@
             }
             var nm = document.createElement('span');
             nm.className = 'folio-tab-name';
-            nm.textContent = tabDisplayTitle(r);
+            tabFillName(nm, tabDisplayTitle(r));
             el.appendChild(nm);
             var x = document.createElement('button');
             x.type = 'button';
@@ -28427,7 +28703,7 @@
             run: function () { openVarPicker(); }
           }));
           el.appendChild(edMenuItem({
-            icon: VAR_SVG, label: 'Variables…',
+            icon: VAR_SVG, label: 'Variables…', hint: hintFor('variables'), dataSc: 'variables',
             run: function () { openVarPanel(lib.currentId); }
           }));
         }
@@ -28887,6 +29163,39 @@
           if (pv) return { kind: 'ext', hit: pv };
           return null;
         }
+        /* Build -139 (A2): the ENTER door's own hit test —
+           linkHitAtSelection with the trailing edge given
+           back to the document. Enter opens the composer
+           only while the caret is within the link (or the
+           link itself is the selection: a node-selected chip
+           or card, or a selection spanning exactly one link).
+           A bare caret sitting at the link's trailing edge —
+           immediately after its last character, the position
+           a line-ending link leaves you in — or one separator
+           past it is NOT within the link: Enter there is a
+           plain newline again. ⌘K and the menus keep the
+           generous proximity rules of linkHitAtSelection;
+           only Enter narrows. Preview cards keep their
+           near-caret door (a card has no trailing text edge
+           to escape from). */
+        function linkHitForEnter() {
+          var found = linkHitAtSelection();
+          if (!found) return null;
+          if (!editorHandle || !editorHandle.editor) return found;
+          var sel = editorHandle.editor.state.selection;
+          if (!sel || !sel.empty || sel.node) return found;
+          var at = sel.from;
+          if (found.kind === 'chip') {
+            var end = found.hit.pos + found.hit.node.nodeSize;
+            if (at >= end) return null;
+            return found;
+          }
+          if (found.kind === 'ext' && !found.hit.preview) {
+            if (at >= found.hit.to) return null;
+            return found;
+          }
+          return found;
+        }
         /* The ⋯ menus' link test — linkHitAtSelection, widened
            for a menu door: a selection that merely OVERLAPS an
            external run (not just one spanning it exactly) or
@@ -29037,6 +29346,27 @@
           var field = state.focus === 'link' ? wikiLinkInput : wikiDisplayInput;
           field.focus();
           try { field.select(); } catch (e) {}
+          /* Build -139 (A1): opened from the keyboard (Enter
+             on a link), the composer could open WITHOUT the
+             focus ever landing in it — Enter and Escape then
+             went to the editor behind it and did nothing.
+             Re-assert the field's focus on the next frame and
+             once more shortly after, while this exact composer
+             session is still open and focus is not already
+             inside the popover (the user may have tabbed to
+             the other field in the meantime — never yank it
+             back). From then on the fields' own handlers own
+             Enter and Escape like every other modal's. */
+          var session = state;
+          function reassertFieldFocus() {
+            if (linkPopState !== session || wikiDisplayPopEl.hidden) return;
+            var ae = document.activeElement;
+            if (ae && wikiDisplayPopEl.contains(ae)) return;
+            field.focus();
+            try { field.select(); } catch (e) {}
+          }
+          if (typeof requestAnimationFrame === 'function') requestAnimationFrame(reassertFieldFocus);
+          setTimeout(reassertFieldFocus, 80);
         }
         function chipDomRect(pos) {
           try {
@@ -29202,6 +29532,20 @@
            is a dead end for the keyboard. */
         if (wikiDisplayPopEl) {
           wikiDisplayPopEl.addEventListener('keydown', function (ev) {
+            /* Build -139 (A1): Escape cancels from ANYWHERE
+               in the composer, not only from its fields — a
+               focus position on the popover shell or its
+               buttons was a dead end for the key. The fields
+               and the preview switch stop their own Escapes
+               first (the Link field's closes its suggestion
+               list instead), so this only hears the ones
+               nothing else claimed. */
+            if (ev.key === 'Escape') {
+              ev.preventDefault();
+              ev.stopPropagation();
+              cancelLinkComposer();
+              return;
+            }
             if (ev.key !== 'Enter') return;
             if (ev.metaKey || ev.ctrlKey) { ev.preventDefault(); confirmLinkComposer(); return; }
             var t = ev.target;
@@ -29554,7 +29898,9 @@
            composer instead of splitting the block — the one
            Enter the editor gives up, claimed in the capture
            phase before its keymap can see the press. Every
-           other Enter is untouched. */
+           other Enter is untouched. Build -139 (A2): the hit
+           test is linkHitForEnter — a caret at the link's
+           trailing edge keeps its newline. */
         var editorMountForLinks = document.getElementById('editorMount');
         if (editorMountForLinks) {
           editorMountForLinks.addEventListener('keydown', function (ev) {
@@ -29562,7 +29908,7 @@
             if (!editorHandle || !editorHandle.editor) return;
             if (suggestState.active || tagSuggestState.active) return;
             if (linkPopState) return;
-            var found = linkHitAtSelection();
+            var found = linkHitForEnter();
             if (!found) return;
             ev.preventDefault();
             ev.stopPropagation();
@@ -31387,6 +31733,57 @@
             else openVarPanel(lib.currentId);
           }
         });
+        /* Build -139 (item 1a): ⌥Enter in the DOCUMENT on a
+           variable — the keyboard twin of the double-click
+           doors above, and Andrew's primary ask. With the
+           caret touching a reference chip (varRefHitNear:
+           node-selected, or the atom immediately beside a
+           bare caret) or sitting in an inline definition
+           (varDefHitAtCaret / varDefInSelection), ⌥Enter
+           opens that variable's edit modal — bound exactly
+           as double-click binds it (varResolveRef's
+           shadowing rule for chips, the mark's own variable
+           for definitions), with the Variables panel as the
+           stale-binding fallback. Claimed on the capture
+           path at the mount, ahead of the editor's own key
+           handling, so the chord never inserts a line break;
+           with no variable at the caret — or a menu, modal,
+           or the composer already up — the press passes
+           through untouched. The matcher accepts the
+           fxIsAltEnter family of Enter shapes (key, code,
+           keyCode): iPadOS does not promise Chromium's
+           key === 'Enter' for Option+Return. */
+        editorMountEl.addEventListener('keydown', function (ev) {
+          if (!ev || !ev.altKey || ev.metaKey || ev.ctrlKey) return;
+          if (!(ev.key === 'Enter' || ev.key === '\n' || ev.key === '\r' ||
+                ev.code === 'Enter' || ev.code === 'NumpadEnter' ||
+                ev.keyCode === 13 || ev.which === 13)) return;
+          if (!editorHandle || !editorHandle.editor) return;
+          if (typeof tplEditingId !== 'undefined' && tplEditingId) return;
+          if (varEditCtx || varPanelDocId || varDefineCtx || varPickCtx) return;
+          if (varAtState.active || suggestState.active || tagSuggestState.active) return;
+          if (linkPopState) return;
+          var ed = editorHandle.editor;
+          var doc = currentDoc();
+          if (!doc) return;
+          var st = ed.state;
+          var refHit = varRefHitNear(st);
+          if (refHit && refHit.node) {
+            var bound = varResolveRef(doc, refHit.node.attrs) || varFindAny(refHit.node.attrs.vid);
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (bound && bound.rec) openVarEdit(bound.scope, bound.rec);
+            else openVarPanel(lib.currentId);
+            return;
+          }
+          var defHit = varDefHitAtCaret(st) || varDefInSelection(st);
+          if (defHit && defHit.vid) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (defHit.rec) openVarEdit(defHit.scope, defHit.rec);
+            else openVarPanel(lib.currentId);
+          }
+        }, true);
         /* The one context resolution every pointer door
            shares: a mouse right-click and a touch long-press
            both land here with a point and the element under
@@ -40991,6 +41388,28 @@
              closes it even when pinned (see the outline block). */
           { id: 'outline-toggle', combo: 'mod+alt+o', hint: '⌘⌥O', group: 'General', label: 'Show / hide outline',
             run: function () { toggleOutlineKb(); } },
+          /* ⌥V (build -139, item B): the Variables panel on a
+             bare Option chord, in the ⌥Q / ⌥W / ⌥T family.
+             Conflict check first: plain 'alt+v' was UNBOUND
+             in this registry — ⌘⌥V is Move document
+             ('mod+alt+v'), a different combo the dispatcher
+             keeps distinct — and the dispatcher's Option
+             table already maps the Mac glyph √ back to 'v',
+             so the chord resolves on an iPad keyboard the
+             same as on a desktop one. The run toggles, like
+             the outline's: with the panel up it closes,
+             otherwise it opens on the current document
+             (openVarPanel itself stands down with a toast
+             while a template is being edited). Field-safe
+             (SC_SAFE_IN_FIELD below): the chord types no
+             text of its own. This one entry is the binding,
+             the ⌘/ dialog row, and the hint every Variables…
+             menu item and the action bar read. */
+          { id: 'variables', combo: 'alt+v', hint: '⌥V', group: 'General', label: 'Variables',
+            run: function () {
+              if (varPanelDocId) closeVarPanel();
+              else openVarPanel(lib.currentId);
+            } },
           { id: 'settings', combo: 'mod+,', hint: '⌘,', group: 'General', label: 'Settings',
             run: function () { scRunSettings(); } },
           { id: 'shortcuts-help', combo: 'mod+/', hint: '⌘/', group: 'General', label: 'Keyboard shortcuts',
@@ -41680,7 +42099,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-close': true, 'tab-recent': true, 'tab-book': true, 'tab-ws-cycle': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'view-templates': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true };
+        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-close': true, 'tab-recent': true, 'tab-book': true, 'tab-ws-cycle': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'view-templates': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true, 'variables': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
@@ -42425,9 +42844,13 @@
           /* Doc variables (build -130): the panel, the
              picker, and define-from-selection, behind the
              same doors as their toolbar and menu entries.
-             Define stands down without a live selection. */
+             Define stands down without a live selection.
+             Build -139: the panel itself is no longer pushed
+             by hand — it is a registry entry now ('variables',
+             ⌥V), so pushRegistry('General') above already
+             carries it with its hint; a second push here
+             would list it twice. */
           if (!tplEditingId) {
-            push('variables', 'Variables…', '', 'General', function () { openVarPanel(lib.currentId); });
             push('insert-variable', 'Insert variable…', '', 'General', function () { openVarPicker(); });
             if (varSelectionRange()) {
               push('define-variable', 'Define selection as variable…', '', 'General', function () { openVarDefineModal(); });
