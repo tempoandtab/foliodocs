@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261106-139" />
+    <meta name="folio-build" content="20261106-140" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2125,6 +2125,19 @@
          label like the tag menu's Create row does. */
       .suggest-item.var-at-create .s-title { flex: 1 1 auto; font-weight: 600; }
       .suggest-item.sel .s-val { color: inherit; opacity: 0.85; }
+      /* Build -140: the @= define row with a typed value —
+         its label ("Define <name> inline as <value>") updates
+         live and must never truncate: the popup may grow
+         wider than the usual menu, and the label wraps
+         instead of ellipsizing, so the full text is always
+         visible however long the value runs. */
+      .suggest.suggest--define { max-width: min(560px, 94vw); }
+      .suggest-item.var-at-define-val { align-items: flex-start; }
+      .suggest-item.var-at-define-val .s-title {
+        white-space: normal; overflow: visible; text-overflow: clip;
+        overflow-wrap: anywhere; line-height: 1.35;
+      }
+      .suggest-item.var-at-define-val .var-badge { margin-top: 3px; }
       /* The formula field's @ menu rides above the variable
          modal's overlay host; the document editor's menu
          reuses #suggest at its usual layer. */
@@ -4413,6 +4426,14 @@
       .var-badge.warn { color: var(--ink-2); background: transparent; border: 1px dashed var(--accent); }
       .var-row-actions { flex: 0 0 auto; display: flex; gap: 2px; }
       .var-row-actions .icon-btn.danger { color: var(--danger); }
+      /* Build -140: the Variables panel's keyboard highlight
+         — the row the arrow keys currently rest on, in the
+         same accent register as the @ menus' selected row. */
+      .var-row.kb-sel {
+        border-color: var(--accent); background: var(--accent-soft);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .var-row:focus { outline: none; }
       .var-empty { font-size: 13px; color: var(--ink-3); padding: 2px 2px 6px; }
       .var-pick-row {
         display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
@@ -10081,6 +10102,18 @@
         var varSaveTimer = null;
         var varTableOk = null;
         var varPanelDocId = null;
+        /* Build -140: the panel's keyboard model — the flat
+           row list (both sections, in render order), the
+           highlighted row's index, and the editor caret held
+           from the moment the panel opened, which insertion
+           and Escape both return to. varEditKbSave marks a
+           varSaveEdit that arrived from the keyboard (the
+           contextual Enter or ⌘Enter), whose close owes the
+           editor its caret back (see varFocusAfterSavedVar). */
+        var varPanelRowItems = [];
+        var varPanelSelIndex = 0;
+        var varPanelCaret = null;
+        var varEditKbSave = false;
         var varEditCtx = null;
         var varDefineCtx = null;
         var varPickCtx = null;
@@ -11835,13 +11868,98 @@
           var doc = varDocById(docId || lib.currentId);
           if (!doc) return;
           varPanelDocId = doc.id;
+          /* Build -140: hold the editor caret from this
+             moment — the panel takes focus, and both an
+             Enter / double-click insertion and an Escape owe
+             the editor this exact spot back. */
+          varPanelCaret = null;
+          try {
+            if (doc.id === lib.currentId && editorHandle && editorHandle.editor && editorHandle.editor.state) {
+              var psel = editorHandle.editor.state.selection;
+              if (psel) varPanelCaret = { docId: doc.id, from: psel.from, to: psel.to };
+            }
+          } catch (e) {}
+          varPanelSelIndex = 0;
           if (varEnsureDocRecords(doc)) varSaveSoon();
           renderVarPanel();
           document.getElementById('varPanel').hidden = false;
+          /* Land the keyboard on the highlighted row, so the
+             arrow keys work from the moment the panel opens. */
+          setTimeout(function () {
+            if (!varPanelDocId) return;
+            var rows = document.querySelectorAll('#varPanelBody .var-row');
+            var el = rows[varPanelSelIndex];
+            if (el) { try { el.focus({ preventScroll: true }); } catch (e) {} return; }
+            var p = document.querySelector('#varPanel .panel');
+            if (p) { p.setAttribute('tabindex', '-1'); try { p.focus({ preventScroll: true }); } catch (e) {} }
+          }, 30);
         }
         function closeVarPanel() {
           document.getElementById('varPanel').hidden = true;
           varPanelDocId = null;
+        }
+        /* Build -140: the panel's keyboard highlight — one
+           row across both sections, wrapping at the ends like
+           the @ menus and the edit modal's zones, scrolled
+           into view as it travels (the -137 menu rule). */
+        function varPanelApplySel(scroll) {
+          var rows = document.querySelectorAll('#varPanelBody .var-row');
+          for (var i = 0; i < rows.length; i++) {
+            if (i === varPanelSelIndex) rows[i].classList.add('kb-sel');
+            else rows[i].classList.remove('kb-sel');
+          }
+          if (scroll && rows[varPanelSelIndex]) {
+            try { rows[varPanelSelIndex].scrollIntoView({ block: 'nearest' }); } catch (e) {}
+          }
+        }
+        function varPanelSetSel(idx, focusIt, scroll) {
+          var len = varPanelRowItems.length;
+          if (!len) return;
+          varPanelSelIndex = ((idx % len) + len) % len;
+          varPanelApplySel(scroll);
+          if (focusIt) {
+            var rows = document.querySelectorAll('#varPanelBody .var-row');
+            var el = rows[varPanelSelIndex];
+            if (el) { try { el.focus({ preventScroll: true }); } catch (e) {} }
+          }
+        }
+        /* Insert a reference chip for a panel row at the
+           caret held from when the panel opened, close the
+           panel, and leave the caret right after the chip —
+           the one action Enter and double-click share.
+           Shadowing resolves exactly as the picker's: a
+           shadowed global inserts its document variable. */
+        function varPanelInsert(scope, rec) {
+          var doc = varDocById(varPanelDocId || lib.currentId);
+          var caret = varPanelCaret;
+          if (!doc || !rec || !editorHandle || !editorHandle.editor) { closeVarPanel(); return; }
+          var effScope = scope, effRec = rec;
+          if (scope === 'global') {
+            var shadow = varDocVarByName(doc.id, rec.name);
+            if (shadow) { effScope = 'doc'; effRec = shadow; }
+          }
+          var docId = doc.id;
+          closeVarPanel();
+          if (docId !== lib.currentId) return;
+          var chain = editorHandle.editor.chain().focus();
+          if (caret && caret.docId === docId && typeof caret.from === 'number') {
+            try { chain.setTextSelection({ from: caret.from, to: caret.to }); } catch (e) {}
+          }
+          chain.insertContent({ type: 'varRef', attrs: varRefAttrsFor(doc, effScope, effRec) }).run();
+        }
+        /* Escape's close: nothing inserted, the held caret
+           restored in the editor. */
+        function varPanelCloseRestore() {
+          var caret = varPanelCaret;
+          closeVarPanel();
+          if (!editorHandle || !editorHandle.editor) return;
+          try {
+            if (caret && caret.docId === lib.currentId && typeof caret.from === 'number') {
+              editorHandle.editor.chain().focus().setTextSelection({ from: caret.from, to: caret.to }).run();
+            } else {
+              editorHandle.editor.chain().focus().run();
+            }
+          } catch (e) { try { editorHandle.focus(); } catch (e2) {} }
         }
         function openVarPanelFor(docId) {
           if (docId && docId !== lib.currentId) openDoc(docId, false);
@@ -11854,6 +11972,7 @@
           document.getElementById('varPanelDocName').textContent = doc.title || 'Untitled';
           var body = document.getElementById('varPanelBody');
           body.innerHTML = '';
+          varPanelRowItems = [];
           function head(text, scope) {
             var h = document.createElement('div');
             h.className = 'var-section-head';
@@ -11883,6 +12002,24 @@
           function row(scope, rec) {
             var el = document.createElement('div');
             el.className = 'var-row';
+            /* Build -140: every row is a stop in the panel's
+               keyboard list (see varPanelSetSel), a click
+               rests the highlight on it, and a double-click on
+               the row — its name included — inserts it at the
+               held caret. The row's action buttons keep their
+               own clicks and double-clicks. */
+            el.tabIndex = -1;
+            var myIdx = varPanelRowItems.length;
+            varPanelRowItems.push({ scope: scope, rec: rec });
+            el.addEventListener('click', function (ev) {
+              if (ev.target && ev.target.closest && ev.target.closest('.var-row-actions')) return;
+              varPanelSetSel(myIdx, true, false);
+            });
+            el.addEventListener('dblclick', function (ev) {
+              if (ev.target && ev.target.closest && ev.target.closest('.var-row-actions')) return;
+              ev.preventDefault();
+              varPanelInsert(scope, rec);
+            });
             var main = document.createElement('div');
             main.className = 'var-row-main';
             var nm = document.createElement('div');
@@ -11971,6 +12108,8 @@
             body.appendChild(e2);
           }
           varStore.globals.forEach(function (r) { row('global', r); });
+          if (varPanelSelIndex >= varPanelRowItems.length) varPanelSelIndex = Math.max(0, varPanelRowItems.length - 1);
+          varPanelApplySel(false);
         }
         /* ----- add / edit / rename ----- */
         /* Build -133: the edit modal's value-source state.
@@ -12078,12 +12217,54 @@
           opts = opts || {};
           varAtMenusDismissForModal();
           var doc = varDocById(varPanelDocId || lib.currentId);
+          /* Build -140: what a keyboard-confirmed save owes
+             the editor (see varFocusAfterSavedVar): the caret
+             held right now, and the invoking element when the
+             modal was opened from one — the reference chip at
+             the caret (varRefHitNear), or the definition
+             group the caret sits in. Captured before anything
+             in this open moves focus or selection. Only for
+             the document the editor actually shows. */
+          var returnFocus = null;
+          try {
+            if (doc && doc.id === lib.currentId && !tplEditingId &&
+                editorHandle && editorHandle.editor && editorHandle.editor.state) {
+              var rst = editorHandle.editor.state;
+              var rsel = rst.selection;
+              returnFocus = {
+                docId: doc.id,
+                from: rsel ? rsel.from : null,
+                to: rsel ? rsel.to : null,
+                originKind: null, originPos: null
+              };
+              if (rec) {
+                var rh = varRefHitNear(rst);
+                if (rh && rh.node && rh.node.attrs && rh.node.attrs.vid) {
+                  var bound0 = varResolveRef(doc, rh.node.attrs) || varFindAny(rh.node.attrs.vid);
+                  if (bound0 && bound0.rec && bound0.rec.id === rec.id) {
+                    returnFocus.originKind = 'ref';
+                    returnFocus.originPos = rh.pos;
+                  }
+                }
+                if (!returnFocus.originKind && rsel) {
+                  var groups0 = varDefGroupsInEditor(rst, rec.id, null, null);
+                  for (var gi = 0; gi < groups0.length; gi++) {
+                    if (rsel.from <= groups0[gi][1] && rsel.to >= groups0[gi][0]) {
+                      returnFocus.originKind = 'def';
+                      returnFocus.originPos = groups0[gi][0];
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) { returnFocus = null; }
           /* Build -136: opts.prefillName seeds a new variable's
              name (the @ menus' Create row); opts.afterSave /
              opts.afterCancel let that caller finish its job —
              insert the reference the @-text promised — only
              once the modal's fate is known. */
-          varEditCtx = { scope: scope, id: rec ? rec.id : null, docId: doc ? doc.id : lib.currentId, afterSave: opts.afterSave || null, afterCancel: opts.afterCancel || null };
+          varEditCtx = { scope: scope, id: rec ? rec.id : null, docId: doc ? doc.id : lib.currentId, afterSave: opts.afterSave || null, afterCancel: opts.afterCancel || null, returnFocus: returnFocus };
           document.getElementById('varEditTitle').textContent = rec ? 'Edit variable' : (scope === 'doc' ? 'New document variable' : 'New global variable');
           varFieldHygiene(document.getElementById('varEditName'));
           varFieldHygiene(document.getElementById('varEditValue'));
@@ -13170,8 +13351,100 @@
           fxAtDeleteTrigger(range);
           fxInsertRef(item.scope, item.rec);
         }
+        /* Build -140: after a KEYBOARD-confirmed save (the
+           contextual Enter or ⌘Enter — varEditKbSave), focus
+           returns to the editor with the caret immediately
+           after the variable, resolved against the post-save
+           document, in this order:
+           (a) after the element that invoked the modal — the
+               chip it was opened from, re-found by id (the
+               nearest one to where it stood, in case a
+               conversion shifted its neighbours), or the end
+               of the definition it was opened from;
+           (b) otherwise after the variable's inline
+               definition in this document — stepping past its
+               planted trailing space when one follows, so
+               typing continues OUTSIDE the value, per -139 5a;
+           (c) otherwise the caret held from before the modal
+               opened (captured in openVarEdit; for a modal
+               opened from the panel, the panel's own held
+               caret when the modal captured none).
+           A mouse Save keeps the standing behavior — this is
+           the keyboard's "done, back to writing" gesture, so
+           a Variables panel still open underneath closes as
+           part of the return. Callers carrying an afterSave
+           (the @ Create rows, the formula field's parked
+           session) own their landing and never come here. */
+        function varFocusAfterSavedVar(ctx, rec) {
+          if (!ctx || !rec) return;
+          if (!editorHandle || !editorHandle.editor || tplEditingId) return;
+          var doc = currentDoc();
+          if (!doc || doc.id !== ctx.docId) return;
+          var ed = editorHandle.editor;
+          var st = ed.state;
+          var ret = ctx.returnFocus || null;
+          var caret = null, caretTo = null;
+          function spaceStep(pos) {
+            try {
+              var ch = st.doc.textBetween(pos, Math.min(pos + 1, st.doc.content.size), '', '\uFFFC');
+              return ch === ' ' ? 1 : 0;
+            } catch (e) { return 0; }
+          }
+          function defCaret(groups, preferPos) {
+            if (!groups.length) return null;
+            var g = groups[0], best = Infinity;
+            if (typeof preferPos === 'number') {
+              groups.forEach(function (gp) {
+                var d = Math.abs(gp[0] - preferPos);
+                if (d < best) { best = d; g = gp; }
+              });
+            }
+            return g[1] + spaceStep(g[1]);
+          }
+          try {
+            if (ret && ret.originKind === 'ref' && typeof ret.originPos === 'number') {
+              var hit = null, hitDist = Infinity;
+              st.doc.descendants(function (node, pos) {
+                if (node.type && node.type.name === 'varRef' && node.attrs && node.attrs.vid === rec.id) {
+                  var d = Math.abs(pos - ret.originPos);
+                  if (d < hitDist) { hitDist = d; hit = { pos: pos, size: node.nodeSize }; }
+                }
+                return true;
+              });
+              if (hit) caret = hit.pos + hit.size;
+            }
+            if (caret == null && ret && ret.originKind === 'def') {
+              caret = defCaret(varDefGroupsInEditor(st, rec.id, null, null), ret.originPos);
+            }
+            if (caret == null) {
+              caret = defCaret(varDefGroupsInEditor(st, rec.id, null, null), null);
+            }
+            if (caret == null) {
+              if (ret && ret.docId === doc.id && typeof ret.from === 'number') {
+                caret = ret.from; caretTo = ret.to;
+              } else if (varPanelCaret && varPanelCaret.docId === doc.id && typeof varPanelCaret.from === 'number') {
+                caret = varPanelCaret.from; caretTo = varPanelCaret.to;
+              }
+            }
+          } catch (e) { caret = null; }
+          if (varPanelDocId) closeVarPanel();
+          try {
+            if (typeof caret === 'number') {
+              var maxPos = st.doc.content.size + 1;
+              var f = Math.max(0, Math.min(caret, maxPos));
+              var t = Math.max(f, Math.min(typeof caretTo === 'number' ? caretTo : f, maxPos));
+              ed.chain().focus().setTextSelection({ from: f, to: t }).run();
+            } else {
+              ed.chain().focus().run();
+            }
+          } catch (e) {
+            try { ed.chain().focus().run(); } catch (e2) {}
+          }
+        }
         function varSaveEdit() {
           if (!varEditCtx) return;
+          var kbSave = varEditKbSave;
+          varEditKbSave = false;
           var ctx = varEditCtx;
           var name = document.getElementById('varEditName').value.trim();
           var value = document.getElementById('varEditValue').value;
@@ -13276,6 +13549,10 @@
           }
           renderVarPanel();
           if (afterSave) { try { afterSave(rec); } catch (e) {} }
+          /* Build -140: a keyboard-confirmed save hands the
+             caret back to the editor, right after the
+             variable (see varFocusAfterSavedVar). */
+          else if (kbSave) { try { varFocusAfterSavedVar(ctx, rec); } catch (e) {} }
         }
         /* ----- promote / delete ----- */
         /* onDone(finalGlobalRec) / onCancel are optional —
@@ -13655,6 +13932,40 @@
         /* ----- panel / modal wiring ----- */
         document.getElementById('varPanelClose').addEventListener('click', closeVarPanel);
         document.getElementById('varPanel').addEventListener('mousedown', function (ev) { if (ev.target === this) closeVarPanel(); });
+        /* Build -140: the panel's keys, in the edit modal's
+           discipline. Up/Down travel the highlight across
+           both sections (wrapping, scrolled into view);
+           Enter on a row inserts it at the held caret, closes
+           the panel, and lands the caret after the chip;
+           Escape closes with the held caret restored. Enter
+           elsewhere in the panel — on the Add, Edit, Promote,
+           Delete, or Close buttons — keeps its native button
+           meaning: only a press that lands on a row inserts. */
+        document.getElementById('varPanel').addEventListener('keydown', function (ev) {
+          if (document.getElementById('varPanel').hidden) return;
+          if (varEditCtx) return;
+          var confirmEl = document.getElementById('varConfirmModal');
+          if (confirmEl && !confirmEl.hidden) return;
+          if (ev.key === 'Escape') {
+            ev.preventDefault(); ev.stopPropagation();
+            varPanelCloseRestore();
+            return;
+          }
+          if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            if (!varPanelRowItems.length) return;
+            ev.preventDefault(); ev.stopPropagation();
+            varPanelSetSel(varPanelSelIndex + (ev.key === 'ArrowDown' ? 1 : -1), true, true);
+            return;
+          }
+          if (ev.key === 'Enter') {
+            if (!ev.target || !ev.target.closest) return;
+            var rowEl = ev.target.closest('.var-row');
+            if (!rowEl || ev.target.closest('.var-row-actions')) return;
+            ev.preventDefault(); ev.stopPropagation();
+            var item = varPanelRowItems[varPanelSelIndex];
+            if (item) varPanelInsert(item.scope, item.rec);
+          }
+        });
         document.getElementById('varEditClose').addEventListener('click', closeVarEdit);
         document.getElementById('varEditCancel').addEventListener('click', closeVarEdit);
         document.getElementById('varEditSave').addEventListener('click', varSaveEdit);
@@ -13683,11 +13994,15 @@
           if (varEditMode === 'formula') {
             fxUpdatePreview();
             if (!fxValid.ok) { varEditError(fxValid.msg); fxFieldEl().focus(); return; }
+            /* Build -140: a save from the keyboard — this
+               Enter-to-save path is also where ⌘Enter lands. */
+            varEditKbSave = true;
             varSaveEdit();
             return;
           }
           var valueEl = document.getElementById('varEditValue');
           if (!valueEl.value) { valueEl.focus(); return; }
+          varEditKbSave = true;
           varSaveEdit();
         }
         document.getElementById('varEditName').addEventListener('keydown', varEditEnter);
@@ -17455,9 +17770,24 @@
              and choosing Define consumes all three as one
              span (the range math below already runs off
              dm[0]'s length, separator excluded). */
-          var dm = r.match(/(^|[^A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*) *@=$/);
+          var dm = r.match(/(^|[^A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*) *@=([\s\S]*)$/);
           if (dm) {
-            return { define: true, name: dm[2], range: { from: n.pos - (dm[0].length - dm[1].length), to: n.pos }, query: '=' + dm[2] };
+            /* Build -140: text typed after the "=" is the
+               VALUE the definition will carry. One space
+               immediately after the "=" is ignored; everything
+               after that is the value, spaces included (the
+               matched span — name through value — is what
+               choosing the row replaces). Whitespace alone is
+               no value yet: the row keeps its shipped
+               "+ Define … Inline" face and the default 0. A
+               value containing an inline atom (a hard break,
+               in this projection) is not a value at all — the
+               menu stands down rather than swallow it. */
+            var rawVal = dm[3] || '';
+            if (rawVal.indexOf('\uFFFC') !== -1) return null;
+            var dval = rawVal.charAt(0) === ' ' ? rawVal.slice(1) : rawVal;
+            if (!dval.trim()) dval = '';
+            return { define: true, name: dm[2], value: dval, range: { from: n.pos - (dm[0].length - dm[1].length), to: n.pos }, query: '=' + dm[2] + '=' + rawVal };
           }
           var m = r.match(/(?:^|[ ￼])@([A-Za-z][A-Za-z0-9_]*)?$/);
           if (!m) return null;
@@ -17504,7 +17834,17 @@
             b.classList.add('var-at-create');
             var dnm = document.createElement('span');
             dnm.className = 's-title';
-            dnm.textContent = '+ Define \u201C' + item.name + '\u201D Inline';
+            /* Build -140: with a value typed after the "=",
+               the row reads "Define <name> inline as <value>"
+               and updates on every keystroke (each keystroke
+               re-runs varAtSync and this render). With no
+               value yet it keeps its shipped face. */
+            if (item.value) {
+              b.classList.add('var-at-define-val');
+              dnm.textContent = 'Define ' + item.name + ' inline as ' + item.value;
+            } else {
+              dnm.textContent = '+ Define \u201C' + item.name + '\u201D Inline';
+            }
             b.appendChild(dnm);
             var dbadge = document.createElement('span');
             dbadge.className = 'var-badge soft';
@@ -17558,7 +17898,11 @@
             if (!suggestState.active && !tagSuggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; }
             return;
           }
-          suggestEl.className = 'suggest open';
+          /* Build -140: a define row carrying a typed value
+             gets the wider popup (suggest--define), so its
+             live label has room to grow and wrap. */
+          var defineWide = varAtState.items.length === 1 && !!varAtState.items[0].define && !!varAtState.items[0].value;
+          suggestEl.className = 'suggest open' + (defineWide ? ' suggest--define' : '');
           suggestEl.innerHTML = '';
           var head = document.createElement('div');
           head.className = 'suggest-head';
@@ -17575,6 +17919,16 @@
             suggestEl.appendChild(varAtRow(item, i === varAtState.selected, doc, function () { varAtChoose(i); }));
           });
           if (varAtState.rect) positionSuggestPopup(varAtState.rect, varAtState.items.length);
+          if (defineWide) {
+            /* positionSuggestPopup clamps against the usual
+               menu width; re-clamp against the wide popup's
+               real width so it never runs off the right edge. */
+            var pw = suggestEl.offsetWidth;
+            var pl = parseFloat(suggestEl.style.left) || 0;
+            if (pw && pl + pw > window.innerWidth - 8) {
+              suggestEl.style.left = Math.max(8, window.innerWidth - pw - 8) + 'px';
+            }
+          }
           suggestScrollSelIntoView(suggestEl);
         }
         function varAtClose() {
@@ -17605,7 +17959,7 @@
           varAtState.range = hit.range;
           /* Build -138: a define hit offers exactly one row —
              the inline definition of the word before "@=". */
-          varAtState.items = hit.define ? [{ define: true, name: hit.name }] : varAtComputeItems(doc, hit.query);
+          varAtState.items = hit.define ? [{ define: true, name: hit.name, value: hit.value || '' }] : varAtComputeItems(doc, hit.query);
           if (fresh || varAtState.selected >= varAtState.items.length) varAtState.selected = 0;
           var c = editorHandle.editor.view.coordsAtPos(hit.range.from);
           varAtState.rect = { left: c.left, top: c.top, bottom: c.bottom };
@@ -17659,7 +18013,15 @@
            document, rewritten in its home document's stored
            content when it does not), and a formula source is
            retired — a variable has exactly one source. */
-        function varAtDefineInline(name) {
+        function varAtDefineInline(name, value) {
+          /* Build -140: the value typed after the "=" rides
+             in (see varAtQueryAt); none typed — or only the
+             ignored leading space — keeps the ratified
+             default "0". Everything below that used to say
+             '0' says useValue: the minted record, the
+             converted old anchor's stamp, the definition
+             text itself, and the caret math after it. */
+          var useValue = (typeof value === 'string' && value.trim()) ? value : '0';
           var range = varAtState.range;
           var doc = currentDoc();
           varAtClose();
@@ -17674,13 +18036,13 @@
             if (g) { scope = 'global'; rec = g; }
           }
           if (!rec) {
-            rec = { id: uid(), name: name, value: '0', anchor: false };
+            rec = { id: uid(), name: name, value: useValue, anchor: false };
             if (!varStore.docVars[doc.id]) varStore.docVars[doc.id] = [];
             varStore.docVars[doc.id].push(rec);
           }
           var wasAnchored = !!rec.anchor;
           var oldHomeId = scope === 'doc' ? doc.id : rec.anchorDoc;
-          var convAttrs = { vid: rec.id, vscope: scope === 'doc' ? 'd' : 'g', vname: rec.name, vvalue: '0' };
+          var convAttrs = { vid: rec.id, vscope: scope === 'doc' ? 'd' : 'g', vname: rec.name, vvalue: useValue };
           var tr = st.tr;
           var shift = 0;
           if (wasAnchored && oldHomeId === doc.id) {
@@ -17708,7 +18070,7 @@
              text carries the mark, the space never does, and
              creation plus exit stay one undo step. */
           var followPlan = varFollowPlan(st, range.to);
-          var defNodes = [st.schema.text('0', [st.schema.marks.varDef.create({ vid: rec.id, vname: rec.name })])];
+          var defNodes = [st.schema.text(useValue, [st.schema.marks.varDef.create({ vid: rec.id, vname: rec.name })])];
           if (followPlan.needSpace) defNodes.push(st.schema.text(' '));
           tr.replaceWith(newFrom, range.to - shift, defNodes);
           ed.view.dispatch(tr);
@@ -17726,12 +18088,12 @@
           /* Build -139 (5a): the caret lands past the exit —
              after the appended space, or after the character
              that already followed the "@=" span. */
-          try { ed.chain().setTextSelection({ from: newFrom + 1 + followPlan.step, to: newFrom + 1 + followPlan.step }).run(); } catch (e) {}
+          try { ed.chain().setTextSelection({ from: newFrom + useValue.length + followPlan.step, to: newFrom + useValue.length + followPlan.step }).run(); } catch (e) {}
         }
         function varAtChoose(i) {
           var item = varAtState.items[i];
           if (!item || !editorHandle || !editorHandle.editor) return;
-          if (item.define) { varAtDefineInline(item.name); return; }
+          if (item.define) { varAtDefineInline(item.name, item.value); return; }
           if (item.create) { varAtCreate(); return; }
           var doc = currentDoc();
           if (!doc) return;
