@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261106-142" />
+    <meta name="folio-build" content="20261107-144" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4563,13 +4563,23 @@
       .folio-prose .var-ref--chip {
         background: transparent; border: none; padding: 0; border-radius: 0;
       }
+      /* Build -144: the chip's material is a Smart chip
+         STYLE, independent of the document theme — the
+         --cchip-* vars are the RESOLVED style for the active
+         theme, set on <html> by applyChipStyle (pristine
+         style definitions live in CHIP_STYLES; resolution
+         adapts lightness only, per the -111 precedent, and
+         never writes back). Every fallback below is the
+         -143 raised look, which is also what the Classic
+         style resolves to: with no vars set, these rules
+         are byte-for-byte the -143 appearance. */
       .folio-prose .var-chip-ctl {
         display: inline-flex; align-items: center; gap: 4px;
         vertical-align: middle; white-space: nowrap; user-select: none; -webkit-user-select: none;
-        background: var(--surface); color: var(--ink);
-        border: 1.5px solid color-mix(in srgb, var(--ink) 30%, transparent);
-        border-radius: 10px; padding: 3px 7px; margin: 1px 1px;
-        box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 20%, transparent);
+        background: var(--cchip-bg, var(--surface)); color: var(--cchip-ink, var(--ink));
+        border: var(--cchip-bw, 1.5px) var(--cchip-bs, solid) var(--cchip-border, color-mix(in srgb, var(--ink) 30%, transparent));
+        border-radius: var(--cchip-radius, 10px); padding: 3px 7px; margin: 1px 1px;
+        box-shadow: var(--cchip-shadow, 0 1px 3px color-mix(in srgb, var(--ink) 20%, transparent));
         line-height: 1.3;
       }
       .folio-prose .var-chip-val { padding: 0 5px; font-weight: 700; font-size: 1em; }
@@ -4577,16 +4587,16 @@
         font: inherit; font-size: 0.95em; font-weight: 700; line-height: 1;
         min-width: 30px; min-height: 30px; padding: 4px 9px;
         display: inline-flex; align-items: center; justify-content: center;
-        color: var(--chip-ink); background: var(--accent-soft);
-        border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+        color: var(--cchip-btn-ink, var(--chip-ink)); background: var(--cchip-btn-bg, var(--accent-soft));
+        border: 1px solid var(--cchip-btn-border, color-mix(in srgb, var(--accent) 38%, transparent));
         border-radius: 7px; cursor: pointer;
       }
-      .folio-prose .var-chip-btn:hover, .folio-prose .var-chip-seg:hover { background: color-mix(in srgb, var(--accent) 24%, var(--surface)); }
+      .folio-prose .var-chip-btn:hover, .folio-prose .var-chip-seg:hover { background: var(--cchip-btn-bg-hover, color-mix(in srgb, var(--accent) 24%, var(--surface))); }
       .folio-prose .var-chip-btn:focus-visible, .folio-prose .var-chip-seg:focus-visible,
       .folio-prose .var-chip-toggle:focus-visible, .folio-prose .var-chip-popbtn:focus-visible,
       .folio-prose .var-chip-check:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-      .folio-prose .var-chip-seg.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-      .folio-prose .var-chip-check { width: 22px; height: 22px; margin: 2px; accent-color: var(--accent); cursor: pointer; vertical-align: middle; }
+      .folio-prose .var-chip-seg.on { background: var(--cchip-on-bg, var(--accent)); color: var(--cchip-on-ink, var(--accent-ink)); border-color: var(--cchip-on-bg, var(--accent)); }
+      .folio-prose .var-chip-check { width: 22px; height: 22px; margin: 2px; accent-color: var(--cchip-on-bg, var(--accent)); cursor: pointer; vertical-align: middle; }
       .folio-prose .var-chip-toggle, .folio-prose .var-chip-popbtn {
         font: inherit; display: inline-flex; align-items: center; gap: 8px;
         min-height: 30px; padding: 2px 4px;
@@ -4594,24 +4604,36 @@
       }
       .folio-prose .var-chip-switch {
         flex: 0 0 auto; width: 38px; height: 22px; border-radius: 999px; position: relative;
-        background: color-mix(in srgb, var(--accent) 30%, transparent);
-        border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+        background: var(--cchip-track, color-mix(in srgb, var(--accent) 30%, transparent));
+        border: 1px solid var(--cchip-btn-border, color-mix(in srgb, var(--accent) 45%, transparent));
       }
       .folio-prose .var-chip-switch::after {
         content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
-        border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+        border-radius: 50%; background: var(--cchip-thumb, var(--surface)); box-shadow: 0 0 0 1px var(--cchip-thumb-edge, color-mix(in srgb, var(--accent) 40%, transparent));
         transition: left 0.12s ease;
       }
-      .folio-prose .var-chip-switch.on { background: var(--accent); }
+      .folio-prose .var-chip-switch.on { background: var(--cchip-fill, var(--accent)); }
       .folio-prose .var-chip-switch.on::after { left: 18px; }
-      .folio-prose .var-chip-chev { font-size: 0.85em; color: var(--ink-2); }
+      .folio-prose .var-chip-chev { font-size: 0.85em; color: var(--cchip-ink, var(--ink-2)); opacity: 0.75; }
       .folio-prose .var-chip-track {
         flex: 0 0 auto; width: 46px; height: 6px; border-radius: 999px;
-        background: color-mix(in srgb, var(--accent) 35%, transparent); position: relative;
+        background: var(--cchip-track, color-mix(in srgb, var(--accent) 35%, transparent)); position: relative;
       }
       .folio-prose .var-chip-track::after {
         content: ""; position: absolute; top: -4px; left: 16px; width: 14px; height: 14px;
-        border-radius: 50%; background: var(--accent);
+        border-radius: 50%; background: var(--cchip-thumb, var(--accent));
+        box-shadow: 0 0 0 2px var(--cchip-thumb-edge, transparent);
+      }
+      /* Build -144: Paper Tags punches its hole — a small
+         page-colored circle at the chip's leading edge, the
+         mockup's signature. The page color is the theme's
+         surface var, so the hole follows the ground the tag
+         rests on. */
+      :root[data-chip-style="papertags"] .folio-prose .var-chip-ctl::before {
+        content: ""; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%;
+        background: var(--surface);
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1.5px rgba(62, 42, 20, 0.45);
+        margin-right: 1px;
       }
       .folio-prose .var-def-chip { display: inline-block; margin-left: 5px; vertical-align: baseline; }
       /* Build -143: a chip variable's definition anchor renders
@@ -4624,16 +4646,45 @@
          control where the text stood. Print / share never carry
          the class (their content is baked first), and the
          override below keeps them plain regardless. */
+      /* Build -144: the hiding must land wherever the
+         bundle's inline decoration puts the class — merged
+         onto the mark's own span (the compound selector) or
+         on a wrapper around it (the descendant selector).
+         -143 shipped only the compound form; where the
+         engine wraps instead of merging, the class never
+         matched and the anchor text stayed fully visible
+         beside the control, which is the report this build
+         answers. The wrapper form zeroes the size for
+         everything inside and strips the inner span's own
+         wash and underline, so pill + control stand alone. */
       .folio-prose .var-def.var-def--chip {
         font-size: 0; background: transparent; border-bottom: none; padding: 0;
       }
+      .folio-prose .var-def--chip {
+        font-size: 0; background: transparent; border-bottom: none; padding: 0;
+      }
+      .folio-prose .var-def--chip .var-def {
+        background: transparent; border-bottom: none; padding: 0;
+      }
       #printRoot .folio-prose .var-def.var-def--chip,
-      .share-view .folio-prose .var-def.var-def--chip { font-size: inherit; }
+      #printRoot .folio-prose .var-def--chip,
+      .share-view .folio-prose .var-def.var-def--chip,
+      .share-view .folio-prose .var-def--chip { font-size: inherit; }
       /* Build -143: the inline slider dressing — a real range
          input embedded in the document line, beside its value. */
       .folio-prose .var-chip-range {
-        width: 150px; max-width: 38vw; height: 30px; margin: 0 2px; accent-color: var(--accent);
+        width: 150px; max-width: 38vw; height: 30px; margin: 0 2px; accent-color: var(--cchip-fill, var(--accent));
         vertical-align: middle; cursor: pointer;
+      }
+      /* Build -144: the theme popover's Smart chip style
+         rows carry a miniature of the style itself — its
+         pristine fill, border and ink (a swatch, like the
+         -126 palettes: adaptation happens at render in the
+         document, never in the swatch). */
+      .chip-style-prev {
+        flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+        min-width: 44px; height: 24px; padding: 0 8px;
+        font-size: 12px; font-weight: 700; line-height: 1;
       }
       .folio-prose .var-chip-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       /* Build -143: the native date input a date chip summons —
@@ -5979,6 +6030,8 @@
           <div id="themeRows"></div>
           <div class="pop-label">Accent</div>
           <div class="accent-row" id="accentRow"></div>
+          <div class="pop-label">Smart chip style</div>
+          <div id="chipStyleRows"></div>
           <hr class="side-hr" />
           <button class="theme-row" id="themeCustomizeBtn" type="button" data-tip="Open Theme styles">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a10 10 0 1 1 10-10c0 2.2-1.8 3-3.5 3H16a2.5 2.5 0 0 0-1.9 4c.5.5.9 1.1.9 2a2.5 2.5 0 0 1-3 1z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/></svg>
@@ -6633,14 +6686,21 @@
           <p class="form-note" style="margin-top:12px">Names reference variables. Operators + − * / % ^, comparisons, &amp; joins text; functions ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER, LOWER. Type @ to insert a variable; tap a name for its value and scope.</p>
           <div class="fx-field" id="varEditExpr" contenteditable="true" role="textbox" aria-multiline="false" aria-label="Formula expression" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></div>
           <div class="fx-preview" id="varEditPreview" aria-live="polite"></div>
-          <label class="form-note" for="varEditFormat" style="display:block;margin-top:12px">Result format — display only</label>
-          <select class="text-input" id="varEditFormat" aria-label="Result format" style="width:100%;margin-top:6px">
+        </div>
+        <div id="varEditFormatWrap">
+          <label class="form-note" for="varEditFormat" style="display:block;margin-top:12px">Number format — display only; the stored value stays the plain number, and formulas keep computing with it</label>
+          <select class="text-input" id="varEditFormat" aria-label="Number format" style="width:100%;margin-top:6px">
             <option value="general">General</option>
             <option value="whole">Whole number</option>
             <option value="fixed2">2 decimals</option>
             <option value="percent">Percent</option>
             <option value="usd">USD</option>
+            <option value="unit">Unit</option>
           </select>
+          <div id="varEditUnitWrap" hidden>
+            <label class="form-note" for="varEditUnit" style="display:block;margin-top:10px">Unit — shown after the number, exactly as typed</label>
+            <input class="text-input" id="varEditUnit" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Unit suffix" placeholder="g — or ␣tbsp, with the space" style="width:100%;margin-top:6px" />
+          </div>
         </div>
         <div id="varEditChipWrap" style="margin-top:14px">
           <label class="form-note" for="varEditChipType" style="display:block">Smart chip — a working control at the definition and every reference; changing it anywhere updates every twin live.</label>
@@ -7041,6 +7101,15 @@
         }
         var themeId = null;
         var accentId = 'forest';
+        /* Build -144: the Smart chip style pick. null is
+           "never chosen" — the effective style then falls
+           to the theme's declared default (Porcelain unless
+           a theme declares otherwise). The pick persists
+           inside the theme pref, but only once it exists:
+           persistTheme writes `c` solely when a choice has
+           been made, so a user who has only ever switched
+           themes is still in the no-choice state. */
+        var chipStyleChoice = null;
         try {
           var savedTheme = localStorage.getItem(THEME_KEY);
           if (savedTheme === 'dark') themeId = 'midnight';
@@ -7049,6 +7118,7 @@
             var parsedTheme = JSON.parse(savedTheme);
             if (parsedTheme && THEMES.some(function (t) { return t.id === parsedTheme.t; })) themeId = parsedTheme.t;
             if (parsedTheme && ACCENTS.some(function (a) { return a.id === parsedTheme.a; })) accentId = parsedTheme.a;
+            if (parsedTheme && typeof parsedTheme.c === 'string') chipStyleChoice = parsedTheme.c;
           }
         } catch (e) {}
         if (!themeId) themeId = systemTheme();
@@ -7056,7 +7126,11 @@
           return THEMES.find(function (t) { return t.id === themeId; }) || THEMES[0];
         }
         function persistTheme() {
-          try { localStorage.setItem(THEME_KEY, JSON.stringify({ t: themeId, a: accentId })); } catch (e) {}
+          try {
+            var pref = { t: themeId, a: accentId };
+            if (chipStyleChoice) pref.c = chipStyleChoice;
+            localStorage.setItem(THEME_KEY, JSON.stringify(pref));
+          } catch (e) {}
         }
         function renderThemePop() {
           var rows = document.getElementById('themeRows');
@@ -7097,6 +7171,7 @@
             d.addEventListener('click', function () { accentId = a.id; persistTheme(); applyTheme(); });
             acc.appendChild(d);
           });
+          renderChipStyleRows();
           /* Rebuilt on every pick; keep the popover keyboard
              highlight on the applied row/dot while it is open
              (popNavPrime stands down while the pop is hidden). */
@@ -7105,10 +7180,233 @@
         function applyTheme() {
           rootEl.setAttribute('data-theme', themeId);
           rootEl.setAttribute('data-accent', accentId);
+          applyChipStyle();
           var btn = document.getElementById('themeBtn');
           btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.2-1.8 3-3.5 3H16a2.5 2.5 0 0 0-1.9 4c.5.5.9 1.1.9 2a2.5 2.5 0 0 1-3 1z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/></svg><span>' + currentTheme().name + '</span>';
           renderThemePop();
         }
+        /* ---------------- Smart chip styles (build -144) ----------------
+           A smart chip's material is its own axis, independent
+           of the document theme: the user runs Binding Dark
+           with Porcelain chips. The definitions below are
+           PRISTINE — the four mockup directions (Porcelain,
+           Slate Blue, Paper Tags, Copper Hardware), four more
+           (Frost, Blueprint, Berry Gel, Chalk), and Classic,
+           the -143 raised look, which carries no colors of
+           its own and simply follows the theme's tokens.
+           Nothing ever writes into these definitions.
+           Resolution (applyChipStyle, run from applyTheme)
+           adapts the picked style to the ACTIVE theme at
+           render time, exactly the -111 bargain: the style's
+           colors resolve against the theme's effective page
+           surface (tsEffectiveSurfaceIn, the heading system's
+           ground), lightness only — hue and saturation, the
+           style's identity, are never touched — stepping a
+           text color away from its fill until the pair clears
+           the headings' 4.5:1 floor, and the result is set as
+           --cchip-* vars on <html> for the chip CSS to
+           consume. When a fill runs close to the page
+           (Porcelain on the light themes, Chalk on the
+           near-black ones), the fill is NOT moved — the
+           border is strengthened against the page instead
+           (≥3:1, a heavier weight, a deeper shadow), so the
+           style stays itself and still reads as an object on
+           the page. Because resolution derives from the
+           pristine definitions on every call and writes
+           nothing back, switching themes is lossless:
+           A → B → A renders byte-identical. A theme may
+           declare a different first-run default below for a
+           page where the global default would stop being
+           itself; the declaration governs only the
+           no-choice-yet state — once the user picks a style,
+           it applies on every theme, adapted. */
+        var CHIP_STYLES = [
+          { id: 'porcelain', name: 'Porcelain', bg: ['#fdfaf0', '#f3ecd7'], ink: '#1c3d2e', border: '#ddd2b2', btnBg: '#e7dcbc', btnInk: '#1c3d2e', onBg: '#1c3d2e', onInk: '#f6f0dd', track: '#ddd2b0', fill: '#1c3d2e', thumb: '#fffdf4', thumbEdge: '#1c3d2e', radius: '10px', bs: 'solid', shadow: '0 3px 10px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.9)', shadowStrong: '0 5px 14px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.9)' },
+          { id: 'slate', name: 'Slate Blue', bg: ['#68839e', '#57738d'], ink: '#edf4fa', border: '#86a3ba', btnBg: '#47637c', btnInk: '#edf4fa', onBg: '#e8f1f8', onInk: '#33506a', track: '#3d576e', fill: '#cfe2f1', thumb: '#f4f9fd', thumbEdge: '#33506a', radius: '9px', bs: 'solid', shadow: '0 3px 9px rgba(6,18,28,0.45), inset 0 1px 0 rgba(255,255,255,0.28)', shadowStrong: '0 5px 13px rgba(6,18,28,0.40), inset 0 1px 0 rgba(255,255,255,0.28)' },
+          { id: 'papertags', name: 'Paper Tags', bg: ['#dec08f', '#d2af74'], ink: '#3e2a14', border: '#7d5c2c', btnBg: '#c39f5e', btnInk: '#3e2a14', onBg: '#4a3016', onInk: '#f0dcae', track: '#b48f52', fill: '#4a3016', thumb: '#f4e3b8', thumbEdge: '#4a3016', radius: '5px', bs: 'dashed', shadow: '0 2px 6px rgba(0,0,0,0.3)', shadowStrong: '0 4px 10px rgba(0,0,0,0.32)' },
+          { id: 'copper', name: 'Copper Hardware', bg: ['#c17347', '#93502c'], ink: '#fbeedd', border: '#d99a68', btnBg: '#7e3f21', btnInk: '#fbeedd', onBg: '#fbeedd', onInk: '#7e3f21', track: '#6e3418', fill: '#f3c48d', thumb: '#fdf3df', thumbEdge: '#7e3f21', radius: '9px', bs: 'solid', shadow: '0 3px 9px rgba(0,0,0,0.42), inset 0 1.5px 0 rgba(255,235,200,0.5), inset 0 -1px 0 rgba(0,0,0,0.28)', shadowStrong: '0 5px 13px rgba(0,0,0,0.38), inset 0 1.5px 0 rgba(255,235,200,0.5), inset 0 -1px 0 rgba(0,0,0,0.28)' },
+          { id: 'frost', name: 'Frost', bg: ['#f7fbfe', '#d9e9f4'], bgCss: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(214,233,245,0.78))', ink: '#22384a', border: '#ffffff', btnBg: '#cfe2ef', btnInk: '#22384a', onBg: '#2c5a7c', onInk: '#f2f9fd', track: '#b9d2e4', fill: '#2c5a7c', thumb: '#ffffff', thumbEdge: '#2c5a7c', radius: '10px', bs: 'solid', shadow: '0 3px 10px rgba(20,40,60,0.25), inset 0 1px 0 rgba(255,255,255,0.95)', shadowStrong: '0 5px 14px rgba(20,40,60,0.28), inset 0 1px 0 rgba(255,255,255,0.95)' },
+          { id: 'blueprint', name: 'Blueprint', bg: ['#2166b3', '#17497f'], ink: '#ffffff', border: '#eaf3ff', btnBg: '#123c68', btnInk: '#ffffff', onBg: '#ffffff', onInk: '#17497f', track: '#0f2f52', fill: '#bcd8f7', thumb: '#ffffff', thumbEdge: '#17497f', radius: '8px', bs: 'solid', shadow: '0 3px 9px rgba(4,20,40,0.45), inset 0 1px 0 rgba(255,255,255,0.25)', shadowStrong: '0 5px 13px rgba(4,20,40,0.40), inset 0 1px 0 rgba(255,255,255,0.25)' },
+          { id: 'berry', name: 'Berry Gel', bg: ['#8a3570', '#5f2149'], ink: '#ffeef8', border: '#c97bab', btnBg: '#4c1a3a', btnInk: '#ffeef8', onBg: '#ffd7ee', onInk: '#571e43', track: '#3f1530', fill: '#f2a9d2', thumb: '#fff0f9', thumbEdge: '#571e43', radius: '11px', bs: 'solid', shadow: '0 3px 10px rgba(30,4,20,0.45), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -2px 4px rgba(0,0,0,0.25)', shadowStrong: '0 5px 14px rgba(30,4,20,0.40), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -2px 4px rgba(0,0,0,0.25)' },
+          { id: 'chalk', name: 'Chalk', bg: ['#2b2b30', '#1e1e21'], ink: '#f4f1e8', border: '#a9a499', btnBg: '#3d3d43', btnInk: '#f4f1e8', onBg: '#f4f1e8', onInk: '#232326', track: '#17171a', fill: '#e8e4d8', thumb: '#f7f4ec', thumbEdge: '#232326', radius: '8px', bs: 'dashed', shadow: '0 3px 9px rgba(0,0,0,0.4)', shadowStrong: '0 4px 12px rgba(0,0,0,0.45), 0 0 0 1px rgba(244,241,232,0.12)' },
+          { id: 'classic', name: 'Classic' },
+        ];
+        /* Per-theme first-run defaults (see the note above).
+           Empty today: Porcelain survives every page through
+           border strengthening alone — ivory on the light
+           themes gets a defined gilt-tan edge, never a moved
+           fill — so no theme needs to override it yet. The
+           mechanism stands for a future style that cannot
+           say the same. */
+        var CHIP_STYLE_DEFAULTS = {};
+        function chipStyleById(id) {
+          return CHIP_STYLES.find(function (s) { return s.id === id; }) || CHIP_STYLES[0];
+        }
+        function chipEffectiveStyleId() {
+          if (chipStyleChoice && CHIP_STYLES.some(function (s) { return s.id === chipStyleChoice; })) return chipStyleChoice;
+          return CHIP_STYLE_DEFAULTS[themeId] || 'porcelain';
+        }
+        function chipGroundSurface() {
+          try {
+            var s = tsEffectiveSurfaceIn(tsStore(), themeId);
+            if (s) return s;
+          } catch (e) {}
+          var t = currentTheme();
+          return (t && t.surface) || '#ffffff';
+        }
+        /* tsAdaptHeadingColor with its ground and floor as
+           parameters — the same lightness-only stepping, the
+           same away-from-the-ground direction rule. */
+        function chipAdaptTo(hex, ground, floor) {
+          if (tsContrastRatio(hex, ground) >= floor) return hex;
+          var rgb = tsHexToRgb(hex);
+          var hsl = tsRgbToHsl(rgb.r, rgb.g, rgb.b);
+          var dir = tsLuminance(ground) >= 0.18 ? -1 : 1;
+          var L = hsl.l;
+          for (var i = 0; i < 60; i++) {
+            L = Math.max(0, Math.min(1, L + dir * 0.02));
+            var c = tsHslToRgb(hsl.h, hsl.s, L);
+            var out = tsRgbToHex(c.r, c.g, c.b);
+            if (tsContrastRatio(out, ground) >= floor || L === 0 || L === 1) return out;
+          }
+          var end = tsHslToRgb(hsl.h, hsl.s, dir < 0 ? 0 : 1);
+          return tsRgbToHex(end.r, end.g, end.b);
+        }
+        /* Adapt a text color against every stop of its fill
+           (a gradient's worst stop governs), round by round
+           until the whole fill clears the floor. */
+        function chipAdaptPair(ink, stops, floor) {
+          var out = ink;
+          for (var round = 0; round < 8; round++) {
+            var worst = null, worstR = Infinity;
+            stops.forEach(function (s) {
+              var r = tsContrastRatio(out, s);
+              if (r < worstR) { worstR = r; worst = s; }
+            });
+            if (worstR >= floor) return out;
+            out = chipAdaptTo(out, worst, floor);
+          }
+          return out;
+        }
+        /* The text/fill pair, resolved whole. Ink-only
+           adaptation (chipAdaptPair) wins whenever a single
+           ink can clear the floor against every fill stop.
+           Two of the styles pair a light ink with a gradient
+           whose stops straddle the reachable band — no ink,
+           light or dark, clears 4.5 against both stops —
+           so when the ink alone cannot do it, the STOPS step
+           instead: lightness only, away from the ink, the
+           smallest shift that lets the pristine ink clear.
+           The style deepens or lifts a shade and stays
+           itself; the ink keeps its exact color. */
+        function chipResolveTextFill(ink, stops, floor) {
+          var adapted = chipAdaptPair(ink, stops, floor);
+          var ok = true;
+          stops.forEach(function (s) { if (tsContrastRatio(adapted, s) < floor) ok = false; });
+          if (ok) return { ink: adapted, stops: stops };
+          var dir = tsLuminance(ink) >= 0.5 ? -1 : 1;
+          var cur = stops.slice();
+          for (var i = 0; i < 40; i++) {
+            cur = cur.map(function (s) { return chipShiftLight(s, dir * 0.01); });
+            var clears = true;
+            cur.forEach(function (s) { if (tsContrastRatio(ink, s) < floor) clears = false; });
+            if (clears) return { ink: ink, stops: cur };
+          }
+          return { ink: chipAdaptPair(ink, cur, floor), stops: cur };
+        }
+        function chipMixHex(a, b) {
+          var x = tsHexToRgb(a), y = tsHexToRgb(b);
+          return tsRgbToHex((x.r + y.r) / 2, (x.g + y.g) / 2, (x.b + y.b) / 2);
+        }
+        function chipShiftLight(hex, dl) {
+          var rgb = tsHexToRgb(hex);
+          var hsl = tsRgbToHsl(rgb.r, rgb.g, rgb.b);
+          var c = tsHslToRgb(hsl.h, hsl.s, Math.max(0, Math.min(1, hsl.l + dl)));
+          return tsRgbToHex(c.r, c.g, c.b);
+        }
+        /* The headings' floor, restated: TS_CONTRAST_FLOOR
+           is only initialized when execution reaches the
+           theme-styles section, and applyTheme (hence
+           applyChipStyle) first runs before it. */
+        var CHIP_CONTRAST_FLOOR = 4.5;
+        var CCHIP_VARS = ['--cchip-bg', '--cchip-ink', '--cchip-border', '--cchip-bw', '--cchip-bs', '--cchip-btn-bg', '--cchip-btn-ink', '--cchip-btn-border', '--cchip-btn-bg-hover', '--cchip-on-bg', '--cchip-on-ink', '--cchip-track', '--cchip-fill', '--cchip-thumb', '--cchip-thumb-edge', '--cchip-radius', '--cchip-shadow'];
+        function applyChipStyle() {
+          var id = chipEffectiveStyleId();
+          rootEl.setAttribute('data-chip-style', id);
+          var def = chipStyleById(id);
+          if (!def.bg) {
+            /* Classic: no vars at all — the chip CSS falls
+               back to the -143 theme-token look wholesale. */
+            CCHIP_VARS.forEach(function (v) { rootEl.style.removeProperty(v); });
+            return;
+          }
+          var ground = chipGroundSurface();
+          var resolved = chipResolveTextFill(def.ink, def.bg, CHIP_CONTRAST_FLOOR);
+          var fillMid = chipMixHex(resolved.stops[0], resolved.stops[1]);
+          var strong = tsContrastRatio(fillMid, ground) < 1.5;
+          var border = def.border;
+          if (tsContrastRatio(border, ground) < 2.2) border = chipAdaptTo(border, ground, 2.2);
+          if (strong) border = chipAdaptTo(border, ground, 3.0);
+          var thumb = def.thumb;
+          if (tsContrastRatio(thumb, def.track) < 1.6) thumb = chipAdaptTo(thumb, def.track, 1.6);
+          if (tsContrastRatio(thumb, def.fill) < 1.6) thumb = chipAdaptTo(thumb, def.fill, 1.6);
+          var set = function (k, v) { rootEl.style.setProperty(k, v); };
+          set('--cchip-bg', (def.bgCss && resolved.stops === def.bg) ? def.bgCss : ('linear-gradient(180deg,' + resolved.stops[0] + ',' + resolved.stops[1] + ')'));
+          set('--cchip-ink', resolved.ink);
+          set('--cchip-border', border);
+          set('--cchip-bw', strong ? '2px' : '1.5px');
+          set('--cchip-bs', def.bs || 'solid');
+          set('--cchip-btn-bg', def.btnBg);
+          set('--cchip-btn-ink', chipAdaptPair(def.btnInk, [def.btnBg], CHIP_CONTRAST_FLOOR));
+          set('--cchip-btn-border', chipMixHex(def.border, def.btnBg));
+          set('--cchip-btn-bg-hover', chipShiftLight(def.btnBg, tsLuminance(def.btnBg) < 0.35 ? 0.07 : -0.07));
+          set('--cchip-on-bg', def.onBg);
+          set('--cchip-on-ink', chipAdaptPair(def.onInk, [def.onBg], CHIP_CONTRAST_FLOOR));
+          set('--cchip-track', def.track);
+          set('--cchip-fill', def.fill);
+          set('--cchip-thumb', thumb);
+          set('--cchip-thumb-edge', def.thumbEdge);
+          set('--cchip-radius', def.radius || '10px');
+          set('--cchip-shadow', strong ? (def.shadowStrong || def.shadow) : def.shadow);
+        }
+        function renderChipStyleRows() {
+          var box = document.getElementById('chipStyleRows');
+          if (!box) return;
+          box.innerHTML = '';
+          var eff = chipEffectiveStyleId();
+          CHIP_STYLES.forEach(function (cs) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'theme-row' + (cs.id === eff ? ' on' : '');
+            b.setAttribute('data-tip', cs.name + ' smart chips');
+            var prev = document.createElement('span');
+            prev.className = 'chip-style-prev';
+            if (cs.bg) {
+              prev.style.background = 'linear-gradient(180deg,' + cs.bg[0] + ',' + cs.bg[1] + ')';
+              prev.style.color = cs.ink;
+              prev.style.border = '1.5px ' + (cs.bs || 'solid') + ' ' + cs.border;
+              prev.style.borderRadius = cs.radius || '10px';
+              prev.style.boxShadow = cs.shadow;
+            } else {
+              prev.style.background = 'var(--surface)';
+              prev.style.color = 'var(--ink)';
+              prev.style.border = '1.5px solid var(--line)';
+              prev.style.borderRadius = '10px';
+            }
+            prev.textContent = '− 6 +';
+            b.appendChild(prev);
+            var label = document.createElement('span');
+            label.textContent = cs.name;
+            b.appendChild(label);
+            var check = document.createElement('span');
+            check.className = 'check';
+            check.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+            b.appendChild(check);
+            b.addEventListener('click', function () { chipStyleChoice = cs.id; persistTheme(); applyTheme(); });
+            box.appendChild(b);
+          });
+        }
+
         var themePop = document.getElementById('themePop');
         var themeBtn = document.getElementById('themeBtn');
         function closeThemePop() {
@@ -10344,8 +10642,12 @@
         var VAR_SYNC_KEY = 'folio.variables.v1';
         var VAR_NAME_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
         /* Doc formulas (build -133): the five ratified
-           display formats, in the modal's select order. */
-        var FX_FORMATS = ['general', 'whole', 'fixed2', 'percent', 'usd'];
+           display formats, in the modal's select order.
+           Build -144 adds the sixth: Unit — a plain number
+           wearing a suffix the user typed (g, " tbsp",
+           cups), stored on the record beside the format
+           (rec.unit) and rendered exactly as typed. */
+        var FX_FORMATS = ['general', 'whole', 'fixed2', 'percent', 'usd', 'unit'];
         var VAR_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4c0 1.1.9 2 2 2h1"/><path d="M16 3h-1a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/></svg>';
         var VAR_PROMOTE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
         var varStore = { updated: 0, globals: [], docVars: {} };
@@ -10592,10 +10894,18 @@
              arrives claiming both keeps the formula. */
           if (typeof r.expr === 'string' && r.expr) {
             out.expr = r.expr;
-            out.fmt = FX_FORMATS.indexOf(r.fmt) !== -1 ? r.fmt : 'general';
             out.anchor = false;
             if (isGlobal) { out.anchorDoc = null; out.anchorDocTitle = null; }
           }
+          /* Build -144: the display format rides EVERY
+             record now, not just formulas — a plain value
+             can wear a format too (the Unit suffix is the
+             reason: recipe amounts are plain numbers), with
+             its suffix parked beside it. Display only, in
+             both worlds: varDisplayValue renders it, every
+             computation keeps reading the raw value. */
+          if (FX_FORMATS.indexOf(r.fmt) !== -1) out.fmt = r.fmt;
+          if (typeof r.unit === 'string' && r.unit) out.unit = r.unit.slice(0, 32);
           /* Smart chips (build -142): the chip config rides
              the record — normalized like everything else, so
              a store from another device (or an older build's
@@ -10720,7 +11030,7 @@
              stale last-good number can never be served. */
           if (rec && typeof rec.expr === 'string' && rec.expr) {
             var fr = fxEvalTop(rec);
-            return fxResultDisplay(fr, rec.fmt);
+            return fxResultDisplay(fr, rec.fmt, rec.unit);
           }
           /* Smart chips (build -142): a dropdown tracking a
              live reference option reads THROUGH to that
@@ -10742,6 +11052,31 @@
             if (t != null) return t;
           }
           return rec && typeof rec.value === 'string' ? rec.value : '';
+        }
+        /* Build -144: the DISPLAY text of a raw value under
+           the record's number format. Display surfaces —
+           reference chips, chip faces, the panel, the
+           picker, exports — read through varDisplayValue;
+           everything that computes (fxEvalRef, the chips'
+           own semantics, the stepper's arithmetic) keeps
+           reading varRecordValue's raw text, so a variable
+           formatted as 100g still contributes 100 to any
+           formula that uses it. A format applies only when
+           the raw value reads as a plain number; anything
+           else shows exactly as stored. A formula's
+           varRecordValue is already its formatted display,
+           and re-running it through here is a no-op (the
+           formatted text no longer parses as a plain
+           number — and where it does, as with Whole, the
+           format is idempotent over it). */
+        function varDisplayText(rec, raw) {
+          if (!rec || typeof raw !== 'string' || !rec.fmt || rec.fmt === 'general') return raw;
+          var n = fxParseNum(raw);
+          if (n === null) return raw;
+          return fxFormat(n, rec.fmt, rec.unit);
+        }
+        function varDisplayValue(rec, homeDoc) {
+          return varDisplayText(rec, varRecordValue(rec, homeDoc));
         }
         /* Build -139 (C): the error code a variable's current
            value carries, or null. A formula whose evaluation
@@ -10793,7 +11128,11 @@
         }
         function varResolveValue(doc, attrs) {
           var r = varResolveRef(doc, attrs);
-          if (r) return varRecordValue(r.rec, r.scope === 'doc' ? doc : null);
+          /* Build -144: this resolver serves display and
+             baking only (exports, bake-to-text, template
+             value lookups), so it answers the DISPLAY text —
+             a unit-formatted variable exports as 100g. */
+          if (r) return varDisplayValue(r.rec, r.scope === 'doc' ? doc : null);
           return attrs && typeof attrs.vvalue === 'string' ? attrs.vvalue : '';
         }
 
@@ -10891,13 +11230,17 @@
         }
         /* Display formatting — display ONLY: downstream
            formulas always consume the raw numeric result. */
-        function fxFormat(num, fmt) {
+        function fxFormat(num, fmt, unit) {
           if (typeof num !== 'number' || !isFinite(num)) return '#NUM!';
           switch (fmt) {
             case 'whole': return String(Math.round(num));
             case 'fixed2': return num.toFixed(2);
             case 'percent': return fxGeneral(Math.round(num * 10000) / 100) + '%';
             case 'usd': return fxUsd(num);
+            /* Build -144: the suffix renders EXACTLY as
+               typed — "g" gives 100g, " tbsp" gives
+               2 tbsp; the spacing is the user's. */
+            case 'unit': return fxGeneral(num) + (typeof unit === 'string' ? unit : '');
             default: return fxGeneral(num);
           }
         }
@@ -10905,12 +11248,12 @@
            fxResultDisplay is the ONE display rule: the five
            formats format numbers only; text shows as-is;
            blank shows empty; an error shows its code. */
-        function fxResultDisplay(res, fmt) {
+        function fxResultDisplay(res, fmt, unit) {
           if (!res) return '#VALUE!';
           if (!res.ok) return res.code;
           if (res.kind === 'text') return res.text;
           if (res.kind === 'blank') return '';
-          return fxFormat(res.num, fmt);
+          return fxFormat(res.num, fmt, unit);
         }
         /* Coerce a typed result to a number for arithmetic
            and the numeric functions: numbers pass, blank
@@ -11452,7 +11795,13 @@
             vid: rec.id,
             vscope: scope === 'doc' ? 'd' : 'g',
             vname: rec.name,
-            vvalue: varRecordValue(rec, scope === 'doc' ? doc : null),
+            /* Build -144: the stamped value is the DISPLAY
+               text (the number format applied) — this attr
+               is what reference chips paint and what print /
+               share / clipboard bake, so the format reaches
+               every one of them; the raw value stays on the
+               record for anything that computes. */
+            vvalue: varDisplayValue(rec, scope === 'doc' ? doc : null),
           };
           /* Smart chips (build -142): the chip signature —
              a config change repaints every reference through
@@ -11500,7 +11849,11 @@
           var value = varRecordValue(rec, homeDoc);
           var d = {
             vid: rec.id, name: rec.name, type: cfg.type,
-            value: value, err: varRecErrorCode(rec), sig: chipSignature(rec),
+            /* Build -144: the FACE text is the display text
+               (a stepper on a unit variable reads 100g);
+               every semantic field below keeps deriving
+               from the raw value. */
+            value: varDisplayText(rec, value), err: varRecErrorCode(rec), sig: chipSignature(rec),
           };
           if (cfg.type === 'checkbox') d.checked = value === '1';
           if (cfg.type === 'toggle') d.on = value === cfg.toggle.a;
@@ -11631,7 +11984,7 @@
         function chipPaintFaces(rec, text) {
           if (!editorHandle || !editorHandle.editor || !editorHandle.editor.view) return;
           var dom = editorHandle.editor.view.dom;
-          var disp = text;
+          var disp = varDisplayText(rec, text);
           var sels = dom.querySelectorAll('[data-var-ref="' + rec.id + '"] .var-chip-val, [data-var-chip-def="' + rec.id + '"] .var-chip-val');
           for (var i = 0; i < sels.length; i++) sels[i].textContent = disp;
         }
@@ -11700,27 +12053,220 @@
             }
           }
         }
-        /* The editor-side door for chipKeyAdjust: the
-           selection must be a node selection of a varRef
-           whose variable wears an active chip. Returns true
-           when the press was the chip's. */
+        /* ----- Build -144: the chip keyboard LOCK -----
+           Replaces -143's one-shot arrow handling, whose
+           failure the user named exactly: arrow onto a chip,
+           change the value once, and the caret jumps out —
+           the commit's refresh re-stamps the reference node,
+           and the node selection does not survive the
+           re-stamp, so the second arrow fell back to line
+           navigation. The lock model: arrowing INTO a chip
+           (a reference atom taking the node selection, or
+           the caret entering a chip variable's definition
+           anchor) locks keyboard control into that chip.
+           The lock is explicit state, re-engaged from the
+           live selection on every press, and after every
+           adjustment chipLockRestore puts the selection
+           back onto the chip — so the lock SURVIVES value
+           changes instead of dying with the first one.
+           Orientation follows the control's own geometry:
+           segmented dropdowns, the multiplier and the
+           slider run Left/Right; dropdowns and steppers run
+           Up/Down; toggles and checkboxes flip on Enter;
+           a date opens its native picker on Enter. While
+           locked, those keys never leak into document
+           navigation. A non-orientation arrow releases the
+           lock and passes through (the -143 step-off,
+           generalized). Tab exits with the caret placed
+           immediately AFTER the chip; Shift+Tab exits with
+           it BEFORE; Esc exits after. A printable press
+           while locked on a reference atom first steps the
+           caret out after the chip, so the character lands
+           in the text instead of replacing the atom. */
+        var chipLock = null;
+        function chipIsSegmentedCfg(rec, cfg) {
+          if (!cfg || cfg.type !== 'dropdown' || cfg.dropdown.segmented === false) return false;
+          var opts = cfg.dropdown.options || [];
+          return opts.length >= 2 && opts.length <= 3 && opts.every(function (o) { return o.k === 'lit'; });
+        }
+        function chipLockOrient(rec) {
+          var cfg = chipCfgOf(rec);
+          switch (cfg.type) {
+            case 'stepper': return 'ud';
+            case 'dropdown': return chipIsSegmentedCfg(rec, cfg) ? 'lr' : 'ud';
+            case 'multiplier': case 'slider': return 'lr';
+            case 'toggle': case 'checkbox': case 'date': return 'enter';
+            default: return null;
+          }
+        }
+        function chipLockFocus() {
+          var st = editorHandle.editor.state;
+          var sel = st.selection;
+          if (sel && sel.node && sel.node.type && sel.node.type.name === 'varRef' && sel.node.attrs && sel.node.attrs.vid) {
+            return { kind: 'ref', pos: sel.from, node: sel.node };
+          }
+          var hit = varDefHitAtCaret(st);
+          if (hit && hit.vid) return { kind: 'def', hit: hit };
+          return null;
+        }
+        function chipLockRestore() {
+          if (!chipLock || !editorHandle || !editorHandle.editor) return;
+          var ed = editorHandle.editor;
+          var st = ed.state;
+          if (chipLock.kind === 'ref') {
+            var pos = chipLock.pos;
+            var node = null;
+            try { node = st.doc.nodeAt(pos); } catch (e) { node = null; }
+            if (!node || node.type.name !== 'varRef' || !node.attrs || node.attrs.vid !== chipLock.vid) {
+              pos = -1;
+              st.doc.descendants(function (n, p) {
+                if (pos >= 0) return false;
+                if (n.type.name === 'varRef' && n.attrs && n.attrs.vid === chipLock.vid) { pos = p; return false; }
+                return true;
+              });
+              if (pos < 0) { chipLock = null; return; }
+              chipLock.pos = pos;
+            }
+            try { ed.chain().focus().setNodeSelection(pos).run(); } catch (e) {}
+          } else {
+            var groups = varDefGroupsInEditor(st, chipLock.vid, null, null);
+            if (!groups.length) { chipLock = null; return; }
+            var at = Math.min(groups[0][0] + 1, groups[0][1]);
+            try { ed.chain().focus().setTextSelection(at).run(); } catch (e) {}
+          }
+        }
+        function chipLockExit(after) {
+          if (!chipLock || !editorHandle || !editorHandle.editor) { chipLock = null; return; }
+          var ed = editorHandle.editor;
+          var st = ed.state;
+          try {
+            if (chipLock.kind === 'ref') {
+              var node = st.doc.nodeAt(chipLock.pos);
+              var size = node ? node.nodeSize : 1;
+              ed.chain().focus().setTextSelection(after ? chipLock.pos + size : chipLock.pos).run();
+            } else {
+              var groups = varDefGroupsInEditor(st, chipLock.vid, null, null);
+              if (groups.length) ed.chain().focus().setTextSelection(after ? groups[0][1] : groups[0][0]).run();
+            }
+          } catch (e) {}
+          chipLock = null;
+        }
+        function chipLockRect() {
+          if (!chipLock || !editorHandle || !editorHandle.editor || !editorHandle.editor.view) return null;
+          var dom = editorHandle.editor.view.dom;
+          var el = chipLock.kind === 'ref'
+            ? dom.querySelector('[data-var-ref="' + chipLock.vid + '"]')
+            : dom.querySelector('[data-var-chip-def="' + chipLock.vid + '"]');
+          return el ? folioRectOf(el) : null;
+        }
+        function folioRectOf(el) {
+          try { var r = el.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; } catch (e) { return null; }
+        }
+        /* One locked press, dispatched by orientation. The
+           Up/Down family reuses chipKeyAdjust whole (its
+           dir is value-direction: +1 = Up). Left/Right maps
+           onto the same machinery — a segmented dropdown's
+           Right is its Down (next option), the multiplier
+           and slider step by sign. */
+        function chipLockAdjust(found, key) {
+          var rec = found.rec;
+          var cfg = chipCfgOf(rec);
+          var homeDoc = found.scope === 'doc' ? currentDoc() : null;
+          var cur = varRecordValue(rec, homeDoc);
+          switch (cfg.type) {
+            case 'stepper':
+              chipKeyAdjust(found, key === 'ArrowUp' ? 1 : -1);
+              break;
+            case 'dropdown':
+              if (chipIsSegmentedCfg(rec, cfg)) chipKeyAdjust(found, key === 'ArrowRight' ? -1 : 1);
+              else chipKeyAdjust(found, key === 'ArrowUp' ? 1 : -1);
+              break;
+            case 'multiplier':
+              chipKeyAdjust(found, key === 'ArrowRight' ? 1 : -1);
+              break;
+            case 'slider':
+              chipKeyAdjust(found, key === 'ArrowRight' ? 1 : -1);
+              break;
+            case 'toggle':
+              varChipCommitValue(found, cur === cfg.toggle.a ? cfg.toggle.b : cfg.toggle.a);
+              break;
+            case 'checkbox':
+              varChipCommitValue(found, cur === '1' ? '0' : '1');
+              break;
+            case 'date':
+              chipNativeDate(found, chipLockRect());
+              break;
+          }
+        }
+        /* The editor-side door: the mount's capture keydown.
+           Returns true when the press was the chip's. */
         function chipKeyHandle(ev) {
-          if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return false;
-          if (ev.altKey || ev.metaKey || ev.ctrlKey || ev.shiftKey) return false;
-          if (tplEditingId) return false;
-          if (varEditCtx || varPanelDocId || varPickCtx || varDefineCtx) return false;
-          if (!editorHandle || !editorHandle.editor || !editorHandle.editor.state) return false;
-          var sel = editorHandle.editor.state.selection;
-          var node = sel && sel.node;
-          if (!node || !node.type || node.type.name !== 'varRef' || !node.attrs || !node.attrs.vid) return false;
+          var key = ev.key;
+          var isArrow = key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight';
+          if (key !== 'Tab' && key !== 'Enter' && key !== 'Escape' && !isArrow) {
+            if (chipLock && chipLock.kind === 'ref' && key && key.length === 1 && !ev.altKey && !ev.metaKey && !ev.ctrlKey) {
+              chipLockExit(true);
+            }
+            return false;
+          }
+          if (ev.altKey || ev.metaKey || ev.ctrlKey) return false;
+          if (tplEditingId) { chipLock = null; return false; }
+          if (varEditCtx || varPanelDocId || varPickCtx || varDefineCtx) { chipLock = null; return false; }
+          if (!editorHandle || !editorHandle.editor || !editorHandle.editor.state) { chipLock = null; return false; }
+          var focus = chipLockFocus();
+          if (!focus) { chipLock = null; return false; }
           var doc = currentDoc();
-          if (!doc) return false;
-          var found = varResolveRef(doc, node.attrs) || varFindAny(node.attrs.vid);
-          if (!found || !found.rec || !chipIsActive(found.rec)) return false;
+          if (!doc) { chipLock = null; return false; }
+          var found = focus.kind === 'ref'
+            ? (varResolveRef(doc, focus.node.attrs) || varFindAny(focus.node.attrs.vid))
+            : (focus.hit.rec ? { scope: focus.hit.scope, rec: focus.hit.rec } : varFindAny(focus.hit.vid));
+          if (!found || !found.rec || !chipIsActive(found.rec)) { chipLock = null; return false; }
+          chipLock = { vid: found.rec.id, kind: focus.kind, pos: focus.kind === 'ref' ? focus.pos : null };
+          if (key === 'Tab') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            chipLockExit(!ev.shiftKey);
+            return true;
+          }
+          if (key === 'Escape') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            chipLockExit(true);
+            return true;
+          }
+          var orient = chipLockOrient(found.rec);
+          var usesKey = (orient === 'lr' && (key === 'ArrowLeft' || key === 'ArrowRight')) ||
+            (orient === 'ud' && (key === 'ArrowUp' || key === 'ArrowDown')) ||
+            (orient === 'enter' && key === 'Enter');
+          if (!usesKey) {
+            if (isArrow) chipLock = null;
+            return false;
+          }
           ev.preventDefault();
           ev.stopPropagation();
-          chipKeyAdjust(found, ev.key === 'ArrowUp' ? 1 : -1);
+          chipLockAdjust(found, key);
+          /* A date's Enter hands focus to the native picker
+             — the lock restores itself when the picker's
+             change commits (see chipNativeDate). */
+          if (chipCfgOf(found.rec).type !== 'date') chipLockRestore();
           return true;
+        }
+        /* Build -144: a chip's DISPLAY toggles, flipped from
+           the chip's own context menu — the same write the
+           Edit modal's toggles make (the config lives on the
+           variable's record), so every insertion re-renders
+           at once, exactly as if the modal had changed it:
+           a dropdown's segmented control, a slider's inline
+           dressing. */
+        function varChipSetDisplayOpt(found, key, on) {
+          if (!found || !found.rec) return;
+          var cfg = chipCfgOf(found.rec);
+          if (key === 'segmented') cfg.dropdown.segmented = !!on;
+          else if (key === 'inline') cfg.slider.inline = !!on;
+          else return;
+          found.rec.chip = cfg;
+          varSave();
+          varChipRefreshAfter(found);
         }
         /* Per-insertion demote: one undoable transaction on
            the reference node alone — its twins never hear
@@ -11889,6 +12435,11 @@
             done = true;
             varChipCommitValue(found, inp.value || '');
             cleanup();
+            /* Build -144: a keyboard-locked date re-seats
+               its lock once the picker has committed — the
+               restore the Enter press deliberately skipped
+               so the picker could hold focus. */
+            if (chipLock && chipLock.vid === found.rec.id) chipLockRestore();
           });
           inp.addEventListener('blur', function () { setTimeout(function () { if (!done) cleanup(); }, 350); });
           try { inp.focus(); } catch (e) {}
@@ -12613,7 +13164,7 @@
             var val = document.createElement('span');
             val.className = 'var-row-value';
             val.style.flex = '1 1 auto';
-            val.textContent = varRecordValue(rec, scope === 'doc' ? doc : null);
+            val.textContent = varDisplayValue(rec, scope === 'doc' ? doc : null);
             b.appendChild(val);
             if (varIsFormula(rec)) {
               var fxb2 = document.createElement('span');
@@ -12837,7 +13388,7 @@
             var val = document.createElement('span');
             val.className = 'var-row-value';
             val.style.flex = '1 1 auto';
-            val.textContent = varRecordValue(it.rec, it.scope === 'doc' ? doc : null);
+            val.textContent = varDisplayValue(it.rec, it.scope === 'doc' ? doc : null);
             b.appendChild(val);
             if (varIsFormula(it.rec)) {
               var fxb = document.createElement('span');
@@ -12849,6 +13400,10 @@
               var nt = document.createElement('span');
               nt.className = 'var-badge warn';
               nt.textContent = it.note;
+              /* Build -144: the picker's Shadowed badge wears
+                 the same explanation (hover shows it through
+                 the house tooltip delegation). */
+              if (it.note === 'Shadowed here') nt.setAttribute('data-tip', 'Shadowed: this document has its own variable with this name, so it hides the global one here. The global is unchanged and still used in other documents.');
               b.appendChild(nt);
             }
             var badge = document.createElement('span');
@@ -13119,7 +13674,8 @@
               if (!fres.ok) val.classList.add('err');
               val.textContent = v;
             } else {
-              val.textContent = v === '' ? '(no value)' : v;
+              var vD = varDisplayValue(rec, homeDoc);
+              val.textContent = vD === '' ? '(no value)' : vD;
             }
             main.appendChild(val);
             if (varIsFormula(rec)) {
@@ -13139,6 +13695,17 @@
                 var wb = document.createElement('span');
                 wb.className = 'var-badge warn';
                 wb.textContent = 'Shadowed';
+                /* Build -144: the badge explains itself — the
+                   house tooltip on hover (and on tap, through
+                   the same queue the focus path uses; the tap
+                   is claimed so the row doesn't also read it
+                   as an insert press). */
+                wb.setAttribute('data-tip', 'Shadowed: this document has its own variable with this name, so it hides the global one here. The global is unchanged and still used in other documents.');
+                wb.addEventListener('click', function (ev) {
+                  ev.stopPropagation();
+                  ev.preventDefault();
+                  queueTip(wb, 0);
+                });
                 el.appendChild(wb);
               }
               var gb = document.createElement('span');
@@ -13631,6 +14198,11 @@
           fxDeclinedPromote = {};
           fxPromoteBusy = false;
           document.getElementById('varEditFormat').value = (rec && rec.fmt) || 'general';
+          /* Build -144: the Unit suffix rides beside the
+             format; the wrap shows only while Unit is the
+             picked format (varEditSyncFormat). */
+          document.getElementById('varEditUnit').value = (rec && rec.unit) || '';
+          varEditSyncFormat();
           if (varEditMode === 'formula') {
             var toks = [];
             try { toks = JSON.parse(rec.expr || '[]'); } catch (e) { toks = []; }
@@ -13769,7 +14341,7 @@
             if (rr) target = rr;
           }
           if (!target) return 'No variable by that name anymore';
-          return varRecordValue(target.rec, target.scope === 'doc' ? fxCtxDoc() : null);
+          return varDisplayValue(target.rec, target.scope === 'doc' ? fxCtxDoc() : null);
         }
         function fxTokenSpan(vid, s, cachedName) {
           var span = document.createElement('span');
@@ -14366,13 +14938,34 @@
             pv.appendChild(document.createTextNode('= '));
             var b = document.createElement('span');
             b.className = 'fx-preview-result';
-            var disp = fxResultDisplay(r, document.getElementById('varEditFormat').value);
+            var disp = fxResultDisplay(r, document.getElementById('varEditFormat').value, document.getElementById('varEditUnit').value);
             b.textContent = disp === '' ? '(blank)' : disp;
             pv.appendChild(b);
           } else {
             pv.className = 'fx-preview err';
             pv.textContent = r.code + ' — ' + r.msg;
           }
+        }
+        /* Build -144: the Unit suffix field shows only while
+           the Unit format is picked. */
+        function varEditSyncFormat() {
+          var wrap = document.getElementById('varEditUnitWrap');
+          if (wrap) wrap.hidden = document.getElementById('varEditFormat').value !== 'unit';
+        }
+        /* Build -144: the modal's format choice lands on the
+           record — for plain values exactly as for formulas.
+           General is the absence of a format (the record
+           stays clean); a suffix is kept only while typed —
+           it is parked on the record even when another
+           format is active, the Remember principle, so
+           switching back to Unit restores it. */
+        function varEditApplyFormat(rec) {
+          var f = fxSanitizeFmt(document.getElementById('varEditFormat').value);
+          if (f === 'general') delete rec.fmt;
+          else rec.fmt = f;
+          var u = document.getElementById('varEditUnit').value;
+          if (u) rec.unit = u.slice(0, 32);
+          else delete rec.unit;
         }
         function fxSetModeUI() {
           var sv = document.getElementById('varEditSrcValue');
@@ -14641,6 +15234,7 @@
             name: document.getElementById('varEditName').value,
             value: document.getElementById('varEditValue').value,
             fmt: document.getElementById('varEditFormat').value,
+            unit: document.getElementById('varEditUnit').value,
             segs: fxReadSegs(), caret: fxCaretProj(),
             declined: fxDeclinedPromote,
             parked: varEditParkedValue,
@@ -14666,6 +15260,8 @@
           document.getElementById('varEditName').value = snap.name;
           document.getElementById('varEditValue').value = snap.value;
           document.getElementById('varEditFormat').value = snap.fmt;
+          document.getElementById('varEditUnit').value = snap.unit || '';
+          varEditSyncFormat();
           var note = document.getElementById('varEditAnchorNote');
           if (note) { note.innerHTML = snap.noteHTML; note.hidden = snap.noteHidden; }
           varEditSyncPromote();
@@ -14852,13 +15448,18 @@
             if (formula) {
               rec.expr = JSON.stringify(fxw.tokens);
               rec.fmt = fxSanitizeFmt(document.getElementById('varEditFormat').value);
-              rec.value = fxResultDisplay(fxw.result, rec.fmt);
+              var nu = document.getElementById('varEditUnit').value;
+              if (nu) rec.unit = nu.slice(0, 32); else delete rec.unit;
+              rec.value = fxResultDisplay(fxw.result, rec.fmt, rec.unit);
               /* Build -143: a variable born as a formula parks
                  whatever the value field held, so a later
                  switch back to Value has something to restore. */
               if (value) rec.pv = value;
             } else {
               rec.value = value;
+              /* Build -144: a plain value can wear a number
+                 format from birth (Unit above all). */
+              varEditApplyFormat(rec);
             }
             /* Build -142: a variable born as a smart chip
                carries its config from the start. */
@@ -14883,7 +15484,8 @@
             if (chipUpd.type || rec.chip) rec.chip = chipUpd;
             if (formula) {
               var fmt = fxSanitizeFmt(document.getElementById('varEditFormat').value);
-              var display = fxResultDisplay(fxw.result, fmt);
+              var unit = document.getElementById('varEditUnit').value;
+              var display = fxResultDisplay(fxw.result, fmt, unit);
               var wasAnchored = !!rec.anchor;
               /* Build -143: park the plain value this formula
                  replaces (the anchor's text when anchored,
@@ -14897,6 +15499,7 @@
               }
               rec.expr = JSON.stringify(fxw.tokens);
               rec.fmt = fmt;
+              if (unit) rec.unit = unit.slice(0, 32); else delete rec.unit;
               rec.value = display;
               /* Build -141: a formula's save ALWAYS moves an
                  anchored variable's definition to the panel —
@@ -14917,8 +15520,12 @@
               /* Switching a formula back to a plain value
                  retires the expression — and its park, which
                  the value field (seeded from it on open) has
-                 now taken over as the live value. */
-              if (rec.expr) { delete rec.expr; delete rec.fmt; }
+                 now taken over as the live value. The format
+                 is NOT retired with it (build -144): formats
+                 belong to plain values too, so the modal's
+                 current choice simply applies. */
+              if (rec.expr) { delete rec.expr; }
+              varEditApplyFormat(rec);
               if (typeof rec.pv === 'string') delete rec.pv;
               if (rec.anchor) {
                 var homeDoc = ctx.scope === 'doc' ? varDocById(ctx.docId) : (rec.anchorDoc ? varDocById(rec.anchorDoc) : null);
@@ -15009,6 +15616,11 @@
             g.anchor = false; g.anchorDoc = null; g.anchorDocTitle = null;
           }
           if (typeof rec.pv === 'string') g.pv = rec.pv;
+          /* Build -144: a plain value's number format (and
+             its Unit suffix) travels on promotion too, like
+             the chip settings the -142 pass carries. */
+          if (!rec.expr && rec.fmt) { g.fmt = rec.fmt; }
+          if (rec.unit) { g.unit = rec.unit; }
           varStore.globals.push(g);
           varSave();
           varOnGlobalsChanged();
@@ -15901,7 +16513,12 @@
           if (promoteBtn && promoteBox && !promoteBox.hidden) zones.push(promoteBtn);
           zones.push(document.getElementById(varEditMode === 'value' ? 'varEditSrcValue' : 'varEditSrcFormula'));
           zones.push(varEditMode === 'value' ? document.getElementById('varEditValue') : fxFieldEl());
-          if (varEditMode === 'formula') zones.push(document.getElementById('varEditFormat'));
+          /* Build -144: the format select is a zone in BOTH
+             modes now (it left the formula wrap), and the
+             Unit field joins it while it is showing. */
+          zones.push(document.getElementById('varEditFormat'));
+          var unitWrap = document.getElementById('varEditUnitWrap');
+          if (unitWrap && !unitWrap.hidden) zones.push(document.getElementById('varEditUnit'));
           /* Build -142: the Smart chip type select is a zone
              below the field (and below Format), arrived at
              the same way Format is — a select keeps its own
@@ -15970,6 +16587,12 @@
           fxCloseTokenPop();
         });
         document.getElementById('varEditFormat').addEventListener('change', fxUpdatePreview);
+        /* Build -144: the format select lives outside the
+           formula wrap now (plain values wear formats too);
+           its Unit suffix field follows the selection, and
+           the formula preview re-renders as either changes. */
+        document.getElementById('varEditFormat').addEventListener('change', varEditSyncFormat);
+        document.getElementById('varEditUnit').addEventListener('input', fxUpdatePreview);
         /* Build -143: a backdrop click on a modal with a Save
            action SAVES — it runs the same save (validation
            included: invalid contents keep the modal open with
@@ -19582,7 +20205,7 @@
           b.appendChild(nm);
           var val = document.createElement('span');
           val.className = 's-val';
-          val.textContent = varRecordValue(item.rec, item.scope === 'doc' ? doc : null);
+          val.textContent = varDisplayValue(item.rec, item.scope === 'doc' ? doc : null);
           b.appendChild(val);
           if (varIsFormula(item.rec)) {
             var fx = document.createElement('span');
@@ -21891,7 +22514,37 @@
           titleEl.textContent = d.title || 'Untitled';
           var tmp = null;
           try {
-            tmp = window.FolioKit.createEditor({ element: mount, content: d.content, placeholder: '' });
+            /* Build -144: paper shows what the screen shows.
+               A definition's runs are rewritten to the
+               variable's DISPLAY value (format applied) in a
+               throwaway clone — the first run carries it,
+               later runs of the same definition empty (a
+               variable has one definition in practice) — so
+               a unit variable prints as 100g, not the raw
+               anchor text. The stored content never moves. */
+            var printContent = d.content;
+            try {
+              var pc = JSON.parse(JSON.stringify(d.content || { type: 'doc', content: [{ type: 'paragraph' }] }));
+              var seenDef = {};
+              (function walkPrint(node) {
+                if (!node || typeof node !== 'object') return;
+                if (node.type === 'text' && Array.isArray(node.marks)) {
+                  for (var mi = 0; mi < node.marks.length; mi++) {
+                    var mk = node.marks[mi];
+                    if (mk.type === 'varDef' && mk.attrs && mk.attrs.vid) {
+                      var vrec = varDocVar(d.id, String(mk.attrs.vid)) || varGlobalById(String(mk.attrs.vid));
+                      if (vrec) {
+                        if (seenDef[mk.attrs.vid]) node.text = '';
+                        else { seenDef[mk.attrs.vid] = true; node.text = varDisplayValue(vrec, d); }
+                      }
+                    }
+                  }
+                }
+                if (Array.isArray(node.content)) node.content.forEach(walkPrint);
+              })(pc);
+              printContent = pc;
+            } catch (e) { printContent = d.content; }
+            tmp = window.FolioKit.createEditor({ element: mount, content: printContent, placeholder: '' });
             var prose = mount.querySelector('.folio-prose');
             if (prose) prose.removeAttribute('contenteditable');
           } catch (e) { tmp = null; }
@@ -30658,6 +31311,25 @@
                 icon: VAR_SVG, label: vplainNow ? 'Show as smart chip' : 'Show as plain reference',
                 run: function () { varChipSetPlain(vhit.pos, !vplainNow); }
               }));
+              /* Build -144: the chip's own display toggles
+                 ride this menu as stateful rows — the same
+                 settings the Edit modal holds, flipped in
+                 place for every insertion at once. */
+              var vcfg = chipCfgOf(vbound.rec);
+              if (vcfg.type === 'dropdown') {
+                var vsegOn = vcfg.dropdown.segmented !== false;
+                el.appendChild(edMenuItem({
+                  icon: VAR_SVG, label: 'Show as segmented control', on: vsegOn,
+                  run: function () { varChipSetDisplayOpt(vbound, 'segmented', !vsegOn); }
+                }));
+              }
+              if (vcfg.type === 'slider') {
+                var vinOn = vcfg.slider.inline !== false;
+                el.appendChild(edMenuItem({
+                  icon: VAR_SVG, label: 'Inline slider', on: vinOn,
+                  run: function () { varChipSetDisplayOpt(vbound, 'inline', !vinOn); }
+                }));
+              }
             }
             if (vbound && vbound.rec) {
               el.appendChild(edMenuItem({
@@ -30704,6 +31376,27 @@
                 icon: PENCIL_SVG, label: 'Smart chip settings…',
                 run: function () { openVarEdit(dhit.scope, dhit.rec, { atChip: true }); }
               }));
+              /* Build -144: the definition's menu carries the
+                 same stateful display toggles as a
+                 reference's (see the varref branch). */
+              if (chipIsActive(dhit.rec)) {
+                var dcfg = chipCfgOf(dhit.rec);
+                var dfound = { scope: dhit.scope, rec: dhit.rec };
+                if (dcfg.type === 'dropdown') {
+                  var dsegOn = dcfg.dropdown.segmented !== false;
+                  el.appendChild(edMenuItem({
+                    icon: VAR_SVG, label: 'Show as segmented control', on: dsegOn,
+                    run: function () { varChipSetDisplayOpt(dfound, 'segmented', !dsegOn); }
+                  }));
+                }
+                if (dcfg.type === 'slider') {
+                  var dinOn = dcfg.slider.inline !== false;
+                  el.appendChild(edMenuItem({
+                    icon: VAR_SVG, label: 'Inline slider', on: dinOn,
+                    run: function () { varChipSetDisplayOpt(dfound, 'inline', !dinOn); }
+                  }));
+                }
+              }
               if (dhit.scope === 'doc') {
                 el.appendChild(edMenuItem({
                   icon: VAR_PROMOTE_SVG, label: 'Promote to global',
@@ -37070,9 +37763,18 @@
           function walk(node) {
             if (!node || typeof node !== 'object') return node;
             if (node.type === 'varRef') {
-              var baked = (node.attrs && node.attrs.vid && varDefTexts[node.attrs.vid] != null)
-                ? varDefTexts[node.attrs.vid]
-                : ((node.attrs && node.attrs.vvalue) || '');
+              /* Build -144: the node's stamped value is the
+                 DISPLAY text (number formats applied), so it
+                 wins over the raw anchor text whenever it
+                 exists — a shared or copied document reads
+                 100g. The same-document anchor text remains
+                 the fallback for a node that never got
+                 stamped (identical to the stamp whenever no
+                 format is in play). */
+              var stamped = (node.attrs && node.attrs.vvalue) || '';
+              var baked = stamped !== ''
+                ? stamped
+                : ((node.attrs && node.attrs.vid && varDefTexts[node.attrs.vid] != null) ? varDefTexts[node.attrs.vid] : '');
               return { type: 'text', text: baked };
             }
             if (node.type === 'text' && Array.isArray(node.marks)) {
@@ -45171,7 +45873,7 @@
           if (!doc) return [];
           var items = [];
           function mk(scope, rec) {
-            var value = varRecordValue(rec, scope === 'doc' ? doc : null);
+            var value = varDisplayValue(rec, scope === 'doc' ? doc : null);
             items.push({
               id: 'varref-' + rec.id,
               label: rec.name,
@@ -46232,7 +46934,7 @@
         var host = document.getElementById('overlayHost');
         if (!host) return;
         var backdrop = document.getElementById('overlayBackdrop');
-        var SURFACE_SEL = '.overlay, .auth-overlay, .share-view, .menu, .fmt-pop, .folder-pop, .suggest, .action-bar, .folio-toast, .update-banner, .tooltip, .drag-ghost, .folio-border-menu, .fx-token-pop';
+        var SURFACE_SEL = '.overlay, .auth-overlay, .share-view, .menu, .fmt-pop, .folder-pop, .suggest, .action-bar, .folio-toast, .update-banner, .tooltip, .drag-ghost, .folio-border-menu, .fx-token-pop, .chip-pop';
         var MODAL_SEL = '.overlay, .auth-overlay, .share-view';
         function matches(el, sel) {
           return !!(el && el.nodeType === 1 && el.matches && el.matches(sel));
