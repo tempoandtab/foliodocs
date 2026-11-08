@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261107-144" />
+    <meta name="folio-build" content="20261107-145" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4664,7 +4664,35 @@
         font-size: 0; background: transparent; border-bottom: none; padding: 0;
       }
       .folio-prose .var-def--chip .var-def {
-        background: transparent; border-bottom: none; padding: 0;
+        background: transparent; border-bottom: none; padding: 0; border-radius: 0;
+      }
+      /* Build -145: the option input's @ menu — a capped,
+         internally scrolling list (the shared .chip-pop
+         carries no cap of its own); items never shrink, so
+         the cap scrolls instead of squashing rows. */
+      .chip-opt-at { overflow-y: auto; overscroll-behavior: contain; }
+      .chip-opt-at .chip-pop-item { flex: 0 0 auto; }
+      /* Build -145: a chip Style row expands to its color
+         VARIATIONS — the same treatment in other colorways.
+         Each variant is a small preview chip in its own
+         pristine colors, name beside it; the picked one
+         wears the accent frame the picker's rows wear. */
+      .chip-variant-strip {
+        display: flex; flex-wrap: wrap; gap: 6px;
+        padding: 2px 2px 8px 52px;
+      }
+      .chip-variant-btn {
+        display: inline-flex; align-items: center; gap: 7px;
+        font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2);
+        background: transparent; border: 1px solid transparent; border-radius: 9px;
+        padding: 4px 8px 4px 4px; cursor: pointer;
+      }
+      .chip-variant-btn:hover { border-color: var(--line); color: var(--ink); }
+      .chip-variant-btn.on { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
+      .chip-variant-prev {
+        flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+        min-width: 40px; height: 22px; padding: 0 7px;
+        font-size: 11px; font-weight: 700; line-height: 1;
       }
       #printRoot .folio-prose .var-def.var-def--chip,
       #printRoot .folio-prose .var-def--chip,
@@ -7103,12 +7131,17 @@
         var accentId = 'forest';
         /* Build -144: the Smart chip style pick. null is
            "never chosen" — the effective style then falls
-           to the theme's declared default (Porcelain unless
-           a theme declares otherwise). The pick persists
-           inside the theme pref, but only once it exists:
-           persistTheme writes `c` solely when a choice has
-           been made, so a user who has only ever switched
-           themes is still in the no-choice state. */
+           to the theme's declared default (Frost, since
+           build -145, unless a theme declares otherwise;
+           an explicit pick the user has made is never
+           touched by the default change). From -145 the
+           pick is 'style' or 'style:variant' — a style
+           plus one of its color variations. The pick
+           persists inside the theme pref, but only once
+           it exists: persistTheme writes `c` solely when
+           a choice has been made, so a user who has only
+           ever switched themes is still in the no-choice
+           state. */
         var chipStyleChoice = null;
         try {
           var savedTheme = localStorage.getItem(THEME_KEY);
@@ -7219,32 +7252,128 @@
            page where the global default would stop being
            itself; the declaration governs only the
            no-choice-yet state — once the user picks a style,
-           it applies on every theme, adapted. */
+           it applies on every theme, adapted.
+           Build -145: three developments. Porcelain is
+           SOFTENED (a warmer ivory, a lighter hand with the
+           shadow — the pure-white glare the owner found
+           harsh against dark pages is gone) and FROST is
+           the first-run default in its place. And every
+           colored style now carries VARIATIONS — the same
+           treatment in other colorways, three per style
+           beside its own — picked from the style row's
+           expansion in the theme popover; the stored pick
+           becomes style + variant, and resolution merges
+           the variant's colors over the style's treatment
+           before the same adaptation runs, so the contrast
+           bargain (≥4.5:1 text/fill, chip-vs-page
+           distinctness, lossless switching) covers every
+           variant unchanged. Classic keeps no variants: it
+           has no colors of its own to vary. */
         var CHIP_STYLES = [
-          { id: 'porcelain', name: 'Porcelain', bg: ['#fdfaf0', '#f3ecd7'], ink: '#1c3d2e', border: '#ddd2b2', btnBg: '#e7dcbc', btnInk: '#1c3d2e', onBg: '#1c3d2e', onInk: '#f6f0dd', track: '#ddd2b0', fill: '#1c3d2e', thumb: '#fffdf4', thumbEdge: '#1c3d2e', radius: '10px', bs: 'solid', shadow: '0 3px 10px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.9)', shadowStrong: '0 5px 14px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.9)' },
-          { id: 'slate', name: 'Slate Blue', bg: ['#68839e', '#57738d'], ink: '#edf4fa', border: '#86a3ba', btnBg: '#47637c', btnInk: '#edf4fa', onBg: '#e8f1f8', onInk: '#33506a', track: '#3d576e', fill: '#cfe2f1', thumb: '#f4f9fd', thumbEdge: '#33506a', radius: '9px', bs: 'solid', shadow: '0 3px 9px rgba(6,18,28,0.45), inset 0 1px 0 rgba(255,255,255,0.28)', shadowStrong: '0 5px 13px rgba(6,18,28,0.40), inset 0 1px 0 rgba(255,255,255,0.28)' },
-          { id: 'papertags', name: 'Paper Tags', bg: ['#dec08f', '#d2af74'], ink: '#3e2a14', border: '#7d5c2c', btnBg: '#c39f5e', btnInk: '#3e2a14', onBg: '#4a3016', onInk: '#f0dcae', track: '#b48f52', fill: '#4a3016', thumb: '#f4e3b8', thumbEdge: '#4a3016', radius: '5px', bs: 'dashed', shadow: '0 2px 6px rgba(0,0,0,0.3)', shadowStrong: '0 4px 10px rgba(0,0,0,0.32)' },
-          { id: 'copper', name: 'Copper Hardware', bg: ['#c17347', '#93502c'], ink: '#fbeedd', border: '#d99a68', btnBg: '#7e3f21', btnInk: '#fbeedd', onBg: '#fbeedd', onInk: '#7e3f21', track: '#6e3418', fill: '#f3c48d', thumb: '#fdf3df', thumbEdge: '#7e3f21', radius: '9px', bs: 'solid', shadow: '0 3px 9px rgba(0,0,0,0.42), inset 0 1.5px 0 rgba(255,235,200,0.5), inset 0 -1px 0 rgba(0,0,0,0.28)', shadowStrong: '0 5px 13px rgba(0,0,0,0.38), inset 0 1.5px 0 rgba(255,235,200,0.5), inset 0 -1px 0 rgba(0,0,0,0.28)' },
-          { id: 'frost', name: 'Frost', bg: ['#f7fbfe', '#d9e9f4'], bgCss: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(214,233,245,0.78))', ink: '#22384a', border: '#ffffff', btnBg: '#cfe2ef', btnInk: '#22384a', onBg: '#2c5a7c', onInk: '#f2f9fd', track: '#b9d2e4', fill: '#2c5a7c', thumb: '#ffffff', thumbEdge: '#2c5a7c', radius: '10px', bs: 'solid', shadow: '0 3px 10px rgba(20,40,60,0.25), inset 0 1px 0 rgba(255,255,255,0.95)', shadowStrong: '0 5px 14px rgba(20,40,60,0.28), inset 0 1px 0 rgba(255,255,255,0.95)' },
-          { id: 'blueprint', name: 'Blueprint', bg: ['#2166b3', '#17497f'], ink: '#ffffff', border: '#eaf3ff', btnBg: '#123c68', btnInk: '#ffffff', onBg: '#ffffff', onInk: '#17497f', track: '#0f2f52', fill: '#bcd8f7', thumb: '#ffffff', thumbEdge: '#17497f', radius: '8px', bs: 'solid', shadow: '0 3px 9px rgba(4,20,40,0.45), inset 0 1px 0 rgba(255,255,255,0.25)', shadowStrong: '0 5px 13px rgba(4,20,40,0.40), inset 0 1px 0 rgba(255,255,255,0.25)' },
-          { id: 'berry', name: 'Berry Gel', bg: ['#8a3570', '#5f2149'], ink: '#ffeef8', border: '#c97bab', btnBg: '#4c1a3a', btnInk: '#ffeef8', onBg: '#ffd7ee', onInk: '#571e43', track: '#3f1530', fill: '#f2a9d2', thumb: '#fff0f9', thumbEdge: '#571e43', radius: '11px', bs: 'solid', shadow: '0 3px 10px rgba(30,4,20,0.45), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -2px 4px rgba(0,0,0,0.25)', shadowStrong: '0 5px 14px rgba(30,4,20,0.40), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -2px 4px rgba(0,0,0,0.25)' },
-          { id: 'chalk', name: 'Chalk', bg: ['#2b2b30', '#1e1e21'], ink: '#f4f1e8', border: '#a9a499', btnBg: '#3d3d43', btnInk: '#f4f1e8', onBg: '#f4f1e8', onInk: '#232326', track: '#17171a', fill: '#e8e4d8', thumb: '#f7f4ec', thumbEdge: '#232326', radius: '8px', bs: 'dashed', shadow: '0 3px 9px rgba(0,0,0,0.4)', shadowStrong: '0 4px 12px rgba(0,0,0,0.45), 0 0 0 1px rgba(244,241,232,0.12)' },
+          { id: 'porcelain', name: 'Porcelain', bg: ['#faf2df', '#f2e7cb'], ink: '#1c3d2e', border: '#d9caa5', btnBg: '#ead9b4', btnInk: '#1c3d2e', onBg: '#1c3d2e', onInk: '#f7efdb', track: '#ddd0ab', fill: '#1c3d2e', thumb: '#fdfaf0', thumbEdge: '#1c3d2e', radius: '10px', bs: 'solid', shadow: '0 2px 8px rgba(30,25,10,0.22), inset 0 1px 0 rgba(255,255,255,0.75)', shadowStrong: '0 4px 12px rgba(30,25,10,0.20), inset 0 1px 0 rgba(255,255,255,0.75)', variants: [
+            { id: 'blush', name: 'Blush', bg: ['#f8e9df', '#efd6c6'], ink: '#503226', border: '#ddbda6', btnBg: '#eacbb6', btnInk: '#503226', onBg: '#503226', onInk: '#f8e9df', track: '#debfa9', fill: '#7c4a34', thumb: '#fdf3ec', thumbEdge: '#503226' },
+            { id: 'sage', name: 'Sage', bg: ['#edf2df', '#d9e3c2'], ink: '#2f4423', border: '#bcc9a0', btnBg: '#cfdcb0', btnInk: '#2f4423', onBg: '#2f4423', onInk: '#edf2df', track: '#b7c69c', fill: '#4b6a34', thumb: '#fbfdf3', thumbEdge: '#2f4423' },
+            { id: 'mist', name: 'Mist', bg: ['#e8eff5', '#d2dfea'], ink: '#27435f', border: '#b0c3d6', btnBg: '#c5d6e6', btnInk: '#27435f', onBg: '#27435f', onInk: '#e8eff5', track: '#aac0d4', fill: '#3d6186', thumb: '#f7fbfe', thumbEdge: '#27435f' },
+          ] },
+          { id: 'slate', name: 'Slate Blue', bg: ['#68839e', '#57738d'], ink: '#edf4fa', border: '#86a3ba', btnBg: '#47637c', btnInk: '#edf4fa', onBg: '#e8f1f8', onInk: '#33506a', track: '#3d576e', fill: '#cfe2f1', thumb: '#f4f9fd', thumbEdge: '#33506a', radius: '9px', bs: 'solid', shadow: '0 3px 9px rgba(6,18,28,0.45), inset 0 1px 0 rgba(255,255,255,0.28)', shadowStrong: '0 5px 13px rgba(6,18,28,0.40), inset 0 1px 0 rgba(255,255,255,0.28)', variants: [
+            { id: 'deepsea', name: 'Deep Sea', bg: ['#39536e', '#2b4258'], ink: '#e8f1f8', border: '#5d7d99', btnBg: '#22384c', btnInk: '#e8f1f8', onBg: '#dcebf7', onInk: '#22384c', track: '#1b2d3f', fill: '#b9d6ee', thumb: '#eef6fc', thumbEdge: '#22384c' },
+            { id: 'teal', name: 'Teal Slate', bg: ['#4d7d7a', '#3c6562'], ink: '#eafaf5', border: '#74a49e', btnBg: '#2f514e', btnInk: '#eafaf5', onBg: '#e2f5ee', onInk: '#2f514e', track: '#274744', fill: '#bfe8d8', thumb: '#f2fcf8', thumbEdge: '#2f514e' },
+            { id: 'plum', name: 'Plum Slate', bg: ['#6b5a78', '#54455f'], ink: '#f3edfa', border: '#8f7ba1', btnBg: '#42334d', btnInk: '#f3edfa', onBg: '#ece2f7', onInk: '#42334d', track: '#372b40', fill: '#d9c6f2', thumb: '#faf5ff', thumbEdge: '#42334d' },
+          ] },
+          { id: 'papertags', name: 'Paper Tags', bg: ['#dec08f', '#d2af74'], ink: '#3e2a14', border: '#7d5c2c', btnBg: '#c39f5e', btnInk: '#3e2a14', onBg: '#4a3016', onInk: '#f0dcae', track: '#b48f52', fill: '#4a3016', thumb: '#f4e3b8', thumbEdge: '#4a3016', radius: '5px', bs: 'dashed', shadow: '0 2px 6px rgba(0,0,0,0.3)', shadowStrong: '0 4px 10px rgba(0,0,0,0.32)', variants: [
+            { id: 'rose', name: 'Rose Tag', bg: ['#e8b7a4', '#dda48c'], ink: '#4d2417', border: '#8a5138', btnBg: '#d19578', btnInk: '#4d2417', onBg: '#542a1a', onInk: '#f6d9c9', track: '#c08364', fill: '#542a1a', thumb: '#f9e3d3', thumbEdge: '#542a1a' },
+            { id: 'mint', name: 'Mint Tag', bg: ['#bcd6ae', '#a7c491'], ink: '#263d1c', border: '#5d7d43', btnBg: '#93b478', btnInk: '#263d1c', onBg: '#2c4a20', onInk: '#e2f0d2', track: '#84a668', fill: '#2c4a20', thumb: '#eaf5da', thumbEdge: '#2c4a20' },
+            { id: 'sky', name: 'Sky Tag', bg: ['#aec6dd', '#96b4d1'], ink: '#1e3247', border: '#4d6a86', btnBg: '#7fa3c4', btnInk: '#1e3247', onBg: '#24405c', onInk: '#dcebf8', track: '#6e93b5', fill: '#24405c', thumb: '#e2eef9', thumbEdge: '#24405c' },
+          ] },
+          { id: 'copper', name: 'Copper Hardware', bg: ['#c17347', '#93502c'], ink: '#fbeedd', border: '#d99a68', btnBg: '#7e3f21', btnInk: '#fbeedd', onBg: '#fbeedd', onInk: '#7e3f21', track: '#6e3418', fill: '#f3c48d', thumb: '#fdf3df', thumbEdge: '#7e3f21', radius: '9px', bs: 'solid', shadow: '0 3px 9px rgba(0,0,0,0.42), inset 0 1.5px 0 rgba(255,235,200,0.5), inset 0 -1px 0 rgba(0,0,0,0.28)', shadowStrong: '0 5px 13px rgba(0,0,0,0.38), inset 0 1.5px 0 rgba(255,235,200,0.5), inset 0 -1px 0 rgba(0,0,0,0.28)', variants: [
+            { id: 'brass', name: 'Brass', bg: ['#d9a94f', '#b4832f'], ink: '#43300a', border: '#ecc87e', btnBg: '#8f651f', btnInk: '#fff6dd', onBg: '#fff3d0', onInk: '#7c5514', track: '#7c5514', fill: '#7c5514', thumb: '#fffaf0', thumbEdge: '#7c5514' },
+            { id: 'bronze', name: 'Bronze', bg: ['#a5713d', '#7d5026'], ink: '#fdf0dc', border: '#c08d54', btnBg: '#5f3a18', btnInk: '#fdf0dc', onBg: '#fdf0dc', onInk: '#5f3a18', track: '#4c2d10', fill: '#f0c48c', thumb: '#fdf6e8', thumbEdge: '#5f3a18' },
+            { id: 'verdigris', name: 'Verdigris', bg: ['#5f9c8a', '#447a68'], ink: '#eefaf3', border: '#83bda9', btnBg: '#33594c', btnInk: '#eefaf3', onBg: '#e6f7ec', onInk: '#33594c', track: '#2a4a3f', fill: '#c2ecd4', thumb: '#f4fcf6', thumbEdge: '#33594c' },
+          ] },
+          { id: 'frost', name: 'Frost', bg: ['#f7fbfe', '#d9e9f4'], bgCss: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(214,233,245,0.78))', ink: '#22384a', border: '#ffffff', btnBg: '#cfe2ef', btnInk: '#22384a', onBg: '#2c5a7c', onInk: '#f2f9fd', track: '#b9d2e4', fill: '#2c5a7c', thumb: '#ffffff', thumbEdge: '#2c5a7c', radius: '10px', bs: 'solid', shadow: '0 3px 10px rgba(20,40,60,0.25), inset 0 1px 0 rgba(255,255,255,0.95)', shadowStrong: '0 5px 14px rgba(20,40,60,0.28), inset 0 1px 0 rgba(255,255,255,0.95)', variants: [
+            { id: 'rose', name: 'Rose Frost', bg: ['#fdf3f5', '#f6dde4'], bgCss: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(246,221,228,0.78))', ink: '#5a2c3a', border: '#ffffff', btnBg: '#f0ccd6', btnInk: '#5a2c3a', onBg: '#8c4258', onInk: '#fdf3f5', track: '#e3b7c4', fill: '#8c4258', thumb: '#ffffff', thumbEdge: '#8c4258' },
+            { id: 'mint', name: 'Mint Frost', bg: ['#f2fbf5', '#d8efe0'], bgCss: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(216,239,224,0.78))', ink: '#234434', border: '#ffffff', btnBg: '#c4e6d0', btnInk: '#234434', onBg: '#2f6a4a', onInk: '#f2fbf5', track: '#aed6bc', fill: '#2f6a4a', thumb: '#ffffff', thumbEdge: '#2f6a4a' },
+            { id: 'amber', name: 'Amber Frost', bg: ['#fdf8ec', '#f6ead0'], bgCss: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(246,234,208,0.78))', ink: '#57431c', border: '#ffffff', btnBg: '#eedcae', btnInk: '#57431c', onBg: '#8a6a24', onInk: '#fdf8ec', track: '#e2cd94', fill: '#8a6a24', thumb: '#ffffff', thumbEdge: '#8a6a24' },
+          ] },
+          { id: 'blueprint', name: 'Blueprint', bg: ['#2166b3', '#17497f'], ink: '#ffffff', border: '#eaf3ff', btnBg: '#123c68', btnInk: '#ffffff', onBg: '#ffffff', onInk: '#17497f', track: '#0f2f52', fill: '#bcd8f7', thumb: '#ffffff', thumbEdge: '#17497f', radius: '8px', bs: 'solid', shadow: '0 3px 9px rgba(4,20,40,0.45), inset 0 1px 0 rgba(255,255,255,0.25)', shadowStrong: '0 5px 13px rgba(4,20,40,0.40), inset 0 1px 0 rgba(255,255,255,0.25)', variants: [
+            { id: 'navy', name: 'Deep Navy', bg: ['#17457e', '#0f2f57'], ink: '#ffffff', border: '#bcd6f5', btnBg: '#0a2140', btnInk: '#ffffff', onBg: '#ffffff', onInk: '#0f2f57', track: '#081a33', fill: '#a8cdf5', thumb: '#ffffff', thumbEdge: '#0f2f57' },
+            { id: 'tealprint', name: 'Teal Print', bg: ['#14707e', '#0d4c58'], ink: '#ffffff', border: '#c4ecf2', btnBg: '#083a44', btnInk: '#ffffff', onBg: '#ffffff', onInk: '#0d4c58', track: '#062e36', fill: '#aee6ee', thumb: '#ffffff', thumbEdge: '#0d4c58' },
+            { id: 'slateprint', name: 'Slate Print', bg: ['#51606f', '#39434e'], ink: '#ffffff', border: '#d7e0e8', btnBg: '#29313a', btnInk: '#ffffff', onBg: '#ffffff', onInk: '#39434e', track: '#20262d', fill: '#c3d2de', thumb: '#ffffff', thumbEdge: '#39434e' },
+          ] },
+          { id: 'berry', name: 'Berry Gel', bg: ['#8a3570', '#5f2149'], ink: '#ffeef8', border: '#c97bab', btnBg: '#4c1a3a', btnInk: '#ffeef8', onBg: '#ffd7ee', onInk: '#571e43', track: '#3f1530', fill: '#f2a9d2', thumb: '#fff0f9', thumbEdge: '#571e43', radius: '11px', bs: 'solid', shadow: '0 3px 10px rgba(30,4,20,0.45), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -2px 4px rgba(0,0,0,0.25)', shadowStrong: '0 5px 14px rgba(30,4,20,0.40), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -2px 4px rgba(0,0,0,0.25)', variants: [
+            { id: 'grape', name: 'Grape', bg: ['#6d4396', '#4c2a6b'], ink: '#f4edff', border: '#a37fd1', btnBg: '#38204f', btnInk: '#f4edff', onBg: '#e4d4ff', onInk: '#3d2160', track: '#2d183f', fill: '#cdb0f2', thumb: '#f8f2ff', thumbEdge: '#3d2160' },
+            { id: 'cherry', name: 'Cherry', bg: ['#a52c48', '#741c31'], ink: '#ffedf1', border: '#d1768d', btnBg: '#571222', btnInk: '#ffedf1', onBg: '#ffd3dc', onInk: '#671628', track: '#460d1a', fill: '#f5aebc', thumb: '#fff2f4', thumbEdge: '#671628' },
+            { id: 'plumnoir', name: 'Plum Noir', bg: ['#59304d', '#3a1c31'], ink: '#fdeef7', border: '#96648a', btnBg: '#2a1222', btnInk: '#fdeef7', onBg: '#f6cfe6', onInk: '#401c33', track: '#200a19', fill: '#eba9d2', thumb: '#fdf0f8', thumbEdge: '#401c33' },
+          ] },
+          { id: 'chalk', name: 'Chalk', bg: ['#2b2b30', '#1e1e21'], ink: '#f4f1e8', border: '#a9a499', btnBg: '#3d3d43', btnInk: '#f4f1e8', onBg: '#f4f1e8', onInk: '#232326', track: '#17171a', fill: '#e8e4d8', thumb: '#f7f4ec', thumbEdge: '#232326', radius: '8px', bs: 'dashed', shadow: '0 3px 9px rgba(0,0,0,0.4)', shadowStrong: '0 4px 12px rgba(0,0,0,0.45), 0 0 0 1px rgba(244,241,232,0.12)', variants: [
+            { id: 'slateboard', name: 'Slate Board', bg: ['#333d47', '#232a31'], ink: '#eef3f6', border: '#93a5b3', btnBg: '#414d59', btnInk: '#eef3f6', onBg: '#eef3f6', onInk: '#26303a', track: '#171c20', fill: '#dbe7ee', thumb: '#f7fafc', thumbEdge: '#26303a' },
+            { id: 'greenboard', name: 'Green Board', bg: ['#2c4638', '#1e3328'], ink: '#f2f6ec', border: '#9db8a2', btnBg: '#3a5a48', btnInk: '#f2f6ec', onBg: '#f2f6ec', onInk: '#22402f', track: '#15251c', fill: '#dcead2', thumb: '#f8fbf2', thumbEdge: '#22402f' },
+            { id: 'wineboard', name: 'Wine Board', bg: ['#452b33', '#2f1d23'], ink: '#f7efe9', border: '#b0949c', btnBg: '#573a44', btnInk: '#f7efe9', onBg: '#f7efe9', onInk: '#38222a', track: '#1f1216', fill: '#eedcd2', thumb: '#fbf6f1', thumbEdge: '#38222a' },
+          ] },
           { id: 'classic', name: 'Classic' },
         ];
         /* Per-theme first-run defaults (see the note above).
-           Empty today: Porcelain survives every page through
-           border strengthening alone — ivory on the light
-           themes gets a defined gilt-tan edge, never a moved
-           fill — so no theme needs to override it yet. The
-           mechanism stands for a future style that cannot
-           say the same. */
+           Build -145: the global first-run default is now
+           FROST — the owner found Porcelain harsh in
+           practice on his dark pages and Frost is the style
+           he reached for. The map stays empty: Frost's pale
+           glass survives the dark pages by its bright rim,
+           and on the light pages border strengthening keeps
+           it distinct, so no theme needs to override it.
+           The declaration governs only the no-choice-yet
+           state — once the user picks a style (or one of
+           its variants), it applies on every theme,
+           adapted. */
         var CHIP_STYLE_DEFAULTS = {};
         function chipStyleById(id) {
           return CHIP_STYLES.find(function (s) { return s.id === id; }) || CHIP_STYLES[0];
         }
+        /* Build -145: the stored pick is a style id, or
+           'style:variant' once a color variation is chosen.
+           Parse validates both halves against the roster —
+           a stale or unknown half simply falls away (an
+           unknown variant leaves the style's own colorway;
+           an unknown style leaves the no-choice state). */
+        function chipParseChoice() {
+          if (!chipStyleChoice) return null;
+          var parts = String(chipStyleChoice).split(':');
+          var def = null;
+          CHIP_STYLES.forEach(function (s) { if (s.id === parts[0]) def = s; });
+          if (!def) return null;
+          var variant = null;
+          if (parts[1] && def.variants) {
+            def.variants.forEach(function (v) { if (v.id === parts[1]) variant = v; });
+          }
+          return { style: def, variant: variant };
+        }
         function chipEffectiveStyleId() {
-          if (chipStyleChoice && CHIP_STYLES.some(function (s) { return s.id === chipStyleChoice; })) return chipStyleChoice;
-          return CHIP_STYLE_DEFAULTS[themeId] || 'porcelain';
+          var p = chipParseChoice();
+          if (p) return p.style.id;
+          return CHIP_STYLE_DEFAULTS[themeId] || 'frost';
+        }
+        function chipEffectiveVariantId() {
+          var p = chipParseChoice();
+          return p && p.variant ? p.variant.id : '';
+        }
+        /* The definition resolution paints from: the
+           style's own fields with the picked variant's
+           colorway laid over them. The treatment — radius,
+           border style, shadow — stays the style's; a
+           variant overrides colors only. Pristine in,
+           merged copy out; nothing writes back into
+           CHIP_STYLES, so A → B → A stays lossless per
+           variant exactly as it is per style. Classic
+           carries no colors and no variants: it resolves
+           to itself and the chip CSS falls back to the
+           theme tokens, as in -144. */
+        function chipResolvedDef() {
+          var base = chipStyleById(chipEffectiveStyleId());
+          var p = chipParseChoice();
+          if (!p || !p.variant || p.style.id !== base.id) return base;
+          var out = {};
+          Object.keys(base).forEach(function (k) { if (k !== 'variants') out[k] = base[k]; });
+          Object.keys(p.variant).forEach(function (k) { if (k !== 'id' && k !== 'name') out[k] = p.variant[k]; });
+          return out;
         }
         function chipGroundSurface() {
           try {
@@ -7333,7 +7462,7 @@
         function applyChipStyle() {
           var id = chipEffectiveStyleId();
           rootEl.setAttribute('data-chip-style', id);
-          var def = chipStyleById(id);
+          var def = chipResolvedDef();
           if (!def.bg) {
             /* Classic: no vars at all — the chip CSS falls
                back to the -143 theme-token look wholesale. */
@@ -7369,11 +7498,43 @@
           set('--cchip-radius', def.radius || '10px');
           set('--cchip-shadow', strong ? (def.shadowStrong || def.shadow) : def.shadow);
         }
+        /* Paint a picker preview chip from a pristine
+           (style or merged variant) definition — a swatch,
+           like the style rows': adaptation happens at
+           render in the document, never in the swatch. */
+        function chipPaintPreview(el, def) {
+          if (def.bg) {
+            el.style.background = 'linear-gradient(180deg,' + def.bg[0] + ',' + def.bg[1] + ')';
+            el.style.color = def.ink;
+            el.style.border = '1.5px ' + (def.bs || 'solid') + ' ' + def.border;
+            el.style.borderRadius = def.radius || '10px';
+            el.style.boxShadow = def.shadow;
+          } else {
+            el.style.background = 'var(--surface)';
+            el.style.color = 'var(--ink)';
+            el.style.border = '1.5px solid var(--line)';
+            el.style.borderRadius = '10px';
+          }
+        }
+        function chipMergedDef(cs, variant) {
+          if (!variant) return cs;
+          var out = {};
+          Object.keys(cs).forEach(function (k) { if (k !== 'variants') out[k] = cs[k]; });
+          Object.keys(variant).forEach(function (k) { if (k !== 'id' && k !== 'name') out[k] = variant[k]; });
+          return out;
+        }
+        /* Which style's variation strip is open in the
+           picker. null = not chosen yet this session: the
+           effective style's strip opens, so the current
+           colorway is always visible and checkmarked. */
+        var chipStyleExpanded = null;
         function renderChipStyleRows() {
           var box = document.getElementById('chipStyleRows');
           if (!box) return;
           box.innerHTML = '';
           var eff = chipEffectiveStyleId();
+          var effVar = chipEffectiveVariantId();
+          if (!chipStyleExpanded) chipStyleExpanded = eff;
           CHIP_STYLES.forEach(function (cs) {
             var b = document.createElement('button');
             b.type = 'button';
@@ -7381,29 +7542,65 @@
             b.setAttribute('data-tip', cs.name + ' smart chips');
             var prev = document.createElement('span');
             prev.className = 'chip-style-prev';
-            if (cs.bg) {
-              prev.style.background = 'linear-gradient(180deg,' + cs.bg[0] + ',' + cs.bg[1] + ')';
-              prev.style.color = cs.ink;
-              prev.style.border = '1.5px ' + (cs.bs || 'solid') + ' ' + cs.border;
-              prev.style.borderRadius = cs.radius || '10px';
-              prev.style.boxShadow = cs.shadow;
-            } else {
-              prev.style.background = 'var(--surface)';
-              prev.style.color = 'var(--ink)';
-              prev.style.border = '1.5px solid var(--line)';
-              prev.style.borderRadius = '10px';
-            }
+            /* The in-effect row previews the RESOLVED
+               colorway (variant included); other rows
+               preview their own colorway. */
+            chipPaintPreview(prev, cs.id === eff ? chipResolvedDef() : cs);
             prev.textContent = '− 6 +';
             b.appendChild(prev);
             var label = document.createElement('span');
             label.textContent = cs.name;
+            if (cs.id === eff && effVar) {
+              var vn = (cs.variants || []).filter(function (v) { return v.id === effVar; })[0];
+              if (vn) label.textContent = cs.name + ' · ' + vn.name;
+            }
             b.appendChild(label);
             var check = document.createElement('span');
             check.className = 'check';
             check.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
             b.appendChild(check);
-            b.addEventListener('click', function () { chipStyleChoice = cs.id; persistTheme(); applyTheme(); });
+            b.addEventListener('click', function () {
+              /* Build -145: a row click OPENS the style's
+                 variations (the secondary selection); if the
+                 style wasn't in effect it also takes effect
+                 with its own colorway. Re-clicking the
+                 in-effect style just opens its strip. */
+              chipStyleExpanded = cs.id;
+              if (cs.id !== chipEffectiveStyleId()) {
+                chipStyleChoice = cs.id;
+                persistTheme(); applyTheme();
+              } else {
+                renderChipStyleRows();
+                popNavPrime(themePop);
+              }
+            });
             box.appendChild(b);
+            if (cs.variants && cs.variants.length && chipStyleExpanded === cs.id) {
+              var strip = document.createElement('div');
+              strip.className = 'chip-variant-strip';
+              [{ id: '', name: 'Original' }].concat(cs.variants).forEach(function (v) {
+                var vb = document.createElement('button');
+                vb.type = 'button';
+                var isOn = cs.id === eff && (v.id || '') === effVar;
+                vb.className = 'chip-variant-btn' + (isOn ? ' on' : '');
+                vb.setAttribute('data-tip', cs.name + ' · ' + v.name);
+                var vp = document.createElement('span');
+                vp.className = 'chip-variant-prev';
+                chipPaintPreview(vp, chipMergedDef(cs, v.id ? v : null));
+                vp.textContent = '− 6 +';
+                vb.appendChild(vp);
+                var vl = document.createElement('span');
+                vl.textContent = v.name;
+                vb.appendChild(vl);
+                vb.addEventListener('click', function () {
+                  chipStyleExpanded = cs.id;
+                  chipStyleChoice = v.id ? cs.id + ':' + v.id : cs.id;
+                  persistTheme(); applyTheme();
+                });
+                strip.appendChild(vb);
+              });
+              box.appendChild(strip);
+            }
           });
         }
 
@@ -12069,35 +12266,126 @@
            adjustment chipLockRestore puts the selection
            back onto the chip — so the lock SURVIVES value
            changes instead of dying with the first one.
-           Orientation follows the control's own geometry:
-           segmented dropdowns, the multiplier and the
-           slider run Left/Right; dropdowns and steppers run
-           Up/Down; toggles and checkboxes flip on Enter;
-           a date opens its native picker on Enter. While
-           locked, those keys never leak into document
-           navigation. A non-orientation arrow releases the
-           lock and passes through (the -143 step-off,
-           generalized). Tab exits with the caret placed
-           immediately AFTER the chip; Shift+Tab exits with
-           it BEFORE; Esc exits after. A printable press
-           while locked on a reference atom first steps the
-           caret out after the chip, so the character lands
-           in the text instead of replacing the atom. */
+           Tab exits with the caret placed immediately AFTER
+           the chip; Shift+Tab exits with it BEFORE; Esc
+           exits after. A printable press while locked on a
+           reference atom first steps the caret out after
+           the chip, so the character lands in the text
+           instead of replacing the atom.
+           ----- Build -145: the universal arrow map, and the
+           definition anchor made a real lock target -----
+           The -144 orientation map let a non-orientation
+           arrow release the lock and move the caret — the
+           report: most chips allowed exiting the locked
+           state by arrowing in a direction that wasn't set
+           to change the value. Now, for the magnitude/order
+           chips (stepper, slider, dropdown — segmented
+           included — multiplier, date), NO arrow leaves
+           the chip while locked: every arrow is consumed,
+           Up and Right increment, Down and Left decrement
+           (a dropdown's increment is its NEXT option, the
+           -143 Down convention, so Right and Up agree).
+           Toggle and checkbox are the owner's exception:
+           they have no magnitude, so their arrows stay
+           ordinary document navigation (they release the
+           lock and move the caret, exactly as unlocked) and
+           Enter keeps flipping them; a date's Enter still
+           opens its native picker.
+           And the definition side is fixed at the root.
+           In -144 the def lock keyed off the caret sitting
+           in the anchor TEXT — but a chip variable's anchor
+           text is zero-size paint over a real text node, so
+           the only step-in-able thing was a 1–2px sliver of
+           hidden text beside the visible widget, and the
+           lock attached to the sliver, not the chip. Now:
+           (a) chipDefSnapCaret (wired into the editor's
+           selection-change hook) never lets a caret REST
+           strictly inside a chip-active anchor — it snaps
+           to the boundary the caret was heading for, the
+           way a caret steps over an atom — so the hidden
+           text is absent as a navigation target, not merely
+           invisible; (b) the def lock detects its chip by
+           POSITION (chipDefHitAtCaret: the caret resting on
+           either boundary of the anchor's group), exactly
+           the widget's footprint; (c) entry is a pending
+           lock: an inward arrow at a boundary passes through
+           (the caret crosses, the snap lands it on the far
+           boundary) with the lock pre-engaged, so the NEXT
+           arrow is already the chip's. A reference atom
+           needs no pending state — ProseMirror's own arrow
+           handling node-selects the atom on entry, which is
+           the locked state itself. */
         var chipLock = null;
         function chipIsSegmentedCfg(rec, cfg) {
           if (!cfg || cfg.type !== 'dropdown' || cfg.dropdown.segmented === false) return false;
           var opts = cfg.dropdown.options || [];
           return opts.length >= 2 && opts.length <= 3 && opts.every(function (o) { return o.k === 'lit'; });
         }
+        /* 'mag': the magnitude/order chips — every arrow is
+           the chip's while locked. 'enter': toggle/checkbox —
+           arrows stay navigation, Enter flips. */
         function chipLockOrient(rec) {
           var cfg = chipCfgOf(rec);
           switch (cfg.type) {
-            case 'stepper': return 'ud';
-            case 'dropdown': return chipIsSegmentedCfg(rec, cfg) ? 'lr' : 'ud';
-            case 'multiplier': case 'slider': return 'lr';
-            case 'toggle': case 'checkbox': case 'date': return 'enter';
+            case 'stepper': case 'dropdown': case 'multiplier': case 'slider': case 'date': return 'mag';
+            case 'toggle': case 'checkbox': return 'enter';
             default: return null;
           }
+        }
+        /* Every definition group in the document, one pass:
+           [{vid, from, to}] with adjacent runs merged, the
+           shape varDefGroupsInEditor returns per variable. */
+        function chipDefGroupsAll(st) {
+          var byVid = {};
+          st.doc.descendants(function (node, pos) {
+            if (node.isText && node.marks) {
+              node.marks.forEach(function (m) {
+                if (m.type.name === 'varDef' && m.attrs.vid) {
+                  (byVid[m.attrs.vid] = byVid[m.attrs.vid] || []).push([pos, pos + node.nodeSize]);
+                }
+              });
+            }
+          });
+          var out = [];
+          Object.keys(byVid).forEach(function (vid) {
+            var ranges = byVid[vid].sort(function (a, b) { return a[0] - b[0]; });
+            var cur = null;
+            ranges.forEach(function (r) {
+              if (cur && r[0] <= cur[1]) { if (r[1] > cur[1]) cur[1] = r[1]; }
+              else { cur = [r[0], r[1]]; out.push({ vid: vid, from: cur[0], to: cur[1] }); }
+            });
+          });
+          return out;
+        }
+        /* The definition lock's hit test, by position: a
+           bare caret resting anywhere in a definition's
+           group — on its start boundary (just after the
+           name pill), on its end boundary (just before the
+           widget), or, defensively, strictly inside (the
+           snap makes that last one unreachable in normal
+           editing; an undo can still land one there for a
+           frame). Marks-based detection (varDefHitAtCaret)
+           keeps its other callers; this one exists because
+           the end boundary carries no mark on its outer
+           side, and the lock must own both edges of the
+           widget's footprint. */
+        function chipDefHitAtCaret(st) {
+          if (!st || !st.selection || !st.selection.empty || !st.selection.$from) return null;
+          var head = st.selection.head;
+          var groups = chipDefGroupsAll(st);
+          for (var i = 0; i < groups.length; i++) {
+            var g = groups[i];
+            if (head >= g.from && head <= g.to) {
+              var f = varFindAny(g.vid);
+              return {
+                vid: g.vid, from: g.from, to: g.to,
+                inside: head > g.from && head < g.to,
+                atFrom: head === g.from, atTo: head === g.to,
+                scope: f ? f.scope : 'doc', rec: f ? f.rec : null,
+              };
+            }
+          }
+          return null;
         }
         function chipLockFocus() {
           var st = editorHandle.editor.state;
@@ -12105,9 +12393,49 @@
           if (sel && sel.node && sel.node.type && sel.node.type.name === 'varRef' && sel.node.attrs && sel.node.attrs.vid) {
             return { kind: 'ref', pos: sel.from, node: sel.node };
           }
-          var hit = varDefHitAtCaret(st);
+          var hit = chipDefHitAtCaret(st);
           if (hit && hit.vid) return { kind: 'def', hit: hit };
           return null;
+        }
+        /* The root half of the -145 anchor fix: a caret may
+           not REST strictly inside a chip-active definition
+           anchor. The anchor's text is the value's source
+           and stays in the document — but while the chip is
+           active the definition is pill + widget, and the
+           text is no more a caret stop than an atom's
+           interior is. Wired into the editor's
+           selection-change hook, so every way a caret can
+           arrive (arrows, clicks, undo, programmatic sets)
+           settles onto a boundary: the far one when the
+           caret was travelling forward, the near one when
+           travelling back. chipSnapLastHead is the travel
+           memory; it is refreshed on every pass, snapped or
+           not. Chip-dormant anchors are untouched — their
+           text edits as it always has. */
+        var chipSnapLastHead = null;
+        function chipDefSnapCaret() {
+          if (!editorHandle || !editorHandle.editor || !editorHandle.editor.state) return;
+          var ed = editorHandle.editor;
+          var st = ed.state;
+          var sel = st.selection;
+          if (!sel) return;
+          if (!sel.empty || sel.node) { chipSnapLastHead = sel.head; return; }
+          var head = sel.head;
+          var groups = chipDefGroupsAll(st);
+          for (var i = 0; i < groups.length; i++) {
+            var g = groups[i];
+            if (head > g.from && head < g.to) {
+              var f = varFindAny(g.vid);
+              if (f && f.rec && chipIsActive(f.rec)) {
+                var fwd = chipSnapLastHead == null || head >= chipSnapLastHead;
+                var target = fwd ? g.to : g.from;
+                chipSnapLastHead = target;
+                try { ed.chain().setTextSelection(target).run(); } catch (e) {}
+                return;
+              }
+            }
+          }
+          chipSnapLastHead = head;
         }
         function chipLockRestore() {
           if (!chipLock || !editorHandle || !editorHandle.editor) return;
@@ -12131,7 +12459,13 @@
           } else {
             var groups = varDefGroupsInEditor(st, chipLock.vid, null, null);
             if (!groups.length) { chipLock = null; return; }
-            var at = Math.min(groups[0][0] + 1, groups[0][1]);
+            /* Build -145: park on the group's END boundary —
+               the widget's own edge. (-144 parked one
+               character in, inside the hidden anchor text:
+               the sliver this build removes as a caret stop,
+               and chipDefSnapCaret would snap it straight
+               back out.) */
+            var at = groups[0][1];
             try { ed.chain().focus().setTextSelection(at).run(); } catch (e) {}
           }
         }
@@ -12162,41 +12496,60 @@
         function folioRectOf(el) {
           try { var r = el.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; } catch (e) { return null; }
         }
-        /* One locked press, dispatched by orientation. The
-           Up/Down family reuses chipKeyAdjust whole (its
-           dir is value-direction: +1 = Up). Left/Right maps
-           onto the same machinery — a segmented dropdown's
-           Right is its Down (next option), the multiplier
-           and slider step by sign. */
+        /* One locked ARROW press under the -145 universal
+           map: dir is +1 for Up/Right (increment) and -1
+           for Down/Left (decrement), whatever the chip's
+           orientation. chipKeyAdjust's own dir is
+           value-direction (+1 = increase) for stepper,
+           slider, multiplier and date, so those take dir
+           straight; its dropdown walks DOWN-to-next for
+           dir -1 (the native-select convention), so a
+           dropdown's increment — its next option — is
+           chipKeyAdjust's -dir. Segmented takes the same
+           branch: it is a dropdown whose increment is also
+           its next segment. */
         function chipLockAdjust(found, key) {
+          var dir = (key === 'ArrowUp' || key === 'ArrowRight') ? 1 : -1;
+          var cfg = chipCfgOf(found.rec);
+          if (cfg.type === 'dropdown') chipKeyAdjust(found, -dir);
+          else chipKeyAdjust(found, dir);
+        }
+        /* One locked ENTER press: the binary controls flip;
+           a date opens its native picker; the magnitude
+           chips don't claim Enter (it falls through to the
+           editor, as it did in -144). Returns true when the
+           press was the chip's. */
+        function chipLockEnter(found) {
           var rec = found.rec;
           var cfg = chipCfgOf(rec);
           var homeDoc = found.scope === 'doc' ? currentDoc() : null;
           var cur = varRecordValue(rec, homeDoc);
           switch (cfg.type) {
-            case 'stepper':
-              chipKeyAdjust(found, key === 'ArrowUp' ? 1 : -1);
-              break;
-            case 'dropdown':
-              if (chipIsSegmentedCfg(rec, cfg)) chipKeyAdjust(found, key === 'ArrowRight' ? -1 : 1);
-              else chipKeyAdjust(found, key === 'ArrowUp' ? 1 : -1);
-              break;
-            case 'multiplier':
-              chipKeyAdjust(found, key === 'ArrowRight' ? 1 : -1);
-              break;
-            case 'slider':
-              chipKeyAdjust(found, key === 'ArrowRight' ? 1 : -1);
-              break;
             case 'toggle':
               varChipCommitValue(found, cur === cfg.toggle.a ? cfg.toggle.b : cfg.toggle.a);
-              break;
+              return true;
             case 'checkbox':
               varChipCommitValue(found, cur === '1' ? '0' : '1');
-              break;
+              return true;
             case 'date':
               chipNativeDate(found, chipLockRect());
-              break;
+              return true;
           }
+          return false;
+        }
+        /* A printable press while locked on a DEFINITION:
+           step out of the lock without moving the caret —
+           it already rests on a boundary of the anchor —
+           and clear the stored marks, so the character
+           lands as plain text beside the definition instead
+           of silently joining the hidden anchor text and
+           changing the variable's value. The reference
+           case steps out after the atom (chipLockExit). */
+        function chipLockDefTypeOut() {
+          if (!editorHandle || !editorHandle.editor) { chipLock = null; return; }
+          var ed = editorHandle.editor;
+          try { ed.view.dispatch(ed.state.tr.setStoredMarks([])); } catch (e) {}
+          chipLock = null;
         }
         /* The editor-side door: the mount's capture keydown.
            Returns true when the press was the chip's. */
@@ -12204,8 +12557,22 @@
           var key = ev.key;
           var isArrow = key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight';
           if (key !== 'Tab' && key !== 'Enter' && key !== 'Escape' && !isArrow) {
-            if (chipLock && chipLock.kind === 'ref' && key && key.length === 1 && !ev.altKey && !ev.metaKey && !ev.ctrlKey) {
-              chipLockExit(true);
+            if (chipLock && key && key.length === 1 && !ev.altKey && !ev.metaKey && !ev.ctrlKey &&
+              editorHandle && editorHandle.editor && editorHandle.editor.state) {
+              /* Validate the lock against the live selection
+                 first: a lock left over from a chip the
+                 caret has since left (a click elsewhere)
+                 must not act at the new caret — it just
+                 lapses. */
+              var liveFocus = chipLockFocus();
+              var liveVid = !liveFocus ? null
+                : liveFocus.kind === 'ref' ? liveFocus.node.attrs.vid : liveFocus.hit.vid;
+              if (liveVid === chipLock.vid && liveFocus.kind === chipLock.kind) {
+                if (chipLock.kind === 'ref') chipLockExit(true);
+                else chipLockDefTypeOut();
+              } else {
+                chipLock = null;
+              }
             }
             return false;
           }
@@ -12221,6 +12588,35 @@
             ? (varResolveRef(doc, focus.node.attrs) || varFindAny(focus.node.attrs.vid))
             : (focus.hit.rec ? { scope: focus.hit.scope, rec: focus.hit.rec } : varFindAny(focus.hit.vid));
           if (!found || !found.rec || !chipIsActive(found.rec)) { chipLock = null; return false; }
+          /* Engagement (-145): a node-selected reference is
+             locked the moment it is selected — that
+             selection IS the arrival. A definition is
+             locked when the lock already names it (the
+             pending lock an inward arrow set, or the lock
+             an adjustment restored), or when the caret sits
+             strictly inside its group. A caret merely
+             RESTING on a definition's boundary with no lock
+             naming it is arrival, not engagement — see the
+             boundary branch below. */
+          var engaged = focus.kind === 'ref'
+            ? true
+            : ((chipLock && chipLock.kind === 'def' && chipLock.vid === found.rec.id) || !!focus.hit.inside);
+          if (!engaged) {
+            /* Arrival at a definition's boundary: an INWARD
+               arrow (Right on the start edge, Left on the
+               end edge) pre-engages the lock and passes
+               through untouched — ProseMirror moves the
+               caret across the hidden text and
+               chipDefSnapCaret lands it on the far boundary,
+               locked. Every other key is plain navigation
+               past a chip the user hasn't entered. */
+            if (isArrow && ((focus.hit.atFrom && key === 'ArrowRight') || (focus.hit.atTo && key === 'ArrowLeft'))) {
+              chipLock = { vid: found.rec.id, kind: 'def', pos: null };
+            } else {
+              chipLock = null;
+            }
+            return false;
+          }
           chipLock = { vid: found.rec.id, kind: focus.kind, pos: focus.kind === 'ref' ? focus.pos : null };
           if (key === 'Tab') {
             ev.preventDefault();
@@ -12235,21 +12631,32 @@
             return true;
           }
           var orient = chipLockOrient(found.rec);
-          var usesKey = (orient === 'lr' && (key === 'ArrowLeft' || key === 'ArrowRight')) ||
-            (orient === 'ud' && (key === 'ArrowUp' || key === 'ArrowDown')) ||
-            (orient === 'enter' && key === 'Enter');
-          if (!usesKey) {
-            if (isArrow) chipLock = null;
-            return false;
+          if (key === 'Enter') {
+            if (!chipLockEnter(found)) return false;
+            ev.preventDefault();
+            ev.stopPropagation();
+            /* A date's Enter hands focus to the native
+               picker — the lock restores itself when the
+               picker's change commits (see chipNativeDate). */
+            if (chipCfgOf(found.rec).type !== 'date') chipLockRestore();
+            return true;
           }
-          ev.preventDefault();
-          ev.stopPropagation();
-          chipLockAdjust(found, key);
-          /* A date's Enter hands focus to the native picker
-             — the lock restores itself when the picker's
-             change commits (see chipNativeDate). */
-          if (chipCfgOf(found.rec).type !== 'date') chipLockRestore();
-          return true;
+          if (isArrow) {
+            if (orient === 'enter') {
+              /* Toggle/checkbox (owner's rule): no
+                 magnitude, so arrows stay ordinary
+                 navigation — release and pass through,
+                 exactly as if the chip were never locked. */
+              chipLock = null;
+              return false;
+            }
+            ev.preventDefault();
+            ev.stopPropagation();
+            chipLockAdjust(found, key);
+            chipLockRestore();
+            return true;
+          }
+          return false;
         }
         /* Build -144: a chip's DISPLAY toggles, flipped from
            the chip's own context menu — the same write the
@@ -15130,21 +15537,11 @@
           return items;
         }
         function fxAtPosition(rect, itemCount) {
-          var el = fxAtPopEl();
-          var width = Math.min(360, window.innerWidth * 0.88);
-          var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-          el.style.left = left + 'px';
-          var below = rect.bottom + 8;
-          var estHeight = Math.min(320, 60 + itemCount * 48);
-          if (below + estHeight > window.innerHeight - 8 && rect.top - estHeight - 8 > 0) {
-            el.style.top = (rect.top - estHeight - 8) + 'px';
-          } else {
-            el.style.top = below + 'px';
-          }
+          folioPopupPlace(fxAtPopEl(), rect, 8);
         }
         function renderFxAt() {
           var el = fxAtPopEl();
-          if (!fxAtState.active) { el.className = 'suggest'; el.innerHTML = ''; return; }
+          if (!fxAtState.active) { el.className = 'suggest'; el.innerHTML = ''; el._folioSide = null; return; }
           el.className = 'suggest open';
           el.innerHTML = '';
           var head = document.createElement('div');
@@ -16618,12 +17015,13 @@
            never itself), and picking one adds it as a live
            reference option. Options then edit in place in
            the list above the input. */
-        var chipOptAt = { active: false, items: [], selected: 0 };
+        var chipOptAt = { active: false, items: [], selected: 0, side: null };
         var chipOptAtEl = null;
         function chipOptAtClose() {
           if (chipOptAtEl) { chipOptAtEl.remove(); chipOptAtEl = null; }
           chipOptAt.active = false;
           chipOptAt.items = [];
+          chipOptAt.side = null;
         }
         function chipOptAtCollect(q) {
           var out = [];
@@ -16648,6 +17046,62 @@
             chipOptAtEl.appendChild(chipPopItem(it.label, i === chipOptAt.selected, function () { chipOptAtChoose(i); }));
           });
         }
+        /* Build -145: the option menu's placement, recomputed
+           on EVERY sync from the input's live rect — -144
+           placed it once, at creation, under the input, with
+           no height cap, so a long list ballooned past the
+           screen and filtering never re-anchored it (the
+           report's screenshots: the full variable list
+           stretched to the top of the screen, then the
+           filtered menu stranded up there, far from the
+           input at the modal's bottom). Now the height is
+           capped at the space on the chosen side of the
+           input (the list scrolls inside the cap), and the
+           anchor edge is the one against the input: below
+           the input its TOP edge pins to the input's bottom;
+           above it — the modal case, the input sitting low —
+           its BOTTOM edge pins flush to the input's top, so
+           filtering moves only the top edge. Placement is
+           visual-viewport corrected like the other menus
+           (folioPopupPlace's rule), and a scroll anywhere
+           re-places it (see the scroll listener below). */
+        function chipOptAtPlace() {
+          var inp = document.getElementById('varEditChipOptNew');
+          if (!chipOptAtEl || !inp) return;
+          var r = inp.getBoundingClientRect();
+          var vv = window.visualViewport;
+          var offL = vv ? vv.offsetLeft : 0;
+          var offT = vv ? vv.offsetTop : 0;
+          var visW = vv ? vv.width : window.innerWidth;
+          var visH = vv ? vv.height : window.innerHeight;
+          var w = Math.max(190, r.width);
+          chipOptAtEl.style.left = (offL + Math.max(8, Math.min(r.left, visW - w - 8))) + 'px';
+          chipOptAtEl.style.minWidth = w + 'px';
+          var gap = 6;
+          var spaceBelow = visH - 8 - (r.bottom + gap);
+          var spaceAbove = r.top - gap - 8;
+          var estH = chipOptAt.items.length * 38 + 14;
+          /* The side is chosen ONCE, when the menu opens,
+             and kept for the life of that open menu
+             (chipOptAtClose forgets it): filtering must
+             never flip a menu that opened upward to below
+             the input just because the filtered list now
+             fits there — while it sits above the input it
+             shrinks toward its pinned bottom edge only,
+             which is the behavior the owner specified. */
+          var up;
+          if (chipOptAt.side === 'up') up = true;
+          else if (chipOptAt.side === 'down') up = false;
+          else { up = estH > spaceBelow && spaceAbove > spaceBelow; chipOptAt.side = up ? 'up' : 'down'; }
+          var cap = Math.max(96, Math.floor(up ? spaceAbove : spaceBelow));
+          chipOptAtEl.style.maxHeight = cap + 'px';
+          var h = chipOptAtEl.offsetHeight || Math.min(estH, cap);
+          chipOptAtEl.style.top = up
+            ? (offT + Math.max(8, r.top - gap - h)) + 'px'
+            : (offT + r.bottom + gap) + 'px';
+          var sel = chipOptAtEl.querySelector('.chip-pop-item.on');
+          if (sel && sel.scrollIntoView) { try { sel.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
+        }
         function chipOptAtSync() {
           var inp = document.getElementById('varEditChipOptNew');
           if (!inp || !varEditCtx) { chipOptAtClose(); return; }
@@ -16663,17 +17117,13 @@
           if (!chipOptAt.active || !chipOptAtEl) {
             chipOptAt.active = true;
             chipOptAtEl = document.createElement('div');
-            chipOptAtEl.className = 'chip-pop';
+            chipOptAtEl.className = 'chip-pop chip-opt-at';
             chipOptAtEl.setAttribute('role', 'listbox');
             chipOptAtEl.setAttribute('aria-label', 'Variables');
             document.body.appendChild(chipOptAtEl);
-            var r = inp.getBoundingClientRect();
-            var w = Math.max(190, r.width);
-            chipOptAtEl.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
-            chipOptAtEl.style.top = (r.bottom + 6) + 'px';
-            chipOptAtEl.style.minWidth = w + 'px';
           }
           chipOptAtRender();
+          chipOptAtPlace();
         }
         function chipOptAtChoose(i) {
           var it = chipOptAt.items[i];
@@ -16690,6 +17140,16 @@
           if (chipOptAtEl.contains(ev.target)) return;
           if (ev.target && ev.target.id === 'varEditChipOptNew') return;
           chipOptAtClose();
+        }, true);
+        /* Build -145: the modal's own scrolling moves the
+           input under the open menu; re-place on any scroll
+           (capture, so the modal's inner scroller counts) —
+           except the menu's own list scrolling, which must
+           not move the menu it is scrolling. */
+        document.addEventListener('scroll', function (ev) {
+          if (!chipOptAtEl || !chipOptAt.active) return;
+          if (ev.target === chipOptAtEl) return;
+          chipOptAtPlace();
         }, true);
         document.getElementById('varEditChipOptAdd').addEventListener('click', function () {
           if (!varEditChipDraft) return;
@@ -19884,7 +20344,7 @@
         }
 
         function renderSuggest() {
-          if (!suggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; return; }
+          if (!suggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; suggestEl._folioSide = null; return; }
           suggestEl.className = 'suggest open';
           suggestEl.innerHTML = '';
           var head = document.createElement('div');
@@ -19920,19 +20380,7 @@
             b.addEventListener('click', function () { chooseSuggestItem(i); });
             suggestEl.appendChild(b);
           });
-          if (suggestState.rect) {
-            var r = suggestState.rect;
-            var width = Math.min(360, window.innerWidth * 0.88);
-            var left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
-            suggestEl.style.left = left + 'px';
-            var below = r.bottom + 8;
-            var estHeight = Math.min(320, 60 + suggestState.items.length * 48);
-            if (below + estHeight > window.innerHeight - 8 && r.top - estHeight - 8 > 0) {
-              suggestEl.style.top = (r.top - estHeight - 8) + 'px';
-            } else {
-              suggestEl.style.top = below + 'px';
-            }
-          }
+          if (suggestState.rect) positionSuggestPopup(suggestState.rect, suggestState.items.length);
           suggestScrollSelIntoView(suggestEl);
         }
 
@@ -19964,22 +20412,61 @@
           return items;
         }
 
-        function positionSuggestPopup(rect, itemCount) {
-          var width = Math.min(360, window.innerWidth * 0.88);
-          var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-          suggestEl.style.left = left + 'px';
-          var below = rect.bottom + 8;
-          var estHeight = Math.min(320, 60 + itemCount * 48);
-          if (below + estHeight > window.innerHeight - 8 && rect.top - estHeight - 8 > 0) {
-            suggestEl.style.top = (rect.top - estHeight - 8) + 'px';
+        /* Build -145: popup placement against the VISUAL
+           viewport (the -125 correction the settings and
+           doc-bar menus already use): getBoundingClientRect
+           speaks visual-viewport coordinates while a fixed
+           popup resolves against the layout viewport, so the
+           visual offset is added back and the box clamped
+           inside the visible region. Direction: below when
+           the measured height fits below (or below is the
+           roomier side), otherwise the popup opens UPWARD —
+           and an upward popup pins its BOTTOM edge flush to
+           the anchor's top edge, so as filtering changes its
+           height only the TOP edge moves. (The -144 menus
+           estimated the height from the item count and set
+           `top` from the estimate, so an upward menu's
+           bottom edge floated wherever the estimate left it
+           — the full-height list and the shrunken menu
+           stranded at the top of the screen in the report's
+           screenshots.) The element's own max-height (the
+           .suggest cap) is already applied when this runs:
+           callers fill the popup first, then place it. */
+        function folioPopupPlace(el, rect, gap) {
+          var vv = window.visualViewport;
+          var offL = vv ? vv.offsetLeft : 0;
+          var offT = vv ? vv.offsetTop : 0;
+          var visW = vv ? vv.width : window.innerWidth;
+          var visH = vv ? vv.height : window.innerHeight;
+          var w = el.offsetWidth || Math.min(360, visW * 0.88);
+          el.style.left = (offL + Math.max(8, Math.min(rect.left, visW - w - 8))) + 'px';
+          var h = el.offsetHeight || 0;
+          var spaceBelow = visH - 8 - (rect.bottom + gap);
+          var spaceAbove = rect.top - gap - 8;
+          /* The side is chosen on a menu's first placement
+             and kept while that menu stays open (the render
+             functions forget it when they empty the popup):
+             a menu that opened upward keeps its bottom edge
+             pinned to the anchor as filtering shrinks it,
+             instead of flipping below the anchor the moment
+             the short list would fit there. */
+          var down;
+          if (el._folioSide === 'down') down = true;
+          else if (el._folioSide === 'up') down = false;
+          else { down = (h <= spaceBelow || spaceBelow >= spaceAbove); el._folioSide = down ? 'down' : 'up'; }
+          if (down) {
+            el.style.top = (offT + rect.bottom + gap) + 'px';
           } else {
-            suggestEl.style.top = below + 'px';
+            el.style.top = (offT + Math.max(8, rect.top - gap - h)) + 'px';
           }
+        }
+        function positionSuggestPopup(rect, itemCount) {
+          folioPopupPlace(suggestEl, rect, 8);
         }
 
         function renderTagSuggest() {
           if (!tagSuggestState.active) {
-            if (!suggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; }
+            if (!suggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; suggestEl._folioSide = null; }
             return;
           }
           suggestEl.className = 'suggest open';
@@ -20224,7 +20711,7 @@
         }
         function renderVarAt() {
           if (!varAtState.active) {
-            if (!suggestState.active && !tagSuggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; }
+            if (!suggestState.active && !tagSuggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; suggestEl._folioSide = null; }
             return;
           }
           /* Build -140: a define row carrying a typed value
@@ -23747,7 +24234,7 @@
                the pane reloads from it when its tab is shown. */
             if (typeof refLiveUpdate === 'function') refLiveUpdate(doc);
           },
-          onSelectionChange: function () { refreshToolbar(); varAtSync(); },
+          onSelectionChange: function () { refreshToolbar(); varAtSync(); chipDefSnapCaret(); },
           onNavigate: function (title) { navigateToTitle(title); },
           onSuggestion: function (state) {
             if (state.active) tagSuggestState.active = false;
