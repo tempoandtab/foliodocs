@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261108-148" />
+    <meta name="folio-build" content="20261108-149" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4967,6 +4967,31 @@
       /* Helper prose in this modal steps down a register:
          smaller, and one ink shade quieter. */
       #varEditModal p.form-note { font-size: 12.5px; color: var(--ink-3); }
+      /* Build -149 (accordion trial): each -148 section head
+         is now a toggle button with a chevron — expanded it
+         points down, collapsed it rests pointing right, and
+         a collapsed section hides everything under its head.
+         The fields stay in the DOM with their values intact
+         (display:none only), so Save — button, ⌘Enter, or
+         backdrop click — validates and commits collapsed
+         sections exactly as if they were open. All colors
+         ride the theme variables, like the rest of the modal. */
+      #varEditModal .var-sec-toggle {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        width: 100%; min-height: 32px; padding: 4px 0 2px;
+        text-align: left; cursor: pointer; border-radius: 6px;
+      }
+      #varEditModal .var-sec-toggle:hover { color: var(--ink); }
+      #varEditModal .var-sec-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      #varEditModal .var-sec-chev {
+        flex: 0 0 auto; display: inline-flex; color: var(--ink-3);
+        transition: transform 0.15s ease;
+      }
+      #varEditModal .var-sec.is-collapsed .var-sec-chev { transform: rotate(-90deg); }
+      #varEditModal .var-sec.is-collapsed > :not(.var-sec-head) { display: none !important; }
+      @media (prefers-reduced-motion: reduce) {
+        #varEditModal .var-sec-chev { transition: none; }
+      }
       .fx-pop-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       /* The template-editing badge: a small gilt pill beside
          the title naming the state, while the doc-only chrome
@@ -6763,18 +6788,18 @@
           </button>
         </div>
         <div class="var-edit-scroll">
-        <section class="var-sec">
-          <h3 class="var-sec-head">Name</h3>
+        <section class="var-sec" id="varSecName">
+          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccName" aria-expanded="true" aria-controls="varSecName"><span>Name</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
           <label class="form-note" for="varEditName" style="display:block;margin-top:2px">Starts with a letter; letters, digits and underscores after.</label>
           <input class="text-input" id="varEditName" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Variable name" style="width:100%;margin-top:6px" />
         </section>
-        <section class="var-sec var-sec-def">
-          <h3 class="var-sec-head">Definition</h3>
+        <section class="var-sec var-sec-def" id="varSecDef">
+          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccDef" aria-expanded="true" aria-controls="varSecDef"><span>Definition</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
           <div id="varEditAnchorNote" hidden style="margin-top:12px"></div>
           <div id="varEditPromote" hidden style="margin-top:12px"></div>
         </section>
-        <section class="var-sec">
-          <h3 class="var-sec-head">Value / Formula</h3>
+        <section class="var-sec" id="varSecValue">
+          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccValue" aria-expanded="true" aria-controls="varSecValue"><span>Value / Formula</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
         <div class="var-src-seg" role="group" aria-label="Value source">
           <button class="var-src-btn" id="varEditSrcValue" type="button">Value</button>
           <button class="var-src-btn" id="varEditSrcFormula" type="button">Formula &#402;x</button>
@@ -6790,7 +6815,7 @@
         </div>
         </section>
         <div id="varEditFormatWrap" class="var-sec">
-          <h3 class="var-sec-head">Display format</h3>
+          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccFormat" aria-expanded="true" aria-controls="varEditFormatWrap"><span>Display format</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
           <label class="form-note var-field-label" for="varEditFormat" style="display:block;margin-top:12px">Number format — display only; the stored value stays the plain number, and formulas keep computing with it</label>
           <select class="text-input" id="varEditFormat" aria-label="Number format" style="width:100%;margin-top:6px">
             <option value="general">General</option>
@@ -6806,7 +6831,7 @@
           </div>
         </div>
         <div id="varEditChipWrap" class="var-sec" style="margin-top:14px">
-          <h3 class="var-sec-head">Smart chip</h3>
+          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccChip" aria-expanded="true" aria-controls="varEditChipWrap"><span>Smart chip</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
           <label class="form-note var-field-label" for="varEditChipType" style="display:block">Smart chip — a working control at the definition and every reference; changing it anywhere updates every twin live.</label>
           <select class="text-input" id="varEditChipType" aria-label="Smart chip type" style="width:100%;margin-top:6px">
             <option value="">None — plain value</option>
@@ -14620,7 +14645,11 @@
           document.getElementById('varEditChipReason').hidden = !formula;
           wrap.classList.toggle('disabled', formula);
           var ctrls = wrap.querySelectorAll('input, select, button');
-          for (var i = 0; i < ctrls.length; i++) ctrls[i].disabled = formula;
+          /* Build -149: the accordion toggle is section chrome,
+             not a chip control — Formula dormancy never disables
+             it, so the section can always be opened to read why
+             the chip sleeps. */
+          for (var i = 0; i < ctrls.length; i++) { if (!ctrls[i].classList.contains('var-sec-toggle')) ctrls[i].disabled = formula; }
           var show = { stepper: 'varEditChipStepper', slider: 'varEditChipSlider', toggle: 'varEditChipToggle', dropdown: 'varEditChipDropdown' };
           Object.keys(show).forEach(function (k) {
             document.getElementById(show[k]).hidden = formula || type !== k;
@@ -14835,6 +14864,10 @@
              record's config as its draft (a new variable
              starts from the ratified defaults). */
           varEditChipLoad(rec);
+          /* Build -149: the accordion's per-open defaults,
+             computed from the record just loaded (see
+             varEditAccApplyDefaults). */
+          varEditAccApplyDefaults(rec);
           var err = document.getElementById('varEditError');
           err.hidden = true; err.textContent = '';
           document.getElementById('varEditModal').hidden = false;
@@ -14850,6 +14883,9 @@
             if (opts.atChip) {
               var csEl = document.getElementById('varEditChipType');
               var cwEl = document.getElementById('varEditChipWrap');
+              /* Build -149: landing at the chip section means
+                 it opens, whatever its default was. */
+              if (cwEl) varEditAccSet(cwEl, true);
               if (cwEl) cwEl.scrollIntoView({ block: 'nearest' });
               if (csEl) csEl.focus();
               return;
@@ -17071,6 +17107,26 @@
             for (var i = 0; i < cands.length; i++) {
               var c = cands[i];
               if (c.disabled || c.getAttribute('tabindex') === '-1') continue;
+              /* Build -149: fields inside a collapsed accordion
+                 section leave the Tab walk — this trap builds
+                 its own stop list, so it must skip them itself.
+                 The section's toggle stays a stop, so a collapsed
+                 section is always reachable and re-openable. */
+              if (!c.classList.contains('var-sec-toggle') && c.closest) {
+                var csec = c.closest('.var-sec.is-collapsed');
+                if (csec && modal.contains(csec)) continue;
+              }
+              /* Build -149: a section that is not shown at all
+                 (Definition in Create, hidden by the -148 :has
+                 rule rather than the hidden attribute, so the
+                 walk below cannot see it) contributes NO stops —
+                 not even its toggle, which the collapsed skip
+                 above deliberately keeps for shown sections.
+                 Same gate the Arrow zones use. */
+              if (c.closest) {
+                var vsec = c.closest('.var-sec');
+                if (vsec && modal.contains(vsec) && !varEditAccVisible(vsec)) continue;
+              }
               var n = c, isHidden = false;
               while (n && n !== modal) { if (n.hidden) { isHidden = true; break; } n = n.parentElement; }
               if (!isHidden) stops.push(c);
@@ -17096,41 +17152,77 @@
            (native option changing), so it is never a zone
            you arrow OUT of — Tab covers that leg. */
         function varEditZones() {
-          var zones = [document.getElementById('varEditName')];
-          /* Build -141: the anchor choice, when it is
-             showing, is a zone between Name and Promote —
-             its checked radio is the group's one stop, the
-             same place Tab reaches it. In Formula mode the
-             radios are disabled (Move is forced), so the
-             zone drops out and travel skips it. */
-          var noteBox = document.getElementById('varEditAnchorNote');
-          if (noteBox && !noteBox.hidden && varEditCtx && varEditCtx.wasAnchored) {
-            var checkedRadio = noteBox.querySelector('input[name="varAnchorChoice"]:checked');
-            if (checkedRadio && !checkedRadio.disabled) zones.push(checkedRadio);
+          var zones = [];
+          /* Build -149: the accordion headers are zones in
+             their own right, in section order, just ahead of
+             each section's fields. A collapsed section
+             contributes its header only — Arrow travel skips
+             its fields exactly as Tab does — and a section
+             that is not shown at all (Definition in Create,
+             per the -148 :has rule varEditAccVisible mirrors)
+             contributes nothing. Expanding a section rejoins
+             its fields in order on the next travel. */
+          function accHead(sec) {
+            if (!varEditAccVisible(sec)) return;
+            var b = sec.querySelector('.var-sec-toggle');
+            if (b) zones.push(b);
           }
-          /* Build -138: the Promote row, when it is showing
-             its button, is a zone between Name and the
-             switch — the same place Tab reaches it. (For a
-             global variable the row is plain text, and for a
-             new variable it is hidden: no zone either way.) */
-          var promoteBox = document.getElementById('varEditPromote');
-          var promoteBtn = document.getElementById('varEditPromoteBtn');
-          if (promoteBtn && promoteBox && !promoteBox.hidden) zones.push(promoteBtn);
-          zones.push(document.getElementById(varEditMode === 'value' ? 'varEditSrcValue' : 'varEditSrcFormula'));
-          zones.push(varEditMode === 'value' ? document.getElementById('varEditValue') : fxFieldEl());
-          /* Build -144: the format select is a zone in BOTH
-             modes now (it left the formula wrap), and the
-             Unit field joins it while it is showing. */
-          zones.push(document.getElementById('varEditFormat'));
-          var unitWrap = document.getElementById('varEditUnitWrap');
-          if (unitWrap && !unitWrap.hidden) zones.push(document.getElementById('varEditUnit'));
-          /* Build -142: the Smart chip type select is a zone
-             below the field (and below Format), arrived at
-             the same way Format is — a select keeps its own
-             Up/Down once focus rests on it. In Formula mode
-             the section is disabled and the zone drops out. */
-          var chipTypeEl = document.getElementById('varEditChipType');
-          if (chipTypeEl && !chipTypeEl.disabled) zones.push(chipTypeEl);
+          function accOpen(sec) {
+            return varEditAccVisible(sec) && !sec.classList.contains('is-collapsed');
+          }
+          var nameSec = document.getElementById('varSecName');
+          accHead(nameSec);
+          if (accOpen(nameSec)) zones.push(document.getElementById('varEditName'));
+          var defSec = document.getElementById('varSecDef');
+          accHead(defSec);
+          if (accOpen(defSec)) {
+            /* Build -141: the anchor choice, when it is
+               showing, is a zone between Name and Promote —
+               its checked radio is the group's one stop, the
+               same place Tab reaches it. In Formula mode the
+               radios are disabled (Move is forced), so the
+               zone drops out and travel skips it. */
+            var noteBox = document.getElementById('varEditAnchorNote');
+            if (noteBox && !noteBox.hidden && varEditCtx && varEditCtx.wasAnchored) {
+              var checkedRadio = noteBox.querySelector('input[name="varAnchorChoice"]:checked');
+              if (checkedRadio && !checkedRadio.disabled) zones.push(checkedRadio);
+            }
+            /* Build -138: the Promote row, when it is showing
+               its button, is a zone between Name and the
+               switch — the same place Tab reaches it. (For a
+               global variable the row is plain text, and for a
+               new variable it is hidden: no zone either way.) */
+            var promoteBox = document.getElementById('varEditPromote');
+            var promoteBtn = document.getElementById('varEditPromoteBtn');
+            if (promoteBtn && promoteBox && !promoteBox.hidden) zones.push(promoteBtn);
+          }
+          var valSec = document.getElementById('varSecValue');
+          accHead(valSec);
+          if (accOpen(valSec)) {
+            zones.push(document.getElementById(varEditMode === 'value' ? 'varEditSrcValue' : 'varEditSrcFormula'));
+            zones.push(varEditMode === 'value' ? document.getElementById('varEditValue') : fxFieldEl());
+          }
+          var fmtSec = document.getElementById('varEditFormatWrap');
+          accHead(fmtSec);
+          if (accOpen(fmtSec)) {
+            /* Build -144: the format select is a zone in BOTH
+               modes now (it left the formula wrap), and the
+               Unit field joins it while it is showing. */
+            zones.push(document.getElementById('varEditFormat'));
+            var unitWrap = document.getElementById('varEditUnitWrap');
+            if (unitWrap && !unitWrap.hidden) zones.push(document.getElementById('varEditUnit'));
+          }
+          var chipSec = document.getElementById('varEditChipWrap');
+          accHead(chipSec);
+          if (accOpen(chipSec)) {
+            /* Build -142: the Smart chip type select is a zone
+               below the field (and below Format), arrived at
+               the same way Format is — a select keeps its own
+               Up/Down once focus rests on it. In Formula mode
+               the section is disabled and the zone drops out. */
+            var chipTypeEl = document.getElementById('varEditChipType');
+            if (chipTypeEl && !chipTypeEl.disabled) zones.push(chipTypeEl);
+          }
           var cancel = document.getElementById('varEditCancel');
           zones.push(cancel.tabIndex === 0 ? cancel : document.getElementById('varEditSave'));
           return zones.filter(Boolean);
@@ -17191,6 +17283,69 @@
           if (ev.target && ev.target.closest && ev.target.closest('.fx-token')) return;
           fxCloseTokenPop();
         });
+        /* Build -149 (accordion trial): the Edit variable
+           modal's five -148 sections collapse and expand
+           independently (multi-open) from their head buttons.
+           Collapsing is paint only — an .is-collapsed class
+           the CSS answers by hiding the section's body — so
+           typed values survive a collapse / re-expand round
+           trip untouched, and Save reads the same fields
+           either way. Enter / Space on a focused head toggles
+           it (the button's native activation); if a collapse
+           ever lands while focus sits inside the section,
+           focus moves to that section's head rather than
+           stranding in hidden content. */
+        function varEditAccSet(sec, expanded) {
+          if (!sec) return;
+          sec.classList.toggle('is-collapsed', !expanded);
+          var btn = sec.querySelector('.var-sec-toggle');
+          if (btn) btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+          if (!expanded) {
+            var ae = document.activeElement;
+            if (ae && ae !== btn && btn && sec.contains(ae)) btn.focus();
+          }
+        }
+        /* Whether a section is on the sheet at all. Only
+           Definition ever stands down — the -148 :has rule
+           hides it while both of its blocks are hidden
+           (Create mode) — and this mirrors that rule so the
+           zone list never offers a head that isn't painted. */
+        function varEditAccVisible(sec) {
+          if (!sec) return false;
+          if (sec.id === 'varSecDef') {
+            var nb = document.getElementById('varEditAnchorNote');
+            var pb = document.getElementById('varEditPromote');
+            return !((!nb || nb.hidden) && (!pb || pb.hidden));
+          }
+          return true;
+        }
+        /* Per-open defaults, from the variable being edited:
+           Name and Value / Formula always start expanded
+           (identity, and the primary edit); Definition starts
+           expanded only for an anchored variable, where Keep /
+           Move is a live decision; Display format only when
+           the format is non-General — a Unit format, or any
+           parked unit suffix, counts — and Smart chip only
+           when a type other than None is configured. Create
+           runs the same rule over its blank record: Name and
+           Value open, Definition absent, Format and Chip
+           collapsed. */
+        function varEditAccApplyDefaults(rec) {
+          varEditAccSet(document.getElementById('varSecName'), true);
+          varEditAccSet(document.getElementById('varSecValue'), true);
+          varEditAccSet(document.getElementById('varSecDef'), !!(rec && rec.anchor));
+          var fmt = document.getElementById('varEditFormat').value;
+          var unit = document.getElementById('varEditUnit').value;
+          varEditAccSet(document.getElementById('varEditFormatWrap'), (!!fmt && fmt !== 'general') || !!unit);
+          varEditAccSet(document.getElementById('varEditChipWrap'), !!document.getElementById('varEditChipType').value);
+        }
+        var varAccToggles = document.querySelectorAll('#varEditModal .var-sec-toggle');
+        for (var ati = 0; ati < varAccToggles.length; ati++) {
+          varAccToggles[ati].addEventListener('click', function () {
+            var sec = this.closest ? this.closest('.var-sec') : null;
+            if (sec) varEditAccSet(sec, sec.classList.contains('is-collapsed'));
+          });
+        }
         document.getElementById('varEditFormat').addEventListener('change', fxUpdatePreview);
         /* Build -144: the format select lives outside the
            formula wrap now (plain values wear formats too);
