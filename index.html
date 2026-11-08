@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261108-151" />
+    <meta name="folio-build" content="20261108-152" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4977,21 +4977,36 @@
          across both columns, Display format and Smart chip
          side by side. At phone widths the grid collapses to
          one column. All colors ride theme variables. */
-      #varEditModal .var-bento {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;
-        align-items: start;
-      }
+      /* Build -152: JUMP CHIPS replace the bento grid. One
+         full-width column; a pinned chip nav under the header
+         jumps to each section and scroll-spies the section at
+         the top. Tiles are gone: sections are delineated by
+         hairlines with tightened padding. */
+      #varEditModal .var-bento { display: block; margin-top: 0; }
       #varEditModal .var-tile {
-        border: 1px solid var(--line); border-top: 1px solid var(--line);
-        border-radius: 12px; padding: 12px 14px 14px; margin-top: 0;
-        background: color-mix(in srgb, var(--ink) 3%, var(--surface));
-        min-width: 0;
+        border: none; border-top: 1px solid var(--line);
+        border-radius: 0; padding: 10px 2px 12px; margin-top: 12px;
+        background: transparent; min-width: 0;
       }
-      #varEditModal .var-tile-wide { grid-column: 1 / -1; }
-      #varEditModal .var-sec-def:has(> #varEditAnchorNote[hidden]):has(> #varEditPromote[hidden]) { display: none; }
+      #varEditModal .var-jumpnav {
+        position: sticky; top: 0; z-index: 6;
+        display: flex; flex-wrap: wrap; gap: 6px;
+        padding: 8px 0 9px; margin-bottom: 10px;
+        background: var(--surface); border-bottom: 1px solid var(--line);
+      }
+      #varEditModal .var-jump-chip {
+        font: inherit; font-size: 12px; font-weight: 600; line-height: 1.2;
+        padding: 6px 11px; border-radius: 999px; cursor: pointer;
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+      }
+      #varEditModal .var-jump-chip:hover { border-color: var(--accent); color: var(--ink); }
+      #varEditModal .var-jump-chip.on {
+        background: var(--accent-soft); border-color: var(--accent); color: var(--ink);
+      }
+      #varEditModal .var-jump-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      #varEditModal .var-edit-scroll section, #varEditModal #varEditFormatWrap, #varEditModal #varEditChipWrap { scroll-margin-top: 54px; }
       @media (max-width: 640px) {
-        #varEditModal .var-bento { grid-template-columns: 1fr; }
-        #varEditModal .var-tile-wide { grid-column: auto; }
+        #varEditModal .var-edit-scroll section, #varEditModal #varEditFormatWrap, #varEditModal #varEditChipWrap { scroll-margin-top: 96px; }
       }
       /* The quick-look: a plain-words description of the
          variable's properties, pinned above everything in
@@ -5008,7 +5023,10 @@
          re-derive every field. An invalid hand-edited line
          wears the danger border and a red message under it;
          the offending token is underlined where identifiable. */
-      #varEditModal .var-sh-sec { border-top: none; margin-top: 14px; padding-top: 0; }
+      #varEditModal .var-sh-sec {
+        border: 1px solid var(--line); border-radius: 12px; margin-top: 12px; padding: 12px 14px 13px;
+        background: color-mix(in srgb, var(--ink) 3%, var(--surface));
+      }
       #varEditModal .var-sh-input {
         width: 100%; margin-top: 6px;
         font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px;
@@ -6842,7 +6860,8 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
-        <div class="var-edit-scroll">
+        <div class="var-edit-scroll" id="varEditScroll">
+        <nav class="var-jumpnav" id="varJumpNav" aria-label="Variable sections"></nav>
         <div class="var-quicklook" id="varQuickLook" aria-live="polite"></div>
         <section class="var-sec var-sh-sec" id="varSecShorthand">
           <h3 class="var-sec-head"><span>Shorthand</span></h3>
@@ -6850,18 +6869,17 @@
           <p class="var-sh-error" id="varShorthandError" hidden></p>
           <p class="form-note" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals) or Unit: x, and a chip like stepper.max(100).min(10).step(5). Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
         </section>
-        <div class="var-bento">
-        <section class="var-sec var-tile" id="varSecName">
+        <section class="var-sec" id="varSecName">
           <h3 class="var-sec-head"><span>Name</span></h3>
           <label class="form-note" for="varEditName" style="display:block;margin-top:2px">Starts with a letter; letters, digits and underscores after.</label>
           <input class="text-input" id="varEditName" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Variable name" style="width:100%;margin-top:6px" />
         </section>
-        <section class="var-sec var-sec-def var-tile" id="varSecDef">
+        <section class="var-sec var-sec-def" id="varSecDef">
           <h3 class="var-sec-head"><span>Definition</span></h3>
           <div id="varEditAnchorNote" hidden style="margin-top:12px"></div>
           <div id="varEditPromote" hidden style="margin-top:12px"></div>
         </section>
-        <section class="var-sec var-tile var-tile-wide" id="varSecValue">
+        <section class="var-sec" id="varSecValue">
           <h3 class="var-sec-head"><span>Value / Formula</span></h3>
         <div class="var-src-seg" role="group" aria-label="Value source">
           <button class="var-src-btn" id="varEditSrcValue" type="button">Value</button>
@@ -6877,7 +6895,7 @@
           <div class="fx-preview" id="varEditPreview" aria-live="polite"></div>
         </div>
         </section>
-        <div id="varEditFormatWrap" class="var-sec var-tile">
+        <div id="varEditFormatWrap" class="var-sec">
           <h3 class="var-sec-head"><span>Display format</span></h3>
           <label class="form-note var-field-label" for="varEditFormat" style="display:block;margin-top:12px">Number format — display only; the stored value stays the plain number, and formulas keep computing with it</label>
           <select class="text-input" id="varEditFormat" aria-label="Number format" style="width:100%;margin-top:6px">
@@ -6893,7 +6911,7 @@
             <input class="text-input" id="varEditUnit" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Unit suffix" placeholder="g — or ␣tbsp, with the space" style="width:100%;margin-top:6px" />
           </div>
         </div>
-        <div id="varEditChipWrap" class="var-sec var-tile">
+        <div id="varEditChipWrap" class="var-sec">
           <h3 class="var-sec-head"><span>Smart chip</span></h3>
           <label class="form-note var-field-label" for="varEditChipType" style="display:block">Smart chip — a working control at the definition and every reference; changing it anywhere updates every twin live.</label>
           <select class="text-input" id="varEditChipType" aria-label="Smart chip type" style="width:100%;margin-top:6px">
@@ -6937,7 +6955,6 @@
             <p class="form-note" style="margin-top:6px">Type @ in the field to add a live variable instead — while it&rsquo;s selected, this value follows that variable. Options stay editable above.</p>
             <label class="chip-toggle-row"><input type="checkbox" id="varEditChipSeg" /><span>Show as segmented control<span class="chip-toggle-note">With 2–3 fixed options, show them side by side instead of behind a menu.</span></span></label>
           </div>
-        </div>
         </div>
         <p class="tag-modal-error" id="varEditError" hidden></p>
         </div>
@@ -15830,12 +15847,12 @@
           var inp = shInput();
           if (inp) {
             varFieldHygiene(inp);
-            inp.addEventListener('focus', function () { shFocused = true; shTipsShow(); });
+            inp.addEventListener('focus', function () { shFocused = true; shTipsShow(); shFollowSeg = null; shCaretFollow(); });
             inp.addEventListener('blur', function () { shFocused = false; setTimeout(shTipsHide, 140); });
-            inp.addEventListener('input', function () { shDirty = true; shTipsSel = 0; shValidateLive(); shTipsShow(); });
-            inp.addEventListener('click', function () { shTipsShow(); });
+            inp.addEventListener('input', function () { shDirty = true; shTipsSel = 0; shValidateLive(); shTipsShow(); shCaretFollow(); });
+            inp.addEventListener('click', function () { shTipsShow(); shCaretFollow(); });
             inp.addEventListener('keyup', function (ev) {
-              if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') shTipsShow();
+              if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') { shTipsShow(); shCaretFollow(); }
             });
             inp.addEventListener('keydown', function (ev) {
               if (shTipsItems.length && shTipsEl && !shTipsEl.hidden) {
@@ -16101,6 +16118,7 @@
           var err = document.getElementById('varEditError');
           err.hidden = true; err.textContent = '';
           document.getElementById('varEditModal').hidden = false;
+          varJumpRefresh();
           /* Build -137 (A2): the footer is one Tab stop too;
              each opening resets its roving stop to Cancel. */
           document.getElementById('varEditCancel').tabIndex = 0;
@@ -18411,9 +18429,170 @@
            once focus is on it its Up/Down are its own
            (native option changing), so it is never a zone
            you arrow OUT of — Tab covers that leg. */
+        /* ================= Build -152: JUMP CHIPS =================
+           A pinned chip row under the modal header. One chip per
+           section that exists (no Definition chip in Create);
+           tapping smooth-scrolls the section to just under the
+           pinned row, and a scroll-spy highlights the chip of
+           the section currently at the top as the user scrolls
+           by any means. Keyboard zone travel now follows this
+           single visual column. */
+        var VAR_JUMP_SECTIONS = [
+          ['varSecShorthand', 'Shorthand'],
+          ['varSecName', 'Name'],
+          ['varSecDef', 'Definition'],
+          ['varSecValue', 'Value / Formula'],
+          ['varEditFormatWrap', 'Display format'],
+          ['varEditChipWrap', 'Smart chip']
+        ];
+        function varJumpSectionVisible(id) {
+          var el = document.getElementById(id);
+          if (!el) return false;
+          if (id === 'varSecDef') return varEditAccVisible(el);
+          return el.offsetParent !== null || getComputedStyle(el).display !== 'none';
+        }
+        function varJumpRefresh() {
+          shFollowSeg = null;
+          varJumpHold = null;
+          /* Build -152 fix: the Definition section itself
+             stands down in Create / no-anchor (both of its
+             blocks hidden) — set explicitly here, not only
+             via the :has rule, so no empty section remains. */
+          var defSecEl = document.getElementById('varSecDef');
+          if (defSecEl) defSecEl.style.display = varEditAccVisible(defSecEl) ? '' : 'none';
+          var nav = document.getElementById('varJumpNav');
+          if (!nav) return;
+          nav.innerHTML = '';
+          VAR_JUMP_SECTIONS.forEach(function (pair) {
+            if (!varJumpSectionVisible(pair[0])) return;
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'var-jump-chip';
+            b.textContent = pair[1];
+            b.setAttribute('data-target', pair[0]);
+            b.addEventListener('click', function () { varJumpTo(pair[0]); });
+            nav.appendChild(b);
+          });
+          varJumpSpy();
+        }
+        var varJumpHold = null;
+        function varJumpTo(id) {
+          var sc = document.getElementById('varEditScroll');
+          var sec = document.getElementById(id);
+          var nav = document.getElementById('varJumpNav');
+          if (!sc || !sec) return;
+          varJumpHold = { id: id, until: Date.now() + 700 };
+          var y = sc.scrollTop + sec.getBoundingClientRect().top - sc.getBoundingClientRect().top - (nav ? nav.offsetHeight + 14 : 60);
+          sc.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+          varJumpSpy();
+        }
+        function varJumpSpy() {
+          var sc = document.getElementById('varEditScroll');
+          var nav = document.getElementById('varJumpNav');
+          if (!sc || !nav) return;
+          var navH = nav.offsetHeight + 18;
+          var scTop = sc.getBoundingClientRect().top;
+          var active = null;
+          if (varJumpHold && Date.now() < varJumpHold.until && varJumpSectionVisible(varJumpHold.id)) active = varJumpHold.id;
+          if (!active) VAR_JUMP_SECTIONS.forEach(function (pair) {
+            var el = document.getElementById(pair[0]);
+            if (!el || !varJumpSectionVisible(pair[0])) return;
+            if (el.getBoundingClientRect().top - scTop <= navH) active = pair[0];
+          });
+          if (!active) {
+            var first = VAR_JUMP_SECTIONS.find(function (pr) { return varJumpSectionVisible(pr[0]); });
+            active = first ? first[0] : null;
+          }
+          Array.prototype.forEach.call(nav.querySelectorAll('.var-jump-chip'), function (chip) {
+            var on = chip.getAttribute('data-target') === active;
+            chip.classList.toggle('on', on);
+            if (on) chip.setAttribute('aria-current', 'true'); else chip.removeAttribute('aria-current');
+          });
+        }
+        /* ----- Build -152 addition: caret-follow -----
+           While the Shorthand field is focused, the caret's
+           grammar segment drives the jump chips: when the
+           segment changes, the matching section smooth-scrolls
+           to the top under the pinned chip row and its chip
+           lights (the same landing as a chip tap). A caret on
+           a delimiter (@=, |, comma, whitespace) resolves to
+           the segment on its LEFT; at line start, Name. Only
+           focus in the Shorthand field counts — editing a
+           structured field never yanks the scroll, manual
+           scrolling never re-asserts (follow fires only on a
+           segment CHANGE), and programmatic re-renders of the
+           line fire no input/click/keyup events, so they can
+           never trigger it. The tips popup is untouched. */
+        var shFollowSeg = null;
+        function shCaretSectionId() {
+          var inp = shInput();
+          if (!inp) return null;
+          var text = inp.value || '';
+          var caret = typeof inp.selectionStart === 'number' ? inp.selectionStart : text.length;
+          if (caret <= 0) return 'varSecName';
+          var pos = caret - 1; /* the character on the caret's left */
+          var at = text.indexOf('@=');
+          if (at === -1) return 'varSecName';
+          if (pos < at + 2) return 'varSecName';
+          /* first top-level | (outside quotes and parens) */
+          var pipe = -1, depth = 0, inQ = false;
+          for (var i = at + 2; i < text.length; i++) {
+            var c = text.charAt(i);
+            if (inQ) { if (c === '"') inQ = false; continue; }
+            if (c === '"') { inQ = true; continue; }
+            if (c === '(') depth++;
+            else if (c === ')') depth--;
+            else if (c === '|' && depth === 0) { pipe = i; break; }
+          }
+          if (pipe === -1 || pos <= pipe) return 'varSecValue';
+          /* tail tokens: top-level comma ranges, in text coords */
+          var toks = [], d2 = 0, q2 = false, start = pipe + 1;
+          for (var j = pipe + 1; j <= text.length; j++) {
+            var cj = text.charAt(j);
+            if (j === text.length || (cj === ',' && d2 === 0 && !q2)) { toks.push([start, j]); start = j + 1; continue; }
+            if (q2) { if (cj === '"') q2 = false; continue; }
+            if (cj === '"') q2 = true;
+            else if (cj === '(') d2++;
+            else if (cj === ')') d2--;
+          }
+          var tokText = null;
+          for (var k = 0; k < toks.length; k++) {
+            if (pos >= toks[k][0] && pos < toks[k][1]) { tokText = text.slice(toks[k][0], toks[k][1]); break; }
+            if (toks[k][1] <= pos) tokText = text.slice(toks[k][0], toks[k][1]); /* gap/comma: segment on the left */
+          }
+          if (tokText === null) return 'varSecValue';
+          var tok = tokText.trim();
+          if (!tok) return 'varSecValue';
+          var low = tok.toLowerCase();
+          if (low === 'local' || low === 'global' || low === 'unanchored' || low === 'anchored') return 'varSecDef';
+          if (/^unit\s*:/i.test(tok)) return 'varEditFormatWrap';
+          if (Object.prototype.hasOwnProperty.call(SH_FMT_TOKENS, low)) return 'varEditFormatWrap';
+          var headM = /^([A-Za-z]+)/.exec(tok);
+          if (headM && (CHIP_TYPES.indexOf(headM[1].toLowerCase()) !== -1 || headM[1].toLowerCase() === 'none')) return 'varEditChipWrap';
+          return 'varEditFormatWrap'; /* a bare token is the Unit, per the parser's rule */
+        }
+        function shCaretFollow() {
+          var inp = shInput();
+          if (!inp || !shFocused || document.activeElement !== inp) return;
+          var id = shCaretSectionId();
+          if (!id || id === shFollowSeg) return;
+          shFollowSeg = id;
+          if (!varJumpSectionVisible(id)) return;
+          varJumpTo(id);
+        }
+        (function () {
+          var sc = document.getElementById('varEditScroll');
+          if (!sc) return;
+          var ticking = false;
+          sc.addEventListener('scroll', function () {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(function () { ticking = false; varJumpSpy(); });
+          }, { passive: true });
+        })();
         function varEditZones() {
-          /* Build -150 (Bento grid): the zones keep the
-             LOGICAL order regardless of tile placement —
+          /* Build -152 (Jump chips): the zones follow the
+             single visual column top to bottom —
              Shorthand (it edits everything, so it leads) →
              Name → Definition (the anchor choice's checked
              radio, then Promote, when showing) → Value /
