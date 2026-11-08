@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261108-149" />
+    <meta name="folio-build" content="20261108-150" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4967,31 +4967,86 @@
       /* Helper prose in this modal steps down a register:
          smaller, and one ink shade quieter. */
       #varEditModal p.form-note { font-size: 12.5px; color: var(--ink-3); }
-      /* Build -149 (accordion trial): each -148 section head
-         is now a toggle button with a chevron — expanded it
-         points down, collapsed it rests pointing right, and
-         a collapsed section hides everything under its head.
-         The fields stay in the DOM with their values intact
-         (display:none only), so Save — button, ⌘Enter, or
-         backdrop click — validates and commits collapsed
-         sections exactly as if they were open. All colors
-         ride the theme variables, like the rest of the modal. */
-      #varEditModal .var-sec-toggle {
-        display: flex; align-items: center; justify-content: space-between; gap: 8px;
-        width: 100%; min-height: 32px; padding: 4px 0 2px;
-        text-align: left; cursor: pointer; border-radius: 6px;
+      /* Build -150: the accordion trial (-149) is replaced by
+         the BENTO GRID the owner picked from the mockups
+         (option E). The -148 shell stands — 75% height cap,
+         pinned header/footer, internal scroll — and below the
+         quick-look and the Shorthand strip the five sections
+         sit as tiles in a two-column grid: Name and Definition
+         as the smaller top-row tiles, Value / Formula wide
+         across both columns, Display format and Smart chip
+         side by side. At phone widths the grid collapses to
+         one column. All colors ride theme variables. */
+      #varEditModal .var-bento {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;
+        align-items: start;
       }
-      #varEditModal .var-sec-toggle:hover { color: var(--ink); }
-      #varEditModal .var-sec-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-      #varEditModal .var-sec-chev {
-        flex: 0 0 auto; display: inline-flex; color: var(--ink-3);
-        transition: transform 0.15s ease;
+      #varEditModal .var-tile {
+        border: 1px solid var(--line); border-top: 1px solid var(--line);
+        border-radius: 12px; padding: 12px 14px 14px; margin-top: 0;
+        background: color-mix(in srgb, var(--ink) 3%, var(--surface));
+        min-width: 0;
       }
-      #varEditModal .var-sec.is-collapsed .var-sec-chev { transform: rotate(-90deg); }
-      #varEditModal .var-sec.is-collapsed > :not(.var-sec-head) { display: none !important; }
-      @media (prefers-reduced-motion: reduce) {
-        #varEditModal .var-sec-chev { transition: none; }
+      #varEditModal .var-tile-wide { grid-column: 1 / -1; }
+      #varEditModal .var-sec-def:has(> #varEditAnchorNote[hidden]):has(> #varEditPromote[hidden]) { display: none; }
+      @media (max-width: 640px) {
+        #varEditModal .var-bento { grid-template-columns: 1fr; }
+        #varEditModal .var-tile-wide { grid-column: auto; }
       }
+      /* The quick-look: a plain-words description of the
+         variable's properties, pinned above everything in
+         the scroll area (mockup keeper). */
+      #varEditModal .var-quicklook {
+        border: 1px solid var(--line); border-radius: 12px;
+        background: var(--accent-soft); color: var(--ink);
+        padding: 10px 14px; font-size: 13.5px; line-height: 1.5;
+      }
+      #varEditModal .var-quicklook strong { font-weight: 700; }
+      #varEditModal .var-quicklook .ql-dim { color: var(--ink-2); }
+      /* The Shorthand section (build -150): one editable line
+         that renders the variable's canonical state and can
+         re-derive every field. An invalid hand-edited line
+         wears the danger border and a red message under it;
+         the offending token is underlined where identifiable. */
+      #varEditModal .var-sh-sec { border-top: none; margin-top: 14px; padding-top: 0; }
+      #varEditModal .var-sh-input {
+        width: 100%; margin-top: 6px;
+        font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px;
+      }
+      #varEditModal .var-sh-input.invalid { border-color: var(--danger); outline-color: var(--danger); }
+      #varEditModal .var-sh-error { color: var(--danger); font-size: 12.5px; margin: 6px 0 0; line-height: 1.45; }
+      #varEditModal .var-sh-error .sh-bad { text-decoration: underline wavy var(--danger) 1px; text-underline-offset: 3px; font-weight: 600; }
+      /* The Shorthand tips popover (build -150): a
+         Sheets-style suggestion list that follows the
+         shorthand field's caret segment. Painted with the
+         .chip-pop register; it never takes focus. */
+      .sh-tips {
+        position: fixed; z-index: 1100; min-width: 230px; max-width: min(86vw, 340px);
+        max-height: 264px; overflow-y: auto;
+        background: var(--surface); color: var(--ink);
+        border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+        padding: 6px; display: flex; flex-direction: column; gap: 2px;
+      }
+      .sh-tips[hidden] { display: none; }
+      .sh-tips-head {
+        font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+        color: var(--ink-2); padding: 5px 10px 3px;
+      }
+      .sh-tip-item {
+        display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+        font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 8px; cursor: pointer;
+        background: transparent; border: none; color: inherit;
+      }
+      .sh-tip-item:hover { background: var(--hover); }
+      .sh-tip-item.on { background: var(--accent-soft); }
+      .sh-tip-main { font-weight: 600; white-space: nowrap; }
+      .sh-tip-item .sh-tip-sig { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sh-tip-item .sh-tip-desc { flex: 1; min-width: 0; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .sh-tip-item .sh-tip-val { margin-left: auto; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+      /* The inline shorthand row in the @ menu (build -150):
+         an error row reads in danger and cannot be chosen. */
+      .suggest-item.var-at-shorthand-err { color: var(--danger); cursor: default; }
+      .suggest-item.var-at-shorthand-err:hover { background: transparent; }
       .fx-pop-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       /* The template-editing badge: a small gilt pill beside
          the title naming the state, while the doc-only chrome
@@ -6780,7 +6835,7 @@
     </div>
 
     <div class="overlay" id="varEditModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="varEditTitle" style="max-width:440px">
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="varEditTitle" style="max-width:600px">
         <div class="panel-head">
           <h2 id="varEditTitle">Variable</h2>
           <button class="icon-btn" id="varEditClose" type="button" tabindex="-1" aria-label="Cancel" data-tip="Cancel">
@@ -6788,18 +6843,27 @@
           </button>
         </div>
         <div class="var-edit-scroll">
-        <section class="var-sec" id="varSecName">
-          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccName" aria-expanded="true" aria-controls="varSecName"><span>Name</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
+        <div class="var-quicklook" id="varQuickLook" aria-live="polite"></div>
+        <section class="var-sec var-sh-sec" id="varSecShorthand">
+          <h3 class="var-sec-head"><span>Shorthand</span></h3>
+          <label class="form-note var-field-label" for="varEditShorthand" style="display:block">The whole variable on one line — edit it, then press Enter or Save to apply it. Editing the tiles below rewrites it.</label>
+          <input class="text-input var-sh-input" id="varEditShorthand" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Shorthand" />
+          <p class="var-sh-error" id="varShorthandError" hidden></p>
+          <p class="form-note" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals) or Unit: x, and a chip like stepper.max(100).min(10).step(5). Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
+        </section>
+        <div class="var-bento">
+        <section class="var-sec var-tile" id="varSecName">
+          <h3 class="var-sec-head"><span>Name</span></h3>
           <label class="form-note" for="varEditName" style="display:block;margin-top:2px">Starts with a letter; letters, digits and underscores after.</label>
           <input class="text-input" id="varEditName" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Variable name" style="width:100%;margin-top:6px" />
         </section>
-        <section class="var-sec var-sec-def" id="varSecDef">
-          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccDef" aria-expanded="true" aria-controls="varSecDef"><span>Definition</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
+        <section class="var-sec var-sec-def var-tile" id="varSecDef">
+          <h3 class="var-sec-head"><span>Definition</span></h3>
           <div id="varEditAnchorNote" hidden style="margin-top:12px"></div>
           <div id="varEditPromote" hidden style="margin-top:12px"></div>
         </section>
-        <section class="var-sec" id="varSecValue">
-          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccValue" aria-expanded="true" aria-controls="varSecValue"><span>Value / Formula</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
+        <section class="var-sec var-tile var-tile-wide" id="varSecValue">
+          <h3 class="var-sec-head"><span>Value / Formula</span></h3>
         <div class="var-src-seg" role="group" aria-label="Value source">
           <button class="var-src-btn" id="varEditSrcValue" type="button">Value</button>
           <button class="var-src-btn" id="varEditSrcFormula" type="button">Formula &#402;x</button>
@@ -6814,8 +6878,8 @@
           <div class="fx-preview" id="varEditPreview" aria-live="polite"></div>
         </div>
         </section>
-        <div id="varEditFormatWrap" class="var-sec">
-          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccFormat" aria-expanded="true" aria-controls="varEditFormatWrap"><span>Display format</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
+        <div id="varEditFormatWrap" class="var-sec var-tile">
+          <h3 class="var-sec-head"><span>Display format</span></h3>
           <label class="form-note var-field-label" for="varEditFormat" style="display:block;margin-top:12px">Number format — display only; the stored value stays the plain number, and formulas keep computing with it</label>
           <select class="text-input" id="varEditFormat" aria-label="Number format" style="width:100%;margin-top:6px">
             <option value="general">General</option>
@@ -6830,8 +6894,8 @@
             <input class="text-input" id="varEditUnit" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Unit suffix" placeholder="g — or ␣tbsp, with the space" style="width:100%;margin-top:6px" />
           </div>
         </div>
-        <div id="varEditChipWrap" class="var-sec" style="margin-top:14px">
-          <h3 class="var-sec-head"><button type="button" class="var-sec-toggle" id="varAccChip" aria-expanded="true" aria-controls="varEditChipWrap"><span>Smart chip</span><span class="var-sec-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></h3>
+        <div id="varEditChipWrap" class="var-sec var-tile">
+          <h3 class="var-sec-head"><span>Smart chip</span></h3>
           <label class="form-note var-field-label" for="varEditChipType" style="display:block">Smart chip — a working control at the definition and every reference; changing it anywhere updates every twin live.</label>
           <select class="text-input" id="varEditChipType" aria-label="Smart chip type" style="width:100%;margin-top:6px">
             <option value="">None — plain value</option>
@@ -6874,6 +6938,7 @@
             <p class="form-note" style="margin-top:6px">Type @ in the field to add a live variable instead — while it&rsquo;s selected, this value follows that variable. Options stay editable above.</p>
             <label class="chip-toggle-row"><input type="checkbox" id="varEditChipSeg" /><span>Show as segmented control<span class="chip-toggle-note">With 2–3 fixed options, show them side by side instead of behind a menu.</span></span></label>
           </div>
+        </div>
         </div>
         <p class="tag-modal-error" id="varEditError" hidden></p>
         </div>
@@ -11138,6 +11203,8 @@
             out.stepper.step = st > 0 ? st : 1;
             out.stepper.min = chipOptNum(raw.stepper.min);
             out.stepper.max = chipOptNum(raw.stepper.max);
+            var stref = chipRefsSan(raw.stepper.refs, ['step', 'min', 'max']);
+            if (stref) out.stepper.refs = stref;
           }
           if (raw.slider && typeof raw.slider === 'object') {
             out.slider.min = chipNumOr(raw.slider.min, 0);
@@ -11150,10 +11217,14 @@
                slider behind its pop-up chip. Records saved
                by -142 carry no flag and so wake up inline. */
             out.slider.inline = raw.slider.inline !== false;
+            var slref = chipRefsSan(raw.slider.refs, ['step', 'min', 'max']);
+            if (slref) out.slider.refs = slref;
           }
           if (raw.toggle && typeof raw.toggle === 'object') {
             if (typeof raw.toggle.a === 'string' && raw.toggle.a !== '') out.toggle.a = raw.toggle.a;
             if (typeof raw.toggle.b === 'string' && raw.toggle.b !== '') out.toggle.b = raw.toggle.b;
+            var tgref = chipRefsSan(raw.toggle.refs, ['a', 'b']);
+            if (tgref) out.toggle.refs = tgref;
           }
           if (raw.dropdown && typeof raw.dropdown === 'object') {
             if (Array.isArray(raw.dropdown.options)) {
@@ -11167,6 +11238,30 @@
             out.dropdown.segmented = raw.dropdown.segmented !== false;
           }
           return out;
+        }
+        /* Build -150: a chip setting may be a live VARIABLE
+           REFERENCE (the shorthand's stepper.max(limit)): the
+           binding rides the config as { vid, s, n } in a refs
+           map beside the literal settings — stepper / slider
+           step·min·max and toggle on·off — normalized like
+           everything else, so a synced or older store can
+           never smuggle a malformed binding in. Resolution
+           reads through varRecordValue, so the setting tracks
+           the referenced variable's current value (formula
+           variables included); deleting the referenced
+           variable bakes the setting to its last value
+           (chipBakeRefOptions); a cycle or a non-numeric
+           target falls back to the literal setting rather
+           than breaking the control. */
+        function chipRefSan(r) {
+          if (!r || typeof r !== 'object' || typeof r.vid !== 'string' || !r.vid) return null;
+          return { vid: r.vid, s: r.s === 'g' ? 'g' : 'd', n: typeof r.n === 'string' ? r.n : '' };
+        }
+        function chipRefsSan(raw, keys) {
+          if (!raw || typeof raw !== 'object') return null;
+          var out = {}; var any = false;
+          keys.forEach(function (k) { var s = chipRefSan(raw[k]); if (s) { out[k] = s; any = true; } });
+          return any ? out : null;
         }
         function chipDefaults() { return chipNormalize(null); }
         function chipCfgOf(rec) { return chipNormalize(rec && rec.chip); }
@@ -11201,6 +11296,49 @@
           return null;
         }
         var varChipVisiting = null;
+        /* Build -150: live resolution of a chip SETTING
+           reference (see the chipRefSan note). chipRefLiveText
+           answers the referenced variable's current raw value
+           (or #CYCLE! / null); the Num / NumOpt / Text readers
+           turn that into the setting's effective value, with
+           the literal setting as the fallback so a broken
+           binding degrades instead of breaking the control. */
+        function chipRefLiveText(ref, selfId, homeDoc) {
+          if (!ref || !ref.vid) return null;
+          var key = 'sr:' + (selfId || '') + ':' + ref.vid;
+          if (varChipVisiting && varChipVisiting[key]) return '#CYCLE!';
+          var f = varFindAny(ref.vid);
+          if (!f) return null;
+          var outer = varChipVisiting;
+          varChipVisiting = {};
+          if (outer) { for (var k in outer) varChipVisiting[k] = 1; }
+          varChipVisiting[key] = 1;
+          var v = varRecordValue(f.rec, f.scope === 'doc' ? (varDocById(f.docId) || homeDoc) : null);
+          varChipVisiting = outer;
+          return v;
+        }
+        function chipSettingRef(rec, group, key) {
+          var cfg = chipCfgOf(rec);
+          var g = cfg[group];
+          return (g && g.refs && g.refs[key]) || null;
+        }
+        function chipSettingNum(rec, homeDoc, group, key, fb) {
+          var ref = chipSettingRef(rec, group, key);
+          if (!ref) { var n0 = chipOptNum(chipCfgOf(rec)[group][key]); return n0 === null ? fb : n0; }
+          var n = fxParseNum(chipRefLiveText(ref, rec.id, homeDoc) || '');
+          return n === null ? fb : n;
+        }
+        function chipSettingNumOpt(rec, homeDoc, group, key) {
+          var ref = chipSettingRef(rec, group, key);
+          if (!ref) return chipCfgOf(rec)[group][key];
+          return fxParseNum(chipRefLiveText(ref, rec.id, homeDoc) || '');
+        }
+        function chipSettingText(rec, homeDoc, group, key, fb) {
+          var ref = chipSettingRef(rec, group, key);
+          if (!ref) return fb;
+          var t = chipRefLiveText(ref, rec.id, homeDoc);
+          return (t === null || t === '#CYCLE!') ? fb : t;
+        }
         /* The live value of a dropdown whose selected option
            is a variable reference — that variable's current
            value, tracked live — or null when the selection
@@ -11250,6 +11388,29 @@
                 var f = varFindAny(rec.id);
                 if (f) varWriteAnchorThrough(f.scope, rec, lastValue);
               }
+            }
+            /* Build -150: chip SETTING references bake the
+               same way — a stepper.max(limit) whose limit is
+               deleted keeps limit's last value as a literal. */
+            ['stepper', 'slider'].forEach(function (gname) {
+              var g = cfg[gname];
+              if (!g || !g.refs) return;
+              Object.keys(g.refs).forEach(function (k) {
+                if (g.refs[k].vid === vid) {
+                  var bn = fxParseNum(lastValue);
+                  if (bn !== null) g[k] = bn;
+                  delete g.refs[k];
+                  touched = true;
+                }
+              });
+              if (!Object.keys(g.refs).length) delete g.refs;
+            });
+            var tg = cfg.toggle;
+            if (tg && tg.refs) {
+              Object.keys(tg.refs).forEach(function (k) {
+                if (tg.refs[k].vid === vid) { tg[k] = lastValue; delete tg.refs[k]; touched = true; }
+              });
+              if (!Object.keys(tg.refs).length) delete tg.refs;
             }
             if (touched) rec.chip = cfg;
           }
@@ -12246,7 +12407,7 @@
             value: varDisplayText(rec, value), err: varRecErrorCode(rec), sig: chipSignature(rec),
           };
           if (cfg.type === 'checkbox') d.checked = value === '1';
-          if (cfg.type === 'toggle') d.on = value === cfg.toggle.a;
+          if (cfg.type === 'toggle') d.on = value === chipSettingText(rec, homeDoc, 'toggle', 'a', cfg.toggle.a);
           if (cfg.type === 'multiplier') {
             var n = fxParseNum(value);
             d.num = (n === 0.5 || n === 1 || n === 2 || n === 3) ? n : null;
@@ -12263,9 +12424,14 @@
             /* Build -143: everything the inline dressing (and
                its live drag) needs rides the descriptor. */
             d.inline = cfg.slider.inline !== false;
-            d.min = cfg.slider.min; d.max = cfg.slider.max; d.step = cfg.slider.step;
+            /* Build -150: the slider's bounds may be live
+               variable references — the descriptor carries
+               their current values. */
+            d.min = chipSettingNum(rec, homeDoc, 'slider', 'min', cfg.slider.min);
+            d.max = chipSettingNum(rec, homeDoc, 'slider', 'max', cfg.slider.max);
+            d.step = chipSettingNum(rec, homeDoc, 'slider', 'step', cfg.slider.step);
             var sn = fxParseNum(value);
-            d.num = sn === null ? cfg.slider.min : Math.min(cfg.slider.max, Math.max(cfg.slider.min, sn));
+            d.num = sn === null ? d.min : Math.min(d.max, Math.max(d.min, sn));
           }
           if (cfg.type === 'date') d.value = chipDateDisplay(value);
           return d;
@@ -12323,14 +12489,25 @@
             case 'step': {
               var n = fxParseNum(cur);
               if (n === null) n = 0;
-              var nv = n + (detail.dir === -1 ? -1 : 1) * (cfg.stepper.step || 1);
-              if (cfg.stepper.min !== null && nv < cfg.stepper.min) nv = cfg.stepper.min;
-              if (cfg.stepper.max !== null && nv > cfg.stepper.max) nv = cfg.stepper.max;
+              /* Build -150: step / min / max may be live
+                 variable references — clamp by their current
+                 values. */
+              var stp = chipSettingNum(rec, homeDoc, 'stepper', 'step', cfg.stepper.step || 1);
+              var smn = chipSettingNumOpt(rec, homeDoc, 'stepper', 'min');
+              var smx = chipSettingNumOpt(rec, homeDoc, 'stepper', 'max');
+              var nv = n + (detail.dir === -1 ? -1 : 1) * (stp || 1);
+              if (smn !== null && nv < smn) nv = smn;
+              if (smx !== null && nv > smx) nv = smx;
               varChipCommitValue(found, fxGeneral(nv));
               break;
             }
             case 'checkbox': varChipCommitValue(found, detail.checked ? '1' : '0'); break;
-            case 'toggle': varChipCommitValue(found, cur === cfg.toggle.a ? cfg.toggle.b : cfg.toggle.a); break;
+            case 'toggle': {
+              var tA = chipSettingText(rec, homeDoc, 'toggle', 'a', cfg.toggle.a);
+              var tB = chipSettingText(rec, homeDoc, 'toggle', 'b', cfg.toggle.b);
+              varChipCommitValue(found, cur === tA ? tB : tA);
+              break;
+            }
             case 'factor': if (typeof detail.factor === 'number') varChipCommitValue(found, fxGeneral(detail.factor)); break;
             case 'choose': {
               var o = cfg.dropdown.options[detail.index];
@@ -12394,9 +12571,12 @@
             case 'stepper': {
               var n = fxParseNum(cur);
               if (n === null) n = 0;
-              var nv = n + dir * (cfg.stepper.step || 1);
-              if (cfg.stepper.min !== null && nv < cfg.stepper.min) nv = cfg.stepper.min;
-              if (cfg.stepper.max !== null && nv > cfg.stepper.max) nv = cfg.stepper.max;
+              var kStp = chipSettingNum(rec, homeDoc, 'stepper', 'step', cfg.stepper.step || 1);
+              var kMn = chipSettingNumOpt(rec, homeDoc, 'stepper', 'min');
+              var kMx = chipSettingNumOpt(rec, homeDoc, 'stepper', 'max');
+              var nv = n + dir * (kStp || 1);
+              if (kMn !== null && nv < kMn) nv = kMn;
+              if (kMx !== null && nv > kMx) nv = kMx;
               varChipCommitValue(found, fxGeneral(nv));
               break;
             }
@@ -12415,7 +12595,12 @@
               chipSelectOption(found, opts[next]);
               break;
             }
-            case 'toggle': varChipCommitValue(found, cur === cfg.toggle.a ? cfg.toggle.b : cfg.toggle.a); break;
+            case 'toggle': {
+              var kA = chipSettingText(rec, homeDoc, 'toggle', 'a', cfg.toggle.a);
+              var kB = chipSettingText(rec, homeDoc, 'toggle', 'b', cfg.toggle.b);
+              varChipCommitValue(found, cur === kA ? kB : kA);
+              break;
+            }
             case 'checkbox': varChipCommitValue(found, cur === '1' ? '0' : '1'); break;
             case 'multiplier': {
               var facts = [0.5, 1, 2, 3];
@@ -12427,9 +12612,12 @@
               break;
             }
             case 'slider': {
+              var sMn2 = chipSettingNum(rec, homeDoc, 'slider', 'min', cfg.slider.min);
+              var sMx2 = chipSettingNum(rec, homeDoc, 'slider', 'max', cfg.slider.max);
+              var sSt2 = chipSettingNum(rec, homeDoc, 'slider', 'step', cfg.slider.step);
               var sn2 = fxParseNum(cur);
-              if (sn2 === null) sn2 = cfg.slider.min;
-              var sv = Math.min(cfg.slider.max, Math.max(cfg.slider.min, sn2 + dir * (cfg.slider.step || 1)));
+              if (sn2 === null) sn2 = sMn2;
+              var sv = Math.min(sMx2, Math.max(sMn2, sn2 + dir * (sSt2 || 1)));
               varChipCommitValue(found, fxGeneral(sv));
               break;
             }
@@ -13020,8 +13208,13 @@
         function chipOpenSlider(found, rect) {
           var rec = found.rec;
           var cfg = chipCfgOf(rec);
-          var cur = fxParseNum(varRecordValue(rec, found.scope === 'doc' ? currentDoc() : null));
-          var start = cur === null ? cfg.slider.min : Math.min(cfg.slider.max, Math.max(cfg.slider.min, cur));
+          var homeDoc = found.scope === 'doc' ? currentDoc() : null;
+          /* Build -150: bounds may be live references. */
+          var slMin = chipSettingNum(rec, homeDoc, 'slider', 'min', cfg.slider.min);
+          var slMax = chipSettingNum(rec, homeDoc, 'slider', 'max', cfg.slider.max);
+          var slStep = chipSettingNum(rec, homeDoc, 'slider', 'step', cfg.slider.step);
+          var cur = fxParseNum(varRecordValue(rec, homeDoc));
+          var start = cur === null ? slMin : Math.min(slMax, Math.max(slMin, cur));
           chipOpenPop(rect, function (el) {
             var head = document.createElement('div');
             head.className = 'chip-pop-head';
@@ -13036,9 +13229,9 @@
             var inp = document.createElement('input');
             inp.type = 'range';
             inp.className = 'chip-pop-range';
-            inp.min = String(cfg.slider.min);
-            inp.max = String(cfg.slider.max);
-            inp.step = String(cfg.slider.step);
+            inp.min = String(slMin);
+            inp.max = String(slMax);
+            inp.step = String(slStep);
             inp.value = String(start);
             inp.setAttribute('aria-label', rec.name);
             /* Build -143: the drag previews live — the chip
@@ -14617,6 +14810,32 @@
            draft still collects verbatim, so the config
            survives a formula round-trip dormant. */
         var varEditChipDraft = null;
+        /* Build -150: the values a ref-backed chip field is
+           SHOWING (the referenced variable's current value,
+           keyed by input id). Save keeps the reference while
+           the shown text is untouched; retyping the field
+           replaces the reference with the literal typed. */
+        var varEditChipRefShown = {};
+        function varEditChipRefShownFill() {
+          varEditChipRefShown = {};
+          var d = varEditChipDraft;
+          if (!d) return;
+          function put(group, key, id) {
+            var g = d[group];
+            if (!g || !g.refs || !g.refs[key]) return;
+            var t = chipRefLiveText(g.refs[key], varEditCtx ? varEditCtx.id : null, null);
+            var el = document.getElementById(id);
+            if (el && t !== null && t !== '#CYCLE!') { el.value = t; varEditChipRefShown[id] = t; }
+          }
+          put('stepper', 'step', 'varEditChipStep');
+          put('stepper', 'min', 'varEditChipMin');
+          put('stepper', 'max', 'varEditChipMax');
+          put('slider', 'min', 'varEditChipSMin');
+          put('slider', 'max', 'varEditChipSMax');
+          put('slider', 'step', 'varEditChipSStep');
+          put('toggle', 'a', 'varEditChipTogA');
+          put('toggle', 'b', 'varEditChipTogB');
+        }
         function varEditChipLoad(rec) {
           chipOptAtClose();
           varEditChipDraft = rec ? chipCfgOf(rec) : chipDefaults();
@@ -14634,6 +14853,27 @@
              the draft (both default ON). */
           document.getElementById('varEditChipSeg').checked = varEditChipDraft.dropdown.segmented !== false;
           document.getElementById('varEditChipSInline').checked = varEditChipDraft.slider.inline !== false;
+          varEditChipRefShownFill();
+          varEditChipRenderOptions();
+          varEditSyncChipSection();
+        }
+        /* Build -150: repaint the chip tile's inputs from the
+           current draft (the shorthand's apply path — the
+           draft changed under the tile, so the tile follows). */
+        function varEditChipPopulateInputs() {
+          if (!varEditChipDraft) return;
+          document.getElementById('varEditChipType').value = varEditChipDraft.type || '';
+          document.getElementById('varEditChipStep').value = String(varEditChipDraft.stepper.step);
+          document.getElementById('varEditChipMin').value = varEditChipDraft.stepper.min === null ? '' : String(varEditChipDraft.stepper.min);
+          document.getElementById('varEditChipMax').value = varEditChipDraft.stepper.max === null ? '' : String(varEditChipDraft.stepper.max);
+          document.getElementById('varEditChipSMin').value = String(varEditChipDraft.slider.min);
+          document.getElementById('varEditChipSMax').value = String(varEditChipDraft.slider.max);
+          document.getElementById('varEditChipSStep').value = String(varEditChipDraft.slider.step);
+          document.getElementById('varEditChipTogA').value = varEditChipDraft.toggle.a;
+          document.getElementById('varEditChipTogB').value = varEditChipDraft.toggle.b;
+          document.getElementById('varEditChipSeg').checked = varEditChipDraft.dropdown.segmented !== false;
+          document.getElementById('varEditChipSInline').checked = varEditChipDraft.slider.inline !== false;
+          varEditChipRefShownFill();
           varEditChipRenderOptions();
           varEditSyncChipSection();
         }
@@ -14745,7 +14985,7 @@
         function varEditChipCollect() {
           var base = varEditChipDraft || chipDefaults();
           var type = document.getElementById('varEditChipType').value;
-          return chipNormalize({
+          var raw = {
             type: CHIP_TYPES.indexOf(type) !== -1 ? type : null,
             stepper: {
               step: document.getElementById('varEditChipStep').value,
@@ -14763,7 +15003,987 @@
               b: document.getElementById('varEditChipTogB').value,
             },
             dropdown: { options: base.dropdown.options, sel: base.dropdown.sel, segmented: document.getElementById('varEditChipSeg').checked },
+          };
+          /* Build -150: a setting reference survives the
+             collect while its field still shows the value it
+             showed at load (varEditChipRefShown); retyping
+             the field drops the reference for the literal. */
+          function keepRef(group, key, id) {
+            var d = varEditChipDraft;
+            if (!d || !d[group] || !d[group].refs || !d[group].refs[key]) return;
+            if (varEditChipRefShown[id] == null) return;
+            var inp = document.getElementById(id);
+            if (inp && inp.value === varEditChipRefShown[id]) {
+              if (!raw[group].refs) raw[group].refs = {};
+              raw[group].refs[key] = d[group].refs[key];
+            }
+          }
+          keepRef('stepper', 'step', 'varEditChipStep');
+          keepRef('stepper', 'min', 'varEditChipMin');
+          keepRef('stepper', 'max', 'varEditChipMax');
+          keepRef('slider', 'min', 'varEditChipSMin');
+          keepRef('slider', 'max', 'varEditChipSMax');
+          keepRef('slider', 'step', 'varEditChipSStep');
+          keepRef('toggle', 'a', 'varEditChipTogA');
+          keepRef('toggle', 'b', 'varEditChipTogB');
+          return chipNormalize(raw);
+        }
+
+        /* ================= Build -150: SHORTHAND =================
+           The Shorthand line renders a variable's canonical
+           state on one line and can re-derive every field:
+             Name @= value            (a plain value)
+             Name @= =formula         (a formula — the second
+                                       = is the formula marker)
+             … | local, Unit: g, stepper.max(100).min(10).step(5)
+           After the |, comma-separated attributes in any
+           order: scope (local / global); the anchor flag —
+           ANCHORED IS THE DEFAULT, so the meaningful token
+           is `unanchored` (a panel variable); `anchored` is
+           accepted as an explicit spelling of the default,
+           and formulas ignore anchoring entirely; a format
+           (a known format name, `Unit: X` with X verbatim,
+           or any other bare token, which becomes the Unit —
+           so % means Unit "%", never the Percent format);
+           and a chip type with chained .subtoken(value)
+           settings. Subtoken values may be numbers, quoted
+           strings, bare words, or VARIABLE REFERENCES (a bare
+           identifier, or @name) that bind by identity at
+           commit and stay live. The same grammar powers the
+           inline @= shorthand row in the document (WS3). */
+        var SH_FMT_LABEL = { whole: 'Whole', fixed2: 'Decimals', percent: 'Percent', usd: 'USD' };
+        var SH_FMT_TOKENS = { general: 'general', whole: 'whole', 'whole number': 'whole', decimals: 'fixed2', '2 decimals': 'fixed2', fixed2: 'fixed2', percent: 'percent', usd: 'usd' };
+        var SH_CHIP_SUBS = {
+          stepper: ['step', 'min', 'max'],
+          slider: ['step', 'min', 'max', 'inline'],
+          toggle: ['on', 'off'],
+          dropdown: ['options', 'segmented'],
+          checkbox: [], multiplier: [], date: [],
+        };
+        var shDirty = false;
+        var shFocused = false;
+        var shorthandTipsOn = true;
+        try { shorthandTipsOn = localStorage.getItem('folio-shorthand-tips') !== 'off'; } catch (e) {}
+        function setShorthandTips(on) {
+          shorthandTipsOn = !!on;
+          try { localStorage.setItem('folio-shorthand-tips', on ? 'on' : 'off'); } catch (e) {}
+          if (!on) shTipsHide();
+        }
+        function shInput() { return document.getElementById('varEditShorthand'); }
+        function shEnv() {
+          if (varEditCtx) return { scope: varEditCtx.scope, doc: fxCtxDoc(), selfId: varEditCtx.id };
+          return { scope: 'doc', doc: currentDoc(), selfId: null };
+        }
+        function shLev(a, b) {
+          var m = a.length, n = b.length;
+          var d = [];
+          for (var i = 0; i <= m; i++) { d.push([i]); }
+          for (var j = 1; j <= n; j++) d[0][j] = j;
+          for (var i2 = 1; i2 <= m; i2++) {
+            for (var j2 = 1; j2 <= n; j2++) {
+              d[i2][j2] = Math.min(d[i2 - 1][j2] + 1, d[i2][j2 - 1] + 1, d[i2 - 1][j2 - 1] + (a.charAt(i2 - 1) === b.charAt(j2 - 1) ? 0 : 1));
+            }
+          }
+          return d[m][n];
+        }
+        function shSuggestName(name, scope, doc) {
+          var names = [];
+          if (scope === 'doc' && doc) varDocList(doc.id).forEach(function (r) { names.push(r.name); });
+          varStore.globals.forEach(function (r) { names.push(r.name); });
+          var low = String(name || '').toLowerCase();
+          var best = null, bestD = 99;
+          names.forEach(function (nm) {
+            var l2 = nm.toLowerCase();
+            var d = l2.indexOf(low) === 0 || low.indexOf(l2) === 0 ? 1 : shLev(low, l2);
+            if (d < bestD) { bestD = d; best = nm; }
           });
+          return bestD <= 2 ? best : null;
+        }
+        function shUnknownMsg(name, scope, doc) {
+          var sug = shSuggestName(name, scope, doc);
+          return "Unknown variable '" + name + "'" + (sug ? " — did you mean '" + sug + "'?" : '.');
+        }
+        function shSplitAttrs(rest) {
+          var depth = 0, inQ = false;
+          for (var i = 0; i < rest.length; i++) {
+            var c = rest.charAt(i);
+            if (inQ) { if (c === '"') { if (rest.charAt(i + 1) === '"') i++; else inQ = false; } continue; }
+            if (c === '"') { inQ = true; continue; }
+            if (c === '(') depth++;
+            else if (c === ')') depth--;
+            else if (c === '|' && depth === 0) {
+              var attrRaw = rest.slice(i + 1);
+              var toks = [];
+              var d2 = 0, q2 = false, start = 0;
+              for (var j = 0; j <= attrRaw.length; j++) {
+                var cj = attrRaw.charAt(j);
+                if (j === attrRaw.length || (cj === ',' && d2 === 0 && !q2)) {
+                  var t = attrRaw.slice(start, j).trim();
+                  if (t) toks.push(t);
+                  start = j + 1;
+                  continue;
+                }
+                if (q2) { if (cj === '"') { if (attrRaw.charAt(j + 1) === '"') j++; else q2 = false; } continue; }
+                if (cj === '"') q2 = true;
+                else if (cj === '(') d2++;
+                else if (cj === ')') d2--;
+              }
+              return { value: rest.slice(0, i), attrs: toks };
+            }
+          }
+          return { value: rest, attrs: null };
+        }
+        function shSplitTop(s, sep) {
+          var out = [], depth = 0, inQ = false, start = 0;
+          for (var i = 0; i <= s.length; i++) {
+            var c = s.charAt(i);
+            if (i === s.length || (c === sep && depth === 0 && !inQ)) { out.push(s.slice(start, i)); start = i + 1; continue; }
+            if (inQ) { if (c === '"') { if (s.charAt(i + 1) === '"') i++; else inQ = false; } continue; }
+            if (c === '"') inQ = true;
+            else if (c === '(') depth++;
+            else if (c === ')') depth--;
+          }
+          return out;
+        }
+        function shUnquote(raw) {
+          var t = String(raw == null ? '' : raw).trim();
+          if (t.length >= 2 && t.charAt(0) === '"' && t.charAt(t.length - 1) === '"') return t.slice(1, -1).replace(/""/g, '"');
+          if (t.length >= 2 && t.charAt(0) === "'" && t.charAt(t.length - 1) === "'") return t.slice(1, -1);
+          return t;
+        }
+        function shQuote(s) {
+          s = String(s == null ? '' : s);
+          return /[\s,()"]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }
+        /* A numeric subtoken value: a number, or a variable
+           reference that must currently hold a number. */
+        function shSubNum(raw, typeName, subName, env) {
+          var t = String(raw == null ? '' : raw).trim();
+          var n = fxParseNum(t);
+          if (n !== null) return { num: n };
+          if (/^["']/.test(t)) return { error: typeName + '.' + subName + ' expects a number.' };
+          var nm = t.charAt(0) === '@' ? t.slice(1) : t;
+          if (!VAR_NAME_RE.test(nm)) return { error: typeName + '.' + subName + ' expects a number.' };
+          var f = fxFindByNameIn(env.scope, env.doc, nm);
+          if (!f) return { error: shUnknownMsg(nm, env.scope, env.doc), bad: nm };
+          var tv = varRecordValue(f.rec, f.scope === 'doc' ? env.doc : null);
+          if (fxParseNum(tv) === null) return { error: typeName + '.' + subName + ' points at \u201C' + nm + '\u201D, which isn\u2019t a number.' };
+          return { ref: { vid: f.rec.id, s: f.scope === 'doc' ? 'd' : 'g', n: f.rec.name } };
+        }
+        /* A text subtoken value (toggle on / off): quoted or
+           bare literals pass through; a bare identifier (or
+           @name) that names a variable binds as a live
+           reference, anything else is the literal word. */
+        function shSubText(raw, env) {
+          var t = String(raw == null ? '' : raw).trim();
+          if (/^["']/.test(t)) return { text: shUnquote(t) };
+          var nm = t.charAt(0) === '@' ? t.slice(1) : t;
+          if (VAR_NAME_RE.test(nm)) {
+            var f = fxFindByNameIn(env.scope, env.doc, nm);
+            if (f) return { ref: { vid: f.rec.id, s: f.scope === 'doc' ? 'd' : 'g', n: f.rec.name } };
+            if (t.charAt(0) === '@') return { error: shUnknownMsg(nm, env.scope, env.doc), bad: nm };
+          }
+          return { text: t };
+        }
+        function shParseChipToken(tok, env) {
+          var m = /^([A-Za-z]+)((?:\.[A-Za-z]+(?:\([^()]*\))?)*)$/.exec(tok);
+          if (!m) return null;
+          var head = m[1].toLowerCase();
+          if (CHIP_TYPES.indexOf(head) === -1 && head !== 'none') return null;
+          var cfg = chipDefaults();
+          cfg.type = head === 'none' ? null : head;
+          if (head === 'none') {
+            if (m[2]) return { error: '\u201Cnone\u201D takes no settings — it just means no smart chip.' };
+            return { chip: cfg, chipType: null };
+          }
+          var allowed = SH_CHIP_SUBS[head] || [];
+          var subRe = /\.([A-Za-z]+)(?:\(([^()]*)\))?/g;
+          var sm;
+          while ((sm = subRe.exec(m[2])) !== null) {
+            var sub = sm[1].toLowerCase();
+            var arg = sm[2];
+            if (allowed.indexOf(sub) === -1) {
+              return { error: head + '.' + sub + ' isn\u2019t a setting' + (allowed.length ? ' — ' + head + ' takes ' + allowed.join(', ') + '.' : ' — ' + head + ' takes no settings.') };
+            }
+            if (head === 'stepper' || head === 'slider') {
+              var grp = head;
+              if (sub === 'inline') {
+                if (arg === undefined || arg.trim() === '' || arg.trim().toLowerCase() === 'true') cfg.slider.inline = true;
+                else if (arg.trim().toLowerCase() === 'false') cfg.slider.inline = false;
+                else return { error: 'slider.inline expects true or false.' };
+                continue;
+              }
+              var r = shSubNum(arg == null ? '' : arg, head, sub, env);
+              if (r.error) return r;
+              if (r.ref) {
+                if (!cfg[grp].refs) cfg[grp].refs = {};
+                cfg[grp].refs[sub] = r.ref;
+              } else {
+                cfg[grp][sub] = r.num;
+              }
+            } else if (head === 'toggle') {
+              var key = sub === 'on' ? 'a' : 'b';
+              var rt = shSubText(arg == null ? '' : arg, env);
+              if (rt.error) return rt;
+              if (rt.ref) {
+                if (!cfg.toggle.refs) cfg.toggle.refs = {};
+                cfg.toggle.refs[key] = rt.ref;
+              } else {
+                cfg.toggle[key] = rt.text;
+              }
+            } else if (head === 'dropdown') {
+              if (sub === 'segmented') {
+                if (arg === undefined || arg.trim() === '' || arg.trim().toLowerCase() === 'true') cfg.dropdown.segmented = true;
+                else if (arg.trim().toLowerCase() === 'false') cfg.dropdown.segmented = false;
+                else return { error: 'dropdown.segmented expects true or false.' };
+                continue;
+              }
+              var items = shSplitTop(arg == null ? '' : arg, ',');
+              var opts = [];
+              for (var oi = 0; oi < items.length; oi++) {
+                var it = items[oi].trim();
+                if (!it) continue;
+                if (/^["']/.test(it)) { opts.push({ k: 'lit', v: shUnquote(it) }); continue; }
+                var nm2 = it.charAt(0) === '@' ? it.slice(1) : it;
+                var f2 = VAR_NAME_RE.test(nm2) ? fxFindByNameIn(env.scope, env.doc, nm2) : null;
+                if (f2) { opts.push({ k: 'ref', vid: f2.rec.id, s: f2.scope === 'doc' ? 'd' : 'g', n: f2.rec.name }); continue; }
+                if (it.charAt(0) === '@') return { error: shUnknownMsg(nm2, env.scope, env.doc), bad: nm2 };
+                opts.push({ k: 'lit', v: it });
+              }
+              cfg.dropdown.options = opts;
+            }
+          }
+          return { chip: chipNormalize(cfg), chipType: head };
+        }
+        /* The parser. env = { scope:'doc'|'global', doc,
+           selfId }. Answers { ok:true, name, mode, value,
+           tokens, scope, anchor:'anchored'|'unanchored'|null,
+           fmt, unit, chipProvided, chipType, chip } or
+           { ok:false, msg, bad }. */
+        function shParseLine(text, env) {
+          env = env || { scope: 'doc', doc: null, selfId: null };
+          function err(msg, bad) { return { ok: false, msg: msg, bad: bad || null }; }
+          var s = String(text == null ? '' : text);
+          var at = s.indexOf('@=');
+          if (at === -1) return err('The line needs \u201C@=\u201D after the name — like Flour @= 100.');
+          var name = s.slice(0, at).trim();
+          if (!VAR_NAME_RE.test(name)) return err('Names start with a letter; letters, digits and underscores after that.', name || null);
+          var split = shSplitAttrs(s.slice(at + 2));
+          var valuePart = split.value.trim();
+          /* References resolve against the scope the LINE
+             declares, not the scope of the surface it was
+             typed into: the line describes the variable as
+             it will exist once committed, so
+             "… | local, stepper.max(limit)" must see this
+             document's variables even when typed into a
+             global create (where the commit then creates
+             it locally), and a global line must not bind a
+             document variable it could never see again. */
+          var targetScope = env.scope;
+          if (split.attrs) {
+            for (var pi = 0; pi < split.attrs.length; pi++) {
+              var plow = split.attrs[pi].toLowerCase();
+              if (plow === 'local') targetScope = 'doc';
+              else if (plow === 'global') targetScope = 'global';
+            }
+          }
+          var renv = { scope: targetScope, doc: env.doc, selfId: env.selfId };
+          var st = {
+            ok: true, name: name, mode: 'value', value: '', tokens: null,
+            scope: targetScope, anchor: null, fmt: null, unit: null,
+            chipProvided: false, chipType: null, chip: null,
+          };
+          if (valuePart.charAt(0) === '=') {
+            var exprText = valuePart.slice(1).trim();
+            if (!exprText) return err('The formula is empty after the = sign.');
+            var conv = fxTokensFromText(exprText, renv.scope, renv.doc, name, renv.selfId);
+            if (conv.error) {
+              if (conv.unknown) return err(shUnknownMsg(conv.unknown, renv.scope, renv.doc), conv.unknown);
+              return err(conv.error);
+            }
+            try { fxParse(conv.tokens); } catch (e) { return err((e && e.fx) || 'The formula can\u2019t be read.'); }
+            st.mode = 'formula';
+            st.tokens = conv.tokens;
+          } else {
+            st.value = valuePart;
+          }
+          if (split.attrs) {
+            for (var i = 0; i < split.attrs.length; i++) {
+              var tok = split.attrs[i];
+              var low = tok.toLowerCase();
+              if (low === 'local') { st.scope = 'doc'; continue; }
+              if (low === 'global') { st.scope = 'global'; continue; }
+              if (low === 'unanchored') { st.anchor = 'unanchored'; continue; }
+              if (low === 'anchored') { st.anchor = 'anchored'; continue; }
+              if (Object.prototype.hasOwnProperty.call(SH_FMT_TOKENS, low)) { st.fmt = SH_FMT_TOKENS[low]; continue; }
+              if (/^unit\s*:/i.test(tok)) {
+                st.fmt = 'unit';
+                var ux = tok.slice(tok.indexOf(':') + 1);
+                if (ux.charAt(0) === ' ') ux = ux.slice(1);
+                st.unit = ux;
+                continue;
+              }
+              var chipRes = shParseChipToken(tok, renv);
+              if (chipRes) {
+                if (chipRes.error) return err(chipRes.error, chipRes.bad || null);
+                st.chipProvided = true;
+                st.chipType = chipRes.chipType;
+                st.chip = chipRes.chip;
+                continue;
+              }
+              /* A token that OPENS like a chip setting but
+                 doesn't parse (unbalanced parens, a garbled
+                 chain) is an error, not a Unit — the Unit
+                 rule below is for plain words. */
+              var chipHeadM = /^([A-Za-z]+)[.(]/.exec(tok);
+              if (chipHeadM && (CHIP_TYPES.indexOf(chipHeadM[1].toLowerCase()) !== -1 || chipHeadM[1].toLowerCase() === 'none')) {
+                return err('\u201C' + tok + '\u201D can\u2019t be read as a chip setting — check the parentheses and subtokens.', tok);
+              }
+              /* The owner's rule: a bare token that is none
+                 of the above becomes the Unit, trimmed. */
+              st.fmt = 'unit';
+              st.unit = tok.trim();
+            }
+          }
+          /* A value like 100g splits into number + Unit —
+             when the line carries an attribute tail (the
+             shorthand row is an opt-in, like the -146 Unit
+             row) and no explicit format attribute already
+             spoke (the attribute wins). A tail-less line
+             never reinterprets its value: "5 eggs" stays
+             the plain text "5 eggs". */
+          if (st.mode !== 'formula' && st.fmt === null && split.attrs !== null) {
+            var up = varAtUnitParse(st.value);
+            if (up) { st.value = up.num; st.fmt = 'unit'; st.unit = up.suffix; }
+          }
+          if (st.fmt === null) st.fmt = 'general';
+          if (st.fmt !== 'unit') st.unit = st.unit || null;
+          return st;
+        }
+        /* Merge a parsed chip over a base config: the chosen
+           type's group comes from the parse, the other
+           groups keep the base's parked settings. */
+        function shMergeChip(baseRaw, st) {
+          var base = chipNormalize(baseRaw || null);
+          if (!st || !st.chipProvided) return base;
+          var merged = {
+            type: st.chipType,
+            stepper: st.chipType === 'stepper' ? st.chip.stepper : base.stepper,
+            slider: st.chipType === 'slider' ? st.chip.slider : base.slider,
+            toggle: st.chipType === 'toggle' ? st.chip.toggle : base.toggle,
+            dropdown: st.chipType === 'dropdown' ? st.chip.dropdown : base.dropdown,
+          };
+          return chipNormalize(merged);
+        }
+        function shEvalTokens(tokens, scope, doc, name) {
+          try {
+            var ast = fxParse(tokens);
+            var pseudo = { id: '__sh_eval__', name: name || 'variable', expr: JSON.stringify(tokens) };
+            var sess = fxNewSession(pseudo, { scope: scope, doc: doc });
+            return fxEvalAst(ast, { scope: scope, doc: doc }, sess);
+          } catch (e) {
+            return { ok: false, code: '#VALUE!', msg: (e && e.fx) || 'That formula can\u2019t be evaluated.' };
+          }
+        }
+        /* ----- rendering the line from state ----- */
+        function shRefName(ref) { return (ref && (ref.n || varNameForId(ref.vid))) || 'variable'; }
+        function shChipToken(cfg) {
+          if (!cfg || !cfg.type) return '';
+          var t = cfg.type;
+          function numSub(group, key, label, skipVal) {
+            var g = cfg[group];
+            var ref = g.refs && g.refs[key];
+            if (ref) return '.' + label + '(' + shRefName(ref) + ')';
+            var v = g[key];
+            if (v === null || v === undefined || v === skipVal) return '';
+            return '.' + label + '(' + fxGeneral(v) + ')';
+          }
+          if (t === 'stepper') return 'stepper' + numSub('stepper', 'step', 'step', 1) + numSub('stepper', 'min', 'min', null) + numSub('stepper', 'max', 'max', null);
+          if (t === 'slider') {
+            var s = 'slider' + numSub('slider', 'min', 'min', 0) + numSub('slider', 'max', 'max', 100) + numSub('slider', 'step', 'step', 1);
+            if (cfg.slider.inline === false) s += '.inline(false)';
+            return s;
+          }
+          if (t === 'toggle') {
+            function tg(key, label) {
+              var ref = cfg.toggle.refs && cfg.toggle.refs[key];
+              return '.' + label + '(' + (ref ? shRefName(ref) : shQuote(cfg.toggle[key === 'a' ? 'a' : 'b'])) + ')';
+            }
+            return 'toggle' + tg('a', 'on') + tg('b', 'off');
+          }
+          if (t === 'dropdown') {
+            var d = 'dropdown';
+            if (cfg.dropdown.options.length) {
+              d += '.options(' + cfg.dropdown.options.map(function (o) {
+                return o.k === 'ref' ? '@' + (o.n || varNameForId(o.vid) || 'variable') : shQuote(o.v);
+              }).join(', ') + ')';
+            }
+            if (cfg.dropdown.segmented === false) d += '.segmented(false)';
+            return d;
+          }
+          return t;
+        }
+        function shLineFromState(st) {
+          var line = st.name + ' @= ' + (st.mode === 'formula' ? '=' + st.formulaText : st.value);
+          var attrs = [];
+          attrs.push(st.scope === 'global' ? 'global' : 'local');
+          if (st.mode !== 'formula' && !st.anchored) attrs.push('unanchored');
+          if (st.fmt === 'unit') attrs.push('Unit: ' + (st.unit || ''));
+          else if (st.fmt && st.fmt !== 'general') attrs.push(SH_FMT_LABEL[st.fmt] || st.fmt);
+          var ct = shChipToken(st.chip);
+          if (ct) attrs.push(ct);
+          return line + ' | ' + attrs.join(', ');
+        }
+        function shStateFromFields() {
+          if (!varEditCtx) return null;
+          var rec = varEditCtx.id ? (varEditCtx.scope === 'doc' ? varDocVar(varEditCtx.docId, varEditCtx.id) : varGlobalById(varEditCtx.id)) : null;
+          var formulaText = '';
+          if (varEditMode === 'formula') {
+            var coll = fxCollect();
+            if (coll.tokens) formulaText = fxTokensText(coll.tokens);
+            else {
+              formulaText = fxReadSegs().map(function (sg) { return sg.k === 'r' ? (varNameForId(sg.vid) || sg.n || '') : sg.text; }).join('').trim();
+            }
+          }
+          return {
+            name: document.getElementById('varEditName').value.trim(),
+            mode: varEditMode,
+            value: document.getElementById('varEditValue').value,
+            formulaText: formulaText,
+            scope: varEditCtx.scope,
+            anchored: !!(rec && rec.anchor) && varEditAnchorChoice !== 'move',
+            fmt: document.getElementById('varEditFormat').value,
+            unit: document.getElementById('varEditUnit').value,
+            chip: varEditChipCollect(),
+          };
+        }
+        function shRenderFromFields() {
+          var inp = shInput();
+          if (!inp || !varEditCtx || shFocused) return;
+          var st = shStateFromFields();
+          if (!st) return;
+          inp.value = shLineFromState(st);
+          shHideError();
+        }
+        /* ----- quick-look ----- */
+        function shChipSummary(cfg) {
+          if (!cfg || !cfg.type) return '';
+          function ns(group, key, label) {
+            var g = cfg[group];
+            var ref = g.refs && g.refs[key];
+            if (ref) return label + ' ' + shRefName(ref);
+            var v = g[key];
+            return (v === null || v === undefined) ? '' : label + ' ' + fxGeneral(v);
+          }
+          var parts = [];
+          if (cfg.type === 'stepper') parts = [ns('stepper', 'step', 'step'), ns('stepper', 'min', 'min'), ns('stepper', 'max', 'max')].filter(Boolean);
+          else if (cfg.type === 'slider') parts = [ns('slider', 'min', 'min'), ns('slider', 'max', 'max'), ns('slider', 'step', 'step')].filter(Boolean);
+          else if (cfg.type === 'toggle') {
+            var ra = cfg.toggle.refs && cfg.toggle.refs.a, rb = cfg.toggle.refs && cfg.toggle.refs.b;
+            parts = ['on ' + (ra ? shRefName(ra) : cfg.toggle.a), 'off ' + (rb ? shRefName(rb) : cfg.toggle.b)];
+          }
+          else if (cfg.type === 'dropdown') parts = [cfg.dropdown.options.length + (cfg.dropdown.options.length === 1 ? ' option' : ' options')];
+          return parts.length ? ' (' + parts.join(', ') + ')' : '';
+        }
+        function shRenderQuickLook() {
+          var q = document.getElementById('varQuickLook');
+          if (!q) return;
+          q.innerHTML = '';
+          if (!varEditCtx) return;
+          var st = shStateFromFields();
+          if (!st) return;
+          var strong = document.createElement('strong');
+          strong.textContent = st.name || '(unnamed)';
+          q.appendChild(strong);
+          var bits = [];
+          bits.push(varEditCtx.scope === 'global' ? 'global variable' : 'document variable');
+          if (st.mode === 'formula') {
+            bits.push('panel formula');
+            var w = fxWorkingEval();
+            bits.push('= ' + st.formulaText + ' \u2192 ' + (w && w.result ? fxResultDisplay(w.result, st.fmt, st.unit) : '\u2026'));
+          } else {
+            bits.push(st.anchored ? 'anchored in the text' : 'defined in the panel');
+            bits.push('value \u201C' + varDisplayText({ fmt: st.fmt === 'general' ? undefined : st.fmt, unit: st.unit || undefined }, st.value) + '\u201D');
+          }
+          if (st.fmt === 'unit') bits.push('Unit \u201C' + (st.unit || '') + '\u201D');
+          else if (st.fmt && st.fmt !== 'general') bits.push((SH_FMT_LABEL[st.fmt] || st.fmt) + ' format');
+          if (st.chip && st.chip.type) bits.push(st.chip.type + ' chip' + shChipSummary(st.chip));
+          q.appendChild(document.createTextNode(' \u2014 ' + bits.join(' \u00B7 ')));
+        }
+        function shFieldChanged() {
+          if (!varEditCtx) return;
+          shRenderFromFields();
+          shRenderQuickLook();
+        }
+        /* ----- errors ----- */
+        function shShowError(p) {
+          var inp = shInput();
+          var el = document.getElementById('varShorthandError');
+          if (inp) inp.classList.add('invalid');
+          if (!el) return;
+          var msg = typeof p === 'string' ? p : p.msg;
+          var bad = typeof p === 'string' ? null : p.bad;
+          el.innerHTML = '';
+          if (bad && msg.indexOf(bad) !== -1) {
+            var ix = msg.indexOf(bad);
+            el.appendChild(document.createTextNode(msg.slice(0, ix)));
+            var sp = document.createElement('span');
+            sp.className = 'sh-bad';
+            sp.textContent = bad;
+            el.appendChild(sp);
+            el.appendChild(document.createTextNode(msg.slice(ix + bad.length)));
+          } else {
+            el.textContent = msg;
+          }
+          el.hidden = false;
+        }
+        function shHideError() {
+          var inp = shInput();
+          var el = document.getElementById('varShorthandError');
+          if (inp) inp.classList.remove('invalid');
+          if (el) { el.hidden = true; el.textContent = ''; }
+        }
+        /* ----- applying a parsed line to the modal ----- */
+        function shApplyToModal(st) {
+          var ctx = varEditCtx;
+          if (!ctx) return false;
+          var rec = ctx.id ? (ctx.scope === 'doc' ? varDocVar(ctx.docId, ctx.id) : varGlobalById(ctx.id)) : null;
+          if (ctx.id && !rec) return false;
+          document.getElementById('varEditName').value = st.name;
+          if (st.scope !== ctx.scope) {
+            if (ctx.id && ctx.scope === 'doc' && st.scope === 'global') {
+              if (varGlobalByName(st.name)) {
+                shShowError('A global variable named \u201C' + st.name + '\u201D already exists — use Promote in the Definition tile to resolve it.');
+                return false;
+              }
+              var promoted = null;
+              varPromote(rec, function (fr) { promoted = fr; });
+              if (!promoted) { shShowError('That promotion needs a decision — use Promote in the Definition tile.'); return false; }
+              ctx.scope = 'global';
+              ctx.id = promoted.id;
+              rec = promoted;
+              varEditSyncPromote();
+            } else if (ctx.id) {
+              shShowError('A global variable can\u2019t become document-only from the shorthand line.');
+              return false;
+            } else {
+              ctx.scope = st.scope;
+              document.getElementById('varEditTitle').textContent = st.scope === 'doc' ? 'New document variable' : 'New global variable';
+            }
+          }
+          if (st.mode === 'value') {
+            if (st.anchor === 'unanchored' && ctx.wasAnchored) {
+              varEditAnchorPick = 'move';
+              varEditSyncAnchorChoice();
+            } else if (st.anchor === 'anchored') {
+              if (ctx.wasAnchored) {
+                varEditAnchorPick = 'keep';
+                varEditSyncAnchorChoice();
+              } else {
+                shShowError('Only text can anchor a variable — define it inline with @= in the document to anchor it.');
+                return false;
+              }
+            }
+          }
+          if (st.mode === 'formula') {
+            varEditSetMode('formula');
+            fxLoadTokens(st.tokens);
+            fxUpdatePreview();
+          } else {
+            varEditSetMode('value');
+            document.getElementById('varEditValue').value = st.value;
+          }
+          document.getElementById('varEditFormat').value = st.fmt || 'general';
+          document.getElementById('varEditUnit').value = st.unit || '';
+          varEditSyncFormat();
+          if (st.mode === 'formula') fxUpdatePreview();
+          if (st.chipProvided) {
+            varEditChipDraft = shMergeChip(varEditChipDraft, st);
+            varEditChipPopulateInputs();
+          }
+          shDirty = false;
+          shHideError();
+          shRenderFromFields();
+          shRenderQuickLook();
+          return true;
+        }
+        function shCommitLine() {
+          var inp = shInput();
+          if (!inp || !varEditCtx) return false;
+          var p = shParseLine(inp.value, shEnv());
+          if (!p.ok) { shShowError(p); return false; }
+          return shApplyToModal(p);
+        }
+        function shGateSave() {
+          if (!varEditCtx || !shDirty) return true;
+          var inp = shInput();
+          if (!inp) return true;
+          var p = shParseLine(inp.value, shEnv());
+          if (!p.ok) { shShowError(p); varEditError(p.msg); return false; }
+          return shApplyToModal(p);
+        }
+        function shValidateLive() {
+          var inp = shInput();
+          if (!inp || !varEditCtx) return;
+          var p = shParseLine(inp.value, shEnv());
+          if (p.ok) { shHideError(); return; }
+          /* Mid-token grace: while the caret sits inside
+             the very token the parser tripped on, the line
+             is still being typed — the tips popover is the
+             guide there, not a red flash. The error shows
+             as soon as the token is finished (more text
+             follows it) and always on commit (Enter / the
+             Save gate re-parse in full). */
+          var caret = typeof inp.selectionStart === 'number' ? inp.selectionStart : inp.value.length;
+          var before = inp.value.slice(0, caret);
+          if (p.bad && before.replace(/\s+$/, '').slice(-p.bad.length) === p.bad) { shHideError(); return; }
+          var attrIx = before.lastIndexOf(',');
+          var curTok = (attrIx === -1 ? before : before.slice(attrIx + 1)).trim();
+          var chainM = /^([A-Za-z]+)((?:\.[A-Za-z]*(?:\([^)]*)?)*)$/.exec(curTok);
+          if (chainM && CHIP_TYPES.indexOf(chainM[1].toLowerCase()) !== -1) {
+            var tail = chainM[2] || '';
+            var opens = (tail.match(/\(/g) || []).length;
+            var closes = (tail.match(/\)/g) || []).length;
+            if (curTok.charAt(curTok.length - 1) === '.' || opens > closes || /\.[A-Za-z]+$/.test(tail)) { shHideError(); return; }
+          }
+          shShowError(p);
+        }
+        function shResetForOpen() {
+          shDirty = false;
+          shHideError();
+          shTipsHide();
+          shRenderFromFields();
+          shRenderQuickLook();
+        }
+        /* ----- tips popover (Sheets-style) ----- */
+        var shTipsEl = null;
+        var shTipsItems = [];
+        var shTipsSel = 0;
+        var shTipsRange = null;
+        function shTipsHide() {
+          if (shTipsEl) shTipsEl.hidden = true;
+          shTipsItems = [];
+          shTipsRange = null;
+        }
+        var SH_FN_SIGS = { ROUND: 'ROUND(number, digits)', ABS: 'ABS(number)', MIN: 'MIN(a, b, \u2026)', MAX: 'MAX(a, b, \u2026)', SUM: 'SUM(a, b, \u2026)', AVERAGE: 'AVERAGE(a, b, \u2026)', IF: 'IF(condition, then, else)', CONCAT: 'CONCAT(a, b, \u2026)', LEN: 'LEN(text)', UPPER: 'UPPER(text)', LOWER: 'LOWER(text)' };
+        function shTipsVarItems(partial) {
+          var out = [];
+          var selfId = varEditCtx ? varEditCtx.id : null;
+          fxScopeEntries().forEach(function (en) {
+            if (en.rec.id === selfId) return;
+            if (partial && en.rec.name.toLowerCase().indexOf(partial.toLowerCase()) === -1) return;
+            out.push({ main: en.rec.name, val: varDisplayValue(en.rec, en.scope === 'doc' ? fxCtxDoc() : null), ins: en.rec.name });
+          });
+          return out.slice(0, 6);
+        }
+        function shTipsBuild() {
+          var inp = shInput();
+          if (!inp) return null;
+          var text = inp.value;
+          var caret = typeof inp.selectionStart === 'number' ? inp.selectionStart : text.length;
+          var before = text.slice(0, caret);
+          var split = shSplitAttrs(before);
+          if (split.attrs !== null) {
+            /* attribute segment: the token being typed */
+            var attrPart = before.slice(before.indexOf('|') + 1);
+            var toks = attrPart.split(',');
+            var cur = toks[toks.length - 1];
+            var curStart = caret - cur.length;
+            var curTrim = cur.replace(/^\s+/, '');
+            var trimStart = curStart + (cur.length - curTrim.length);
+            var chainM = /^([A-Za-z]+)((?:\.[A-Za-z]*(?:\([^)]*)?)*)$/.exec(curTrim);
+            if (chainM && (CHIP_TYPES.indexOf(chainM[1].toLowerCase()) !== -1)) {
+              var head = chainM[1].toLowerCase();
+              var tail = chainM[2] || '';
+              var openIx = tail.lastIndexOf('(');
+              var closeIx = tail.lastIndexOf(')');
+              if (openIx !== -1 && openIx > closeIx) {
+                /* inside subtoken parens: expected type + variables */
+                var subM = /\.([A-Za-z]+)\([^)]*$/.exec(tail);
+                var subName = subM ? subM[1].toLowerCase() : '';
+                var argPart = tail.slice(openIx + 1);
+                var argStart = caret - argPart.length;
+                var items = shTipsVarItems(argPart.replace(/^@/, ''));
+                return { head: head + '.' + subName + ' — a number or a variable', items: items, range: { from: argStart, to: caret } };
+              }
+              var dotIx = tail.lastIndexOf('.');
+              var partialSub = dotIx === -1 ? null : tail.slice(dotIx + 1);
+              if (partialSub !== null && !/\(/.test(partialSub)) {
+                var sigs = { step: '(number or variable)', min: '(number or variable)', max: '(number or variable)', inline: '(true or false)', on: '(value or variable)', off: '(value or variable)', options: '(a, b, \u2026)', segmented: '(true or false)' };
+                var subs = (SH_CHIP_SUBS[head] || []).filter(function (sn) { return !partialSub || sn.indexOf(partialSub.toLowerCase()) === 0; });
+                return {
+                  head: head + ' settings',
+                  items: subs.map(function (sn) { return { main: sn, sig: sigs[sn] || '', ins: sn + '(' }; }),
+                  range: { from: caret - partialSub.length, to: caret },
+                };
+              }
+              return null;
+            }
+            var attrItems = [
+              { main: 'local', desc: 'This document only', ins: 'local' },
+              { main: 'global', desc: 'Every document', ins: 'global' },
+              { main: 'unanchored', desc: 'Panel variable — not defined in text', ins: 'unanchored' },
+              { main: 'anchored', desc: 'Defined in the text (the default)', ins: 'anchored' },
+              { main: 'Percent', desc: 'Display format', ins: 'Percent' },
+              { main: 'USD', desc: 'Display format', ins: 'USD' },
+              { main: 'Whole', desc: 'Format — whole number', ins: 'Whole' },
+              { main: 'Decimals', desc: 'Format — 2 decimals', ins: 'Decimals' },
+              { main: 'Unit: ', desc: 'Format — suffix after the number', ins: 'Unit: ' },
+              { main: 'stepper', desc: 'Smart chip', ins: 'stepper' },
+              { main: 'slider', desc: 'Smart chip', ins: 'slider' },
+              { main: 'toggle', desc: 'Smart chip', ins: 'toggle' },
+              { main: 'dropdown', desc: 'Smart chip', ins: 'dropdown' },
+              { main: 'checkbox', desc: 'Smart chip', ins: 'checkbox' },
+              { main: 'multiplier', desc: 'Smart chip', ins: 'multiplier' },
+              { main: 'date', desc: 'Smart chip', ins: 'date' },
+              { main: 'none', desc: 'No smart chip', ins: 'none' },
+            ].filter(function (it) { return !curTrim || it.main.toLowerCase().indexOf(curTrim.toLowerCase()) === 0; });
+            return { head: 'Attributes', items: attrItems.slice(0, 8), range: { from: trimStart, to: caret } };
+          }
+          var atIx = before.indexOf('@=');
+          if (atIx === -1) return null;
+          var valPart = before.slice(atIx + 2).replace(/^\s+/, '');
+          if (valPart.charAt(0) !== '=') return null;
+          var wordM = /([A-Za-z][A-Za-z0-9_]*)$/.exec(before);
+          var word = wordM ? wordM[1] : '';
+          var items2 = [];
+          Object.keys(SH_FN_SIGS).forEach(function (fn) {
+            if (!word || fn.indexOf(word.toUpperCase()) === 0) items2.push({ main: fn, sig: SH_FN_SIGS[fn], ins: fn + '(' });
+          });
+          items2 = items2.concat(shTipsVarItems(word));
+          return { head: 'Formula', items: items2.slice(0, 8), range: { from: caret - word.length, to: caret } };
+        }
+        function shTipsShow() {
+          if (!shorthandTipsOn || !varEditCtx || !shFocused) { shTipsHide(); return; }
+          var built = null;
+          try { built = shTipsBuild(); } catch (e) { built = null; }
+          if (!built || !built.items.length) { shTipsHide(); return; }
+          var inp = shInput();
+          if (!inp) return;
+          shTipsItems = built.items;
+          shTipsRange = built.range;
+          if (shTipsSel >= shTipsItems.length) shTipsSel = 0;
+          if (!shTipsEl) {
+            shTipsEl = document.createElement('div');
+            shTipsEl.className = 'sh-tips';
+            shTipsEl.setAttribute('role', 'listbox');
+            shTipsEl.setAttribute('aria-label', 'Shorthand suggestions');
+            document.body.appendChild(shTipsEl);
+            shTipsEl.addEventListener('mousedown', function (ev) {
+              var b = ev.target && ev.target.closest ? ev.target.closest('.sh-tip-item') : null;
+              if (!b) return;
+              ev.preventDefault();
+              var i = parseInt(b.getAttribute('data-i'), 10);
+              if (!isNaN(i)) shTipsAccept(i);
+            });
+          }
+          shTipsEl.innerHTML = '';
+          var head = document.createElement('div');
+          head.className = 'sh-tips-head';
+          head.textContent = built.head;
+          shTipsEl.appendChild(head);
+          shTipsItems.forEach(function (it, i) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sh-tip-item' + (i === shTipsSel ? ' on' : '');
+            b.setAttribute('data-i', String(i));
+            var mn = document.createElement('span');
+            mn.className = 'sh-tip-main';
+            mn.textContent = it.main;
+            b.appendChild(mn);
+            if (it.sig) { var sg = document.createElement('span'); sg.className = 'sh-tip-sig'; sg.textContent = it.sig; b.appendChild(sg); }
+            if (it.desc) { var ds = document.createElement('span'); ds.className = 'sh-tip-desc'; ds.textContent = it.desc; b.appendChild(ds); }
+            if (it.val != null) { var vl = document.createElement('span'); vl.className = 'sh-tip-val'; vl.textContent = it.val; b.appendChild(vl); }
+            shTipsEl.appendChild(b);
+          });
+          shTipsEl.hidden = false;
+          var r = inp.getBoundingClientRect();
+          folioPopupPlace(shTipsEl, { left: r.left, top: r.top, bottom: r.bottom }, 6);
+        }
+        function shTipsAccept(i) {
+          var it = shTipsItems[i];
+          var inp = shInput();
+          if (!it || !inp || !shTipsRange) return;
+          var v = inp.value;
+          inp.value = v.slice(0, shTipsRange.from) + it.ins + v.slice(shTipsRange.to);
+          var caret = shTipsRange.from + it.ins.length;
+          inp.focus();
+          try { inp.setSelectionRange(caret, caret); } catch (e) {}
+          shDirty = true;
+          shTipsSel = 0;
+          shValidateLive();
+          shTipsShow();
+        }
+        /* ----- shorthand field + field-sync wiring ----- */
+        (function shWire() {
+          var inp = shInput();
+          if (inp) {
+            varFieldHygiene(inp);
+            inp.addEventListener('focus', function () { shFocused = true; shTipsShow(); });
+            inp.addEventListener('blur', function () { shFocused = false; setTimeout(shTipsHide, 140); });
+            inp.addEventListener('input', function () { shDirty = true; shTipsSel = 0; shValidateLive(); shTipsShow(); });
+            inp.addEventListener('click', function () { shTipsShow(); });
+            inp.addEventListener('keyup', function (ev) {
+              if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') shTipsShow();
+            });
+            inp.addEventListener('keydown', function (ev) {
+              if (shTipsItems.length && shTipsEl && !shTipsEl.hidden) {
+                if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                  ev.preventDefault(); ev.stopPropagation();
+                  shTipsSel = (shTipsSel + (ev.key === 'ArrowDown' ? 1 : -1) + shTipsItems.length) % shTipsItems.length;
+                  shTipsShow();
+                  return;
+                }
+                if (ev.key === 'Enter' || ev.key === 'Tab') {
+                  ev.preventDefault(); ev.stopPropagation();
+                  shTipsAccept(shTipsSel);
+                  return;
+                }
+                if (ev.key === 'Escape') {
+                  ev.preventDefault(); ev.stopPropagation();
+                  shTipsHide();
+                  return;
+                }
+              }
+              if (ev.key === 'Enter') {
+                ev.preventDefault();
+                shCommitLine();
+              }
+            }, true);
+          }
+          ['varEditName', 'varEditValue', 'varEditUnit'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.addEventListener('input', shFieldChanged);
+          });
+          var fmtEl = document.getElementById('varEditFormat');
+          if (fmtEl) fmtEl.addEventListener('change', shFieldChanged);
+          var chipWrap = document.getElementById('varEditChipWrap');
+          if (chipWrap) {
+            chipWrap.addEventListener('input', shFieldChanged);
+            chipWrap.addEventListener('change', shFieldChanged);
+          }
+          var exprEl = document.getElementById('varEditExpr');
+          if (exprEl) exprEl.addEventListener('input', shFieldChanged);
+        })();
+        /* ----- WS3: the inline @= shorthand row ----- */
+        function shPreviewText(item) {
+          var st = item.shorthand;
+          var doc = currentDoc();
+          var parts = [];
+          /* A redefinition keeps the existing record's
+             scope (the established semantics — the commit
+             paths agree), so the preview names THAT scope,
+             not the token the line happened to carry. */
+          var effScope = item.existingScope || st.scope;
+          parts.push(effScope === 'global' ? 'global' : 'local');
+          if (st.mode === 'formula') {
+            parts.push('formula');
+            if (st.fmt === 'unit') parts.push('Unit ' + (st.unit || ''));
+            else if (st.fmt && st.fmt !== 'general') parts.push(SH_FMT_LABEL[st.fmt] || st.fmt);
+            var r = shEvalTokens(st.tokens, 'doc', doc, st.name);
+            parts.push('\u2192 ' + (r.ok ? fxResultDisplay(r, st.fmt, st.unit) : r.code));
+          } else {
+            parts.push(st.value === '' ? '0' : st.value);
+            if (st.fmt === 'unit') parts.push('Unit ' + (st.unit || ''));
+            else if (st.fmt && st.fmt !== 'general') parts.push(SH_FMT_LABEL[st.fmt] || st.fmt);
+            if (!st.anchored) parts.push('not anchored');
+          }
+          if (st.chipProvided && st.chipType) {
+            var lbl = st.chipType.charAt(0).toUpperCase() + st.chipType.slice(1);
+            var subs = [];
+            if (st.chipType === 'stepper' || st.chipType === 'slider') {
+              var g = st.chip[st.chipType];
+              ['max', 'min', 'step'].forEach(function (k) {
+                var ref = g.refs && g.refs[k];
+                if (ref) subs.push(k + ' ' + shRefName(ref));
+                else if (g[k] !== null && g[k] !== undefined && g[k] !== (k === 'step' ? 1 : (st.chipType === 'slider' && k === 'max' ? 100 : 0))) subs.push(k + ' ' + fxGeneral(g[k]));
+              });
+            }
+            parts.push(lbl + (subs.length ? ' (' + subs.join(', ') + ')' : ''));
+          }
+          return (item.redefine ? 'Redefine ' : 'Define ') + st.name + ' \u2014 ' + parts.join(' \u00B7 ');
+        }
+        function varAtShorthandItem(name, value, doc) {
+          if (!value || value.indexOf('|') === -1) return null;
+          var p = shParseLine(name + ' @= ' + value, { scope: 'doc', doc: doc, selfId: null });
+          var existingDoc = varDocVarByName(doc.id, name);
+          var existing = existingDoc || varGlobalByName(name);
+          if (!p.ok) return { define: true, shorthandError: p.msg, name: name, value: value };
+          p.anchored = p.anchor !== 'unanchored';
+          return { define: true, shorthand: p, name: name, value: value, redefine: !!existing, existingScope: existing ? (existingDoc ? 'doc' : 'global') : null };
+        }
+        function varAtDefineShorthand(item) {
+          var st = item.shorthand;
+          var doc = currentDoc();
+          var range = varAtState.range;
+          if (!st || !doc || !range || !editorHandle || !editorHandle.editor) return;
+          var name = st.name;
+          var scope = 'doc';
+          var rec = varDocVarByName(doc.id, name);
+          if (!rec) { var g = varGlobalByName(name); if (g) { scope = 'global'; rec = g; } }
+          var targetScope = rec ? scope : st.scope;
+          function applyFmtChip(r) {
+            if (st.fmt && st.fmt !== 'general') { r.fmt = st.fmt; if (st.fmt === 'unit') { if (st.unit) r.unit = String(st.unit).slice(0, 32); else delete r.unit; } }
+            else if (st.fmt === 'general') { delete r.fmt; delete r.unit; }
+            if (st.chipProvided) r.chip = shMergeChip(r.chip, st);
+          }
+          if (st.mode === 'formula' || !st.anchored) {
+            varAtClose();
+            if (!rec) {
+              rec = { id: uid(), name: name, value: '', anchor: false };
+              if (targetScope === 'global') { rec.anchorDoc = null; rec.anchorDocTitle = null; varStore.globals.push(rec); }
+              else {
+                if (!varStore.docVars[doc.id]) varStore.docVars[doc.id] = [];
+                varStore.docVars[doc.id].push(rec);
+              }
+            }
+            if (st.mode === 'formula') {
+              rec.expr = JSON.stringify(st.tokens);
+              if (st.fmt && st.fmt !== 'general') { rec.fmt = st.fmt; if (st.fmt === 'unit' && st.unit) rec.unit = String(st.unit).slice(0, 32); }
+              else { delete rec.fmt; delete rec.unit; }
+              if (st.chipProvided) rec.chip = shMergeChip(rec.chip, st);
+              var disp = fxResultDisplay(shEvalTokens(st.tokens, targetScope, doc, name), rec.fmt, rec.unit);
+              rec.value = disp;
+              if (rec.anchor) varConvertAnchorToRef(targetScope, rec, disp);
+              rec.anchor = false;
+              if (targetScope === 'global') { rec.anchorDoc = null; rec.anchorDocTitle = null; }
+            } else {
+              if (rec.anchor) varConvertAnchorToRef(targetScope, rec, st.value);
+              rec.value = st.value;
+              if (rec.expr) delete rec.expr;
+              applyFmtChip(rec);
+            }
+            varSave();
+            var d2 = currentDoc();
+            if (!d2 || d2.id !== doc.id) return;
+            editorHandle.editor.chain().focus()
+              .deleteRange({ from: range.from, to: range.to })
+              .insertContent({ type: 'varRef', attrs: varRefAttrsFor(d2, targetScope, rec) })
+              .run();
+            varRefreshEditorRefs();
+            if (varPanelDocId) renderVarPanel();
+            return;
+          }
+          /* Anchored value: ride the established inline
+             define (anchor creation / move semantics and all),
+             then stamp the format and chip the tail asked
+             for. A brand-new GLOBAL anchored variable is
+             pre-created so the define finds it as a global
+             and anchors it in this document. */
+          if (!rec && st.scope === 'global') {
+            varStore.globals.push({ id: uid(), name: name, value: st.value, anchor: false, anchorDoc: null, anchorDocTitle: null });
+          }
+          var unitArg = null;
+          if (st.fmt === 'unit') unitArg = { num: st.value, suffix: st.unit || '' };
+          varAtDefineInline(name, st.value, unitArg);
+          var rec2 = varDocVarByName(doc.id, name) || varGlobalByName(name);
+          if (rec2) {
+            var changed = false;
+            if (st.fmt && st.fmt !== 'unit' && st.fmt !== 'general') { rec2.fmt = st.fmt; changed = true; }
+            if (st.fmt === 'general' && (rec2.fmt || rec2.unit)) { delete rec2.fmt; delete rec2.unit; changed = true; }
+            if (st.chipProvided) { rec2.chip = shMergeChip(rec2.chip, st); changed = true; }
+            if (changed) { varSave(); varRefreshEditorRefs(); if (varPanelDocId) renderVarPanel(); }
+          }
         }
 
         function openVarEdit(scope, rec, opts) {
@@ -14864,10 +16084,9 @@
              record's config as its draft (a new variable
              starts from the ratified defaults). */
           varEditChipLoad(rec);
-          /* Build -149: the accordion's per-open defaults,
-             computed from the record just loaded (see
-             varEditAccApplyDefaults). */
-          varEditAccApplyDefaults(rec);
+          /* Build -150: the quick-look and the Shorthand
+             line render from the just-loaded record. */
+          shResetForOpen();
           var err = document.getElementById('varEditError');
           err.hidden = true; err.textContent = '';
           document.getElementById('varEditModal').hidden = false;
@@ -14883,9 +16102,6 @@
             if (opts.atChip) {
               var csEl = document.getElementById('varEditChipType');
               var cwEl = document.getElementById('varEditChipWrap');
-              /* Build -149: landing at the chip section means
-                 it opens, whatever its default was. */
-              if (cwEl) varEditAccSet(cwEl, true);
               if (cwEl) cwEl.scrollIntoView({ block: 'nearest' });
               if (csEl) csEl.focus();
               return;
@@ -14914,6 +16130,10 @@
         function closeVarEdit() {
           fxCloseTokenPop();
           fxAtClose();
+          /* Build -150: the shorthand tips popover and its
+             focus state stand down with the modal. */
+          shTipsHide();
+          shFocused = false;
           document.getElementById('varEditModal').hidden = true;
           var ctx = varEditCtx;
           varEditCtx = null;
@@ -15879,6 +17099,8 @@
             segs: fxReadSegs(), caret: fxCaretProj(),
             declined: fxDeclinedPromote,
             parked: varEditParkedValue,
+            shText: shInput() ? shInput().value : '',
+            shDirty: shDirty,
             anchorPick: varEditAnchorPick,
             anchorChoice: varEditAnchorChoice,
             noteHidden: note ? note.hidden : true,
@@ -15910,6 +17132,10 @@
           err.hidden = true; err.textContent = '';
           fxRenderSegs(snap.segs);
           fxSetModeUI();
+          /* Build -150: the parked session's shorthand line
+             (and its dirty state) ride along too. */
+          if (shInput() && typeof snap.shText === 'string') { shInput().value = snap.shText; shDirty = !!snap.shDirty; }
+          shRenderQuickLook();
           document.getElementById('varEditModal').hidden = false;
           if (snap.mode === 'formula') {
             var el = fxFieldEl();
@@ -16054,6 +17280,11 @@
         }
         function varSaveEdit() {
           if (!varEditCtx) return;
+          /* Build -150: a hand-edited Shorthand line commits
+             first — an invalid line blocks the save with its
+             error showing; a valid one re-derives the fields
+             this save then reads. */
+          if (!shGateSave()) return;
           var kbSave = varEditKbSave;
           varEditKbSave = false;
           var ctx = varEditCtx;
@@ -16674,6 +17905,9 @@
           if (!t || t.name !== 'varAnchorChoice') return;
           varEditAnchorPick = t.value === 'move' ? 'move' : 'keep';
           varEditSyncAnchorChoice();
+          /* Build -150: the shorthand line follows the
+             Keep / Move choice (it is the same state). */
+          shFieldChanged();
         });
         /* ...and its keyboard half: Up/Down belong to the
            modal's zone travel (build -138's grammar), which
@@ -16769,6 +18003,9 @@
             }
           }
           fxSetModeUI();
+          /* Build -150: the shorthand line and quick-look
+             follow the source switch. */
+          shFieldChanged();
         }
         document.getElementById('varEditSrcValue').addEventListener('click', function () { varEditSetMode('value'); });
         document.getElementById('varEditSrcFormula').addEventListener('click', function () { varEditSetMode('formula'); });
@@ -17152,77 +18389,38 @@
            (native option changing), so it is never a zone
            you arrow OUT of — Tab covers that leg. */
         function varEditZones() {
+          /* Build -150 (Bento grid): the zones keep the
+             LOGICAL order regardless of tile placement —
+             Shorthand (it edits everything, so it leads) →
+             Name → Definition (the anchor choice's checked
+             radio, then Promote, when showing) → Value /
+             Formula (the source switch's active segment,
+             then the field) → Display format (and Unit while
+             showing) → Smart chip → the footer. Everything is
+             always visible in the grid, so no section ever
+             drops out of the walk except a hidden Definition
+             tile (Create) and a formula-dormant chip select. */
           var zones = [];
-          /* Build -149: the accordion headers are zones in
-             their own right, in section order, just ahead of
-             each section's fields. A collapsed section
-             contributes its header only — Arrow travel skips
-             its fields exactly as Tab does — and a section
-             that is not shown at all (Definition in Create,
-             per the -148 :has rule varEditAccVisible mirrors)
-             contributes nothing. Expanding a section rejoins
-             its fields in order on the next travel. */
-          function accHead(sec) {
-            if (!varEditAccVisible(sec)) return;
-            var b = sec.querySelector('.var-sec-toggle');
-            if (b) zones.push(b);
-          }
-          function accOpen(sec) {
-            return varEditAccVisible(sec) && !sec.classList.contains('is-collapsed');
-          }
-          var nameSec = document.getElementById('varSecName');
-          accHead(nameSec);
-          if (accOpen(nameSec)) zones.push(document.getElementById('varEditName'));
+          zones.push(shInput());
+          zones.push(document.getElementById('varEditName'));
           var defSec = document.getElementById('varSecDef');
-          accHead(defSec);
-          if (accOpen(defSec)) {
-            /* Build -141: the anchor choice, when it is
-               showing, is a zone between Name and Promote —
-               its checked radio is the group's one stop, the
-               same place Tab reaches it. In Formula mode the
-               radios are disabled (Move is forced), so the
-               zone drops out and travel skips it. */
+          if (defSec && varEditAccVisible(defSec)) {
             var noteBox = document.getElementById('varEditAnchorNote');
             if (noteBox && !noteBox.hidden && varEditCtx && varEditCtx.wasAnchored) {
               var checkedRadio = noteBox.querySelector('input[name="varAnchorChoice"]:checked');
               if (checkedRadio && !checkedRadio.disabled) zones.push(checkedRadio);
             }
-            /* Build -138: the Promote row, when it is showing
-               its button, is a zone between Name and the
-               switch — the same place Tab reaches it. (For a
-               global variable the row is plain text, and for a
-               new variable it is hidden: no zone either way.) */
             var promoteBox = document.getElementById('varEditPromote');
             var promoteBtn = document.getElementById('varEditPromoteBtn');
             if (promoteBtn && promoteBox && !promoteBox.hidden) zones.push(promoteBtn);
           }
-          var valSec = document.getElementById('varSecValue');
-          accHead(valSec);
-          if (accOpen(valSec)) {
-            zones.push(document.getElementById(varEditMode === 'value' ? 'varEditSrcValue' : 'varEditSrcFormula'));
-            zones.push(varEditMode === 'value' ? document.getElementById('varEditValue') : fxFieldEl());
-          }
-          var fmtSec = document.getElementById('varEditFormatWrap');
-          accHead(fmtSec);
-          if (accOpen(fmtSec)) {
-            /* Build -144: the format select is a zone in BOTH
-               modes now (it left the formula wrap), and the
-               Unit field joins it while it is showing. */
-            zones.push(document.getElementById('varEditFormat'));
-            var unitWrap = document.getElementById('varEditUnitWrap');
-            if (unitWrap && !unitWrap.hidden) zones.push(document.getElementById('varEditUnit'));
-          }
-          var chipSec = document.getElementById('varEditChipWrap');
-          accHead(chipSec);
-          if (accOpen(chipSec)) {
-            /* Build -142: the Smart chip type select is a zone
-               below the field (and below Format), arrived at
-               the same way Format is — a select keeps its own
-               Up/Down once focus rests on it. In Formula mode
-               the section is disabled and the zone drops out. */
-            var chipTypeEl = document.getElementById('varEditChipType');
-            if (chipTypeEl && !chipTypeEl.disabled) zones.push(chipTypeEl);
-          }
+          zones.push(document.getElementById(varEditMode === 'value' ? 'varEditSrcValue' : 'varEditSrcFormula'));
+          zones.push(varEditMode === 'value' ? document.getElementById('varEditValue') : fxFieldEl());
+          zones.push(document.getElementById('varEditFormat'));
+          var unitWrap = document.getElementById('varEditUnitWrap');
+          if (unitWrap && !unitWrap.hidden) zones.push(document.getElementById('varEditUnit'));
+          var chipTypeEl = document.getElementById('varEditChipType');
+          if (chipTypeEl && !chipTypeEl.disabled) zones.push(chipTypeEl);
           var cancel = document.getElementById('varEditCancel');
           zones.push(cancel.tabIndex === 0 ? cancel : document.getElementById('varEditSave'));
           return zones.filter(Boolean);
@@ -17283,33 +18481,14 @@
           if (ev.target && ev.target.closest && ev.target.closest('.fx-token')) return;
           fxCloseTokenPop();
         });
-        /* Build -149 (accordion trial): the Edit variable
-           modal's five -148 sections collapse and expand
-           independently (multi-open) from their head buttons.
-           Collapsing is paint only — an .is-collapsed class
-           the CSS answers by hiding the section's body — so
-           typed values survive a collapse / re-expand round
-           trip untouched, and Save reads the same fields
-           either way. Enter / Space on a focused head toggles
-           it (the button's native activation); if a collapse
-           ever lands while focus sits inside the section,
-           focus moves to that section's head rather than
-           stranding in hidden content. */
-        function varEditAccSet(sec, expanded) {
-          if (!sec) return;
-          sec.classList.toggle('is-collapsed', !expanded);
-          var btn = sec.querySelector('.var-sec-toggle');
-          if (btn) btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-          if (!expanded) {
-            var ae = document.activeElement;
-            if (ae && ae !== btn && btn && sec.contains(ae)) btn.focus();
-          }
-        }
-        /* Whether a section is on the sheet at all. Only
-           Definition ever stands down — the -148 :has rule
-           hides it while both of its blocks are hidden
-           (Create mode) — and this mirrors that rule so the
-           zone list never offers a head that isn't painted. */
+        /* Build -150: the accordion is gone — the Bento
+           grid keeps every section visible, so there are no
+           toggles to wire. varEditAccVisible remains because
+           the Tab trap and the zone list use it to keep a
+           hidden Definition tile's stops out of the walk:
+           only Definition ever stands down (the -148 :has
+           rule hides it while both of its blocks are hidden,
+           as in Create mode), and this mirrors that rule. */
         function varEditAccVisible(sec) {
           if (!sec) return false;
           if (sec.id === 'varSecDef') {
@@ -17318,33 +18497,6 @@
             return !((!nb || nb.hidden) && (!pb || pb.hidden));
           }
           return true;
-        }
-        /* Per-open defaults, from the variable being edited:
-           Name and Value / Formula always start expanded
-           (identity, and the primary edit); Definition starts
-           expanded only for an anchored variable, where Keep /
-           Move is a live decision; Display format only when
-           the format is non-General — a Unit format, or any
-           parked unit suffix, counts — and Smart chip only
-           when a type other than None is configured. Create
-           runs the same rule over its blank record: Name and
-           Value open, Definition absent, Format and Chip
-           collapsed. */
-        function varEditAccApplyDefaults(rec) {
-          varEditAccSet(document.getElementById('varSecName'), true);
-          varEditAccSet(document.getElementById('varSecValue'), true);
-          varEditAccSet(document.getElementById('varSecDef'), !!(rec && rec.anchor));
-          var fmt = document.getElementById('varEditFormat').value;
-          var unit = document.getElementById('varEditUnit').value;
-          varEditAccSet(document.getElementById('varEditFormatWrap'), (!!fmt && fmt !== 'general') || !!unit);
-          varEditAccSet(document.getElementById('varEditChipWrap'), !!document.getElementById('varEditChipType').value);
-        }
-        var varAccToggles = document.querySelectorAll('#varEditModal .var-sec-toggle');
-        for (var ati = 0; ati < varAccToggles.length; ati++) {
-          varAccToggles[ati].addEventListener('click', function () {
-            var sec = this.closest ? this.closest('.var-sec') : null;
-            if (sec) varEditAccSet(sec, sec.classList.contains('is-collapsed'));
-          });
         }
         document.getElementById('varEditFormat').addEventListener('change', fxUpdatePreview);
         /* Build -144: the format select lives outside the
@@ -18569,6 +19721,36 @@
           }
           ndItem('current', FOLDER_SVG, 'Current folder');
           ndItem('root', DOC_SVG, 'Top level');
+          /* Build -150: the Shorthand tips toggle — the
+             Sheets-style suggestion popover in the variable
+             modal's Shorthand field (and the grammar's
+             inline surfaces) follows this; error messages
+             show regardless. Default on, per device. */
+          var shHead = document.createElement('div');
+          shHead.className = 'menu-head';
+          shHead.textContent = 'Shorthand';
+          settingsMenuEl.appendChild(shHead);
+          var shT = document.createElement('button');
+          shT.type = 'button';
+          shT.className = 'menu-item' + (shorthandTipsOn ? ' on' : '');
+          shT.setAttribute('role', 'menuitem');
+          var shTCheck = document.createElement('span');
+          shTCheck.className = 'check';
+          shTCheck.innerHTML = CHECK_SVG;
+          shT.appendChild(shTCheck);
+          var shTIc = document.createElement('span');
+          shTIc.className = 'm-icon';
+          shTIc.innerHTML = KEYBOARD_SVG;
+          shT.appendChild(shTIc);
+          var shTLabel = document.createElement('span');
+          shTLabel.className = 'm-label';
+          shTLabel.textContent = 'Shorthand tips';
+          shT.appendChild(shTLabel);
+          shT.addEventListener('click', function () {
+            setShorthandTips(!shorthandTipsOn);
+            closeSettingsMenu();
+          });
+          settingsMenuEl.appendChild(shT);
           var sep = document.createElement('div');
           sep.className = 'menu-sep';
           settingsMenuEl.appendChild(sep);
@@ -21092,7 +22274,19 @@
                and updates on every keystroke (each keystroke
                re-runs varAtSync and this render). With no
                value yet it keeps its shipped face. */
-            if (item.unit) {
+            if (item.shorthandError) {
+              /* Build -150: the shorthand row in its error
+                 face — the parse error in plain words, and
+                 the row cannot be committed. */
+              b.classList.add('var-at-define-val');
+              b.classList.add('var-at-shorthand-err');
+              dnm.textContent = item.shorthandError;
+            } else if (item.shorthand) {
+              /* Build -150: the shorthand row — the parse
+                 previewed in plain words. */
+              b.classList.add('var-at-define-val');
+              dnm.textContent = shPreviewText(item);
+            } else if (item.unit) {
               /* Build -146: the Unit row — the variable is
                  created holding the NUMBER, wearing the
                  Unit format with the suffix shown quoted,
@@ -21108,7 +22302,7 @@
             b.appendChild(dnm);
             var dbadge = document.createElement('span');
             dbadge.className = 'var-badge soft';
-            dbadge.textContent = item.unit ? 'Unit format' : 'Inline definition';
+            dbadge.textContent = (item.shorthand || item.shorthandError) ? 'Shorthand' : (item.unit ? 'Unit format' : 'Inline definition');
             b.appendChild(dbadge);
             b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
             b.addEventListener('click', function () { choose(); });
@@ -21161,7 +22355,7 @@
           /* Build -140: a define row carrying a typed value
              gets the wider popup (suggest--define), so its
              live label has room to grow and wrap. */
-          var defineWide = varAtState.items.length === 1 && !!varAtState.items[0].define && !!varAtState.items[0].value;
+          var defineWide = varAtState.items.some(function (it) { return !!it.define && !!it.value; });
           suggestEl.className = 'suggest open' + (defineWide ? ' suggest--define' : '');
           suggestEl.innerHTML = '';
           var head = document.createElement('div');
@@ -21228,6 +22422,12 @@
             varAtState.items = [{ define: true, name: hit.name, value: hit.value || '' }];
             var unitParse = varAtUnitParse(hit.value || '');
             if (unitParse) varAtState.items.push({ define: true, unit: unitParse, name: hit.name, value: hit.value || '' });
+            /* Build -150: the shorthand row — present when
+               the typed text carries a `| attributes` tail,
+               previewing the parse (or showing its error,
+               uncommittable). */
+            var shItem = varAtShorthandItem(hit.name, hit.value || '', doc);
+            if (shItem) varAtState.items.push(shItem);
           } else {
             varAtState.items = varAtComputeItems(doc, hit.query);
           }
@@ -21376,7 +22576,15 @@
         function varAtChoose(i) {
           var item = varAtState.items[i];
           if (!item || !editorHandle || !editorHandle.editor) return;
-          if (item.define) { varAtDefineInline(item.name, item.value, item.unit || null); return; }
+          if (item.define) {
+            /* Build -150: an errored shorthand row cannot be
+               committed; a parsed one runs the shorthand
+               creation. The literal rows are untouched. */
+            if (item.shorthandError) return;
+            if (item.shorthand) { varAtDefineShorthand(item); return; }
+            varAtDefineInline(item.name, item.value, item.unit || null);
+            return;
+          }
           if (item.create) { varAtCreate(); return; }
           var doc = currentDoc();
           if (!doc) return;
