@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261108-150" />
+    <meta name="folio-build" content="20261108-151" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -6846,7 +6846,6 @@
         <div class="var-quicklook" id="varQuickLook" aria-live="polite"></div>
         <section class="var-sec var-sh-sec" id="varSecShorthand">
           <h3 class="var-sec-head"><span>Shorthand</span></h3>
-          <label class="form-note var-field-label" for="varEditShorthand" style="display:block">The whole variable on one line — edit it, then press Enter or Save to apply it. Editing the tiles below rewrites it.</label>
           <input class="text-input var-sh-input" id="varEditShorthand" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Shorthand" />
           <p class="var-sh-error" id="varShorthandError" hidden></p>
           <p class="form-note" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals) or Unit: x, and a chip like stepper.max(100).min(10).step(5). Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
@@ -15639,7 +15638,7 @@
           if (p.bad && before.replace(/\s+$/, '').slice(-p.bad.length) === p.bad) { shHideError(); return; }
           var attrIx = before.lastIndexOf(',');
           var curTok = (attrIx === -1 ? before : before.slice(attrIx + 1)).trim();
-          var chainM = /^([A-Za-z]+)((?:\.[A-Za-z]*(?:\([^)]*)?)*)$/.exec(curTok);
+          var chainM = /^([A-Za-z]+)((?:\.[A-Za-z]*(?:\([^)]*\)?)?)*)$/.exec(curTok);
           if (chainM && CHIP_TYPES.indexOf(chainM[1].toLowerCase()) !== -1) {
             var tail = chainM[2] || '';
             var opens = (tail.match(/\(/g) || []).length;
@@ -15664,6 +15663,9 @@
           if (shTipsEl) shTipsEl.hidden = true;
           shTipsItems = [];
           shTipsRange = null;
+        }
+        function shTipsIsOpen() {
+          return !!(shTipsEl && !shTipsEl.hidden && shTipsItems.length);
         }
         var SH_FN_SIGS = { ROUND: 'ROUND(number, digits)', ABS: 'ABS(number)', MIN: 'MIN(a, b, \u2026)', MAX: 'MAX(a, b, \u2026)', SUM: 'SUM(a, b, \u2026)', AVERAGE: 'AVERAGE(a, b, \u2026)', IF: 'IF(condition, then, else)', CONCAT: 'CONCAT(a, b, \u2026)', LEN: 'LEN(text)', UPPER: 'UPPER(text)', LOWER: 'LOWER(text)' };
         function shTipsVarItems(partial) {
@@ -15691,7 +15693,7 @@
             var curStart = caret - cur.length;
             var curTrim = cur.replace(/^\s+/, '');
             var trimStart = curStart + (cur.length - curTrim.length);
-            var chainM = /^([A-Za-z]+)((?:\.[A-Za-z]*(?:\([^)]*)?)*)$/.exec(curTrim);
+            var chainM = /^([A-Za-z]+)((?:\.[A-Za-z]*(?:\([^)]*\)?)?)*)$/.exec(curTrim);
             if (chainM && (CHIP_TYPES.indexOf(chainM[1].toLowerCase()) !== -1)) {
               var head = chainM[1].toLowerCase();
               var tail = chainM[2] || '';
@@ -15710,7 +15712,16 @@
               var partialSub = dotIx === -1 ? null : tail.slice(dotIx + 1);
               if (partialSub !== null && !/\(/.test(partialSub)) {
                 var sigs = { step: '(number or variable)', min: '(number or variable)', max: '(number or variable)', inline: '(true or false)', on: '(value or variable)', off: '(value or variable)', options: '(a, b, \u2026)', segmented: '(true or false)' };
-                var subs = (SH_CHIP_SUBS[head] || []).filter(function (sn) { return !partialSub || sn.indexOf(partialSub.toLowerCase()) === 0; });
+                /* Build -151: a chained dot (after a completed
+                   subtoken's closing paren) offers the chip's
+                   REMAINING subtokens — the ones already
+                   carrying a value earlier in the chain drop
+                   out of the list. */
+                var usedSubs = [];
+                var usedRe = /\.([A-Za-z]+)\(/g, usedM;
+                var tailBeforeDot = tail.slice(0, dotIx);
+                while ((usedM = usedRe.exec(tailBeforeDot)) !== null) usedSubs.push(usedM[1].toLowerCase());
+                var subs = (SH_CHIP_SUBS[head] || []).filter(function (sn) { return usedSubs.indexOf(sn) === -1 && (!partialSub || sn.indexOf(partialSub.toLowerCase()) === 0); });
                 return {
                   head: head + ' settings',
                   items: subs.map(function (sn) { return { main: sn, sig: sigs[sn] || '', ins: sn + '(' }; }),
@@ -18305,6 +18316,18 @@
             varEditEnter(ev);
             return;
           }
+          /* Build -151: while the Shorthand tips popup is
+             open, the Shorthand field owns its keys — this
+             capture handler runs BEFORE the field's own
+             handler, so without this stand-down ↑/↓ travelled
+             zones (into Name) and Escape closed the modal
+             even with the popup up. Standing down lets the
+             event reach the field, whose handler navigates
+             the popup, accepts on Enter/Tab, and closes only
+             the popup on Escape. Popup closed: the zone
+             travel below is untouched. */
+          var shFieldEl = document.getElementById('varEditShorthand');
+          if (shFieldEl && ev.target === shFieldEl && typeof shTipsIsOpen === 'function' && shTipsIsOpen()) return;
           if (ev.key === 'Escape') {
             /* Layers, top first: the @ menu (its own field
                handler dismisses it — stand down here), the
@@ -22417,17 +22440,21 @@
              parses as number + unit suffix (see
              varAtUnitParse). The plain row stays first and
              selected by default; the Unit row is chosen
-             only deliberately. */
+             only deliberately. Build -151: when the typed
+             text carries a `| attributes` tail, the
+             SHORTHAND row (build -150) LEADS the menu —
+             first row, and the default selection (the
+             selection resets to index 0 as the query
+             changes) — with the literal Inline Definition
+             row under it. No tail: the menu is exactly as
+             before. */
           if (hit.define) {
-            varAtState.items = [{ define: true, name: hit.name, value: hit.value || '' }];
+            var shItem = varAtShorthandItem(hit.name, hit.value || '', doc);
+            varAtState.items = [];
+            if (shItem) varAtState.items.push(shItem);
+            varAtState.items.push({ define: true, name: hit.name, value: hit.value || '' });
             var unitParse = varAtUnitParse(hit.value || '');
             if (unitParse) varAtState.items.push({ define: true, unit: unitParse, name: hit.name, value: hit.value || '' });
-            /* Build -150: the shorthand row — present when
-               the typed text carries a `| attributes` tail,
-               previewing the parse (or showing its error,
-               uncommittable). */
-            var shItem = varAtShorthandItem(hit.name, hit.value || '', doc);
-            if (shItem) varAtState.items.push(shItem);
           } else {
             varAtState.items = varAtComputeItems(doc, hit.query);
           }
@@ -49225,7 +49252,7 @@
         var host = document.getElementById('overlayHost');
         if (!host) return;
         var backdrop = document.getElementById('overlayBackdrop');
-        var SURFACE_SEL = '.overlay, .auth-overlay, .share-view, .menu, .fmt-pop, .folder-pop, .suggest, .action-bar, .folio-toast, .update-banner, .tooltip, .drag-ghost, .folio-border-menu, .fx-token-pop, .chip-pop';
+        var SURFACE_SEL = '.overlay, .auth-overlay, .share-view, .menu, .fmt-pop, .folder-pop, .suggest, .action-bar, .folio-toast, .update-banner, .tooltip, .drag-ghost, .folio-border-menu, .fx-token-pop, .chip-pop, .sh-tips';
         var MODAL_SEL = '.overlay, .auth-overlay, .share-view';
         function matches(el, sel) {
           return !!(el && el.nodeType === 1 && el.matches && el.matches(sel));
