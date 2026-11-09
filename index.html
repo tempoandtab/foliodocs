@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261109-154" />
+    <meta name="folio-build" content="20261109-155" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5076,6 +5076,14 @@
       .sh-tip-item .sh-tip-sig { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .sh-tip-item .sh-tip-desc { flex: 1; min-width: 0; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .sh-tip-item .sh-tip-val { margin-left: auto; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+      /* Signature help (build -155): the one function's
+         signature, then its arguments as quiet rows —
+         the caret's argument lit like a selected tip. */
+      .sh-tip-sigline { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--ink-2); padding: 2px 10px 4px; }
+      .sh-tip-arg { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+      .sh-tip-arg.on { background: var(--accent-soft); }
+      .sh-tip-argname { font-weight: 700; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; white-space: nowrap; }
+      .sh-tip-argdesc { color: var(--ink-2); font-size: 12px; }
       /* The inline shorthand row in the @ menu (build -150):
          an error row reads in danger and cannot be chosen. */
       .suggest-item.var-at-shorthand-err { color: var(--danger); cursor: default; }
@@ -6881,7 +6889,7 @@
           <h3 class="var-sec-head"><span>Shorthand</span></h3>
           <input class="text-input var-sh-input" id="varEditShorthand" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Shorthand" />
           <p class="var-sh-error" id="varShorthandError" hidden></p>
-          <p class="form-note" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals) or Unit: x, and a chip like stepper.max(100).min(10).step(5). Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
+          <p class="form-note" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals) or Unit: x, and a chip like stepper.max(100).min(10).step(5). A value like {green, blue} makes a dropdown with those options — the first is the value — and dropdown.opts(green, blue) sets a dropdown's options too. Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
         </section>
         <nav class="var-jumpnav" id="varJumpNav" aria-label="Variable sections"></nav>
         </div>
@@ -15125,7 +15133,7 @@
           stepper: ['step', 'min', 'max'],
           slider: ['step', 'min', 'max', 'inline'],
           toggle: ['on', 'off'],
-          dropdown: ['options', 'segmented'],
+          dropdown: ['opts', 'options', 'segmented'],
           checkbox: [], multiplier: [], date: [],
         };
         var shDirty = false;
@@ -15323,6 +15331,50 @@
           }
           return { chip: chipNormalize(cfg), chipType: head };
         }
+        /* Build -155: a brace-list value — {green, blue} —
+           is input sugar for a dropdown whose options are
+           exactly the list; the current value is the first
+           item. Items split on top-level commas; quoted
+           items may hold commas and spaces; an item naming
+           an existing variable binds as a live-reference
+           option (the dropdown's established live-option
+           semantics — it tracks the variable, and deletion
+           bakes its last value), an @name that resolves
+           nowhere is an error, anything else is a literal.
+           An empty list or an empty item is a parse error.
+           The list NEVER renders back: shChipToken emits
+           the canonical dropdown.opts(…) form, with the
+           current value explicit in the value slot. */
+        function shParseBraceList(valuePart, env) {
+          var t = String(valuePart == null ? '' : valuePart).trim();
+          if (t.charAt(t.length - 1) !== '}') return { error: 'The option list that opens with \u201C{\u201D needs its closing \u201C}\u201D \u2014 like {green, blue}.' };
+          var inner = t.slice(1, -1);
+          if (!inner.trim()) return { error: 'The option list is empty \u2014 {green, blue} needs at least one option.' };
+          var items = shSplitTop(inner, ',');
+          var opts = [];
+          var firstVal = '';
+          for (var i = 0; i < items.length; i++) {
+            var it = items[i].trim();
+            if (!it) return { error: 'The option list has an empty item \u2014 check the commas inside {\u2026}.' };
+            if (/^["']/.test(it)) {
+              var lv = shUnquote(it);
+              opts.push({ k: 'lit', v: lv });
+              if (i === 0) firstVal = lv;
+              continue;
+            }
+            var nm = it.charAt(0) === '@' ? it.slice(1) : it;
+            var f = VAR_NAME_RE.test(nm) ? fxFindByNameIn(env.scope, env.doc, nm) : null;
+            if (f) {
+              opts.push({ k: 'ref', vid: f.rec.id, s: f.scope === 'doc' ? 'd' : 'g', n: f.rec.name });
+              if (i === 0) firstVal = String(varRecordValue(f.rec, f.scope === 'doc' ? env.doc : null));
+              continue;
+            }
+            if (it.charAt(0) === '@') return { error: shUnknownMsg(nm, env.scope, env.doc), bad: nm };
+            opts.push({ k: 'lit', v: it });
+            if (i === 0) firstVal = it;
+          }
+          return { options: opts, value: firstVal };
+        }
         /* The parser. env = { scope:'doc'|'global', doc,
            selfId }. Answers { ok:true, name, mode, value,
            tokens, scope, anchor:'anchored'|'unanchored'|null,
@@ -15359,7 +15411,7 @@
           var st = {
             ok: true, name: name, mode: 'value', value: '', tokens: null,
             scope: targetScope, anchor: null, fmt: null, unit: null,
-            chipProvided: false, chipType: null, chip: null,
+            chipProvided: false, chipType: null, chip: null, braceOptions: null,
           };
           if (valuePart.charAt(0) === '=') {
             var exprText = valuePart.slice(1).trim();
@@ -15372,6 +15424,14 @@
             try { fxParse(conv.tokens); } catch (e) { return err((e && e.fx) || 'The formula can\u2019t be read.'); }
             st.mode = 'formula';
             st.tokens = conv.tokens;
+          } else if (valuePart.charAt(0) === '{') {
+            /* Build -155: a brace list in the value slot
+               defines a dropdown (resolved into the chip
+               after the attribute tail is read). */
+            var braceRes = shParseBraceList(valuePart, renv);
+            if (braceRes.error) return err(braceRes.error, braceRes.bad || null);
+            st.value = braceRes.value;
+            st.braceOptions = braceRes.options;
           } else {
             st.value = valuePart;
           }
@@ -15411,6 +15471,28 @@
                  of the above becomes the Unit, trimmed. */
               st.fmt = 'unit';
               st.unit = tok.trim();
+            }
+          }
+          /* Build -155: a brace-list value implies the
+             dropdown chip. An explicit dropdown token in
+             the tail keeps its own opts(…) when it carries
+             them; a bare dropdown token adopts the list.
+             Any other chip beside a brace list is a
+             contradiction — the list IS the dropdown. */
+          if (st.braceOptions) {
+            if (st.chipProvided && st.chipType !== 'dropdown') {
+              return err('The {\u2026} option list makes this a dropdown \u2014 it can\u2019t also be a ' + st.chipType + ' chip.');
+            }
+            if (!st.chipProvided) {
+              var bcfg = chipDefaults();
+              bcfg.type = 'dropdown';
+              bcfg.dropdown.options = st.braceOptions;
+              st.chip = chipNormalize(bcfg);
+              st.chipProvided = true;
+              st.chipType = 'dropdown';
+            } else if (!st.chip.dropdown.options.length) {
+              st.chip.dropdown.options = st.braceOptions;
+              st.chip = chipNormalize(st.chip);
             }
           }
           /* A value like 100g splits into number + Unit —
@@ -15482,7 +15564,7 @@
           if (t === 'dropdown') {
             var d = 'dropdown';
             if (cfg.dropdown.options.length) {
-              d += '.options(' + cfg.dropdown.options.map(function (o) {
+              d += '.opts(' + cfg.dropdown.options.map(function (o) {
                 return o.k === 'ref' ? '@' + (o.n || varNameForId(o.vid) || 'variable') : shQuote(o.v);
               }).join(', ') + ')';
             }
@@ -15799,11 +15881,72 @@
           if (shTipsEl) shTipsEl.hidden = true;
           shTipsItems = [];
           shTipsRange = null;
+          shSigCtx = null;
         }
         function shTipsIsOpen() {
-          return !!(shTipsEl && !shTipsEl.hidden && shTipsItems.length);
+          /* Build -155: signature help owns no items, but
+             the popup is just as open — the modal's capture
+             handler stands down for it too, so Escape
+             dismisses the help instead of closing the
+             modal, and the arrows stay the caret's. */
+          return !!(shTipsEl && !shTipsEl.hidden && (shTipsItems.length || shSigCtx));
         }
         var SH_FN_SIGS = { ROUND: 'ROUND(number, digits)', ABS: 'ABS(number)', MIN: 'MIN(a, b, \u2026)', MAX: 'MAX(a, b, \u2026)', SUM: 'SUM(a, b, \u2026)', AVERAGE: 'AVERAGE(a, b, \u2026)', IF: 'IF(condition, then, else)', CONCAT: 'CONCAT(a, b, \u2026)', LEN: 'LEN(text)', UPPER: 'UPPER(text)', LOWER: 'LOWER(text)' };
+        /* Build -155: signature help. Each shipped
+           function's arguments, named, with a plain-words
+           line on what each one is. Variadic functions
+           carry the one collective argument they take. */
+        var SH_FN_ARGS = {
+          ROUND: [['number', 'The value to round'], ['digits', 'Decimal places to keep']],
+          ABS: [['number', 'The value whose size is taken \u2014 its sign is dropped']],
+          SUM: [['values', 'Two or more numbers or variables, comma-separated']],
+          AVERAGE: [['values', 'Two or more numbers or variables, comma-separated']],
+          MIN: [['values', 'Two or more numbers or variables, comma-separated']],
+          MAX: [['values', 'Two or more numbers or variables, comma-separated']],
+          IF: [['condition', 'An expression that comes out true or false'], ['then', 'The value when the condition is true'], ['else', 'The value when the condition is false']],
+          CONCAT: [['text', 'Pieces of text joined into one']],
+          LEN: [['text', 'The text whose length is counted']],
+          UPPER: [['text', 'The text to shout']],
+          LOWER: [['text', 'The text to quiet']],
+        };
+        /* The signature-help state: the call the caret is
+           currently inside (rendered by shTipsShow), and
+           the call an Esc dismissed — dismissal holds
+           until the caret leaves that call and re-enters. */
+        var shSigCtx = null;
+        var shSigDismissed = null;
+        /* Scan the formula up to the caret (the end of
+           `before`) with a paren stack: the INNERMOST
+           enclosing known function wins, and the caret's
+           argument index is that frame's count of its own
+           top-level commas so far. Quote-aware, so parens
+           and commas inside string literals never count. */
+        function shFnCallContext(before, atIx) {
+          var rest = before.slice(atIx + 2);
+          var lead = /^\s*/.exec(rest)[0].length;
+          if (rest.charAt(lead) !== '=') return null;
+          var fStart = atIx + 2 + lead + 1;
+          var s = before.slice(fStart);
+          var stack = [];
+          var inQ = false;
+          for (var i = 0; i < s.length; i++) {
+            var c = s.charAt(i);
+            if (inQ) { if (c === '"') { if (s.charAt(i + 1) === '"') i++; else inQ = false; } continue; }
+            if (c === '"') { inQ = true; continue; }
+            if (c === '(') {
+              var nmM = /([A-Za-z][A-Za-z0-9_]*)\s*$/.exec(s.slice(0, i));
+              stack.push({ fn: nmM ? nmM[1].toUpperCase() : '', openIx: i, commas: 0 });
+              continue;
+            }
+            if (c === ')') { stack.pop(); continue; }
+            if (c === ',' && stack.length) stack[stack.length - 1].commas++;
+          }
+          for (var k = stack.length - 1; k >= 0; k--) {
+            var fr = stack[k];
+            if (fr.fn && SH_FN_ARGS[fr.fn]) return { fn: fr.fn, argIndex: fr.commas, key: fr.fn + '@' + (fStart + fr.openIx) };
+          }
+          return null;
+        }
         function shTipsVarItems(partial) {
           var out = [];
           var selfId = varEditCtx ? varEditCtx.id : null;
@@ -15847,7 +15990,7 @@
               var dotIx = tail.lastIndexOf('.');
               var partialSub = dotIx === -1 ? null : tail.slice(dotIx + 1);
               if (partialSub !== null && !/\(/.test(partialSub)) {
-                var sigs = { step: '(number or variable)', min: '(number or variable)', max: '(number or variable)', inline: '(true or false)', on: '(value or variable)', off: '(value or variable)', options: '(a, b, \u2026)', segmented: '(true or false)' };
+                var sigs = { step: '(number or variable)', min: '(number or variable)', max: '(number or variable)', inline: '(true or false)', on: '(value or variable)', off: '(value or variable)', opts: '(a, b, \u2026)', options: '(a, b, \u2026)', segmented: '(true or false)' };
                 /* Build -151: a chained dot (after a completed
                    subtoken's closing paren) offers the chip's
                    REMAINING subtokens — the ones already
@@ -15857,6 +16000,13 @@
                 var usedRe = /\.([A-Za-z]+)\(/g, usedM;
                 var tailBeforeDot = tail.slice(0, dotIx);
                 while ((usedM = usedRe.exec(tailBeforeDot)) !== null) usedSubs.push(usedM[1].toLowerCase());
+                /* Build -155: opts and options are the one
+                   dropdown setting under two spellings —
+                   using either retires both from the list. */
+                if (head === 'dropdown') {
+                  if (usedSubs.indexOf('options') !== -1 && usedSubs.indexOf('opts') === -1) usedSubs.push('opts');
+                  if (usedSubs.indexOf('opts') !== -1 && usedSubs.indexOf('options') === -1) usedSubs.push('options');
+                }
                 var subs = (SH_CHIP_SUBS[head] || []).filter(function (sn) { return usedSubs.indexOf(sn) === -1 && (!partialSub || sn.indexOf(partialSub.toLowerCase()) === 0); });
                 return {
                   head: head + ' settings',
@@ -15891,6 +16041,19 @@
           if (atIx === -1) return null;
           var valPart = before.slice(atIx + 2).replace(/^\s+/, '');
           if (valPart.charAt(0) !== '=') return null;
+          /* Build -155: inside a function's parentheses
+             the directory gives way to SIGNATURE HELP for
+             that one function — unless Esc dismissed this
+             very call, in which case the caret must leave
+             and re-enter before it returns. Stepping out
+             of every call clears the dismissal and the
+             directory below takes over again. */
+          var sigCtx = shFnCallContext(before, atIx);
+          if (sigCtx) {
+            if (shSigDismissed === sigCtx.key) return null;
+            return { sigHelp: sigCtx, items: [], head: sigCtx.fn };
+          }
+          shSigDismissed = null;
           var wordM = /([A-Za-z][A-Za-z0-9_]*)$/.exec(before);
           var word = wordM ? wordM[1] : '';
           var items2 = [];
@@ -15904,11 +16067,12 @@
           if (!shorthandTipsOn || !varEditCtx || !shFocused) { shTipsHide(); return; }
           var built = null;
           try { built = shTipsBuild(); } catch (e) { built = null; }
-          if (!built || !built.items.length) { shTipsHide(); return; }
+          if (!built || (!built.items.length && !built.sigHelp)) { shTipsHide(); return; }
           var inp = shInput();
           if (!inp) return;
           shTipsItems = built.items;
           shTipsRange = built.range;
+          shSigCtx = built.sigHelp || null;
           if (shTipsSel >= shTipsItems.length) shTipsSel = 0;
           if (!shTipsEl) {
             shTipsEl = document.createElement('div');
@@ -15929,6 +16093,34 @@
           head.className = 'sh-tips-head';
           head.textContent = built.head;
           shTipsEl.appendChild(head);
+          /* Build -155: signature help renders as HELP,
+             not a menu — the function's signature, then
+             every argument named and described, the
+             caret's argument lit. No selectable items:
+             shTipsItems stays empty, so the popup key
+             rules never capture the arrows and caret
+             movement stays normal. */
+          if (built.sigHelp) {
+            var sigLine = document.createElement('div');
+            sigLine.className = 'sh-tip-sigline';
+            sigLine.textContent = SH_FN_SIGS[built.sigHelp.fn] || built.sigHelp.fn;
+            shTipsEl.appendChild(sigLine);
+            var fnArgs = SH_FN_ARGS[built.sigHelp.fn] || [];
+            var actIx = Math.min(built.sigHelp.argIndex, fnArgs.length - 1);
+            fnArgs.forEach(function (a, ai) {
+              var row = document.createElement('div');
+              row.className = 'sh-tip-arg' + (ai === actIx ? ' on' : '');
+              var an = document.createElement('span');
+              an.className = 'sh-tip-argname';
+              an.textContent = a[0];
+              row.appendChild(an);
+              var ad = document.createElement('span');
+              ad.className = 'sh-tip-argdesc';
+              ad.textContent = a[1];
+              row.appendChild(ad);
+              shTipsEl.appendChild(row);
+            });
+          }
           shTipsItems.forEach(function (it, i) {
             var b = document.createElement('button');
             b.type = 'button';
@@ -15975,6 +16167,16 @@
               if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') { shTipsShow(); shCaretFollow(); }
             });
             inp.addEventListener('keydown', function (ev) {
+              /* Build -155: Esc dismisses SIGNATURE HELP
+                 (which owns no menu keys) for this call
+                 only — the caret must leave and re-enter
+                 before it returns. The modal is untouched. */
+              if (ev.key === 'Escape' && shSigCtx && shTipsEl && !shTipsEl.hidden) {
+                ev.preventDefault(); ev.stopPropagation();
+                shSigDismissed = shSigCtx.key;
+                shTipsHide();
+                return;
+              }
               if (shTipsItems.length && shTipsEl && !shTipsEl.hidden) {
                 if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
                   ev.preventDefault(); ev.stopPropagation();
@@ -16031,12 +16233,25 @@
             var r = shEvalTokens(st.tokens, 'doc', doc, st.name);
             parts.push('\u2192 ' + (r.ok ? fxResultDisplay(r, st.fmt, st.unit) : r.code));
           } else {
-            parts.push(st.value === '' ? '0' : st.value);
+            /* Build -155: a dropdown's row names the chip,
+               its options, and its current value explicitly
+               — "Dropdown · options green, blue · value
+               green" — matching the canonical line, where
+               the value is never implied by list position. */
+            var ddOpts = (st.chipProvided && st.chipType === 'dropdown' && st.chip && st.chip.dropdown && st.chip.dropdown.options.length) ? st.chip.dropdown.options : null;
+            if (ddOpts) {
+              var ddHandled = true;
+              parts.push('Dropdown');
+              parts.push('options ' + ddOpts.map(function (o) { return o.k === 'ref' ? (o.n || 'variable') : o.v; }).join(', '));
+              parts.push('value ' + (st.value === '' ? '0' : st.value));
+            } else {
+              parts.push(st.value === '' ? '0' : st.value);
+            }
             if (st.fmt === 'unit') parts.push('Unit ' + (st.unit || ''));
             else if (st.fmt && st.fmt !== 'general') parts.push(SH_FMT_LABEL[st.fmt] || st.fmt);
             if (!st.anchored) parts.push('not anchored');
           }
-          if (st.chipProvided && st.chipType) {
+          if (st.chipProvided && st.chipType && !ddHandled) {
             var lbl = st.chipType.charAt(0).toUpperCase() + st.chipType.slice(1);
             var subs = [];
             if (st.chipType === 'stepper' || st.chipType === 'slider') {
@@ -16052,7 +16267,12 @@
           return (item.redefine ? 'Redefine ' : 'Define ') + st.name + ' \u2014 ' + parts.join(' \u00B7 ');
         }
         function varAtShorthandItem(name, value, doc) {
-          if (!value || value.indexOf('|') === -1) return null;
+          /* Build -155: a brace-list value ({green, blue})
+             is shorthand even with NO | tail — it defines
+             a dropdown — so it earns the SHORTHAND row too,
+             where today only the Inline Definition row
+             appears because the braces never parsed. */
+          if (!value || (value.indexOf('|') === -1 && value.trim().charAt(0) !== '{')) return null;
           var p = shParseLine(name + ' @= ' + value, { scope: 'doc', doc: doc, selfId: null });
           var existingDoc = varDocVarByName(doc.id, name);
           var existing = existingDoc || varGlobalByName(name);
