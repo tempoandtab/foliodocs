@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261108-153" />
+    <meta name="folio-build" content="20261109-154" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14709,13 +14709,47 @@
           if (!box) return;
           box.innerHTML = '';
           if (!varEditCtx || !varEditCtx.id) { box.hidden = true; return; }
+          /* Build -154: an `anchored` claim staged from the
+             shorthand line on a variable the text doesn't
+             anchor is announced here, live (the commit keeps
+             its refusal while the token stands — only text
+             can anchor). */
+          if (varEditCtx.stagedAnchorClaim) {
+            var ac = document.createElement('p');
+            ac.className = 'form-note';
+            ac.style.marginBottom = '8px';
+            ac.textContent = 'The shorthand line says anchored, but only text in the document can anchor a variable — define it inline with @= to anchor it. While that token stands, Save will refuse the line; the variable stays panel-defined.';
+            box.appendChild(ac);
+          }
           if (varEditCtx.scope === 'global') {
+            /* Build -154: a demotion staged from the
+               shorthand line is announced here — the record
+               moves into this document at Save, not before. */
+            if (varEditCtx.stagedScope === 'doc') {
+              var dn = document.createElement('p');
+              dn.className = 'form-note';
+              dn.style.marginBottom = '8px';
+              dn.textContent = 'The shorthand line says local — this variable moves into this document when you save, and other documents will no longer see it. Set the line back to global, or Cancel, to keep it global.';
+              box.appendChild(dn);
+            }
             var p = document.createElement('p');
             p.className = 'form-note';
             p.textContent = 'This is a global variable — every document can use it.';
             box.appendChild(p);
             box.hidden = false;
             return;
+          }
+          /* Build -154: a scope staged from the shorthand
+             line (ctx.stagedScope) is announced here — the
+             record moves at Save, not before — above the
+             standing Promote door, which still performs it
+             immediately when clicked. */
+          if (varEditCtx.stagedScope === 'global') {
+            var sp = document.createElement('p');
+            sp.className = 'form-note';
+            sp.style.marginBottom = '8px';
+            sp.textContent = 'The shorthand line says global — this variable moves to the global list when you save. Set the line back to local, or Cancel, to keep it document-only.';
+            box.appendChild(sp);
           }
           var b = document.createElement('button');
           b.type = 'button';
@@ -14738,6 +14772,7 @@
           varPromote(rec, function (finalRec) {
             if (finalRec && varEditCtx) {
               varEditCtx.scope = 'global';
+              varEditCtx.stagedScope = null;
               varEditCtx.id = finalRec.id;
               varEditSyncPromote();
             }
@@ -15483,7 +15518,7 @@
             mode: varEditMode,
             value: document.getElementById('varEditValue').value,
             formulaText: formulaText,
-            scope: varEditCtx.scope,
+            scope: varEditCtx.stagedScope || varEditCtx.scope,
             anchored: !!(rec && rec.anchor) && varEditAnchorChoice !== 'move',
             fmt: document.getElementById('varEditFormat').value,
             unit: document.getElementById('varEditUnit').value,
@@ -15529,7 +15564,7 @@
           strong.textContent = st.name || '(unnamed)';
           q.appendChild(strong);
           var bits = [];
-          bits.push(varEditCtx.scope === 'global' ? 'global variable' : 'document variable');
+          bits.push(st.scope === 'global' ? 'global variable' : 'document variable');
           if (st.mode === 'formula') {
             bits.push('panel formula');
             var w = fxWorkingEval();
@@ -15593,11 +15628,26 @@
               varPromote(rec, function (fr) { promoted = fr; });
               if (!promoted) { shShowError('That promotion needs a decision — use Promote in the Definition tile.'); return false; }
               ctx.scope = 'global';
+              ctx.stagedScope = null;
               ctx.id = promoted.id;
               rec = promoted;
               varEditSyncPromote();
+            } else if (ctx.id && ctx.scope === 'global' && st.scope === 'doc') {
+              var clashD = varDocVarByName(ctx.docId, st.name);
+              if (clashD && clashD.id !== ctx.id) {
+                shShowError('This document already has a variable named \u201C' + st.name + '\u201D — rename one of them before making this one document-only.');
+                return false;
+              }
+              var demoted = null;
+              varDemote(rec, ctx.docId, function (dr) { demoted = dr; });
+              if (!demoted) { shShowError('That move could not be made — the variable stays global.'); return false; }
+              ctx.scope = 'doc';
+              ctx.stagedScope = null;
+              ctx.id = demoted.id;
+              rec = demoted;
+              varEditSyncPromote();
             } else if (ctx.id) {
-              shShowError('A global variable can\u2019t become document-only from the shorthand line.');
+              shShowError('That scope change can\u2019t be made from the shorthand line.');
               return false;
             } else {
               ctx.scope = st.scope;
@@ -15654,6 +15704,58 @@
           var p = shParseLine(inp.value, shEnv());
           if (!p.ok) { shShowError(p); varEditError(p.msg); return false; }
           return shApplyToModal(p);
+        }
+        /* Build -154: LIVE shorthand → modal sync. Until now
+           the line only reached the fields on Enter or at the
+           Save gate, so typing `=AVERAGE(9, 3)` left the modal
+           sitting in Value mode on the old value — the line
+           looked dead, and so did every other edit made in it.
+           Now every keystroke that still parses re-derives the
+           modal's staged state at once (name, value/formula
+           mode and its expression, format, chip, scope) through
+           the same shApplyToModal the commit paths use. A line
+           that doesn't parse yet changes nothing: the fields
+           keep the last good state and shValidateLive owns the
+           error display.
+           Scope on an existing variable is STAGED, not
+           performed, in both directions: typing `global` on a
+           document variable — or `local` on a global one —
+           sets ctx.stagedScope, which the quick-look, the
+           re-rendered line, and the Definition tile's note all
+           present (the variable reads as global-bound or
+           local-bound), while the record itself moves only
+           when Save's gate runs the full commit against the
+           raw line (varPromote / varDemote) — the dirty flag
+           is kept set for exactly that, and Cancel discards
+           the staging untouched. An `anchored` claim on a
+           variable the text doesn't anchor is likewise
+           surfaced live (ctx.stagedAnchorClaim, announced in
+           the Definition tile); the claim itself can never be
+           staged into being — only text anchors — so the
+           commit keeps its refusal while the token stands. */
+        function shApplyLive() {
+          var inp = shInput();
+          if (!inp || !varEditCtx) return;
+          var p = shParseLine(inp.value, shEnv());
+          if (!p.ok) return;
+          var deferred = false;
+          var prevStaged = varEditCtx.stagedScope || null;
+          var prevClaim = !!varEditCtx.stagedAnchorClaim;
+          varEditCtx.stagedScope = null;
+          varEditCtx.stagedAnchorClaim = false;
+          if (varEditCtx.id && p.scope !== varEditCtx.scope) {
+            if (varEditCtx.scope === 'doc' && p.scope === 'global' && !varGlobalByName(p.name)) {
+              varEditCtx.stagedScope = 'global';
+            } else if (varEditCtx.scope === 'global' && p.scope === 'doc' && !varDocVarByName(varEditCtx.docId, p.name)) {
+              varEditCtx.stagedScope = 'doc';
+            }
+            deferred = true;
+            p.scope = varEditCtx.scope;
+          }
+          if (p.anchor === 'anchored' && !varEditCtx.wasAnchored) { p.anchor = null; varEditCtx.stagedAnchorClaim = true; deferred = true; }
+          var applied = shApplyToModal(p);
+          if (applied && deferred) shDirty = true;
+          if ((varEditCtx.stagedScope || null) !== prevStaged || !!varEditCtx.stagedAnchorClaim !== prevClaim) varEditSyncPromote();
         }
         function shValidateLive() {
           var inp = shInput();
@@ -15857,6 +15959,7 @@
           shDirty = true;
           shTipsSel = 0;
           shValidateLive();
+          shApplyLive();
           shTipsShow();
         }
         /* ----- shorthand field + field-sync wiring ----- */
@@ -15866,7 +15969,7 @@
             varFieldHygiene(inp);
             inp.addEventListener('focus', function () { shFocused = true; shTipsShow(); shFollowSeg = null; shCaretFollow(); });
             inp.addEventListener('blur', function () { shFocused = false; setTimeout(shTipsHide, 140); });
-            inp.addEventListener('input', function () { shDirty = true; shTipsSel = 0; shValidateLive(); shTipsShow(); shCaretFollow(); });
+            inp.addEventListener('input', function () { shDirty = true; shTipsSel = 0; shValidateLive(); shTipsShow(); shCaretFollow(); shApplyLive(); });
             inp.addEventListener('click', function () { shTipsShow(); shCaretFollow(); });
             inp.addEventListener('keyup', function (ev) {
               if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') { shTipsShow(); shCaretFollow(); }
@@ -17544,6 +17647,45 @@
           varOnGlobalsChanged();
           folioToast('“' + rec.name + '” is now a global variable.');
           if (onDone) onDone(g);
+        }
+        /* Build -154: the demote the shorthand's scope token
+           performs at commit — the mirror of varPromote. The
+           record keeps its id, so this document's references
+           (which resolve by id, with a scope fallback) follow
+           it into the document list untouched; references in
+           OTHER documents keep their last shown value, the
+           standing answer for a variable they can no longer
+           see. An anchor living in the target document stays
+           anchored (its definition marks already bind this id
+           there); an anchor living elsewhere is stripped
+           first, the way promotion strips one. The expression
+           and the parked value travel, like promotion's. */
+        function varDemote(rec, docId, onDone) {
+          var doc = varDocById(docId);
+          if (!doc) return;
+          var anchorHere = false;
+          if (rec.anchor && rec.anchorDoc) {
+            if (rec.anchorDoc === docId) anchorHere = true;
+            else varStripAnchorOf(rec);
+          }
+          var d = { id: rec.id, name: rec.name, value: rec.value, anchor: anchorHere };
+          if (rec.expr) {
+            d.expr = rec.expr; d.fmt = rec.fmt || 'general';
+            d.value = varRecordValue(rec, null);
+            d.anchor = false;
+          }
+          if (typeof rec.pv === 'string') d.pv = rec.pv;
+          if (!rec.expr && rec.fmt) d.fmt = rec.fmt;
+          if (rec.unit) d.unit = rec.unit;
+          if (rec.chip) d.chip = rec.chip;
+          varStore.globals = varStore.globals.filter(function (r) { return r.id !== rec.id; });
+          if (!varStore.docVars[docId]) varStore.docVars[docId] = [];
+          varStore.docVars[docId].push(d);
+          varSave();
+          varOnGlobalsChanged();
+          renderVarPanel();
+          folioToast('\u201C' + rec.name + '\u201D is now a document variable in \u201C' + (doc.title || 'Untitled') + '\u201D.');
+          if (onDone) onDone(d);
         }
         /* The shared landing of both promote-conflict paths:
            the EXISTING global survives (its id is the one
