@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261108-152" />
+    <meta name="folio-build" content="20261108-153" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4945,6 +4945,15 @@
         display: flex; flex-direction: column; overflow: hidden;
       }
       #varEditModal .panel-head { flex: 0 0 auto; }
+      /* Build -153: the fixed stack between the header and
+         the scroll area — quick-look strip, the Shorthand
+         section, and the jump-chip nav row. It is OUTSIDE
+         (and above) the scrollable area, so the Shorthand
+         field is visible and stationary at all times while
+         the modal is open, no matter how the sections below
+         scroll (chip taps, scroll-spy, caret-follow). Only
+         .var-edit-scroll scrolls. */
+      #varEditModal .var-edit-fixed { flex: 0 0 auto; min-height: 0; }
       #varEditModal .var-edit-scroll {
         flex: 1 1 auto; min-height: 0; overflow-y: auto;
         overscroll-behavior: contain; scrollbar-gutter: stable;
@@ -4988,10 +4997,13 @@
         border-radius: 0; padding: 10px 2px 12px; margin-top: 12px;
         background: transparent; min-width: 0;
       }
+      /* Build -153: the chip row no longer needs position:
+         sticky — it lives in the fixed stack above the
+         scroll area, pinned directly under the Shorthand
+         section by construction. */
       #varEditModal .var-jumpnav {
-        position: sticky; top: 0; z-index: 6;
         display: flex; flex-wrap: wrap; gap: 6px;
-        padding: 8px 0 9px; margin-bottom: 10px;
+        padding: 9px 0 9px; margin-top: 10px; margin-bottom: 2px;
         background: var(--surface); border-bottom: 1px solid var(--line);
       }
       #varEditModal .var-jump-chip {
@@ -5004,13 +5016,16 @@
         background: var(--accent-soft); border-color: var(--accent); color: var(--ink);
       }
       #varEditModal .var-jump-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-      #varEditModal .var-edit-scroll section, #varEditModal #varEditFormatWrap, #varEditModal #varEditChipWrap { scroll-margin-top: 54px; }
-      @media (max-width: 640px) {
-        #varEditModal .var-edit-scroll section, #varEditModal #varEditFormatWrap, #varEditModal #varEditChipWrap { scroll-margin-top: 96px; }
-      }
+      /* Build -153: the fixed stack (header + quick-look +
+         Shorthand + chip row) sits OUTSIDE the scroll area,
+         so a section scrolled to the top of .var-edit-scroll
+         can never be hidden beneath any fixed element — only
+         a small breathing margin is needed here. */
+      #varEditModal .var-edit-scroll section, #varEditModal #varEditFormatWrap, #varEditModal #varEditChipWrap { scroll-margin-top: 10px; }
       /* The quick-look: a plain-words description of the
-         variable's properties, pinned above everything in
-         the scroll area (mockup keeper). */
+         variable's properties, at the top of the fixed
+         stack (build -153), directly under the title and
+         above the Shorthand section — non-scrolling. */
       #varEditModal .var-quicklook {
         border: 1px solid var(--line); border-radius: 12px;
         background: var(--accent-soft); color: var(--ink);
@@ -6860,8 +6875,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
-        <div class="var-edit-scroll" id="varEditScroll">
-        <nav class="var-jumpnav" id="varJumpNav" aria-label="Variable sections"></nav>
+        <div class="var-edit-fixed" id="varEditFixed">
         <div class="var-quicklook" id="varQuickLook" aria-live="polite"></div>
         <section class="var-sec var-sh-sec" id="varSecShorthand">
           <h3 class="var-sec-head"><span>Shorthand</span></h3>
@@ -6869,6 +6883,9 @@
           <p class="var-sh-error" id="varShorthandError" hidden></p>
           <p class="form-note" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals) or Unit: x, and a chip like stepper.max(100).min(10).step(5). Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
         </section>
+        <nav class="var-jumpnav" id="varJumpNav" aria-label="Variable sections"></nav>
+        </div>
+        <div class="var-edit-scroll" id="varEditScroll">
         <section class="var-sec" id="varSecName">
           <h3 class="var-sec-head"><span>Name</span></h3>
           <label class="form-note" for="varEditName" style="display:block;margin-top:2px">Starts with a letter; letters, digits and underscores after.</label>
@@ -18436,9 +18453,13 @@
            pinned row, and a scroll-spy highlights the chip of
            the section currently at the top as the user scrolls
            by any means. Keyboard zone travel now follows this
-           single visual column. */
+           single visual column.
+           Build -153: the Shorthand section left the scroll
+           area for the fixed stack above it (quick-look,
+           Shorthand, then this chip row), so it is no longer
+           a scroll section and has NO chip — the row keeps
+           the five section chips below. */
         var VAR_JUMP_SECTIONS = [
-          ['varSecShorthand', 'Shorthand'],
           ['varSecName', 'Name'],
           ['varSecDef', 'Definition'],
           ['varSecValue', 'Value / Formula'],
@@ -18479,10 +18500,16 @@
         function varJumpTo(id) {
           var sc = document.getElementById('varEditScroll');
           var sec = document.getElementById(id);
-          var nav = document.getElementById('varJumpNav');
           if (!sc || !sec) return;
           varJumpHold = { id: id, until: Date.now() + 700 };
-          var y = sc.scrollTop + sec.getBoundingClientRect().top - sc.getBoundingClientRect().top - (nav ? nav.offsetHeight + 14 : 60);
+          /* Build -153: the whole fixed stack (header +
+             quick-look + Shorthand + chip row) sits above and
+             OUTSIDE the scroll area, so landing a section at
+             the scroll area's own top (minus a small breathing
+             margin) already clears every fixed element — the
+             old in-scroll sticky-nav height is no longer
+             subtracted. */
+          var y = sc.scrollTop + sec.getBoundingClientRect().top - sc.getBoundingClientRect().top - 10;
           sc.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
           varJumpSpy();
         }
@@ -18490,7 +18517,10 @@
           var sc = document.getElementById('varEditScroll');
           var nav = document.getElementById('varJumpNav');
           if (!sc || !nav) return;
-          var navH = nav.offsetHeight + 18;
+          /* Build -153: the spy line sits just below the
+             scroll area's own top edge (the chip row is in
+             the fixed stack above it, not inside it). */
+          var navH = 22;
           var scTop = sc.getBoundingClientRect().top;
           var active = null;
           if (varJumpHold && Date.now() < varJumpHold.until && varJumpSectionVisible(varJumpHold.id)) active = varJumpHold.id;
