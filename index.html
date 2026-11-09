@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261109-157" />
+    <meta name="folio-build" content="20261109-158" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11040,12 +11040,29 @@
                 id: String(t.id),
                 name: typeof t.name === 'string' ? t.name : 'Untitled template',
                 content: (t.content && t.content.type === 'doc') ? t.content : { type: 'doc', content: [{ type: 'paragraph' }] },
+                /* Build -158: a template's own document-scoped
+                   variables ride ON the template record (vars),
+                   so they save, reload and sync with the
+                   template itself (folio.templates.v1), exactly
+                   like its content. Kept as a raw clone here —
+                   tplNormalize runs before the variable system
+                   has booted (CHIP_TYPES & friends are not yet
+                   assigned at tplLoad time); tplHydrateVars
+                   normalizes them through varNormalizeRec and
+                   mirrors them into varStore once it has. */
+                vars: (Array.isArray(t.vars) ? t.vars.filter(function (r) { return r && typeof r.id === 'string' && typeof r.name === 'string'; }).map(function (r) { try { return JSON.parse(JSON.stringify(r)); } catch (e) { return null; } }).filter(Boolean) : []),
                 updated: t.updated || 0,
               });
             });
           }
           return out;
         }
+        /* Build -158: the variable-scope key a template's
+           variables live under in varStore.docVars — the same
+           'tpl:' prefix its tab carries, so a scope key can
+           never collide with a document id (uid()s start
+           with 'd'). */
+        function tplVarKey(id) { return 'tpl:' + id; }
         function tplLoad() {
           try {
             var raw = localStorage.getItem(TPL_KEY);
@@ -11103,6 +11120,9 @@
           }
           tplStore = remote;
           try { localStorage.setItem(TPL_KEY, JSON.stringify(tplStore)); } catch (e) {}
+          /* Build -158: the merged templates' variables
+             re-mirror from their records. */
+          try { tplHydrateAllVars(); } catch (e) {}
           if (docViewMode === 'templates') renderDocList();
           return true;
         }
@@ -11554,17 +11574,24 @@
           } catch (e) {}
         }
         varLoad();
+        /* Build -158: the variable system has booted — mirror
+           every template's canonical vars into the store. */
+        try { tplHydrateAllVars(); } catch (e) {}
         function varTouch() { varStore.updated = Date.now(); }
         function varSave() {
           varTouch();
           fxInvalidate();
           try { localStorage.setItem(VAR_KEY, JSON.stringify(varStore)); } catch (e) {}
           try { if (typeof pushVariables === 'function') pushVariables(myMeta()); } catch (e) {}
+          /* Build -158: template mirrors write back to their
+             records on every variable save. */
+          try { tplPersistVarsFromStore(); } catch (e) {}
         }
         function varSaveSoon() {
           varTouch();
           fxInvalidate();
           try { localStorage.setItem(VAR_KEY, JSON.stringify(varStore)); } catch (e) {}
+          try { tplPersistVarsFromStore(); } catch (e) {}
           if (varSaveTimer) clearTimeout(varSaveTimer);
           varSaveTimer = setTimeout(function () {
             varSaveTimer = null;
@@ -11573,7 +11600,107 @@
         }
         function varClone(x) { return JSON.parse(JSON.stringify(x)); }
         function varDocById(id) {
+          /* Build -158: a template's scope key ('tpl:' + id)
+             resolves to a pseudo-document standing in for the
+             template — the variable system's document-shaped
+             view of it. Its content/title/updated are LIVE
+             accessors onto the template record: reads see the
+             template's current content, and the generic
+             stored-document write paths (assign content after
+             a JSON rewrite, bump updated) land on the record
+             and schedule a template save, so those paths work
+             for a template home exactly as for a document. */
+          if (typeof id === 'string' && id.indexOf('tpl:') === 0) return tplPseudoDoc(id.slice(4));
           return lib.docs.find(function (d) { return d.id === id; }) || null;
+        }
+        function tplPseudoDoc(tplId) {
+          var t = (typeof tplById === 'function') ? tplById(tplId) : null;
+          if (!t) return null;
+          var o = { id: tplVarKey(tplId), tplId: tplId, __tpl: true };
+          Object.defineProperty(o, 'title', { enumerable: true, get: function () { return t.name || 'Untitled template'; } });
+          Object.defineProperty(o, 'content', {
+            enumerable: true,
+            get: function () { return t.content; },
+            set: function (v) { t.content = v; t.updated = Date.now(); tplTouch(); tplSaveSoon(); },
+          });
+          Object.defineProperty(o, 'updated', {
+            enumerable: true,
+            get: function () { return t.updated || 0; },
+            set: function (v) { t.updated = v; },
+          });
+          return o;
+        }
+        /* Build -158: the document the variable system should
+           resolve against RIGHT NOW — the template on stage
+           while one is being edited (its pseudo-document),
+           else the current document. Every surface that used
+           to stand down (or silently resolve against the
+           document parked behind the template) in template
+           context reads through here instead. */
+        function varCtxDoc() {
+          if (typeof tplEditingId !== 'undefined' && tplEditingId) return varDocById(tplVarKey(tplEditingId)) || currentDoc();
+          return currentDoc();
+        }
+        /* Build -158: is this variable home the one on stage —
+           the open document, or the template being edited?
+           The anchor write-through family branches on it to
+           take the live-editor path instead of the stored-
+           content path (whose writes would be overwritten by
+           the editor's next onUpdate). */
+        function varHomeOnStage(homeId) {
+          if (!homeId) return false;
+          if (homeId === lib.currentId) return true;
+          return !!(typeof tplEditingId !== 'undefined' && tplEditingId && homeId === tplVarKey(tplEditingId));
+        }
+        /* Build -158: template variables — hydration and
+           persistence. The template record's vars are the
+           canonical store (they ride the templates KV sync);
+           varStore.docVars['tpl:' + id] is the live mirror
+           the whole variable system reads and writes, exactly
+           as if the template were a document. Hydration
+           copies record -> mirror (normalizing on the way);
+           persistence (hooked into varSave / varSaveSoon)
+           copies mirror -> record and saves the template.
+           When the mirror holds records the record lacks —
+           the variables KV arrived before the templates KV
+           from another device — the mirror is adopted INTO
+           the record instead of being wiped. */
+        function tplHydrateVars(t) {
+          if (!t || !t.id) return;
+          var key = tplVarKey(t.id);
+          var canon = [];
+          (Array.isArray(t.vars) ? t.vars : []).forEach(function (r) { var n = varNormalizeRec(r, false); if (n) canon.push(n); });
+          var mirror = varStore.docVars[key] || null;
+          if (!canon.length && mirror && mirror.length) {
+            t.vars = varClone(mirror);
+            canon = varClone(mirror);
+            /* The record just gained variables it did not
+               carry — persist the adoption with the template. */
+            try { tplTouch(); tplSaveSoon(); } catch (e) {}
+          } else {
+            t.vars = varClone(canon);
+            if (canon.length) varStore.docVars[key] = varClone(canon);
+            else delete varStore.docVars[key];
+          }
+        }
+        function tplHydrateAllVars() {
+          if (typeof tplStore === 'undefined' || !tplStore || !Array.isArray(tplStore.items)) return;
+          tplStore.items.forEach(function (t) { try { tplHydrateVars(t); } catch (e) {} });
+        }
+        function tplPersistVarsFromStore() {
+          if (typeof tplStore === 'undefined' || !tplStore || !Array.isArray(tplStore.items)) return;
+          var dirty = false;
+          tplStore.items.forEach(function (t) {
+            var key = tplVarKey(t.id);
+            if (!Object.prototype.hasOwnProperty.call(varStore.docVars, key)) return;
+            var cur = varStore.docVars[key] || [];
+            if (JSON.stringify(t.vars || []) !== JSON.stringify(cur)) {
+              t.vars = varClone(cur);
+              t.updated = Date.now();
+              dirty = true;
+            }
+          });
+          if (dirty) { tplTouch(); tplSaveSoon(); }
         }
         function varDocList(docId) {
           return varStore.docVars[docId] || [];
@@ -12449,9 +12576,8 @@
            repaints every twin, exactly as value edits
            propagate today. */
         function varChipDescriptor(attrs) {
-          if (tplEditingId) return null;
           if (!attrs || !attrs.vid) return null;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           var found = null;
           if (attrs.vscope && doc) found = varResolveRef(doc, attrs);
           if (!found) found = varFindAny(attrs.vid);
@@ -12539,8 +12665,8 @@
           varChipRefreshAfter(found);
         }
         function varChipAct(detail) {
-          if (!detail || tplEditingId) return;
-          var doc = currentDoc();
+          if (!detail) return;
+          var doc = varCtxDoc();
           if (!doc || !detail.vid) return;
           var found = varResolveRef(doc, { vid: detail.vid, vscope: detail.vscope || 'd' }) || varFindAny(detail.vid);
           if (!found || !found.rec || !chipIsActive(found.rec)) return;
@@ -12600,7 +12726,7 @@
         function chipPreviewValue(found, text) {
           var rec = found.rec;
           if (rec.anchor) {
-            var doc = currentDoc();
+            var doc = varCtxDoc();
             if (!doc) return;
             if (!varLiveText || varLiveText.docId !== doc.id) varLiveText = { docId: doc.id, map: {} };
             varLiveText.map[rec.id] = text;
@@ -12628,7 +12754,7 @@
         function chipKeyAdjust(found, dir) {
           var rec = found.rec;
           var cfg = chipCfgOf(rec);
-          var homeDoc = found.scope === 'doc' ? currentDoc() : null;
+          var homeDoc = found.scope === 'doc' ? varCtxDoc() : null;
           var cur = varRecordValue(rec, homeDoc);
           switch (cfg.type) {
             case 'stepper': {
@@ -12966,7 +13092,7 @@
         function chipLockEnter(found) {
           var rec = found.rec;
           var cfg = chipCfgOf(rec);
-          var homeDoc = found.scope === 'doc' ? currentDoc() : null;
+          var homeDoc = found.scope === 'doc' ? varCtxDoc() : null;
           var cur = varRecordValue(rec, homeDoc);
           switch (cfg.type) {
             case 'toggle':
@@ -13021,7 +13147,6 @@
             return false;
           }
           if (ev.altKey || ev.metaKey || ev.ctrlKey) return false;
-          if (tplEditingId) { chipLock = null; return false; }
           if (varEditCtx || varPanelDocId || varPickCtx || varDefineCtx) { chipLock = null; return false; }
           if (!editorHandle || !editorHandle.editor || !editorHandle.editor.state) { chipLock = null; return false; }
           var focus = chipLockFocus();
@@ -13042,7 +13167,7 @@
              atoms, whose lock the owner confirmed good —
              exactly as -145 left them. */
           if (focus.kind === 'def') { if (chipLock && chipLock.kind === 'def') chipLock = null; return false; }
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) { chipLock = null; return false; }
           var found = focus.kind === 'ref'
             ? (varResolveRef(doc, focus.node.attrs) || varFindAny(focus.node.attrs.vid))
@@ -13165,7 +13290,6 @@
            (vplain rides the node's attrs through every
            refresh, which preserves it by design). */
         function varChipSetPlain(pos, plain) {
-          if (tplEditingId) return;
           if (!editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor;
           var st = ed.state;
@@ -13521,6 +13645,12 @@
           remote.updated = remoteUpd;
           varStore = remote;
           fxInvalidate();
+          /* Build -158: a variables merge can drop or stale
+             the template mirrors — the template records are
+             canonical for their scopes, so re-mirror (or
+             adopt, when the merge brought records the
+             template does not have yet). */
+          try { tplHydrateAllVars(); } catch (e) {}
           try { localStorage.setItem(VAR_KEY, JSON.stringify(varStore)); } catch (e) {}
           /* The open document re-derives anything the merge
              dropped (its marks carry the truth), then every
@@ -13552,9 +13682,8 @@
            refreshWikiLinks pattern. Also nudges the pill
            decorations (they rebuild on any doc change). */
         function varRefreshEditorRefs() {
-          if (tplEditingId) return;
           if (!editorHandle || !editorHandle.editor || !editorHandle.editor.state) return;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) return;
           var ed = editorHandle.editor;
           var st = ed.state;
@@ -13652,8 +13781,20 @@
            every edit; settles immediately when nothing about
            variables changed (the refresh's own dispatch
            re-enters once and finds no work). */
-        function varSyncFromEditor(json) {
-          var doc = currentDoc();
+        function varSyncFromEditor(json, forTplId) {
+          /* Build -158: a template session's edits sync the
+             TEMPLATE's variables — it passes its id, and the
+             pseudo-document stands in for the template
+             everywhere below (its records live under the
+             template's scope key, its anchors read from its
+             content). Document sessions pass nothing and sync
+             the current document, exactly as before — even
+             when one of their parked transactions lands while
+             a template is on stage (the tabSessionFor case):
+             that sync updates records and saves, but must not
+             repaint the template editor's chips, so the
+             refresh below stands down for it. */
+          var doc = forTplId ? varDocById(tplVarKey(forTplId)) : currentDoc();
           if (!doc || !json) return;
           /* Anchor text may have moved under a formula's
              feet on this very edit — evaluations never
@@ -13682,8 +13823,14 @@
           varLiveText = { docId: doc.id, map: liveMap };
           if (changed) {
             varSaveSoon();
-            varRefreshEditorRefs();
-            if (varPanelDocId) renderVarPanel();
+            /* Build -158: repaint only when the editor on
+               stage belongs to the scope just synced — a
+               document sync landing under a template (or a
+               template sync after its stage was left) leaves
+               the visible editor's chips to their own sync. */
+            var stageKey = (typeof tplEditingId !== 'undefined' && tplEditingId) ? tplVarKey(tplEditingId) : lib.currentId;
+            if (doc.id === stageKey) varRefreshEditorRefs();
+            if (varPanelDocId && varPanelDocId === doc.id) renderVarPanel();
           }
           /* Build -139 (C): an edit can move a definition's
              variable into or out of error without touching
@@ -13696,7 +13843,6 @@
            editor (one undoable transaction). Returns false
            when the variable is not anchored on screen. */
         function varStripDefInEditor(vid) {
-          if (tplEditingId) return false;
           if (!editorHandle || !editorHandle.editor) return false;
           var ed = editorHandle.editor;
           var st = ed.state;
@@ -13771,7 +13917,6 @@
            one undoable transaction. Returns false when the
            variable is not anchored on screen. */
         function varConvertDefInEditor(vid, attrs) {
-          if (tplEditingId) return false;
           if (!editorHandle || !editorHandle.editor) return false;
           var ed = editorHandle.editor;
           var st = ed.state;
@@ -13829,7 +13974,7 @@
           if (scope === 'global') { rec.anchorDoc = null; rec.anchorDocTitle = null; }
           var home = homeId ? varDocById(homeId) : null;
           if (!home) return;
-          if (home.id === lib.currentId && editorHandle) varConvertDefInEditor(rec.id, attrs);
+          if (varHomeOnStage(home.id) && editorHandle) varConvertDefInEditor(rec.id, attrs);
           else {
             var clone = varClone(home.content);
             if (varConvertDefJson(clone, rec.id, attrs)) { home.content = clone; home.updated = Date.now(); persist(true); }
@@ -13850,7 +13995,6 @@
            empty value (the caller in varWriteAnchorThrough
            owns that bookkeeping). */
         function varWriteDefTextInEditor(vid, newText, vname) {
-          if (tplEditingId) return false;
           if (!editorHandle || !editorHandle.editor) return false;
           var ed = editorHandle.editor;
           var st = ed.state;
@@ -13938,7 +14082,7 @@
           var home = homeId ? varDocById(homeId) : null;
           var done = false;
           if (home) {
-            if (home.id === lib.currentId && editorHandle) done = varWriteDefTextInEditor(rec.id, newText, rec.name);
+            if (varHomeOnStage(home.id) && editorHandle) done = varWriteDefTextInEditor(rec.id, newText, rec.name);
             else {
               var clone = varClone(home.content);
               if (varWriteDefTextJson(clone, rec.id, newText, rec.name)) { home.content = clone; home.updated = Date.now(); persist(true); done = true; }
@@ -13962,7 +14106,7 @@
           if (scope === 'global') { rec.anchorDoc = null; rec.anchorDocTitle = null; }
           var home = homeId ? varDocById(homeId) : null;
           if (!home) return;
-          if (home.id === lib.currentId && editorHandle) varStripDefInEditor(rec.id);
+          if (varHomeOnStage(home.id) && editorHandle) varStripDefInEditor(rec.id);
           else if (varStripDefJson(home.content, rec.id)) { home.updated = Date.now(); persist(true); }
         }
         function varHomeDocIdOf(rec) {
@@ -13977,7 +14121,6 @@
            at their last value, definition marks lift off.
            Returns false when the open document holds neither. */
         function varBakeInEditor(vid, value) {
-          if (tplEditingId) return false;
           if (!editorHandle || !editorHandle.editor) return false;
           var ed = editorHandle.editor;
           var st = ed.state;
@@ -14028,10 +14171,9 @@
           return { from: sel.from, to: sel.to };
         }
         function openVarDefineModal() {
-          if (tplEditingId) { folioToast('Variables live in documents — this is a template.'); return; }
           var range = varSelectionRange();
           if (!range) { folioToast('Select the text to define first.'); return; }
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) return;
           var ed = editorHandle.editor;
           var text = ed.state.doc.textBetween(range.from, range.to, '');
@@ -14137,7 +14279,7 @@
           var ctx = varDefineCtx;
           if (!ctx || !editorHandle || !editorHandle.editor) return;
           var doc = varDocById(ctx.docId);
-          if (!doc || doc.id !== lib.currentId) return;
+          if (!doc || !varHomeOnStage(doc.id)) return;
           var ed = editorHandle.editor;
           var st = ed.state;
           if (!st.schema.marks.varDef) return;
@@ -14230,9 +14372,8 @@
         var varPickSelIndex = 0;
         var varPickShown = [];
         function openVarPicker() {
-          if (tplEditingId) { folioToast('Variables live in documents — this is a template.'); return; }
           if (!editorHandle || !editorHandle.editor) return;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) return;
           var range = varSelectionRange();
           var sel = editorHandle.editor.state.selection;
@@ -14347,7 +14488,7 @@
         function varDoInsertRef(scope, rec) {
           var ctx = varPickCtx;
           if (!editorHandle || !editorHandle.editor || !ctx) return;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc || doc.id !== ctx.docId) return;
           closeVarPicker();
           /* A shadowed global inserts its document variable —
@@ -14370,9 +14511,8 @@
            Shadowing resolves exactly as the picker's: a
            shadowed global inserts its document variable. */
         function varInsertRefAtCaret(scope, rec) {
-          if (tplEditingId) return;
           if (!editorHandle || !editorHandle.editor) return;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) return;
           var effScope = scope, effRec = rec;
           if (scope === 'global') {
@@ -14386,7 +14526,11 @@
 
         /* ----- the Variables panel ----- */
         function openVarPanel(docId) {
-          if (tplEditingId) { folioToast('Variables live in documents — this is a template.'); return; }
+          /* Build -158: while a template is on stage the
+             panel shows the TEMPLATE's own variables — its
+             scope key stands in for a document id everywhere
+             the panel already keys off one. */
+          if (tplEditingId) docId = tplVarKey(tplEditingId);
           var doc = varDocById(docId || lib.currentId);
           if (!doc) return;
           varPanelDocId = doc.id;
@@ -14396,7 +14540,7 @@
              the editor this exact spot back. */
           varPanelCaret = null;
           try {
-            if (doc.id === lib.currentId && editorHandle && editorHandle.editor && editorHandle.editor.state) {
+            if (varHomeOnStage(doc.id) && editorHandle && editorHandle.editor && editorHandle.editor.state) {
               var psel = editorHandle.editor.state.selection;
               if (psel) varPanelCaret = { docId: doc.id, from: psel.from, to: psel.to };
             }
@@ -14462,7 +14606,7 @@
           }
           var docId = doc.id;
           closeVarPanel();
-          if (docId !== lib.currentId) return;
+          if (!varHomeOnStage(docId)) return;
           var chain = editorHandle.editor.chain().focus();
           if (caret && caret.docId === docId && typeof caret.from === 'number') {
             try { chain.setTextSelection({ from: caret.from, to: caret.to }); } catch (e) {}
@@ -14476,7 +14620,7 @@
           closeVarPanel();
           if (!editorHandle || !editorHandle.editor) return;
           try {
-            if (caret && caret.docId === lib.currentId && typeof caret.from === 'number') {
+            if (caret && varHomeOnStage(caret.docId) && typeof caret.from === 'number') {
               editorHandle.editor.chain().focus().setTextSelection({ from: caret.from, to: caret.to }).run();
             } else {
               editorHandle.editor.chain().focus().run();
@@ -14563,7 +14707,7 @@
             var homeDoc = scope === 'doc' ? doc : (rec.anchorDoc ? varDocById(rec.anchorDoc) : null);
             var v = varRecordValue(rec, homeDoc);
             if (rec.anchor) {
-              var where = scope === 'doc' ? 'this document' : '“' + (rec.anchorDocTitle || (homeDoc && homeDoc.title) || 'a document') + '”';
+              var where = scope === 'doc' ? (doc.__tpl ? 'this template' : 'this document') : '“' + (rec.anchorDocTitle || (homeDoc && homeDoc.title) || 'a document') + '”';
               val.textContent = 'Defined by text in ' + where + ' — “' + v + '”';
             } else if (varIsFormula(rec)) {
               var fres = fxEvalTop(rec);
@@ -14642,12 +14786,12 @@
             var hd = scope === 'doc' ? doc : (r.anchorDoc ? varDocById(r.anchorDoc) : null);
             return varRecordValue(r, hd).toLowerCase().indexOf(pq) !== -1;
           }
-          head('This document', 'doc');
+          head(doc.__tpl ? 'This template' : 'This document', 'doc');
           var dv = varDocList(doc.id).filter(function (r) { return pMatch('doc', r); });
           if (!dv.length) {
             var e1 = document.createElement('div');
             e1.className = 'var-empty';
-            e1.textContent = pq ? 'No document variables match “' + varPanelQuery.trim() + '”.' : 'No document variables yet.';
+            e1.textContent = pq ? 'No ' + (doc.__tpl ? 'template' : 'document') + ' variables match “' + varPanelQuery.trim() + '”.' : 'No ' + (doc.__tpl ? 'template' : 'document') + ' variables yet.';
             body.appendChild(e1);
           }
           dv.forEach(function (r) { row('doc', r); });
@@ -15668,7 +15812,7 @@
           strong.textContent = st.name || '(unnamed)';
           q.appendChild(strong);
           var bits = [];
-          bits.push(st.scope === 'global' ? 'global variable' : 'document variable');
+          bits.push(st.scope === 'global' ? 'global variable' : (varEditCtx && varEditCtx.doc && varEditCtx.doc.__tpl ? 'template variable' : 'document variable'));
           if (st.mode === 'formula') {
             bits.push('panel formula');
             var w = fxWorkingEval();
@@ -16240,7 +16384,11 @@
         /* ----- WS3: the inline @= shorthand row ----- */
         function shPreviewText(item) {
           var st = item.shorthand;
-          var doc = currentDoc();
+          /* Build -158: the preview evaluates in the
+             variable context — a template's own scope while
+             a template is on stage — not whatever document
+             happens to be parked underneath. */
+          var doc = varCtxDoc();
           var parts = [];
           /* A redefinition keeps the existing record's
              scope (the established semantics — the commit
@@ -16319,7 +16467,7 @@
         }
         function varAtDefineShorthand(item) {
           var st = item.shorthand;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           var range = varAtState.range;
           if (!st || !doc || !range || !editorHandle || !editorHandle.editor) return;
           var name = st.name;
@@ -16359,7 +16507,7 @@
               applyFmtChip(rec);
             }
             varSave();
-            var d2 = currentDoc();
+            var d2 = varCtxDoc();
             if (!d2 || d2.id !== doc.id) return;
             editorHandle.editor.chain().focus()
               .deleteRange({ from: range.from, to: range.to })
@@ -16394,7 +16542,11 @@
         function openVarEdit(scope, rec, opts) {
           opts = opts || {};
           varAtMenusDismissForModal();
-          var doc = varDocById(varPanelDocId || lib.currentId);
+          /* Build -158: in template context the modal's home
+             document is the template's pseudo-document, so
+             its doc scope, formula context and anchor homes
+             all resolve to the template. */
+          var doc = (typeof tplEditingId !== 'undefined' && tplEditingId) ? varDocById(tplVarKey(tplEditingId)) : varDocById(varPanelDocId || lib.currentId);
           /* Build -140: what a keyboard-confirmed save owes
              the editor (see varFocusAfterSavedVar): the caret
              held right now, and the invoking element when the
@@ -16405,7 +16557,7 @@
              the document the editor actually shows. */
           var returnFocus = null;
           try {
-            if (doc && doc.id === lib.currentId && !tplEditingId &&
+            if (doc && varHomeOnStage(doc.id) &&
                 editorHandle && editorHandle.editor && editorHandle.editor.state) {
               var rst = editorHandle.editor.state;
               var rsel = rst.selection;
@@ -16443,7 +16595,7 @@
              insert the reference the @-text promised — only
              once the modal's fate is known. */
           varEditCtx = { scope: scope, id: rec ? rec.id : null, docId: doc ? doc.id : lib.currentId, afterSave: opts.afterSave || null, afterCancel: opts.afterCancel || null, returnFocus: returnFocus, wasAnchored: !!(rec && rec.anchor) };
-          document.getElementById('varEditTitle').textContent = rec ? 'Edit variable' : (scope === 'doc' ? 'New document variable' : 'New global variable');
+          document.getElementById('varEditTitle').textContent = rec ? 'Edit variable' : (scope === 'doc' ? (doc && doc.__tpl ? 'New template variable' : 'New document variable') : 'New global variable');
           varFieldHygiene(document.getElementById('varEditName'));
           varFieldHygiene(document.getElementById('varEditValue'));
           varFieldHygiene(document.getElementById('varEditExpr'));
@@ -17620,8 +17772,8 @@
            session) own their landing and never come here. */
         function varFocusAfterSavedVar(ctx, rec) {
           if (!ctx || !rec) return;
-          if (!editorHandle || !editorHandle.editor || tplEditingId) return;
-          var doc = currentDoc();
+          if (!editorHandle || !editorHandle.editor) return;
+          var doc = varCtxDoc();
           if (!doc || doc.id !== ctx.docId) return;
           var ed = editorHandle.editor;
           var st = ed.state;
@@ -17988,7 +18140,7 @@
         function varStripAnchorOf(globalRec) {
           var home = globalRec.anchorDoc ? varDocById(globalRec.anchorDoc) : null;
           if (!home) return;
-          if (home.id === lib.currentId && editorHandle) varStripDefInEditor(globalRec.id);
+          if (varHomeOnStage(home.id) && editorHandle) varStripDefInEditor(globalRec.id);
           else if (varStripDefJson(home.content, globalRec.id)) { home.updated = Date.now(); persist(true); }
         }
         /* Rebind the OPEN editor's references and definition
@@ -18000,7 +18152,6 @@
            merged-away variable as a phantom. One history-free
            transaction, like every restamp. */
         function varRebindInEditor(fromVid, toRec) {
-          if (tplEditingId) return;
           if (!editorHandle || !editorHandle.editor || !editorHandle.editor.state) return;
           var ed = editorHandle.editor;
           var st = ed.state;
@@ -18078,7 +18229,7 @@
             var docId = varHomeDocIdOf(rec) || varPanelDocId;
             var doc = docId ? varDocById(docId) : null;
             lastValue = varRecordValue(rec, doc);
-            if (doc && doc.id === lib.currentId) varBakeInEditor(rec.id, lastValue);
+            if (doc && varHomeOnStage(doc.id)) varBakeInEditor(rec.id, lastValue);
             else if (doc) {
               var clone = varClone(doc.content);
               if (varBakeJson(clone, rec.id, lastValue)) { doc.content = clone; doc.updated = Date.now(); persist(true); }
@@ -19644,6 +19795,13 @@
               tt.updated = Date.now();
               tplTouch();
               tplSaveSoon();
+              /* Build -158: keep the template's variables in
+                 step with its text — anchored values, record
+                 healing and reference repaints, exactly the
+                 sync a document's edits get (varSyncFromEditor
+                 resolves the template's pseudo-document while
+                 it is on stage). */
+              try { if (typeof varSyncFromEditor === 'function') varSyncFromEditor(json, t.id); } catch (e) {}
               renderOutline(json);
               wordCount(json);
               /* Build -119: parity with the document sessions'
@@ -19712,6 +19870,20 @@
             if (focusEditor !== false && window.innerWidth > 900) folioFocusPreservingSelection(tplSessions[id].handle);
             return;
           }
+          /* Build -158: before a fresh editor loads the
+             template, its variables take their places — the
+             mirror re-hydrates from the record, and any
+             variable marks/references the content carries
+             from elsewhere (a pre--158 Add as Template, a
+             synced store) are adopted into the template's
+             own scope with fresh ids, so the template owns
+             its definitions outright. A parked session keeps
+             its live state instead — adoption never rewrites
+             content under an existing editor. */
+          if (!tplSessions[id]) {
+            try { tplHydrateVars(t); } catch (e) {}
+            try { tplAdoptForeignVars(t); } catch (e) {}
+          }
           var s = tplSessionFor(t);
           if (tplEditingId && tplSessions[tplEditingId]) tplSessions[tplEditingId].scroll = editorScroll.scrollTop;
           else if (tabDisplayedId && tabSessions[tabDisplayedId]) tabSessions[tabDisplayedId].scroll = editorScroll.scrollTop;
@@ -19768,6 +19940,7 @@
             id: uid(),
             name: 'Untitled template',
             content: { type: 'doc', content: [{ type: 'paragraph' }] },
+            vars: [],
             updated: Date.now(),
           };
           tplStore.items.push(t);
@@ -19782,16 +19955,30 @@
         function tplAddFromDoc(docId) {
           var d = lib.docs.find(function (x) { return x.id === docId; });
           if (!d) return;
+          var content = tplClone(d.content || { type: 'doc', content: [{ type: 'paragraph' }] });
+          /* Build -158: the template snapshots the document's
+             variables as its OWN copies — fresh ids, bindings
+             remapped (see tplRemapVarSet) — so the template
+             is as independent of the document's variables as
+             it already was of its text. References to globals
+             stay references to those globals. */
+          var vars = [];
+          try {
+            var srcVars = varDocList(docId).slice();
+            if (srcVars.length) vars = tplRemapVarSet(srcVars, content, function () { return false; }).records;
+          } catch (e) { vars = []; }
           var t = {
             id: uid(),
             name: d.title || 'Untitled',
-            content: tplClone(d.content || { type: 'doc', content: [{ type: 'paragraph' }] }),
+            content: content,
+            vars: vars,
             updated: Date.now(),
           };
           tplStore.items.push(t);
           tplTouch();
           tplSave();
-          folioToast('Added \u201C' + (t.name || 'Untitled') + '\u201D as a template.', 2600);
+          try { tplHydrateVars(t); } catch (e) {}
+          folioToast('Added \u201C' + (t.name || 'Untitled') + '\u201D as a template.' + (vars.length ? ' Its ' + vars.length + (vars.length === 1 ? ' variable' : ' variables') + ' came along as the template\u2019s own copies.' : ''), 2600);
           if (docViewMode === 'templates') renderDocList();
         }
 
@@ -19812,6 +19999,10 @@
           var hadTab = typeof tabIndexOf === 'function' && tabIndexOf(tabId) !== -1;
           var wasEditing = tplEditingId === id;
           tplStore.items = tplStore.items.filter(function (t) { return t.id !== id; });
+          /* Build -158: the template's variable mirror dies
+             with it — no orphaned scope for varFindAny to
+             resolve against. */
+          if (varStore.docVars[tplVarKey(id)]) { delete varStore.docVars[tplVarKey(id)]; try { varSaveSoon(); } catch (e) {} }
           tplTouch();
           tplSave();
           /* Build -120: a deleted template's TAB closes through
@@ -19833,6 +20024,235 @@
             if (lib.currentId && tabDoc(lib.currentId)) { tabPendingFill = true; openDoc(lib.currentId, false); }
           }
           renderDocList();
+        }
+
+        /* ----- build -158: variable remapping -----
+           One engine serves every template<->document
+           crossing: Add as Template (document -> template),
+           adoption (foreign ids found in a template's content
+           -> the template's own scope), and insertion
+           (template -> document). It clones a set of variable
+           records onto FRESH ids and rewrites a content
+           tree's bindings (varDef marks, varRef nodes) plus
+           the records' own internal bindings (formula tokens,
+           chip option / setting references) onto the new ids.
+           GLOBAL bindings — scope 'g', in content and in
+           tokens alike — are never touched: a reference to a
+           global stays a reference to that global in every
+           destination, and globals are never copied down
+           into a document scope. Name collisions against the
+           destination scope rename the INCOMING copy
+           (name_2, name_3, ...): both variables survive, the
+           copied text binds to the copy by id, and the caller
+           surfaces the renames in a toast. (The promote
+           flow's conflict-asks posture — replace or merge
+           into the existing record — is the wrong shape for
+           an insert, whose whole point is that the incoming
+           definitions land as independent copies beside
+           whatever the destination already has.) */
+        function tplRemapVarSet(records, content, takenName) {
+          var idMap = {};
+          var nameMap = {};
+          var renames = [];
+          var used = {};
+          function freeName(name) {
+            if (!takenName(name) && !used[name]) { used[name] = 1; return name; }
+            var i = 2;
+            while (takenName(name + '_' + i) || used[name + '_' + i]) i++;
+            var nm = name + '_' + i;
+            used[nm] = 1;
+            renames.push({ from: name, to: nm });
+            return nm;
+          }
+          var outRecs = (records || []).map(function (r) {
+            var c = varClone(r);
+            var nid = uid();
+            idMap[r.id] = nid;
+            c.id = nid;
+            var nn = freeName(c.name);
+            nameMap[r.id] = nn;
+            c.name = nn;
+            return c;
+          });
+          function remapRefObj(ref) {
+            if (!ref || typeof ref.vid !== 'string' || ref.s === 'g') return ref;
+            if (!idMap[ref.vid]) return ref;
+            return { vid: idMap[ref.vid], s: 'd', n: nameMap[ref.vid] || ref.n || '' };
+          }
+          outRecs.forEach(function (c) {
+            if (typeof c.expr === 'string' && c.expr) {
+              try {
+                var toks = JSON.parse(c.expr);
+                var dirty = false;
+                toks.forEach(function (tk) {
+                  if (tk && tk.t === 'r' && tk.s !== 'g' && idMap[tk.vid]) {
+                    var ov = tk.vid;
+                    tk.vid = idMap[ov]; tk.s = 'd'; tk.n = nameMap[ov] || tk.n;
+                    dirty = true;
+                  }
+                });
+                if (dirty) c.expr = JSON.stringify(toks);
+              } catch (e) {}
+            }
+            if (c.chip) {
+              var cfg = chipNormalize(c.chip);
+              function remapOpt(o) {
+                if (o && o.k === 'ref' && o.s !== 'g' && idMap[o.vid]) {
+                  var ov2 = o.vid;
+                  return { k: 'ref', vid: idMap[ov2], s: 'd', n: nameMap[ov2] || o.n || '' };
+                }
+                return o;
+              }
+              cfg.dropdown.options = cfg.dropdown.options.map(remapOpt);
+              if (cfg.dropdown.sel) cfg.dropdown.sel = remapOpt(cfg.dropdown.sel);
+              ['stepper', 'slider', 'toggle'].forEach(function (gname) {
+                var g = cfg[gname];
+                if (g && g.refs) {
+                  Object.keys(g.refs).forEach(function (k) { g.refs[k] = remapRefObj(g.refs[k]); });
+                }
+              });
+              c.chip = cfg;
+            }
+          });
+          if (content) {
+            varWalkJson(content, function (n) {
+              if (n.type === 'varRef' && n.attrs && n.attrs.vid && n.attrs.vscope !== 'g' && idMap[n.attrs.vid]) {
+                var ov3 = n.attrs.vid;
+                n.attrs.vid = idMap[ov3];
+                n.attrs.vscope = 'd';
+                if (nameMap[ov3]) n.attrs.vname = nameMap[ov3];
+              }
+              if (n.type === 'text' && Array.isArray(n.marks)) {
+                n.marks.forEach(function (m) {
+                  if (m.type === 'varDef' && m.attrs && m.attrs.vid && idMap[m.attrs.vid]) {
+                    var ov4 = m.attrs.vid;
+                    m.attrs.vid = idMap[ov4];
+                    if (nameMap[ov4]) m.attrs.vname = nameMap[ov4];
+                  }
+                });
+              }
+            });
+            /* Anchored copies cache their anchor's text —
+               read it back from the rewritten tree so the
+               record and its definition agree from birth. */
+            outRecs.forEach(function (c) {
+              if (c.anchor) {
+                var at = varAnchorTextInContent(content, c.id);
+                if (at != null) c.value = at;
+              }
+            });
+          }
+          return { records: outRecs, idMap: idMap, renames: renames };
+        }
+        /* Every doc-scope variable id a record BINDS
+           internally (formula tokens, chip references),
+           reported as (vid, scopeFlag) pairs. */
+        function tplVarBoundVids(rec, cb) {
+          if (!rec) return;
+          if (typeof rec.expr === 'string' && rec.expr) {
+            try {
+              JSON.parse(rec.expr).forEach(function (tk) { if (tk && tk.t === 'r' && tk.vid) cb(tk.vid, tk.s); });
+            } catch (e) {}
+          }
+          if (rec.chip) {
+            var cfg = chipNormalize(rec.chip);
+            cfg.dropdown.options.forEach(function (o) { if (o && o.k === 'ref') cb(o.vid, o.s); });
+            if (cfg.dropdown.sel && cfg.dropdown.sel.k === 'ref') cb(cfg.dropdown.sel.vid, cfg.dropdown.sel.s);
+            ['stepper', 'slider', 'toggle'].forEach(function (gname) {
+              var g = cfg[gname];
+              if (g && g.refs) Object.keys(g.refs).forEach(function (k) { if (g.refs[k]) cb(g.refs[k].vid, g.refs[k].s); });
+            });
+          }
+        }
+        /* The doc-scope variable ids a content tree binds
+           that a given owned-id set does NOT cover and that
+           are not globals — bindings inherited from another
+           scope (a pre--158 template, a synced store). */
+        function tplForeignVarIds(content, ownIds) {
+          var seen = {}, out = [];
+          function claim(vid, isGlobal) {
+            if (!vid || isGlobal || ownIds[vid]) return;
+            if (varGlobalById(vid)) return;
+            if (!seen[vid]) { seen[vid] = 1; out.push(vid); }
+          }
+          varWalkJson(content, function (n) {
+            if (n.type === 'varRef' && n.attrs && n.attrs.vid) claim(n.attrs.vid, n.attrs.vscope === 'g');
+            if (n.type === 'text' && Array.isArray(n.marks)) {
+              n.marks.forEach(function (m) { if (m.type === 'varDef' && m.attrs && m.attrs.vid) claim(m.attrs.vid, false); });
+            }
+          });
+          return out;
+        }
+        /* Grow a source-record list to its binding closure:
+           records the seeds bind internally (formula tokens,
+           chip references) join the set, so a copied formula
+           never keeps computing from its old home. */
+        function tplVarClosure(seedRecs, ownIds) {
+          var out = seedRecs.slice();
+          var queue = [];
+          out.forEach(function (r) { tplVarBoundVids(r, function (vid, s) { if (s !== 'g' && !ownIds[vid]) queue.push(vid); }); });
+          while (queue.length) {
+            var vid = queue.shift();
+            if (ownIds[vid]) continue;
+            var f = varFindAny(vid);
+            if (!f || f.scope !== 'doc' || !f.rec) continue;
+            ownIds[vid] = 1;
+            out.push(f.rec);
+            tplVarBoundVids(f.rec, function (v2, s2) { if (s2 !== 'g' && !ownIds[v2]) queue.push(v2); });
+          }
+          return out;
+        }
+        /* Adopt a template's foreign bindings into its own
+           scope: records living in some document's scope
+           that this template's content references are copied
+           in with fresh ids and the content is rewritten
+           onto the copies. Runs before a fresh editor loads
+           the template (tplShowStage) — a template owns its
+           definitions outright, never borrows a document's. */
+        function tplAdoptForeignVars(t) {
+          if (!t || !t.content) return false;
+          var own = {};
+          (Array.isArray(t.vars) ? t.vars : []).forEach(function (r) { own[r.id] = 1; });
+          var foreign = tplForeignVarIds(t.content, own);
+          var src = [];
+          foreign.forEach(function (vid) {
+            var f = varFindAny(vid);
+            if (f && f.scope === 'doc' && f.rec) { src.push(f.rec); own[vid] = 1; }
+          });
+          if (!src.length) return false;
+          src = tplVarClosure(src, own);
+          var taken = {};
+          (Array.isArray(t.vars) ? t.vars : []).forEach(function (r) { taken[r.name] = 1; });
+          var content = tplClone(t.content);
+          var res = tplRemapVarSet(src, content, function (nm) { return !!taken[nm]; });
+          t.content = content;
+          t.vars = (Array.isArray(t.vars) ? t.vars : []).concat(res.records);
+          t.updated = Date.now();
+          tplTouch();
+          tplSave();
+          try { tplHydrateVars(t); } catch (e) {}
+          return true;
+        }
+        /* The variable half of an insertion: the template's
+           records (its live mirror when it has one, else its
+           stored vars), closed over their bindings and joined
+           by any foreign records its content still references,
+           remapped onto fresh ids in the destination document.
+           The prepared content is rewritten in place; the
+           caller adds the returned records to the destination
+           BEFORE inserting, so the insert's own sync finds
+           them already home. */
+        function tplVarsForInsert(t, destDoc, preparedContent) {
+          var base = varStore.docVars[tplVarKey(t.id)] || (Array.isArray(t.vars) ? t.vars : []);
+          var own = {};
+          base.forEach(function (r) { own[r.id] = 1; });
+          var src = base.slice();
+          tplForeignVarIds(preparedContent, own).forEach(function (vid) {
+            var f = varFindAny(vid);
+            if (f && f.scope === 'doc' && f.rec) { src.push(f.rec); own[vid] = 1; }
+          });
+          src = tplVarClosure(src, own);
+          return tplRemapVarSet(src, preparedContent, function (nm) { return !!varDocVarByName(destDoc.id, nm); });
         }
 
         /* ----- inserting a template into a document ----- */
@@ -19914,11 +20334,52 @@
           }
           var before = ed.state.doc.content.size;
           var from = ed.state.selection.from;
-          var blocks = (tplPrepareForInsert(t.content).content) || [];
+          var preparedTpl = tplPrepareForInsert(t.content);
+          /* Build -158: the template's variables cross with
+             its text — as fresh copies in THIS document's
+             scope (see tplVarsForInsert / tplRemapVarSet):
+             anchored definitions in the copied text stay
+             definitions bound to the copies, references and
+             formulas rebind to them and compute, smart chips
+             arrive live, and references to globals stay
+             references to those globals. The records are
+             added BEFORE the insert, so the insert's own
+             per-edit sync finds them already home (a failed
+             insert rolls them back out below). */
+          var destDoc = varDocById(lib.currentId);
+          var varCopy = null;
+          if (destDoc) { try { varCopy = tplVarsForInsert(t, destDoc, preparedTpl); } catch (e) { varCopy = null; } }
+          var blocks = (preparedTpl.content) || [];
           if (!blocks.length) blocks = [{ type: 'paragraph' }];
+          var addedVarIds = [];
+          if (varCopy && varCopy.records.length && destDoc) {
+            if (!varStore.docVars[destDoc.id]) varStore.docVars[destDoc.id] = [];
+            varCopy.records.forEach(function (r) { varStore.docVars[destDoc.id].push(r); addedVarIds.push(r.id); });
+            varSave();
+          }
           var ok = false;
           try { ok = ed.chain().focus().insertContent(blocks).run(); } catch (e) { ok = false; }
-          if (!ok) { folioToast('Couldn\u2019t insert that template here.', 3000); return; }
+          if (!ok) {
+            if (addedVarIds.length && destDoc) {
+              varStore.docVars[destDoc.id] = varDocList(destDoc.id).filter(function (r) { return addedVarIds.indexOf(r.id) === -1; });
+              if (!varStore.docVars[destDoc.id].length) delete varStore.docVars[destDoc.id];
+              varSave();
+            }
+            folioToast('Couldn\u2019t insert that template here.', 3000); return;
+          }
+          /* The copied references re-stamp from their new
+             records (values, formula results, chip faces),
+             and the panel — if it is showing this document —
+             lists the copies. */
+          try { varRefreshEditorRefs(); } catch (e) {}
+          if (varPanelDocId) { try { renderVarPanel(); } catch (e) {} }
+          if (varCopy && varCopy.renames.length) {
+            folioToast('Template inserted. ' + varCopy.renames.map(function (rn) {
+              return '\u201C' + rn.from + '\u201D came in as \u201C' + rn.to + '\u201D \u2014 this document already has a \u201C' + rn.from + '\u201D, and both were kept.';
+            }).join(' '), 5600);
+          } else if (varCopy && varCopy.records.length) {
+            folioToast('Template inserted \u2014 ' + varCopy.records.length + (varCopy.records.length === 1 ? ' variable' : ' variables') + ' copied in as this document\u2019s own.', 3400);
+          }
           /* One insertContent transaction = one undo step.
              Landing the caret afterwards is a bare selection
              change, which never adds a step of its own. */
@@ -20028,9 +20489,15 @@
               nm.textContent = t.name || 'Untitled template';
               b.appendChild(nm);
               var n = tplCountInputs(t.content);
+              /* Build -158: a template's variables ride along
+                 on insert — say so on its row. */
+              var nv = (Array.isArray(t.vars) ? t.vars.length : 0) || (varStore.docVars[tplVarKey(t.id)] || []).length;
+              var bits = [];
+              if (n) bits.push(n + (n === 1 ? ' input' : ' inputs'));
+              if (nv) bits.push(nv + (nv === 1 ? ' variable' : ' variables'));
               var meta = document.createElement('span');
               meta.className = 'tpl-pick-meta';
-              meta.textContent = n ? (n + (n === 1 ? ' input' : ' inputs')) : '';
+              meta.textContent = bits.join(' · ');
               b.appendChild(meta);
               b.addEventListener('click', function () {
                 closeTplPicker(true);
@@ -22993,7 +23460,7 @@
           head.className = 'suggest-head';
           head.textContent = 'Insert variable';
           suggestEl.appendChild(head);
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!varAtState.items.length) {
             var empty = document.createElement('div');
             empty.className = 'suggest-empty';
@@ -23024,14 +23491,14 @@
           renderVarAt();
         }
         function varAtSync() {
-          if (!editorHandle || !editorHandle.editor || tplEditingId) { varAtClose(); return; }
+          if (!editorHandle || !editorHandle.editor) { varAtClose(); return; }
           if (suggestState.active || tagSuggestState.active) { varAtClose(); return; }
           /* Build -138: while a variable modal session is
              live it owns the screen — the document menu
              stands down, so selection churn behind the modal
              can never float this menu over it. */
           if (varEditCtx) { varAtClose(); return; }
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) { varAtClose(); return; }
           var hit = null;
           try { hit = varAtQueryAt(editorHandle.editor.state); } catch (e) { hit = null; }
@@ -23084,14 +23551,14 @@
         function varAtCreate() {
           var name = varAtState.query;
           var range = varAtState.range;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!name || !range || !doc) return;
           var docId = doc.id;
           varAtClose();
           openVarEdit('doc', null, {
             prefillName: name,
             afterSave: function (rec) {
-              var d = currentDoc();
+              var d = varCtxDoc();
               if (!d || d.id !== docId || !editorHandle || !editorHandle.editor) return;
               editorHandle.editor.chain().focus()
                 .deleteRange({ from: range.from, to: range.to })
@@ -23139,7 +23606,7 @@
              render it with its unit. */
           var useValue = unit ? unit.num : ((typeof value === 'string' && value.trim()) ? value : '0');
           var range = varAtState.range;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           varAtClose();
           if (!range || !doc || !editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor;
@@ -23224,7 +23691,7 @@
             return;
           }
           if (item.create) { varAtCreate(); return; }
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) return;
           var range = varAtState.range;
           /* Shadowing resolves exactly as the picker's: a
@@ -34118,7 +34585,7 @@
                and baking this one reference to plain text. */
             var vhit = ctx.hit;
             var vrec = varFindAny(vhit.node.attrs.vid);
-            var vbound = varResolveRef(varDocById(lib.currentId), vhit.node.attrs) || vrec;
+            var vbound = varResolveRef(varCtxDoc(), vhit.node.attrs) || vrec;
             var vname = (vbound && vbound.rec.name) || (vrec && vrec.rec.name) || vhit.node.attrs.vname || 'variable';
             el.appendChild(edMenuItem({
               icon: VAR_SVG, label: 'Variable “' + vname + '”…',
@@ -37442,9 +37909,8 @@
            like the menu item. */
         editorMountEl.addEventListener('dblclick', function (ev) {
           if (!editorHandle || !editorHandle.editor || !ev.target || !ev.target.closest) return;
-          if (typeof tplEditingId !== 'undefined' && tplEditingId) return;
           var ed = editorHandle.editor;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) return;
           var tagEl = varDefTagElAtPoint(ed, ev.clientX, ev.clientY);
           if (tagEl) {
@@ -37506,12 +37972,11 @@
                 ev.code === 'Enter' || ev.code === 'NumpadEnter' ||
                 ev.keyCode === 13 || ev.which === 13)) return;
           if (!editorHandle || !editorHandle.editor) return;
-          if (typeof tplEditingId !== 'undefined' && tplEditingId) return;
           if (varEditCtx || varPanelDocId || varDefineCtx || varPickCtx) return;
           if (varAtState.active || suggestState.active || tagSuggestState.active) return;
           if (linkPopState) return;
           var ed = editorHandle.editor;
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) return;
           var st = ed.state;
           var refHit = varRefHitNear(st);
@@ -47177,8 +47642,9 @@
              same as on a desktop one. The run toggles, like
              the outline's: with the panel up it closes,
              otherwise it opens on the current document
-             (openVarPanel itself stands down with a toast
-             while a template is being edited). Field-safe
+             (or, build -158, on the template being edited —
+             the panel shows whichever scope is on stage).
+             Field-safe
              (SC_SAFE_IN_FIELD below): the chord types no
              text of its own. This one entry is the binding,
              the ⌘/ dialog row, and the hint every Variables…
@@ -48627,12 +49093,12 @@
              by hand — it is a registry entry now ('variables',
              ⌥V), so pushRegistry('General') above already
              carries it with its hint; a second push here
-             would list it twice. */
-          if (!tplEditingId) {
-            push('insert-variable', 'Insert variable…', '', 'General', function () { openVarPicker(); });
-            if (varSelectionRange()) {
-              push('define-variable', 'Define selection as variable…', '', 'General', function () { openVarDefineModal(); });
-            }
+             would list it twice. Build -158: the picker and
+             define doors work in a template too (its own
+             scope), so they are no longer gated on it. */
+          push('insert-variable', 'Insert variable…', '', 'General', function () { openVarPicker(); });
+          if (varSelectionRange()) {
+            push('define-variable', 'Define selection as variable…', '', 'General', function () { openVarDefineModal(); });
           }
           pushRegistry('Formatting');
           pushRegistry('Table');
@@ -48819,8 +49285,7 @@
            running it inserts a reference at the caret and
            the bar closes, the way running an action does. */
         function abVariableItems(q) {
-          if (tplEditingId) return [];
-          var doc = currentDoc();
+          var doc = varCtxDoc();
           if (!doc) return [];
           var items = [];
           function mk(scope, rec) {
