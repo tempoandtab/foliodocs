@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261109-158" />
+    <meta name="folio-build" content="20261109-159" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -6862,7 +6862,8 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
-        <p class="form-note">A copy of the template lands at the caret. Tab moves through its inputs, turning each one into the text you type.</p>
+        <p class="form-note" id="tplPickerNote">A copy of the template lands at the caret. Tab moves through its inputs, turning each one into the text you type.</p>
+        <p class="form-note" id="tplPickerStatus" hidden></p>
         <div id="tplPickerList"></div>
       </div>
     </div>
@@ -8003,6 +8004,14 @@
           if (typeof f.icon !== 'string' || !f.icon) f.icon = null;
           if (typeof f.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(f.color)) f.color = null;
           if (typeof f.parentId !== 'string' || !f.parentId) f.parentId = null;
+          /* Folder templates (build -159): a folder's own
+             default-template setting lives in folderTemplate —
+             ABSENT means "inherit from the nearest ancestor
+             that sets one", null means an explicit "no
+             template" (which blocks inheritance), and a string
+             is a template id, bound by identity so a rename
+             never breaks it. Anything else is not a setting. */
+          if ('folderTemplate' in f && f.folderTemplate !== null && typeof f.folderTemplate !== 'string') delete f.folderTemplate;
         });
         // Folder expansion state: folders render COLLAPSED unless
         // the user has explicitly expanded them, so the saved map
@@ -10692,6 +10701,16 @@
             closeFolderMenu();
             openFolderPop(f.id, anchor || folderMenuEl, true);
           });
+          /* Folder templates (build -159): the folder's
+             default template — new notes created in this
+             folder start from it. The picker (in folder mode)
+             shows the effective template, its source, and the
+             inherit / no-template choices. */
+          item(TPL_SVG, 'Folder template…', '', function () {
+            var fid = f.id;
+            closeFolderMenu();
+            openTplPicker({ kind: 'folder', folderId: fid });
+          });
           item(PENCIL_SVG, 'Rename', '', function () {
             closeFolderMenu();
             renamingFolderId = f.id;
@@ -11015,6 +11034,14 @@
            template picker opened, consumed by the insert that
            follows a pick (see tplInsertIntoCurrentDoc). */
         var tplPickerScrollTop = null;
+        /* Build -159: what the template picker is FOR this
+           opening — { kind: 'insert' } (the original door: a
+           copy lands at the caret), { kind: 'create',
+           folderId } (New from Template: a whole new document
+           in that folder), or { kind: 'folder', folderId }
+           (Folder template…: choose that folder's default).
+           Null whenever the picker is closed. */
+        var tplPickerMode = null;
         /* Build -119 (repair): the caret/selection at the same
            moment. Probe bisection: the row-menu door inserts
            exactly at the caret, while the picker door lands at
@@ -19999,6 +20026,15 @@
           var hadTab = typeof tabIndexOf === 'function' && tabIndexOf(tabId) !== -1;
           var wasEditing = tplEditingId === id;
           tplStore.items = tplStore.items.filter(function (t) { return t.id !== id; });
+          /* Folder templates (build -159): folder settings
+             naming this template are cleared with it, so no
+             folder keeps a dead reference — each falls back
+             to its inherited default (or none) on its own. */
+          var folderSettingCleared = false;
+          lib.folders.forEach(function (f) {
+            if (f.folderTemplate === id) { delete f.folderTemplate; folderSettingCleared = true; }
+          });
+          if (folderSettingCleared) persist(false);
           /* Build -158: the template's variable mirror dies
              with it — no orphaned scope for varFindAny to
              resolve against. */
@@ -20464,16 +20500,174 @@
           refreshToolbar();
         }
 
+        /* ----- folder templates & create-from-template (build -159) ----- */
+        /* The effective default template for a folder: its own
+           setting when it has one, otherwise the nearest
+           ancestor's. A folder's own setting is the
+           folderTemplate property — absent = inherit, null =
+           an explicit "no template" that blocks inheritance,
+           a string = a template id. A setting whose template
+           has been deleted quietly falls back: the walk
+           continues to the ancestors exactly as if the setting
+           were absent, so a deleted template never errors and
+           never strands the folder. Returns
+           { tpl, from, own } — the template, the folder whose
+           setting supplied it, and whether that folder is the
+           one asked about — or null when no default applies. */
+        function folderEffectiveTemplate(folderId) {
+          var start = folderById(folderId);
+          var cur = start;
+          while (cur) {
+            if ('folderTemplate' in cur) {
+              if (cur.folderTemplate === null) return null;
+              var t = tplById(cur.folderTemplate);
+              if (t) return { tpl: t, from: cur, own: cur === start };
+              /* Dead id: fall through to the ancestors. */
+            }
+            cur = cur.parentId ? folderById(cur.parentId) : null;
+          }
+          return null;
+        }
+        function setFolderTemplate(folderId, value) {
+          var f = folderById(folderId);
+          if (!f) return;
+          if (value === undefined) delete f.folderTemplate;
+          else f.folderTemplate = value;
+          persist(false);
+        }
+        /* A new document born from a template: the template's
+           content prepared exactly as an insert prepares it
+           (inputs arrive empty with their authoring text as
+           placeholder), and its variables copied in as the new
+           document's own under the -158 copy semantics —
+           fresh identities, formulas and references rebound,
+           globals still global, name collisions renamed with
+           a toast. The document opens the way every creation
+           door opens one (build -107): a new tab, the title
+           field focused and selected. */
+        function createDocFromTemplate(t, folderId) {
+          if (!t) return null;
+          if (tagFilter) setTagFilter(null);
+          if (folderId) expandFolderChain(folderId);
+          var doc = createDoc('Untitled');
+          doc.folderId = folderId || null;
+          var prepared = tplPrepareForInsert(t.content);
+          var varCopy = null;
+          try { varCopy = tplVarsForInsert(t, doc, prepared); } catch (e) { varCopy = null; }
+          doc.content = prepared;
+          if (varCopy && varCopy.records.length) {
+            if (!varStore.docVars[doc.id]) varStore.docVars[doc.id] = [];
+            varCopy.records.forEach(function (r) { varStore.docVars[doc.id].push(r); });
+            varSave();
+          }
+          persist(false);
+          if (folioTabsReady) openDocInNewTab(doc.id);
+          else openDoc(doc.id, false);
+          titleInput.focus();
+          titleInput.select();
+          if (folderId) maybePromptWatchShare(doc, { folder: folderId });
+          if (varCopy && varCopy.renames.length) {
+            folioToast('Created from \u201C' + (t.name || 'Untitled template') + '\u201D. ' + varCopy.renames.map(function (rn) {
+              return '\u201C' + rn.from + '\u201D came in as \u201C' + rn.to + '\u201D.';
+            }).join(' '), 5600);
+          }
+          return doc;
+        }
+
         /* ----- the picker ----- */
-        function openTplPicker() {
+        /* One picker, three doors (build -159): insert (a copy
+           at the caret), create (New from Template — a new
+           document), and folder (Folder template… — set a
+           folder's default). The mode rides in tplPickerMode
+           and every close clears it. */
+        function openTplPicker(mode) {
           var modal = document.getElementById('tplPickerModal');
           var list = document.getElementById('tplPickerList');
           if (!modal || !list) return;
+          var m = tplPickerMode = (mode && mode.kind) ? mode : { kind: 'insert' };
           /* Build -119: remember where the reader was looking
              when the picker opened — the insert that follows a
              pick restores to here (see tplInsertIntoCurrentDoc). */
           tplSnapshotPlace();
+          var titleEl = document.getElementById('tplPickerTitle');
+          var noteEl = document.getElementById('tplPickerNote');
+          var statusEl = document.getElementById('tplPickerStatus');
+          var folder = m.kind === 'folder' ? folderById(m.folderId) : null;
+          if (m.kind === 'create') {
+            if (titleEl) titleEl.textContent = 'New from template';
+            if (noteEl) noteEl.textContent = 'The new document starts as a copy of the template \u2014 its inputs and variables come with it.';
+          } else if (m.kind === 'folder' && folder) {
+            if (titleEl) titleEl.textContent = 'Folder template';
+            if (noteEl) noteEl.textContent = 'New notes created in \u201C' + (folder.name || 'this folder') + '\u201D start from the folder\u2019s default template. Notes already in the folder are never changed.';
+          } else {
+            if (titleEl) titleEl.textContent = 'Insert template';
+            if (noteEl) noteEl.textContent = 'A copy of the template lands at the caret. Tab moves through its inputs, turning each one into the text you type.';
+          }
+          if (statusEl) {
+            if (m.kind === 'folder' && folder) {
+              var eff = folderEffectiveTemplate(folder.id);
+              var ownSet = 'folderTemplate' in folder;
+              var ownTpl = ownSet && folder.folderTemplate ? tplById(folder.folderTemplate) : null;
+              var st;
+              if (ownSet && folder.folderTemplate === null) {
+                st = 'Currently: new notes in \u201C' + folder.name + '\u201D start blank \u2014 this folder is set to no template, so nothing is inherited.';
+              } else if (ownTpl) {
+                st = 'Currently: new notes in \u201C' + folder.name + '\u201D start from \u201C' + (ownTpl.name || 'Untitled template') + '\u201D \u2014 this folder\u2019s own setting.';
+              } else if (eff) {
+                st = 'Currently: new notes in \u201C' + folder.name + '\u201D start from \u201C' + (eff.tpl.name || 'Untitled template') + '\u201D, inherited from \u201C' + (eff.from.name || 'a folder above') + '\u201D.';
+              } else {
+                st = 'Currently: new notes in \u201C' + folder.name + '\u201D start blank \u2014 no default is set here or in any folder above.';
+              }
+              statusEl.textContent = st;
+              statusEl.hidden = false;
+            } else {
+              statusEl.hidden = true;
+              statusEl.textContent = '';
+            }
+          }
           list.innerHTML = '';
+          function pickRow(label, metaText, fn) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'tpl-pick-row';
+            var nm = document.createElement('span');
+            nm.className = 'tpl-pick-name';
+            nm.textContent = label;
+            b.appendChild(nm);
+            var meta = document.createElement('span');
+            meta.className = 'tpl-pick-meta';
+            meta.textContent = metaText || '';
+            b.appendChild(meta);
+            b.addEventListener('click', fn);
+            list.appendChild(b);
+            return b;
+          }
+          if (m.kind === 'folder' && folder) {
+            var fOwn = 'folderTemplate' in folder ? folder.folderTemplate : undefined;
+            var inh = null;
+            var anc = folder.parentId ? folderById(folder.parentId) : null;
+            while (anc && !inh) {
+              if ('folderTemplate' in anc) {
+                if (anc.folderTemplate === null) break;
+                var at = tplById(anc.folderTemplate);
+                if (at) inh = { tpl: at, from: anc };
+              }
+              anc = anc.parentId ? folderById(anc.parentId) : null;
+            }
+            pickRow(inh ? 'Use inherited \u2014 \u201C' + (inh.tpl.name || 'Untitled template') + '\u201D' : 'Use inherited',
+              fOwn === undefined ? 'Current' : (inh ? 'from \u201C' + (inh.from.name || '') + '\u201D' : 'nothing set above'),
+              function () {
+                setFolderTemplate(folder.id, undefined);
+                closeTplPicker();
+                folioToast('\u201C' + folder.name + '\u201D now uses its inherited folder template' + (inh ? ' \u2014 \u201C' + (inh.tpl.name || 'Untitled template') + '\u201D from \u201C' + (inh.from.name || '') + '\u201D.' : ' \u2014 none is set above, so new notes start blank.'), 3600);
+              });
+            pickRow('No template', fOwn === null ? 'Current' : 'New notes start blank',
+              function () {
+                setFolderTemplate(folder.id, null);
+                closeTplPicker();
+                folioToast('\u201C' + folder.name + '\u201D is set to no template \u2014 new notes there start blank, even if a folder above sets one.', 3600);
+              });
+          }
           if (!tplStore.items.length) {
             var e = document.createElement('p');
             e.className = 'form-note';
@@ -20481,13 +20675,6 @@
             list.appendChild(e);
           } else {
             tplSorted().forEach(function (t) {
-              var b = document.createElement('button');
-              b.type = 'button';
-              b.className = 'tpl-pick-row';
-              var nm = document.createElement('span');
-              nm.className = 'tpl-pick-name';
-              nm.textContent = t.name || 'Untitled template';
-              b.appendChild(nm);
               var n = tplCountInputs(t.content);
               /* Build -158: a template's variables ride along
                  on insert — say so on its row. */
@@ -20495,15 +20682,21 @@
               var bits = [];
               if (n) bits.push(n + (n === 1 ? ' input' : ' inputs'));
               if (nv) bits.push(nv + (nv === 1 ? ' variable' : ' variables'));
-              var meta = document.createElement('span');
-              meta.className = 'tpl-pick-meta';
-              meta.textContent = bits.join(' · ');
-              b.appendChild(meta);
-              b.addEventListener('click', function () {
-                closeTplPicker(true);
-                tplInsertIntoCurrentDoc(tplById(t.id));
+              if (m.kind === 'folder' && folder && folder.folderTemplate === t.id) bits.push('This folder\u2019s default');
+              pickRow(t.name || 'Untitled template', bits.join(' · '), function () {
+                if (m.kind === 'create') {
+                  var destFolderId = m.folderId || null;
+                  closeTplPicker();
+                  createDocFromTemplate(tplById(t.id), destFolderId);
+                } else if (m.kind === 'folder' && folder) {
+                  setFolderTemplate(folder.id, t.id);
+                  closeTplPicker();
+                  folioToast('New notes in \u201C' + folder.name + '\u201D will start from \u201C' + (t.name || 'Untitled template') + '\u201D.', 3600);
+                } else {
+                  closeTplPicker(true);
+                  tplInsertIntoCurrentDoc(tplById(t.id));
+                }
               });
-              list.appendChild(b);
             });
           }
           modal.hidden = false;
@@ -20511,6 +20704,10 @@
         function closeTplPicker(keepSel) {
           var modal = document.getElementById('tplPickerModal');
           if (modal) modal.hidden = true;
+          /* Build -159: the picker's mode dies with the
+             opening — a later plain openTplPicker() is always
+             the insert door again. */
+          tplPickerMode = null;
           /* A pick keeps the open-time selection snapshot for
              the insert that immediately follows; every other
              close (×, backdrop, Escape) drops it, so a stale
@@ -24374,6 +24571,17 @@
         }
 
         function createDocInFolder(folderId) {
+          /* Folder templates (build -159): a new note in a
+             folder with an effective default template — its
+             own setting, or the nearest ancestor's — is born
+             from that template instead of blank. Every door
+             that creates INTO a folder lands here (the folder
+             menu, + New while the folder is the context, the
+             bundle API), so the default applies to all of
+             them at once. Moving a note into the folder never
+             applies it, and existing notes are untouched. */
+          var effTpl = folderEffectiveTemplate(folderId);
+          if (effTpl && effTpl.tpl) { createDocFromTemplate(effTpl.tpl, folderId); return; }
           if (tagFilter) setTagFilter(null);
           expandFolderChain(folderId);
           var doc = createDoc('Untitled');
@@ -39195,7 +39403,14 @@
             return JSON.stringify([d.title || 'Untitled', d.folderId ? (idmap.folders[d.folderId] || '') : '', !!d.favorite, d.updated || 0, d.content]);
           }
           function folderSig(f) {
-            return JSON.stringify([f.name, f.icon || null, f.color || null, f.parentId ? (idmap.folders[f.parentId] || '') : '', typeof f.sortOrder === 'number' ? f.sortOrder : null]);
+            /* Build -159: the folder's default-template
+               setting rides the signature in all three of its
+               states (inherit / explicit none / a template
+               id), so changing it alone marks the folder
+               changed and earns a push. Template ids are the
+               templates store's own ids, stable across
+               devices because the store syncs whole. */
+            return JSON.stringify([f.name, f.icon || null, f.color || null, f.parentId ? (idmap.folders[f.parentId] || '') : '', typeof f.sortOrder === 'number' ? f.sortOrder : null, !('folderTemplate' in f) ? 'inherit' : (f.folderTemplate === null ? 'none' : 'tpl:' + f.folderTemplate)]);
           }
           // Folder rows ride parents-before-children (the tree
           // walked depth-first from the roots), so a subfolder's
@@ -39245,6 +39460,19 @@
           var folderRowsColorSorted = changedFolders.map(function (p) {
             var f = p.f;
             return { id: p.rid, owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null, sort_order: typeof f.sortOrder === 'number' ? f.sortOrder : null };
+          });
+          // default_template_id rides the widest variant
+          // (build -159), on the same optional-column footing
+          // as parent_id and sort_order before it: while the
+          // folders table has no such column the upsert below
+          // retries narrower and the setting stays per-device.
+          // Only a template id crosses — inherit and explicit
+          // none both send null, and the pull adopts only a
+          // real id (see pullMerge), so the inherit/none
+          // distinction is never flattened by a round trip.
+          var folderRowsTpl = changedFolders.map(function (p) {
+            var f = p.f;
+            return { id: p.rid, owner_id: sbUser.id, name: f.name, icon: f.icon || null, color: f.color || null, parent_id: f.parentId ? (idmap.folders[f.parentId] || null) : null, sort_order: typeof f.sortOrder === 'number' ? f.sortOrder : null, default_template_id: typeof f.folderTemplate === 'string' ? f.folderTemplate : null };
           });
           var docPlan = lib.docs.map(function (d) {
             return { d: d, rid: ensureRemoteId('docs', d.id), sig: docSig(d) };
@@ -39301,25 +39529,32 @@
           var docFullOk = false;
           var jobs = [];
           if (folderRows.length) {
-            // Column fallbacks, widest first: parent_id + icon/color,
-            // then icon/color alone, then name-only — a folders table
+            // Column fallbacks, widest first: every column
+            // (default_template_id included, build -159), then
+            // without it, then parent_id + icon/color, then
+            // icon/color alone, then name-only — a folders table
             // missing a newer column retries narrower so folder sync
             // itself never breaks (the missing piece stays local-only).
-            jobs.push(sb.from('folders').upsert(folderRowsSorted, { onConflict: 'id' }).then(function (r) {
-              if (r && r.error) return sb.from('folders').upsert(folderRowsNested, { onConflict: 'id' }).then(function (rn) {
-                if (rn && rn.error) return sb.from('folders').upsert(folderRowsColorSorted, { onConflict: 'id' }).then(function (rc) {
-                  if (rc && rc.error) return sb.from('folders').upsert(folderRows, { onConflict: 'id' }).then(function (r2) {
-                    if (r2 && r2.error) return sb.from('folders').upsert(folderRowsBasic, { onConflict: 'id' });
-                    return r2;
+            jobs.push(sb.from('folders').upsert(folderRowsTpl, { onConflict: 'id' }).then(function (rt) {
+              if (rt && rt.error) return sb.from('folders').upsert(folderRowsSorted, { onConflict: 'id' }).then(function (r) {
+                if (r && r.error) return sb.from('folders').upsert(folderRowsNested, { onConflict: 'id' }).then(function (rn) {
+                  if (rn && rn.error) return sb.from('folders').upsert(folderRowsColorSorted, { onConflict: 'id' }).then(function (rc) {
+                    if (rc && rc.error) return sb.from('folders').upsert(folderRows, { onConflict: 'id' }).then(function (r2) {
+                      if (r2 && r2.error) return sb.from('folders').upsert(folderRowsBasic, { onConflict: 'id' });
+                      return r2;
+                    });
+                    return rc;
                   });
-                  return rc;
+                  nestedOk = true;
+                  return rn;
                 });
                 nestedOk = true;
-                return rn;
+                folderFullOk = true;
+                return r;
               });
               nestedOk = true;
               folderFullOk = true;
-              return r;
+              return rt;
             }));
           }
           if (docRows.length) {
@@ -39646,7 +39881,14 @@
             var lid = localIdFor('folders', rf.id);
             if (!lid) {
               idmap.folders[rf.id] = rf.id;
-              lib.folders.push({ id: rf.id, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0, sortOrder: typeof rf.sort_order === 'number' ? rf.sort_order : null });
+              var nf1 = { id: rf.id, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0, sortOrder: typeof rf.sort_order === 'number' ? rf.sort_order : null };
+              /* Build -159: a remote default template is
+                 adopted only as a real template id — a null
+                 (or a missing column) leaves the local
+                 inherit / no-template distinction untouched,
+                 the same distrust the parent_id nulls get. */
+              if (typeof rf.default_template_id === 'string' && rf.default_template_id) nf1.folderTemplate = rf.default_template_id;
+              lib.folders.push(nf1);
             } else {
               var lf = lib.folders.find(function (f) { return f.id === lid; });
               if (lf) {
@@ -39654,8 +39896,13 @@
                 if ('icon' in rf) lf.icon = rf.icon || null;
                 if ('color' in rf) lf.color = rf.color || null;
                 if (typeof rf.sort_order === 'number') lf.sortOrder = rf.sort_order;
+                if (typeof rf.default_template_id === 'string' && rf.default_template_id) lf.folderTemplate = rf.default_template_id;
               }
-              else lib.folders.push({ id: lid, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0, sortOrder: typeof rf.sort_order === 'number' ? rf.sort_order : null });
+              else {
+                var nf2 = { id: lid, name: rf.name, icon: rf.icon || null, color: rf.color || null, created: 0, sortOrder: typeof rf.sort_order === 'number' ? rf.sort_order : null };
+                if (typeof rf.default_template_id === 'string' && rf.default_template_id) nf2.folderTemplate = rf.default_template_id;
+                lib.folders.push(nf2);
+              }
             }
           });
           // Folder parents resolve in a second pass, once every
@@ -39980,15 +40227,18 @@
         function pullMerge() {
           if (!sb || !sbUser) return Promise.resolve(false);
           setSyncState('Syncing\u2026');
-          var foldersReq = sb.from('folders').select('id, name, icon, color, parent_id, sort_order').then(function (r) {
-            if (r && r.error) return sb.from('folders').select('id, name, icon, color, parent_id').then(function (r1) {
-              if (r1 && r1.error) return sb.from('folders').select('id, name, icon, color').then(function (r2) {
-                if (r2 && r2.error) return sb.from('folders').select('id, name');
-                return r2;
+          var foldersReq = sb.from('folders').select('id, name, icon, color, parent_id, sort_order, default_template_id').then(function (r0) {
+            if (r0 && r0.error) return sb.from('folders').select('id, name, icon, color, parent_id, sort_order').then(function (r) {
+              if (r && r.error) return sb.from('folders').select('id, name, icon, color, parent_id').then(function (r1) {
+                if (r1 && r1.error) return sb.from('folders').select('id, name, icon, color').then(function (r2) {
+                  if (r2 && r2.error) return sb.from('folders').select('id, name');
+                  return r2;
+                });
+                return r1;
               });
-              return r1;
+              return r;
             });
-            return r;
+            return r0;
           });
           var docsReq = sb.from('documents').select('id, folder_id, title, content, updated_at, favorites').then(function (r) {
             if (r && r.error) return sb.from('documents').select('id, folder_id, title, content, updated_at');
@@ -47583,6 +47833,26 @@
             run: function () { scClickBtn(document.getElementById('newDocBtn')); } },
           { id: 'new-folder', combo: 'mod+alt+shift+n', hint: '⌘⌥⇧N', group: 'General', label: 'New folder',
             run: function () { scClickBtn(document.getElementById('newFolderBtn')); } },
+          /* Build -159: New from Template — chordless, like
+             Insert callout: it lives in the registry so the
+             ⌥/ action bar (and the shortcuts list) surface
+             the one implementation. It opens the template
+             picker in create mode; the destination is the
+             folder in context (newDocTargetFolderId, the
+             same notion + New uses), else the top level. An
+             explicit pick here always wins over a folder's
+             default template for that creation. The palette
+             stands it down while a template is being edited
+             (see pushRegistry). */
+          { id: 'new-from-template', combo: '', hint: '', group: 'General', label: 'New from template…',
+            run: function () { openTplPicker({ kind: 'create', folderId: newDocTargetFolderId() }); } },
+          /* Build -159: Insert Template Input as a registry
+             command (the toolbar button in the template
+             editor calls the same tplInsertInput). Offered
+             by the action bar ONLY while a template is being
+             edited — the pushRegistry gate below. */
+          { id: 'insert-template-input', combo: '', hint: '', group: 'General', label: 'Insert template input',
+            run: function () { tplInsertInput(); } },
           { id: 'import', combo: 'mod+alt+i', hint: '⌘⌥I', group: 'General', label: 'Import a file',
             run: function () { scClickBtn(document.getElementById('importBtn')); } },
           { id: 'save-now', combo: 'mod+s', hint: '⌘S', group: 'General', label: 'Save & sync now',
@@ -49061,6 +49331,12 @@
                 var hcx = headingContext();
                 if (!hcx || (sc.id === 'promote-heading' ? !hcx.canPromote : !hcx.canDemote)) return;
               }
+              /* Build -159: the template doors' contexts —
+                 New from Template acts on documents, so it
+                 stands down while a template is being edited;
+                 Insert Template Input exists only there. */
+              if (sc.id === 'new-from-template' && tplEditingId) return;
+              if (sc.id === 'insert-template-input' && !tplEditingId) return;
               if (sc.id === 'fold-section' && !foldMenuState().canFold) return;
               if (sc.id === 'unfold-section' && !foldMenuState().canUnfold) return;
               if (sc.id === 'fold-all-sections' && !foldMenuState().anyFoldable) return;
@@ -49162,6 +49438,7 @@
           'view-templates': TPL_SVG,
           'insert-template': TPL_SVG,
           'add-as-template': TPL_SVG,
+          'new-from-template': TPL_SVG,
           'variables': VAR_SVG,
           'insert-variable': VAR_SVG,
           'define-variable': VAR_SVG,
@@ -49210,7 +49487,8 @@
           'tbl-fill': 'tblFillBtn',
           'tbl-border-color': 'tblBorderColorBtn',
           'tbl-border-size': 'tblBorderSizeBtn',
-          'tbl-align': 'tblAlignBtn'
+          'tbl-align': 'tblAlignBtn',
+          'insert-template-input': 'insTplInputBtn'
         };
         var AB_ICON_ALIAS = { 'textcolor-last': 'textcolor', 'link-composer': 'wikilink' };
         function abIconInto(slot, id) {
