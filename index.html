@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261110-161" />
+    <meta name="folio-build" content="20261110-162" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -43753,6 +43753,21 @@
           var entry = currentLinkEntry();
           if (!entry || !sb) return;
           var btn = this;
+          /* Build -162 (classification guard): an entry that
+             arrives CARRYING its set's manifest — listed by the
+             panel as a set, or seeded by Manage All Share Links —
+             is a set root on its own evidence. The old code asked
+             fetchShareBundle alone, and when that fetch came up
+             empty (no local copy on this device, bundle data
+             unreadable) a set root fell through to the lone
+             delete below, leaving the set's member links live
+             but invisible, since listings skip non-root member
+             rows. */
+          if (entry.bundle && entry.bundle.rootToken === entry.token && entry.bundle.members.length > 1) {
+            shareFlowReturn = 'settings';
+            openShareRevokeModal({ token: entry.token, permission: entry.perm }, entry.bundle);
+            return;
+          }
           fetchShareBundle(entry.token).then(function (b) {
             if (b && b.rootToken === entry.token && b.members.length > 1) {
               shareFlowReturn = 'settings';
@@ -45750,16 +45765,118 @@
         document.getElementById('shareSweepClose').addEventListener('click', closeWatchSweepModal);
         document.getElementById('shareSweepBack').addEventListener('click', closeWatchSweepModal);
 
-        /* ---------------- sharing: bundle revoke choice ---------------- */
+        /* ---------------- sharing: bundle revoke choice ----------------
+           Build -162: the whole-set cascade, repaired per the
+           revocation audit. Three faults, three fixes:
+           (1) THE SPILL. The old cascade deleted only members
+           flagged created:true and DETACHED every other member —
+           so for a legacy set (-59…-73, whose members' rows were
+           reused pre-existing shares, created:false or unflagged)
+           "Revoke the whole set" left those links alive, and a
+           live row with no bundle stamp lists as a standalone
+           link: the set's members spilled back into the panels
+           as individual shares, while the confirmation text
+           promised every link in the set turned off. The plan
+           now deletes EVERY token in the set except one provably
+           shared with another set — it appears in another known
+           set's manifest, checked against this device's sets
+           first and then the full owner enumeration — and only
+           those detach. The confirmation text counts both
+           cohorts and names the detached links before the user
+           confirms, so the promise on screen is the plan that
+           runs.
+           (2) THE SILENT LARGE-SET FAILURE. The old code sent
+           every delete token in ONE .in() filter — a few hundred
+           members made a multi-kilobyte request URL the server
+           could reject — and never read the result: supabase-js
+           resolves with {error} instead of throwing, so a failed
+           revoke closed the modal and dropped the local copy
+           exactly like a successful one, and the set reappeared
+           on the next load. Deletes and detaches now run in
+           batches of 50, every delete batch's error is checked,
+           and on any failure the modal stays open, the local
+           copy is kept, and the button retries just the work
+           that remains. Local cleanup happens only after the
+           server confirms the tokens are gone.
+           (3) NO SIGN OF LIFE. The old handler disabled only its
+           own button and changed nothing on screen while a large
+           set's detaches crawled one request at a time. While
+           either revoke runs, every control in this view is
+           disabled and the set button counts "Revoking… X of N
+           links". Detaches batch like the deletes, so a large
+           set is a handful of requests, not one per member.
+           Guardrails kept: a document's OTHER links (standalone,
+           or memberships in other sets) are never touched — the
+           delete filter names only this set's unshared tokens —
+           and the bundle-column fail-soft stands (a project
+           without the column detaches on the local copy alone,
+           exactly as every bundle write already fails soft). */
         var shareRevokePending = null;
-        function openShareRevokeModal(share, bundle) {
-          shareRevokePending = { share: share, bundle: bundle };
+        var shareRevokeRunning = false;
+        var REVOKE_BATCH = 50;
+        function revokePlanFor(bundle, others) {
+          var mine = bundleKeyOf(bundle);
+          var sharedWith = {};
+          (others || []).forEach(function (b) {
+            if (!b || bundleKeyOf(b) === mine) return;
+            /* Same set under a drifted key (one copy carrying
+               an id the other lacks) is still this set. */
+            if (b.rootToken && b.rootToken === bundle.rootToken) return;
+            b.members.forEach(function (m) { if (!sharedWith[m.token]) sharedWith[m.token] = b; });
+          });
+          var toDelete = [];
+          var toDetach = [];
+          var seen = {};
+          bundle.members.forEach(function (m) {
+            if (seen[m.token]) return;
+            seen[m.token] = true;
+            if (sharedWith[m.token]) toDetach.push({ token: m.token, title: m.title || 'Untitled', keep: sharedWith[m.token] });
+            else toDelete.push(m.token);
+          });
+          if (bundle.rootToken && !seen[bundle.rootToken]) toDelete.unshift(bundle.rootToken);
+          return { toDelete: toDelete, toDetach: toDetach, total: toDelete.length + toDetach.length, detachedDone: [] };
+        }
+        function revokePlanText(bundle, plan) {
           var root = bundle.members.find(function (m) { return m.token === bundle.rootToken; });
-          document.getElementById('shareRevokeText').textContent =
-            '\u201C' + ((root && root.title) || 'This document') + '\u201D was shared as a set of ' +
-            bundle.members.length + ' documents. Revoking the whole set turns off every link in the set; ' +
-            'revoking only this link leaves the other documents\u2019 own links working.';
+          var name = (root && root.title) || 'This document';
+          var n = plan.toDelete.length;
+          var text = '\u201C' + name + '\u201D was shared as a set of ' + bundle.members.length +
+            ' documents. Revoking the whole set turns off ' + n + (n === 1 ? ' link' : ' links') + ' in the set';
+          if (plan.toDetach.length) {
+            text += '; ' + plan.toDetach.length + (plan.toDetach.length === 1 ? ' link is' : ' links are') +
+              ' also in another set, so ' + (plan.toDetach.length === 1 ? 'it leaves' : 'they leave') +
+              ' this set and keep working (' +
+              plan.toDetach.map(function (d) { return '\u201C' + d.title + '\u201D'; }).join(', ') + ')';
+          }
+          text += '. Revoking only this link leaves the other documents\u2019 own links working.';
+          return text;
+        }
+        function setRevokeBusy(busy, allLabel) {
+          ['shareRevokeCancel', 'shareRevokeClose', 'shareRevokeBack', 'shareRevokeOnlyBtn', 'shareRevokeAllBtn'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.disabled = !!busy;
+          });
+          if (allLabel != null) document.getElementById('shareRevokeAllBtn').textContent = allLabel;
+        }
+        function openShareRevokeModal(share, bundle) {
+          var pending = { share: share, bundle: bundle, plan: null, failed: false, planPromise: null };
+          shareRevokePending = pending;
+          pending.plan = revokePlanFor(bundle, localBundles());
+          document.getElementById('shareRevokeAllBtn').textContent = 'Revoke the whole set';
+          document.getElementById('shareRevokeText').textContent = revokePlanText(bundle, pending.plan);
+          setRevokeBusy(false);
           showShareView('revoke');
+          /* Refine the plan against the full owner enumeration:
+             a member another set claims is provable only once
+             every set is known. The text updates in place, and a
+             click on Revoke before this lands waits for it. */
+          pending.planPromise = allOwnerBundles().then(function (all) {
+            if (shareRevokePending === pending && !shareRevokeRunning && !pending.failed) {
+              pending.plan = revokePlanFor(bundle, all);
+              document.getElementById('shareRevokeText').textContent = revokePlanText(bundle, pending.plan);
+            }
+            return pending.plan;
+          }).catch(function () { return pending.plan; });
         }
         function closeShareRevokeModal() {
           shareRevokePending = null;
@@ -45771,13 +45888,100 @@
         document.getElementById('shareRevokeCancel').addEventListener('click', closeShareRevokeModal);
         document.getElementById('shareRevokeClose').addEventListener('click', closeShareRevokeModal);
         document.getElementById('shareRevokeBack').addEventListener('click', closeShareRevokeModal);
+        /* One batched detach: the members' local stamps go, then
+           a single update clears the rows' bundle stamps. Fails
+           soft exactly like every bundle write (build -60): an
+           error retires the bundle column for the session and the
+           detach stands on the local copy — the links keep
+           working individually either way, which is the detach's
+           whole point. Deletes are NOT soft like this; they are
+           hard-checked in runSetRevoke below. */
+        function detachTokensRemote(tokens) {
+          try {
+            var store = localBundleStore();
+            var dirty = false;
+            tokens.forEach(function (t) { if (store[t]) { delete store[t]; dirty = true; } });
+            if (dirty) localStorage.setItem(SHARE_BUNDLES_KEY, JSON.stringify(store));
+          } catch (e) {}
+          if (!sb || !shareBundleColOk) return Promise.resolve();
+          return sb.from('shares').update({ bundle: null }).in('token', tokens).then(function (res) {
+            if (res && res.error) shareBundleColOk = false;
+          }).catch(function () { shareBundleColOk = false; });
+        }
+        function runSetRevoke(pending) {
+          var plan = pending.plan;
+          shareRevokeRunning = true;
+          pending.failed = false;
+          var progress = function () {
+            var remaining = plan.toDelete.length + plan.toDetach.length;
+            setRevokeBusy(true, 'Revoking\u2026 ' + (plan.total - remaining) + ' of ' + plan.total + (plan.total === 1 ? ' link' : ' links'));
+          };
+          progress();
+          var step = function () {
+            if (plan.toDelete.length) {
+              var chunk = plan.toDelete.slice(0, REVOKE_BATCH);
+              return sb.from('shares').delete().in('token', chunk).then(function (res) {
+                /* supabase-js reports failure by RESOLVING with
+                   {error}; the old cascade never looked, so a
+                   rejected batch (an over-long URL on a very
+                   large set, a dropped connection) read as
+                   success. A failed batch aborts the run with
+                   the work that remains still in the plan. */
+                if (res && res.error) throw res.error;
+                plan.toDelete.splice(0, chunk.length);
+                progress();
+                return step();
+              });
+            }
+            if (plan.toDetach.length) {
+              var dchunk = plan.toDetach.slice(0, REVOKE_BATCH);
+              return detachTokensRemote(dchunk.map(function (d) { return d.token; })).then(function () {
+                plan.detachedDone = plan.detachedDone.concat(dchunk);
+                plan.toDetach.splice(0, dchunk.length);
+                progress();
+                return step();
+              });
+            }
+            return Promise.resolve();
+          };
+          return step().then(function () {
+            /* The server has confirmed every token: only now
+               does the local copy of the set go. Detached tokens
+               are re-pointed at the set that survives them, so
+               the other set's local manifest stays whole. */
+            shareRevokeRunning = false;
+            removeLocalBundle(pending.bundle);
+            try {
+              var store = localBundleStore();
+              plan.detachedDone.forEach(function (d) { if (d.keep) store[d.token] = d.keep; });
+              localStorage.setItem(SHARE_BUNDLES_KEY, JSON.stringify(store));
+            } catch (e) {}
+            setRevokeBusy(false);
+            if (shareSettingsToken === pending.bundle.rootToken) shareSettingsToken = null;
+            closeShareRevokeModal();
+            loadShareList();
+            if (!shareSettingsToken && shareManagerReturn) { returnToShareManager(); return; }
+            if (shareCurrentView === 'settings' && !shareSettingsToken) showShareView('main');
+          }).catch(function () {
+            shareRevokeRunning = false;
+            pending.failed = true;
+            var remaining = plan.toDelete.length + plan.toDetach.length;
+            document.getElementById('shareRevokeText').textContent =
+              'The revoke didn\u2019t finish \u2014 ' + (plan.total - remaining) + ' of ' + plan.total +
+              ' links were turned off before it stopped, and the set is still in place. ' +
+              'Retry finishes the remaining ' + remaining + '.';
+            setRevokeBusy(false, 'Retry revoke');
+          });
+        }
         document.getElementById('shareRevokeOnlyBtn').addEventListener('click', function () {
-          if (!shareRevokePending || !sb) return;
+          if (!shareRevokePending || !sb || shareRevokeRunning) return;
           var pending = shareRevokePending;
-          var btn = this;
-          btn.disabled = true;
-          sb.from('shares').delete().eq('token', pending.share.token).then(function () {
-            btn.disabled = false;
+          shareRevokeRunning = true;
+          setRevokeBusy(true);
+          sb.from('shares').delete().eq('token', pending.share.token).then(function (res) {
+            if (res && res.error) throw res.error;
+            shareRevokeRunning = false;
+            setRevokeBusy(false);
             removeLocalBundle(pending.bundle);
             if (shareSettingsToken === pending.share.token) shareSettingsToken = null;
             closeShareRevokeModal();
@@ -45786,42 +45990,24 @@
               if (shareManagerReturn) { returnToShareManager(); return; }
               showShareView('main');
             }
-          }).catch(function () { btn.disabled = false; });
+          }).catch(function () {
+            shareRevokeRunning = false;
+            setRevokeBusy(false);
+            document.getElementById('shareRevokeText').textContent =
+              'That link couldn\u2019t be revoked \u2014 check your connection and try again.';
+          });
         });
         document.getElementById('shareRevokeAllBtn').addEventListener('click', function () {
-          if (!shareRevokePending || !sb) return;
+          if (!shareRevokePending || !sb || shareRevokeRunning) return;
           var pending = shareRevokePending;
-          var btn = this;
-          btn.disabled = true;
-          /* Build -74: the cascade is scoped to THIS set's
-             rows and honors per-member created flags — rows
-             this set minted are deleted; a pre-existing
-             member (a -59…-73 reused row, possibly serving
-             another set too) is only detached from this set,
-             so revoking one set can never take down another
-             set's rows or a standalone link. */
-          var toDelete = [pending.bundle.rootToken];
-          var toDetach = [];
-          pending.bundle.members.forEach(function (m) {
-            if (m.token === pending.bundle.rootToken) return;
-            if (m.created === true) toDelete.push(m.token);
-            else toDetach.push(m.token);
+          setRevokeBusy(true, 'Checking the set\u2026');
+          /* Wait out the plan refinement (allOwnerBundles) so
+             the run executes the checked plan, not the
+             local-only first draft. */
+          Promise.resolve(pending.planPromise).then(function () {
+            if (shareRevokePending !== pending || shareRevokeRunning) return;
+            runSetRevoke(pending);
           });
-          sb.from('shares').delete().in('token', toDelete).then(function () {
-            var chain = Promise.resolve();
-            toDetach.forEach(function (t) {
-              chain = chain.then(function () { return clearShareBundleRemote(t); });
-            });
-            return chain;
-          }).then(function () {
-            btn.disabled = false;
-            removeLocalBundle(pending.bundle);
-            if (shareSettingsToken === pending.bundle.rootToken) shareSettingsToken = null;
-            closeShareRevokeModal();
-            loadShareList();
-            if (!shareSettingsToken && shareManagerReturn) { returnToShareManager(); return; }
-            if (shareCurrentView === 'settings' && !shareSettingsToken) showShareView('main');
-          }).catch(function () { btn.disabled = false; });
         });
 
         /* Build -116: the Share button's own menu. Left-click
