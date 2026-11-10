@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261109-159" />
+    <meta name="folio-build" content="20261110-160" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5211,6 +5211,25 @@
       .tpl-pick-row:hover { background: var(--hover); }
       .tpl-pick-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .tpl-pick-meta { flex: 0 0 auto; font-size: 12px; color: var(--ink-3); }
+      /* Build -160: the Folder template picker's current
+         setting, in the house selected register (the chip
+         picker's .on row / a stateful menu row's check): a
+         solid accent check at the leading edge — its slot is
+         reserved on every row, so rows never shift — plus an
+         accent-soft wash over the whole row. Exactly one row
+         wears .on. A template that is merely in force through
+         inheritance wears .is-effective instead: no wash, and
+         the same check drawn faint, so "the mode I chose" and
+         "the template actually in force" read differently at
+         a glance. Both washes are theme variables, so every
+         Binding / theme variant adapts on its own. */
+      .tpl-pick-check { flex: 0 0 18px; width: 18px; display: inline-flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 700; font-size: 15px; visibility: hidden; }
+      .tpl-pick-row.on { background: var(--accent-soft); border-radius: 8px; }
+      .tpl-pick-row.on:hover { background: var(--accent-soft); }
+      .tpl-pick-row.on .tpl-pick-check { visibility: visible; }
+      .tpl-pick-row.on .tpl-pick-name { font-weight: 700; }
+      .tpl-pick-row.on .tpl-pick-meta { color: var(--ink-2); font-weight: 600; }
+      .tpl-pick-row.is-effective .tpl-pick-check { visibility: visible; color: var(--ink-3); font-weight: 400; opacity: 0.65; }
       .tpl-rename-input {
         flex: 1; min-width: 0; font: inherit; font-size: 13.5px;
         background: var(--surface); color: var(--ink);
@@ -20626,10 +20645,29 @@
             }
           }
           list.innerHTML = '';
-          function pickRow(label, metaText, fn) {
+          function pickRow(label, metaText, fn, state) {
             var b = document.createElement('button');
             b.type = 'button';
-            b.className = 'tpl-pick-row';
+            /* Build -160: state is the folder door's selection
+               marker — 'on' (this row IS the folder's current
+               setting; exactly one row), 'effective' (a template
+               in force only through inheritance), 'off' (a folder
+               row that is neither), or absent (the insert /
+               create doors, where nothing is "selected"). The
+               check slot is painted on every row and only shown
+               by the .on / .is-effective rules, so the selected
+               row's wash and check never shift the others. */
+            b.className = 'tpl-pick-row' + (state === 'on' ? ' on' : state === 'effective' ? ' is-effective' : '');
+            if (state === 'on') { b.setAttribute('aria-pressed', 'true'); b.setAttribute('data-selected', 'true'); }
+            else if (state === 'effective') { b.setAttribute('aria-pressed', 'false'); b.setAttribute('data-effective', 'true'); }
+            else if (state === 'off') { b.setAttribute('aria-pressed', 'false'); }
+            if (state !== undefined) {
+              var ck = document.createElement('span');
+              ck.className = 'tpl-pick-check';
+              ck.setAttribute('aria-hidden', 'true');
+              ck.textContent = '\u2713';
+              b.appendChild(ck);
+            }
             var nm = document.createElement('span');
             nm.className = 'tpl-pick-name';
             nm.textContent = label;
@@ -20644,6 +20682,18 @@
           }
           if (m.kind === 'folder' && folder) {
             var fOwn = 'folderTemplate' in folder ? folder.folderTemplate : undefined;
+            /* Build -160: which row wears the strong selected
+               treatment. A live template setting selects that
+               template's row; an explicit null selects "No
+               template"; anything else (unset, or a setting
+               whose template was deleted — which effectively
+               inherits, exactly as folderEffectiveTemplate
+               treats it) selects "Use inherited", and the
+               template actually in force through inheritance,
+               if any, is remembered for the quieter marker. */
+            var ownTplLive = typeof fOwn === 'string' ? tplById(fOwn) : null;
+            var strongSel = ownTplLive ? 'template' : (fOwn === null ? 'none' : 'inherit');
+            var effInForce = strongSel === 'inherit' ? folderEffectiveTemplate(folder.id) : null;
             var inh = null;
             var anc = folder.parentId ? folderById(folder.parentId) : null;
             while (anc && !inh) {
@@ -20660,13 +20710,13 @@
                 setFolderTemplate(folder.id, undefined);
                 closeTplPicker();
                 folioToast('\u201C' + folder.name + '\u201D now uses its inherited folder template' + (inh ? ' \u2014 \u201C' + (inh.tpl.name || 'Untitled template') + '\u201D from \u201C' + (inh.from.name || '') + '\u201D.' : ' \u2014 none is set above, so new notes start blank.'), 3600);
-              });
+              }, strongSel === 'inherit' ? 'on' : 'off');
             pickRow('No template', fOwn === null ? 'Current' : 'New notes start blank',
               function () {
                 setFolderTemplate(folder.id, null);
                 closeTplPicker();
                 folioToast('\u201C' + folder.name + '\u201D is set to no template \u2014 new notes there start blank, even if a folder above sets one.', 3600);
-              });
+              }, strongSel === 'none' ? 'on' : 'off');
           }
           if (!tplStore.items.length) {
             var e = document.createElement('p');
@@ -20683,6 +20733,17 @@
               if (n) bits.push(n + (n === 1 ? ' input' : ' inputs'));
               if (nv) bits.push(nv + (nv === 1 ? ' variable' : ' variables'));
               if (m.kind === 'folder' && folder && folder.folderTemplate === t.id) bits.push('This folder\u2019s default');
+              /* Build -160: an inherited template in force keeps
+                 its counts and gains the in-effect note; its row
+                 gets the quieter marker in pickRow below. */
+              var rowState;
+              if (m.kind === 'folder' && folder) {
+                if (strongSel === 'template' && folder.folderTemplate === t.id) rowState = 'on';
+                else if (effInForce && effInForce.tpl.id === t.id) {
+                  rowState = 'effective';
+                  bits.push('inherited from \u201C' + (effInForce.from.name || 'a folder above') + '\u201D \u00B7 in effect');
+                } else rowState = 'off';
+              }
               pickRow(t.name || 'Untitled template', bits.join(' · '), function () {
                 if (m.kind === 'create') {
                   var destFolderId = m.folderId || null;
@@ -20696,7 +20757,7 @@
                   closeTplPicker(true);
                   tplInsertIntoCurrentDoc(tplById(t.id));
                 }
-              });
+              }, rowState);
             });
           }
           modal.hidden = false;
@@ -48303,6 +48364,35 @@
             run: function () { if (editorHandle) { var cp = editorHandle.editor.state.selection.from; FolioKit.folioSetAllFolds(editorHandle.editor, true); foldRefocus(cp); } } },
           { id: 'unfold-all-sections', combo: '', hint: '', group: 'Formatting', label: 'Unfold all sections',
             run: function () { if (editorHandle) { var cp = editorHandle.editor.state.selection.from; FolioKit.folioSetAllFolds(editorHandle.editor, false); foldRefocus(cp); } } },
+          /* Build -160: ⌘⌥Enter toggles the fold of the
+             heading the caret sits in — a keyboard door onto
+             the very fold the heading's chevron toggles (the
+             run is headingFoldRun, the context rail's own fold
+             door: folioSetFold on the heading's anchor, caret
+             restored by foldRefocus; the heading itself never
+             hides, so the caret is never stranded). The
+             dispatcher's headingFoldToggle gate resolves the
+             press only while the caret is in a heading that
+             HAS a fold anchor: in body text — and on a heading
+             whose section is empty, which grows no anchor and
+             shows no chevron either — the press is not the
+             registry's at all and passes through untouched,
+             where nothing claims it (ProseMirror's Mod-Enter
+             hard break needs the exact chord, without Alt).
+             Chord record — read before reassigning: ⌘⌥Enter
+             was verified unclaimed before it was taken. The
+             registry held only mod+enter (blank line below)
+             and mod+shift+enter (above), both different
+             combos; the editor's ⌥Enter variable door stands
+             down whenever metaKey is held, and the fxIsAltEnter
+             doors live only inside the variable modal's
+             formula field, where the dispatcher's text-field
+             guard stands this entry down too — so the new
+             chord shadows neither Enter neighbour. iPadOS and
+             Safari claim no ⌘⌥Enter either (unlike ⌘`, which
+             this app already learned to avoid). */
+          { id: 'toggle-heading-fold', combo: 'mod+alt+enter', hint: '\u2318\u2325Enter', group: 'Formatting', label: 'Toggle heading fold', headingFoldToggle: true,
+            run: function () { headingFoldRun(); } },
           { id: 'copy-sel', combo: 'mod+c', hint: '⌘C', group: 'Formatting', label: 'Copy selection', native: true },
           { id: 'undo', combo: 'mod+z', hint: '⌘Z', group: 'Formatting', label: 'Undo',
             run: function () { scClickBtn(toolbarBtns.undo); } },
@@ -49087,6 +49177,20 @@
             if (!fms.anchor) return;
             sc = fms.anchor.folded ? SHORTCUT_BY_ID['unfold-section'] : SHORTCUT_BY_ID['fold-section'];
             if (!sc || !sc.run) return;
+          }
+          /* Build -160: the ⌘⌥Enter heading-fold toggle
+             resolves only while the caret sits in a heading
+             that has a fold anchor (headingContext's fold —
+             the same anchor its chevron and the rail's fold
+             door read). Anywhere else the press is not the
+             registry's at all and passes through untouched,
+             on the tableOnly / cellBand / foldPair terms
+             above: no blank line (that is plain ⌘Enter's
+             combo, a different chord) and no variable popover
+             (the ⌥Enter door stands down on metaKey). */
+          if (sc.headingFoldToggle) {
+            var hfc = headingContext();
+            if (!hfc || !hfc.fold) return;
           }
           if (scAnyOverlayOpen()) return;
           if (scInTextField(ev) && !SC_SAFE_IN_FIELD[sc.id]) return;
