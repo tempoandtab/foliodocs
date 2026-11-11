@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261110-162" />
+    <meta name="folio-build" content="20261110-163" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -42330,6 +42330,7 @@
           var settingsBackBtn = document.getElementById('shareSettingsBack');
           if (settingsBackBtn) settingsBackBtn.textContent = '\u2039 Links';
           shareSettingsToken = null;
+          shareSettingsEntry = null;
           shareWizard = null;
           shareFlowReturn = 'main';
           document.getElementById('shareDocName').textContent = doc.title || 'Untitled';
@@ -43382,6 +43383,27 @@
            two never share a surface again. */
         var shareLinkEntries = [];
         var shareSettingsToken = null;
+        /* Build -163: the entry the open settings view was
+           opened WITH, kept beside the list. A list rebuild
+           can fail to re-derive an entry the settings view is
+           already showing — a set surfaced from this device's
+           local bundle record whose manifest root token names
+           no live row (the original root link revoked on its
+           own in an earlier build, the manifest since drifted)
+           classifies into NO rebuilt entry, because the root
+           row is skipped on the root-token mismatch and member
+           rows carry no stamp of their own. The rebuild then
+           silently orphaned the open view: it kept rendering
+           the seeded entry while every handler that re-looked
+           the entry up in the list (revoke above all) found
+           nothing and returned without a word — the set's
+           Revoke button simply did nothing, while standalone
+           links, which always rebuild cleanly, kept working.
+           The snapshot is that guard: lookups fall back to it
+           (token-checked), rebuilds refresh it when they do
+           carry the entry, and loadLinkList re-seats it when
+           they don't. */
+        var shareSettingsEntry = null;
         function loadShareList() {
           loadBundlePanel();
           loadAddToBundlePanel();
@@ -43433,6 +43455,17 @@
             });
           }).then(function (entries) {
             if (shareModalDocId !== forDocId) return;
+            /* Build -163: a rebuild that cannot re-derive
+               the open settings view's entry (a locally
+               surfaced set whose manifest root token names
+               no live row is the known shape) must not
+               orphan that view — re-seat the snapshot entry
+               so the list behind the settings stays the list
+               the settings are showing. */
+            if (shareSettingsToken && shareSettingsEntry && shareSettingsEntry.token === shareSettingsToken
+              && !entries.some(function (e) { return e.token === shareSettingsToken; })) {
+              entries.push(shareSettingsEntry);
+            }
             shareLinkEntries = entries;
             /* The panel-session bundle state follows the
                list: one entry per set, keyed by root token. */
@@ -43512,11 +43545,21 @@
         }
         function currentLinkEntry() {
           if (!shareSettingsToken) return null;
-          return shareLinkEntries.find(function (e) { return e.token === shareSettingsToken; }) || null;
+          var e = shareLinkEntries.find(function (x) { return x.token === shareSettingsToken; }) || null;
+          if (e) { shareSettingsEntry = e; return e; }
+          /* Build -163: the list rebuild dropped this link's
+             entry (see shareSettingsEntry above) — the view
+             is still showing the entry it was opened with,
+             so that entry is the one its handlers act on. */
+          if (shareSettingsEntry && shareSettingsEntry.token === shareSettingsToken) return shareSettingsEntry;
+          return null;
         }
         function openLinkSettings(token) {
           if (!token) return;
           shareSettingsToken = token;
+          var e0 = shareLinkEntries.find(function (x) { return x.token === token; }) || null;
+          if (e0) shareSettingsEntry = e0;
+          else if (!shareSettingsEntry || shareSettingsEntry.token !== token) shareSettingsEntry = null;
           renderLinkSettings();
           showShareView('settings');
         }
@@ -43750,35 +43793,64 @@
           openAddDocsModal(bundle);
         });
         document.getElementById('shareSettingsRevoke').addEventListener('click', function () {
-          var entry = currentLinkEntry();
-          if (!entry || !sb) return;
+          if (!sb) return;
           var btn = this;
-          /* Build -162 (classification guard): an entry that
-             arrives CARRYING its set's manifest — listed by the
-             panel as a set, or seeded by Manage All Share Links —
-             is a set root on its own evidence. The old code asked
-             fetchShareBundle alone, and when that fetch came up
-             empty (no local copy on this device, bundle data
-             unreadable) a set root fell through to the lone
-             delete below, leaving the set's member links live
-             but invisible, since listings skip non-root member
-             rows. */
-          if (entry.bundle && entry.bundle.rootToken === entry.token && entry.bundle.members.length > 1) {
-            shareFlowReturn = 'settings';
-            openShareRevokeModal({ token: entry.token, permission: entry.perm }, entry.bundle);
+          /* Build -163: this handler must never die silently.
+             It used to open with a list lookup and return
+             without a word when the entry wasn't there — and
+             for a set reached from Manage All Share Links the
+             entry often ISN'T there: the settings were seeded
+             from the manager's own entry (possibly a set known
+             only from this device's local bundle record, whose
+             manifest root token names no live row), and the
+             panel list rebuild that follows cannot re-derive
+             it, so the lookup came back empty and the tap did
+             nothing at all, while standalone links — which
+             always rebuild — revoked fine. The entry now comes
+             from currentLinkEntry's snapshot fallback first;
+             beyond that, the token the settings are SHOWING is
+             enough to act on: a set manifest is gathered from
+             the entry, this device's local bundle records, or
+             the row itself, in that order, and only a token
+             with no evidence anywhere falls to the lone delete
+             — with a toast when even that can't start, never
+             silence. */
+          var entry = currentLinkEntry();
+          var token = (entry && entry.token) || shareSettingsToken;
+          if (!token) {
+            if (typeof folioToast === 'function') {
+              folioToast('That link couldn\u2019t be loaded \u2014 close this panel and open the link again to revoke it.', 4200);
+            }
             return;
           }
-          fetchShareBundle(entry.token).then(function (b) {
-            if (b && b.rootToken === entry.token && b.members.length > 1) {
+          var perm = entry ? entry.perm : 'view';
+          /* Build -162 (classification guard), kept and
+             widened: a set root is recognized on ANY evidence
+             that names this token as a set's root — the entry's
+             own manifest, or a local bundle record (keyed by
+             this token, or any local manifest rooted here) —
+             before the row fetch is consulted. */
+          var bundle = (entry && entry.bundle) || localBundleFor(token);
+          if (!bundle) {
+            bundle = localBundles().find(function (b) { return b.rootToken === token; }) || null;
+          }
+          if (bundle && bundle.rootToken === token && bundle.members.length > 1) {
+            shareFlowReturn = 'settings';
+            openShareRevokeModal({ token: token, permission: perm }, bundle);
+            return;
+          }
+          fetchShareBundle(token).then(function (b) {
+            if (b && b.rootToken === token && b.members.length > 1) {
               shareFlowReturn = 'settings';
-              openShareRevokeModal({ token: entry.token, permission: entry.perm }, b);
+              openShareRevokeModal({ token: token, permission: perm }, b);
               return;
             }
             btn.disabled = true;
-            sb.from('shares').delete().eq('token', entry.token).then(function () {
+            sb.from('shares').delete().eq('token', token).then(function () {
               btn.disabled = false;
-              localAliasSet(entry.token, '');
+              localAliasSet(token, '');
               shareSettingsToken = null;
+              shareSettingsEntry = null;
               loadShareList();
               if (typeof folioToast === 'function') folioToast('Link revoked \u2014 it stops working right away.', 3600);
               /* Build -115: revoked from the manager, the
@@ -43787,6 +43859,10 @@
               if (shareManagerReturn) { returnToShareManager(); return; }
               showShareView('main');
             }).catch(function () { btn.disabled = false; });
+          }).catch(function () {
+            if (typeof folioToast === 'function') {
+              folioToast('That link couldn\u2019t be loaded \u2014 check your connection and try again.', 4200);
+            }
           });
         });
 
@@ -44183,6 +44259,7 @@
           shareModalDocId = rootDoc ? rootDoc.id
             : (rootMember && rootMember.doc ? rootMember.doc : shareModalDocId);
           shareSettingsToken = null;
+          shareSettingsEntry = null;
           shareWizard = null;
           shareFlowReturn = 'main';
           document.getElementById('shareDocName').textContent = entry.rootTitle || 'Untitled';
