@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261111-167" />
+    <meta name="folio-build" content="20261111-169" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -7096,7 +7096,7 @@
           <h3 class="var-sec-head"><span>Shorthand</span></h3>
           <input class="text-input var-sh-input" id="varEditShorthand" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Shorthand" />
           <p class="var-sh-error" id="varShorthandError" hidden></p>
-          <p class="form-note var-sh-tip" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals) or Unit: x, and a chip like stepper.max(100).min(10).step(5). A value like {green, blue} makes a dropdown with those options — the first is the value — and dropdown.opts(green, blue) sets a dropdown's options too. Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
+          <p class="form-note var-sh-tip" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals, Date) or Unit: x, and a chip like stepper.max(100).min(10).step(5). A value like {green, blue} makes a dropdown with those options — the first is the value — and dropdown.opts(green, blue) sets a dropdown's options too. Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
         </section>
         <nav class="var-jumpnav" id="varJumpNav" aria-label="Variable sections"></nav>
         </div>
@@ -7122,21 +7122,22 @@
           <input class="text-input" id="varEditValue" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Variable value" style="width:100%;margin-top:6px" />
         </div>
         <div id="varEditFormulaWrap" hidden>
-          <p class="form-note" style="margin-top:12px">Names reference variables. Operators + − * / % ^, comparisons, &amp; joins text; functions ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER, LOWER. Type @ to insert a variable; tap a name for its value and scope.</p>
+          <p class="form-note" style="margin-top:12px">Names reference variables. Operators + − * / % ^, comparisons, &amp; joins text; functions ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER, LOWER, TODAY. Date variables are dates: date + 7 shifts a week, date − date gives the days between, and TODAY() is today. Type @ to insert a variable; tap a name for its value and scope.</p>
           <div class="fx-field" id="varEditExpr" contenteditable="true" role="textbox" aria-multiline="false" aria-label="Formula expression" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></div>
           <div class="fx-preview" id="varEditPreview" aria-live="polite"></div>
         </div>
         </section>
         <div id="varEditFormatWrap" class="var-sec">
           <h3 class="var-sec-head"><span>Display format</span></h3>
-          <label class="form-note var-field-label" for="varEditFormat" style="display:block;margin-top:12px">Number format — display only; the stored value stays the plain number, and formulas keep computing with it</label>
-          <select class="text-input" id="varEditFormat" aria-label="Number format" style="width:100%;margin-top:6px">
+          <label class="form-note var-field-label" for="varEditFormat" style="display:block;margin-top:12px">Display only; the stored value stays as it is, and formulas keep computing with the real value</label>
+          <select class="text-input" id="varEditFormat" aria-label="Display format" style="width:100%;margin-top:6px">
             <option value="general">General</option>
             <option value="whole">Whole number</option>
             <option value="fixed2">2 decimals</option>
             <option value="percent">Percent</option>
             <option value="usd">USD</option>
             <option value="unit">Unit</option>
+            <option value="date">Date</option>
           </select>
           <div id="varEditUnitWrap" hidden>
             <label class="form-note var-field-label" for="varEditUnit" style="display:block;margin-top:10px">Unit — shown after the number, exactly as typed</label>
@@ -11397,8 +11398,11 @@
            Build -144 adds the sixth: Unit — a plain number
            wearing a suffix the user typed (g, " tbsp",
            cups), stored on the record beside the format
-           (rec.unit) and rendered exactly as typed. */
-        var FX_FORMATS = ['general', 'whole', 'fixed2', 'percent', 'usd', 'unit'];
+           (rec.unit) and rendered exactly as typed.
+           Build -168 adds the seventh: Date — the format a
+           date-typed result wears; like every format it
+           bites only on its own type (see fxResultDisplay). */
+        var FX_FORMATS = ['general', 'whole', 'fixed2', 'percent', 'usd', 'unit', 'date'];
         var VAR_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4c0 1.1.9 2 2 2h1"/><path d="M16 3h-1a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/></svg>';
         var VAR_PROMOTE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
         var varStore = { updated: 0, globals: [], docVars: {} };
@@ -11720,6 +11724,36 @@
           if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) return v;
           return M[m - 1] + ' ' + d + ', ' + y;
         }
+        /* Build -168: the formula engine's date arithmetic.
+           A date value travels as a whole-day serial — days
+           since the Unix epoch, computed in UTC so daylight
+           saving can never make a "day" 23 or 25 hours —
+           and converts to and from the ISO text (YYYY-MM-DD)
+           date chips store. fxDateDaysFromISO validates the
+           calendar date itself (a Feb 30 round-trip fails),
+           so only real dates ever become date-typed. */
+        function fxDateDaysFromISO(v) {
+          if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+          var y = parseInt(v.slice(0, 4), 10), m = parseInt(v.slice(5, 7), 10), d = parseInt(v.slice(8, 10), 10);
+          var ms = Date.UTC(y, m - 1, d);
+          var dt = new Date(ms);
+          if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+          return Math.round(ms / 86400000);
+        }
+        function fxISOFromDays(days) {
+          var dt = new Date(Math.round(days) * 86400000);
+          return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth() + 1).padStart(2, '0') + '-' + String(dt.getUTCDate()).padStart(2, '0');
+        }
+        function fxDateFaceFromDays(days) {
+          return chipDateDisplay(fxISOFromDays(days));
+        }
+        /* TODAY()'s value: the current LOCAL date of the
+           device doing this evaluation, read fresh on every
+           call — it is computed, never stored. */
+        function fxTodayDays() {
+          var now = new Date();
+          return Math.round(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
+        }
 
         function varNormalizeRec(r, isGlobal) {
           if (!r || !r.id || typeof r.name !== 'string' || !r.name) return null;
@@ -12025,6 +12059,13 @@
            format is idempotent over it). */
         function varDisplayText(rec, raw) {
           if (!rec || typeof raw !== 'string' || !rec.fmt || rec.fmt === 'general') return raw;
+          /* Build -168: the Date format renders an ISO date
+             value in the date chips' face; anything else
+             under it shows exactly as stored. */
+          if (rec.fmt === 'date') {
+            var dd = fxDateDaysFromISO(raw);
+            return dd === null ? raw : fxDateFaceFromDays(dd);
+          }
           var n = fxParseNum(raw);
           if (n === null) return raw;
           return fxFormat(n, rec.fmt, rec.unit);
@@ -12141,11 +12182,37 @@
            Display formats bite only on numeric results —
            text displays as-is and blank displays empty —
            and downstream formulas always consume the raw
-           typed result, never the display text. */
+           typed result, never the display text.
+           Dates (build -168) are a THIRD value kind beside
+           number and text: a typed result {kind:'date',
+           days} whose serial is whole days (fxDateDaysFromISO).
+           A value is a date when it comes from a date chip
+           variable holding a real ISO date, from TODAY(),
+           or from date arithmetic — the kind propagates
+           through references and formula chains untouched.
+           Quoted text that merely looks like a date stays
+           TEXT: there are no date literals. The rules:
+           date + number / number + date shift the date
+           (fractional counts round to the nearest day);
+           date − number shifts back; date − date yields
+           the signed whole days between, a plain number;
+           date vs date comparisons are chronological;
+           everything else mixing a date — date + date,
+           date × or ÷ anything, number − date, a date
+           against a number or text in a comparison, a
+           date as an IF condition, a date fed to a numeric
+           or text function — is #VALUE!. TODAY() is a
+           zero-argument function returning the evaluating
+           device's current local date, fresh at every
+           recompute and never stored. Display: a date
+           result renders in the date chips' face under
+           General and under the Date format alike, and the
+           numeric formats never render a serial — each
+           format family bites only on its own type. */
         function varIsFormula(rec) {
           return !!(rec && typeof rec.expr === 'string' && rec.expr);
         }
-        var FX_FNS = { ROUND: 1, ABS: 1, MIN: 1, MAX: 1, SUM: 1, AVERAGE: 1, IF: 1, CONCAT: 1, LEN: 1, UPPER: 1, LOWER: 1 };
+        var FX_FNS = { ROUND: 1, ABS: 1, MIN: 1, MAX: 1, SUM: 1, AVERAGE: 1, IF: 1, CONCAT: 1, LEN: 1, UPPER: 1, LOWER: 1, TODAY: 1 };
         var fxGenSess = null;
         function fxInvalidate() { fxGenSess = null; }
         function fxNewSession(overrideRec, overrideCtx) {
@@ -12201,13 +12268,24 @@
         /* ----- Formulas v2 typed results (build -135) -----
            fxResultDisplay is the ONE display rule: the five
            formats format numbers only; text shows as-is;
-           blank shows empty; an error shows its code. */
+           blank shows empty; an error shows its code.
+           Build -168: a DATE result renders in the date
+           chips' face ("Nov 19, 2026") under EVERY format —
+           General and Date alike, and the numeric formats
+           never render its serial number: each format
+           family bites only on its own type. */
         function fxResultDisplay(res, fmt, unit) {
           if (!res) return '#VALUE!';
           if (!res.ok) return res.code;
+          if (res.kind === 'date') return fxDateFaceFromDays(res.days);
           if (res.kind === 'text') return res.text;
           if (res.kind === 'blank') return '';
           return fxFormat(res.num, fmt, unit);
+        }
+        /* Build -168: the shared #VALUE! for a date fed to
+           something that wanted a number or text. */
+        function fxDateMisuse(v, want) {
+          return { ok: false, code: '#VALUE!', msg: (v.nm ? '“' + v.nm + '” is a date' : 'That is a date') + ' — a date can’t be used as ' + want + '; subtract one date from another to get the days between them, or compare two dates directly' };
         }
         /* Coerce a typed result to a number for arithmetic
            and the numeric functions: numbers pass, blank
@@ -12215,6 +12293,7 @@
            parses, and any other text is #VALUE! naming its
            source variable when it came from one. */
         function fxToNum(v) {
+          if (v.kind === 'date') return fxDateMisuse(v, 'a number');
           if (v.kind === 'num') return { ok: true, num: v.num };
           if (v.kind === 'blank') return { ok: true, num: 0 };
           var n = fxParseNum(v.text);
@@ -12234,6 +12313,10 @@
            (case-insensitive) — any other text as a condition
            is a #VALUE! error, never a guess. */
         function fxTruthy(v) {
+          /* Build -168: a date is neither truthy nor falsy —
+             as a condition it is #VALUE!, the same stance
+             the rules take toward non-"true" text. */
+          if (v.kind === 'date') return { ok: false, code: '#VALUE!', msg: (v.nm ? '“' + v.nm + '” is a date' : 'That is a date') + ' — a date can’t be used as a condition; compare it with another date instead, like due < start' };
           if (v.kind === 'num') return { ok: true, truth: v.num !== 0 };
           if (v.kind === 'blank') return { ok: true, truth: false };
           var s = v.text.trim().toLowerCase();
@@ -12428,7 +12511,8 @@
               if (tk.v === 'LEN' && args.length !== 1) err('LEN takes exactly one argument.');
               if ((tk.v === 'UPPER' || tk.v === 'LOWER') && args.length !== 1) err(tk.v + ' takes exactly one argument.');
               if (tk.v === 'ROUND' && (args.length < 1 || args.length > 2)) err('ROUND takes one argument, or two: ROUND(value, decimals).');
-              if (FX_FNS[tk.v] && args.length < 1) err(tk.v + ' needs at least one argument.');
+              if (tk.v === 'TODAY' && args.length !== 0) err('TODAY takes no arguments — write it as TODAY().');
+              if (FX_FNS[tk.v] && tk.v !== 'TODAY' && args.length < 1) err(tk.v + ' needs at least one argument.');
               return { k: 'fn', name: tk.v, args: args };
             }
             if (tk.t === '(') {
@@ -12537,6 +12621,15 @@
              (nm) so a coercion error can name its source. */
           var text = varRecordValue(target, tScope === 'doc' ? ctx.doc : null);
           if (text === '') return { ok: true, kind: 'blank', nm: target.name };
+          /* Build -168: a date chip variable holding a real
+             ISO date contributes a DATE, not its raw text —
+             this is the one door by which stored values
+             become dates (quoted look-alikes in formulas
+             stay text; there are no date literals). */
+          if (chipIsActive(target) && chipCfgOf(target).type === 'date') {
+            var dd = fxDateDaysFromISO(text);
+            if (dd !== null) return { ok: true, kind: 'date', days: dd, nm: target.name };
+          }
           var num = fxParseNum(text);
           if (num != null) return { ok: true, kind: 'num', num: num, nm: target.name };
           return { ok: true, kind: 'text', text: text, nm: target.name };
@@ -12558,6 +12651,10 @@
               if (!a.ok) return a;
               b = fxEvalAst(node.r, ctx, sess);
               if (!b.ok) return b;
+              /* Build -168: joining a date with text is a
+                 type mix, not a join — #VALUE!. */
+              if (a.kind === 'date') return fxDateMisuse(a, 'text');
+              if (b.kind === 'date') return fxDateMisuse(b, 'text');
               return { ok: true, kind: 'text', text: fxToText(a) + fxToText(b) };
             }
             case 'cmp': {
@@ -12565,6 +12662,27 @@
               if (!a.ok) return a;
               b = fxEvalAst(node.r, ctx, sess);
               if (!b.ok) return b;
+              /* Build -168: date vs date compares
+                 CHRONOLOGICALLY (by serial); a date against
+                 anything else is #VALUE! — never an ordering
+                 by its text or serial. */
+              if (a.kind === 'date' || b.kind === 'date') {
+                if (a.kind !== 'date' || b.kind !== 'date') {
+                  return { ok: false, code: '#VALUE!', msg: 'A date can only be compared with another date' };
+                }
+                var dc = a.days < b.days ? -1 : (a.days > b.days ? 1 : 0);
+                var dhit;
+                switch (node.op) {
+                  case '=': dhit = dc === 0; break;
+                  case '!=': dhit = dc !== 0; break;
+                  case '<': dhit = dc < 0; break;
+                  case '<=': dhit = dc <= 0; break;
+                  case '>': dhit = dc > 0; break;
+                  case '>=': dhit = dc >= 0; break;
+                  default: return { ok: false, code: '#VALUE!', msg: 'Unknown comparison “' + node.op + '”.' };
+                }
+                return { ok: true, kind: 'num', num: dhit ? 1 : 0 };
+              }
               var c = fxCmp(a, b);
               if (c == null) {
                 /* A number against text that doesn't read as
@@ -12591,6 +12709,33 @@
               if (!a.ok) return a;
               b = fxEvalAst(node.r, ctx, sess);
               if (!b.ok) return b;
+              /* Build -168: date arithmetic. date ± number
+                 shifts by whole days (a fractional count
+                 rounds to the nearest day); date − date is
+                 the signed day count between them, a plain
+                 number. Every other mix — date + date,
+                 date × or ÷ anything, number − date — is
+                 #VALUE!. */
+              if (a.kind === 'date' || b.kind === 'date') {
+                if (node.op === '+' && a.kind === 'date' && b.kind === 'date') {
+                  return { ok: false, code: '#VALUE!', msg: 'Two dates can’t be added — subtract them instead to get the days between them' };
+                }
+                if (node.op === '-' && a.kind === 'date' && b.kind === 'date') {
+                  return { ok: true, kind: 'num', num: a.days - b.days };
+                }
+                if (node.op === '+' || node.op === '-') {
+                  var dside = a.kind === 'date' ? a : b;
+                  var dn = fxToNum(a.kind === 'date' ? b : a);
+                  if (!dn.ok) return dn;
+                  var shift = Math.round(dn.num) * (node.op === '-' && a.kind === 'date' ? -1 : 1);
+                  if (node.op === '-' && a.kind !== 'date') {
+                    return { ok: false, code: '#VALUE!', msg: 'A date can’t be subtracted from a number' };
+                  }
+                  return { ok: true, kind: 'date', days: dside.days + shift, nm: dside.nm };
+                }
+                var dbl = a.kind === 'date' ? a : b;
+                return { ok: false, code: '#VALUE!', msg: (dbl.nm ? '“' + dbl.nm + '” is a date' : 'That is a date') + ' — dates can only be added to or subtracted; multiply and divide work on numbers and day counts' };
+              }
               var na = fxToNum(a);
               if (!na.ok) return na;
               var nb = fxToNum(b);
@@ -12613,6 +12758,12 @@
               return { ok: true, kind: 'num', num: v };
             }
             case 'fn': {
+              /* Build -168: TODAY() — the evaluating device's
+                 current local date, computed fresh right
+                 here at every evaluation and never stored. */
+              if (node.name === 'TODAY') {
+                return { ok: true, kind: 'date', days: fxTodayDays() };
+              }
               /* IF is lazy: the branch not taken never
                  evaluates, so IF(x != 0, 1 / x, "—") is safe
                  at x = 0. Without an else, false is blank. */
@@ -12634,13 +12785,19 @@
               var out;
               switch (node.name) {
                 case 'CONCAT':
-                  return { ok: true, kind: 'text', text: vals.map(fxToText).join('') };
                 case 'LEN':
-                  return { ok: true, kind: 'num', num: fxToText(vals[0]).length };
                 case 'UPPER':
-                  return { ok: true, kind: 'text', text: fxToText(vals[0]).toUpperCase() };
-                case 'LOWER':
+                case 'LOWER': {
+                  /* Build -168: the text functions refuse a
+                     date rather than stringifying it. */
+                  for (i = 0; i < vals.length; i++) {
+                    if (vals[i].kind === 'date') return fxDateMisuse(vals[i], 'text');
+                  }
+                  if (node.name === 'CONCAT') return { ok: true, kind: 'text', text: vals.map(fxToText).join('') };
+                  if (node.name === 'LEN') return { ok: true, kind: 'num', num: fxToText(vals[0]).length };
+                  if (node.name === 'UPPER') return { ok: true, kind: 'text', text: fxToText(vals[0]).toUpperCase() };
                   return { ok: true, kind: 'text', text: fxToText(vals[0]).toLowerCase() };
+                }
               }
               var nums = [];
               for (i = 0; i < vals.length; i++) {
@@ -12734,7 +12891,7 @@
               if (dvOnly && !varGlobalByName(tk.v)) return { error: '“' + tk.v + '” is a document variable — a global formula can only use global variables. Promote it to global to use it here.', unknown: tk.v };
             }
             var nx = lexed.tokens[i + 1];
-            if (nx && nx.t === '(') return { error: 'Unknown function “' + tk.v + '” — the functions are ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER and LOWER.' };
+            if (nx && nx.t === '(') return { error: 'Unknown function “' + tk.v + '” — the functions are ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER, LOWER and TODAY.' };
             return { error: 'No variable named “' + tk.v + '”.', unknown: tk.v };
           }
           return { tokens: out };
@@ -13624,14 +13781,37 @@
            them). */
         var chipPopEl = null;
         var chipPopCleanup = null;
+        /* Build -169: the popover's owner and open time.
+           chipPopOwnerKey names the control that opened the
+           popover ('menu:<vid>' / 'slider:<vid>'); a second
+           open call for the SAME owner within the echo
+           window below is the opening tap's own trailing
+           fire arriving by another path, and is answered by
+           leaving the standing popover exactly as it is —
+           never by tearing it down and rebuilding it (the
+           -166 settle-repaint suspect) and never by treating
+           the open as a toggle (the -169 brief's prime
+           suspect: iOS delivers the tap's trailing click
+           ~300 ms late, targeted at the chip itself; whatever
+           handler that click reaches, the popover it opened
+           must survive it). */
+        var chipPopOwnerKey = null;
+        var chipPopOpenedAt = 0;
+        var CHIP_POP_ECHO_MS = 1000;
         function chipClosePop(refocus) {
           if (chipPopEl) { chipPopEl.remove(); chipPopEl = null; }
+          chipPopOwnerKey = null;
+          chipPopOpenedAt = 0;
           if (chipPopCleanup) { var c = chipPopCleanup; chipPopCleanup = null; c(); }
           if (refocus && editorHandle && editorHandle.editor && editorHandle.editor.view) {
             try { editorHandle.editor.view.focus(); } catch (e) {}
           }
         }
-        function chipOpenPop(rect, build) {
+        function chipOpenPop(rect, build, ownerKey) {
+          if (ownerKey && chipPopEl && chipPopOwnerKey === ownerKey &&
+              Date.now() - chipPopOpenedAt < CHIP_POP_ECHO_MS) {
+            return chipPopEl;
+          }
           chipClosePop(false);
           var el = document.createElement('div');
           el.className = 'chip-pop';
@@ -13647,6 +13827,7 @@
           el.style.left = left + 'px';
           el.style.top = top + 'px';
           chipPopEl = el;
+          chipPopOwnerKey = ownerKey || null;
           /* Build -167: the popover opens on a chip button's
              pointerup fire (folioChipWire), and on touch the
              opening tap's TRAILING synthetic mousedown is
@@ -13668,11 +13849,34 @@
              taken for the opening tap's trailing synthetic
              and ignored (a genuine quick outside press in
              that window still dismisses via its pointerdown,
-             which carries no grace). */
-          var chipPopOpenedAt = Date.now();
+             which carries no grace).
+             Build -169: the owner's phone still dismissed
+             the menu — later ("shows for longer") but
+             reliably. Three gaps in the -167 shape, closed
+             together: (1) the grace was 600 ms while the
+             chip fire registry's own echo window is 800 ms,
+             and iOS can hold the trailing synthetic sequence
+             past either while it disambiguates a double
+             tap — the grace is now CHIP_POP_ECHO_MS
+             (1000 ms) for BOTH the synthetic mousedown and
+             a synthetic click; (2) dismissal had no click
+             channel at all, so this build adds one on the
+             same terms — a click outside the popover after
+             the echo window dismisses (a second channel for
+             a genuine outside tap whose pointerdown was
+             claimed elsewhere), and a click INSIDE the
+             window never does, wherever it lands — on the
+             chip, on the document, anywhere; (3) the
+             popover no longer steals focus on touch (see
+             the focus note below), so the opening tap's
+             trailing events hit-test against a layout that
+             never moved. A genuine outside press still
+             dismisses at its pointerdown, inside or outside
+             the window, exactly as -167 arranged. */
+          chipPopOpenedAt = Date.now();
           function onDown(ev) {
             if (!chipPopEl || chipPopEl.contains(ev.target)) return;
-            if (ev.type === 'mousedown' && Date.now() - chipPopOpenedAt < 600) return;
+            if (ev.type !== 'pointerdown' && Date.now() - chipPopOpenedAt < CHIP_POP_ECHO_MS) return;
             chipClosePop(false);
           }
           function onKey(ev) {
@@ -13680,10 +13884,12 @@
           }
           document.addEventListener('pointerdown', onDown, true);
           document.addEventListener('mousedown', onDown, true);
+          document.addEventListener('click', onDown, true);
           document.addEventListener('keydown', onKey, true);
           chipPopCleanup = function () {
             document.removeEventListener('pointerdown', onDown, true);
             document.removeEventListener('mousedown', onDown, true);
+            document.removeEventListener('click', onDown, true);
             document.removeEventListener('keydown', onKey, true);
           };
           /* Build -165: an input wins the opening focus when
@@ -13691,9 +13897,26 @@
              range keeps the immediate arrow-key control it
              always had, now that − / + buttons flank it in
              DOM order. Button-only popovers (the menus) are
-             unchanged: their first button still takes it. */
-          var first = el.querySelector('input') || el.querySelector('button');
-          if (first) { try { first.focus(); } catch (e) {} }
+             unchanged: their first button still takes it.
+             Build -169: the focus move runs only for a fine
+             pointer (mouse / trackpad / pen-as-mouse). On a
+             coarse (touch) pointer, focusing the first item
+             scrolls the editor to keep the newly focused
+             button in view — moving the very layout the
+             opening tap's trailing events are about to
+             hit-test against, and handing DOM focus into a
+             popover the user's next tap expects to find
+             untouched. Touch needs no focus here: options
+             are tapped directly, the slider's range and
+             step buttons are tapped directly, and Escape
+             dismissal rides the document listener above,
+             not focus. */
+          var coarse = false;
+          try { coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) {}
+          if (!coarse) {
+            var first = el.querySelector('input') || el.querySelector('button');
+            if (first) { try { first.focus(); } catch (e) {} }
+          }
           return el;
         }
         /* Build -165: step-button wiring for the popovers, on
@@ -13768,7 +13991,7 @@
               chipClosePop(false);
               openVarEdit(found.scope, rec, { atChip: true });
             }));
-          });
+          }, 'menu:' + rec.id);
         }
         function chipOpenSlider(found, rect) {
           var rec = found.rec;
@@ -13840,7 +14063,7 @@
             sRow.appendChild(inp);
             sRow.appendChild(popStepBtn('+', 1, 'Increase ' + rec.name));
             el.appendChild(sRow);
-          });
+          }, 'slider:' + rec.id);
         }
         /* Build -143: dates skip the app's popover entirely —
            the chip summons the browser's own date picker. A
@@ -15713,7 +15936,14 @@
            identifier, or @name) that bind by identity at
            commit and stay live. The same grammar powers the
            inline @= shorthand row in the document (WS3). */
-        var SH_FMT_LABEL = { whole: 'Whole', fixed2: 'Decimals', percent: 'Percent', usd: 'USD' };
+        var SH_FMT_LABEL = { whole: 'Whole', fixed2: 'Decimals', percent: 'Percent', usd: 'USD', date: 'Date' };
+        /* Build -168: 'date' is deliberately NOT a format
+           token here. The word already names the date CHIP
+           in the tail (and the canonical line prints the
+           chip lowercase, the format as 'Date'), so the
+           tail's one case-sensitive rule is: exactly 'Date'
+           sets the Date FORMAT, 'date' keeps meaning the
+           date chip — both canonical spellings round-trip. */
         var SH_FMT_TOKENS = { general: 'general', whole: 'whole', 'whole number': 'whole', decimals: 'fixed2', '2 decimals': 'fixed2', fixed2: 'fixed2', percent: 'percent', usd: 'usd' };
         var SH_CHIP_SUBS = {
           stepper: ['step', 'min', 'max'],
@@ -16029,6 +16259,11 @@
               if (low === 'global') { st.scope = 'global'; continue; }
               if (low === 'unanchored') { st.anchor = 'unanchored'; continue; }
               if (low === 'anchored') { st.anchor = 'anchored'; continue; }
+              /* Build -168: exactly 'Date' (the format's
+                 printed spelling) sets the Date format;
+                 lowercase 'date' falls through to the chip
+                 rule below and stays the date chip. */
+              if (tok === 'Date') { st.fmt = 'date'; continue; }
               if (Object.prototype.hasOwnProperty.call(SH_FMT_TOKENS, low)) { st.fmt = SH_FMT_TOKENS[low]; continue; }
               if (/^unit\s*:/i.test(tok)) {
                 st.fmt = 'unit';
@@ -16193,12 +16428,20 @@
             chip: varEditChipCollect(),
           };
         }
+        /* Build -169: the last line shRenderFromFields itself
+           wrote. The Save gate compares the field's current
+           text against it: a line identical to the render
+           carries no user edit the fields don't already
+           hold, so re-applying its parse at Save could only
+           resurrect stale state (see shGateSave). */
+        var shRenderedLine = null;
         function shRenderFromFields() {
           var inp = shInput();
           if (!inp || !varEditCtx || shFocused) return;
           var st = shStateFromFields();
           if (!st) return;
           inp.value = shLineFromState(st);
+          shRenderedLine = inp.value;
           shHideError();
         }
         /* ----- quick-look ----- */
@@ -16369,6 +16612,32 @@
           if (!varEditCtx || !shDirty) return true;
           var inp = shInput();
           if (!inp) return true;
+          /* Build -169: a dirty flag alone no longer proves
+             the LINE is the freshest state in the modal.
+             The dropdown options editor mutates the chip
+             draft from button clicks (Add option, Remove)
+             that fire no input/change on the chip wrap, so
+             the line was never re-rendered after them —
+             while an earlier shorthand touch had left the
+             dirty flag set. The old gate then re-parsed that
+             STALE line and shApplyToModal overwrote the
+             fields with it: shMergeChip takes the whole
+             dropdown group from the parse, so options added
+             in the structured editor silently vanished at
+             Save (the -169 report's dropdown case; the same
+             shape threatens any field the line renders less
+             often than the controls mutate). The gate now
+             applies the line only when its text actually
+             differs from the last field-rendered line (or a
+             scope / anchor claim is staged, whose commit
+             only the gate performs). A line the user truly
+             edited always differs — their keystrokes are
+             not the canonical render — so genuine shorthand
+             saves, Enter commits included, are untouched. */
+          if (inp.value === shRenderedLine && !varEditCtx.stagedScope && !varEditCtx.stagedAnchorClaim) {
+            shDirty = false;
+            return true;
+          }
           var p = shParseLine(inp.value, shEnv());
           if (!p.ok) { shShowError(p); varEditError(p.msg); return false; }
           return shApplyToModal(p);
@@ -16477,7 +16746,7 @@
              modal, and the arrows stay the caret's. */
           return !!(shTipsEl && !shTipsEl.hidden && (shTipsItems.length || shSigCtx));
         }
-        var SH_FN_SIGS = { ROUND: 'ROUND(number, digits)', ABS: 'ABS(number)', MIN: 'MIN(a, b, \u2026)', MAX: 'MAX(a, b, \u2026)', SUM: 'SUM(a, b, \u2026)', AVERAGE: 'AVERAGE(a, b, \u2026)', IF: 'IF(condition, then, else)', CONCAT: 'CONCAT(a, b, \u2026)', LEN: 'LEN(text)', UPPER: 'UPPER(text)', LOWER: 'LOWER(text)' };
+        var SH_FN_SIGS = { ROUND: 'ROUND(number, digits)', ABS: 'ABS(number)', MIN: 'MIN(a, b, \u2026)', MAX: 'MAX(a, b, \u2026)', SUM: 'SUM(a, b, \u2026)', AVERAGE: 'AVERAGE(a, b, \u2026)', IF: 'IF(condition, then, else)', CONCAT: 'CONCAT(a, b, \u2026)', LEN: 'LEN(text)', UPPER: 'UPPER(text)', LOWER: 'LOWER(text)', TODAY: 'TODAY()' };
         /* Build -155: signature help. Each shipped
            function's arguments, named, with a plain-words
            line on what each one is. Variadic functions
@@ -16494,6 +16763,9 @@
           LEN: [['text', 'The text whose length is counted']],
           UPPER: [['text', 'The text to shout']],
           LOWER: [['text', 'The text to quiet']],
+          /* Build -168: TODAY takes no arguments — its
+             signature line alone is the help. */
+          TODAY: [],
         };
         /* The signature-help state: the call the caret is
            currently inside (rendered by shTipsShow), and
@@ -16611,6 +16883,7 @@
               { main: 'USD', desc: 'Display format', ins: 'USD' },
               { main: 'Whole', desc: 'Format — whole number', ins: 'Whole' },
               { main: 'Decimals', desc: 'Format — 2 decimals', ins: 'Decimals' },
+              { main: 'Date', desc: 'Format — date', ins: 'Date' },
               { main: 'Unit: ', desc: 'Format — suffix after the number', ins: 'Unit: ' },
               { main: 'stepper', desc: 'Smart chip', ins: 'stepper' },
               { main: 'slider', desc: 'Smart chip', ins: 'slider' },
@@ -16644,7 +16917,9 @@
           var word = wordM ? wordM[1] : '';
           var items2 = [];
           Object.keys(SH_FN_SIGS).forEach(function (fn) {
-            if (!word || fn.indexOf(word.toUpperCase()) === 0) items2.push({ main: fn, sig: SH_FN_SIGS[fn], ins: fn + '(' });
+            /* Build -168: TODAY inserts complete — TODAY()
+               takes no arguments to be left inside of. */
+            if (!word || fn.indexOf(word.toUpperCase()) === 0) items2.push({ main: fn, sig: SH_FN_SIGS[fn], ins: fn === 'TODAY' ? 'TODAY()' : fn + '(' });
           });
           items2 = items2.concat(shTipsVarItems(word));
           return { head: 'Formula', items: items2.slice(0, 8), range: { from: caret - word.length, to: caret } };
@@ -18318,7 +18593,18 @@
             if (fxw.invalid) { varEditError(fxw.invalid); return; }
           }
           var rec = ctx.id ? (ctx.scope === 'doc' ? varDocVar(ctx.docId, ctx.id) : varGlobalById(ctx.id)) : null;
-          if (ctx.id && !rec) { closeVarEdit(); return; }
+          /* Build -169: a missing record used to close the
+             modal SILENTLY — the exact silhouette of the
+             -169 report (Save dismisses, nothing changes, no
+             reason given): the edits were discarded with the
+             context and the user had no way to tell a lost
+             variable from a lost tap. The modal now stays
+             open and says so; the user can Cancel knowingly
+             instead of trusting a save that never happened. */
+          if (ctx.id && !rec) {
+            varEditError('That variable could not be found — it may have been deleted or moved while this editor was open. Your edits have not been saved.');
+            return;
+          }
           /* Uniqueness is within the scope: a document
              variable may share a global's name (that is
              shadowing, and it is allowed). */
@@ -18952,7 +19238,109 @@
         });
         document.getElementById('varEditClose').addEventListener('click', closeVarEdit);
         document.getElementById('varEditCancel').addEventListener('click', closeVarEdit);
-        document.getElementById('varEditSave').addEventListener('click', varSaveEdit);
+        /* Build -169: Save activates on pointerup as well
+           as click — the folioChipWire lesson (-164/-166)
+           applied to the modal. The chips' defect family
+           was iOS absorbing or re-routing a tap's synthetic
+           click on surfaces inside the editing context; the
+           -169 report has the same shape in the modal (the
+           tap lands, the commit doesn't), and the modal's
+           Save was still a click-only button. A short,
+           near-stationary pointerup now runs the save; the
+           Enter / ⌘Enter and backdrop paths call varSaveEdit
+           directly and are untouched.
+           Both guards below are SEQUENCE-based, never
+           clock-based. A time-window version shipped first
+           and failed its own probe: under a slow page clock
+           the windows effectively never lapse, so the first
+           save of a page load permanently disarmed every
+           later one. One press produces exactly one trailing
+           sequence, so the guards count events, not
+           milliseconds:
+           — varSaveClickEcho: a pointer-driven save arms a
+             one-shot flag; the very next click AT THE SAME
+             POINT is that press's trailing echo and is
+             swallowed. Any other click (a new press starts
+             with pointerdown, which clears the flag; a
+             keyboard click carries no matching point) runs
+             the save itself.
+           — varSaveEchoSeq: a pointerup save closes the
+             modal BEFORE the tap's trailing synthetic
+             mousedown / mouseup / click are dispatched, and
+             those land on whatever the closed modal was
+             covering — the Variables panel's backdrop
+             (whose mousedown closes the panel), or the
+             document (a caret jump, or worse, a live chip
+             under the point). The sequence swallow eats
+             each of those event kinds at most once, only at
+             the press point, and the next genuine
+             pointerdown anywhere disarms it. */
+        var varSaveClickEcho = null;
+        var varSaveEchoSeq = null;
+        document.addEventListener('pointerdown', function () { varSaveEchoSeq = null; }, true);
+        ['mousedown', 'mouseup', 'click', 'dblclick'].forEach(function (t) {
+          document.addEventListener(t, function (ev) {
+            var a = varSaveEchoSeq;
+            if (!a || !a[t]) return;
+            if (typeof ev.clientX !== 'number') return;
+            if (Math.abs(ev.clientX - a.x) > 24 || Math.abs(ev.clientY - a.y) > 24) return;
+            a[t] = 0;
+            ev.preventDefault(); ev.stopPropagation();
+          }, true);
+        });
+        function varSaveEchoArm(x, y) {
+          varSaveEchoSeq = { x: x, y: y, mousedown: 1, mouseup: 1, click: 1, dblclick: 1 };
+        }
+        function varSaveEditOnce(ev, fromPointer) {
+          if (!fromPointer && varSaveClickEcho) {
+            /* A click: swallow it only when it is the
+               trailing echo of the pointer save — same
+               point. A keyboard click (0,0) or a click
+               anywhere else is a genuine activation. */
+            var pt = varSaveClickEcho;
+            varSaveClickEcho = null;
+            if (ev && typeof ev.clientX === 'number' && (ev.clientX || ev.clientY) &&
+                Math.abs(ev.clientX - pt.x) <= 24 && Math.abs(ev.clientY - pt.y) <= 24) return;
+          }
+          varSaveEdit();
+          var modal = document.getElementById('varEditModal');
+          if (!modal || !modal.hidden) {
+            /* Blocked save (validation, missing record):
+               the modal is still open — arm nothing, so a
+               corrected retry, pointer or click, runs. */
+            return;
+          }
+          if (ev && typeof ev.clientX === 'number' && (ev.clientX || ev.clientY)) {
+            if (fromPointer) varSaveClickEcho = { x: ev.clientX, y: ev.clientY };
+            varSaveEchoArm(ev.clientX, ev.clientY);
+          }
+        }
+        (function () {
+          var saveBtn = document.getElementById('varEditSave');
+          if (!saveBtn) return;
+          var downAt = null, downT = 0;
+          saveBtn.addEventListener('pointerdown', function (ev) {
+            /* A new press on Save supersedes any echo
+               state an earlier press left behind. */
+            varSaveClickEcho = null;
+            downAt = { x: ev.clientX, y: ev.clientY }; downT = Date.now();
+          });
+          saveBtn.addEventListener('pointercancel', function (ev) {
+            var d = downAt; downAt = null;
+            if (!d) return;
+            if (Date.now() - downT > 600) return;
+            if (ev && typeof ev.clientX === 'number' && (ev.clientX || ev.clientY) &&
+                (Math.abs(ev.clientX - d.x) > 24 || Math.abs(ev.clientY - d.y) > 24)) return;
+            varSaveEditOnce(ev, true);
+          });
+          saveBtn.addEventListener('pointerup', function (ev) {
+            var d = downAt; downAt = null;
+            if (!d) return;
+            if (Math.abs(ev.clientX - d.x) > 24 || Math.abs(ev.clientY - d.y) > 24) return;
+            varSaveEditOnce(ev, true);
+          });
+          saveBtn.addEventListener('click', function (ev) { varSaveEditOnce(ev, false); });
+        })();
         /* Build -141: the anchor choice's radios — one
            delegated listener on the note container, so a
            session restored from a snapshot (its note HTML
@@ -19610,6 +19998,7 @@
           if (!tok) return 'varSecValue';
           var low = tok.toLowerCase();
           if (low === 'local' || low === 'global' || low === 'unanchored' || low === 'anchored') return 'varSecDef';
+          if (tok === 'Date') return 'varEditFormatWrap'; /* Build -168: the format's spelling; lowercase 'date' is the chip, below */
           if (/^unit\s*:/i.test(tok)) return 'varEditFormatWrap';
           if (Object.prototype.hasOwnProperty.call(SH_FMT_TOKENS, low)) return 'varEditFormatWrap';
           var headM = /^([A-Za-z]+)/.exec(tok);
@@ -19895,6 +20284,11 @@
           var inp = document.getElementById('varEditChipOptNew');
           inp.value = '';
           varEditChipRenderOptions();
+          /* Build -169: a draft mutation from a click fires
+             no input/change on the chip wrap, so the
+             shorthand line and quick-look are re-rendered
+             explicitly (see shGateSave). */
+          shFieldChanged();
           inp.focus();
         }
         document.addEventListener('mousedown', function (ev) {
@@ -19920,6 +20314,9 @@
           varEditChipDraft.dropdown.options.push({ k: 'lit', v: inp.value });
           inp.value = '';
           varEditChipRenderOptions();
+          /* Build -169: keep the shorthand line at the
+             draft's heels (see chipOptAtChoose). */
+          shFieldChanged();
           inp.focus();
         });
         document.getElementById('varEditChipOptNew').addEventListener('input', function () { chipOptAtSync(); });
@@ -19956,6 +20353,9 @@
             varEditChipDraft.dropdown.sel = null;
           }
           varEditChipRenderOptions();
+          /* Build -169: keep the shorthand line at the
+             draft's heels (see chipOptAtChoose). */
+          shFieldChanged();
         });
         /* Build -143: in-place option edits write straight
            into the draft; a selected literal follows its edit
@@ -20042,6 +20442,10 @@
               name: f.rec.name, scope: f.scope, expr: fxExprText(f.rec), fmt: f.rec.fmt || 'general',
               display: varRecordValue(f.rec, null),
               ok: r.ok, num: (r.ok && r.kind === 'num') ? r.num : null, kind: r.ok ? r.kind : null, code: r.ok ? null : r.code, msg: r.ok ? null : r.msg,
+              /* Build -168: a date result's ISO day, so the
+                 harness can assert on the date itself and
+                 not only its rendered face. */
+              date: (r.ok && r.kind === 'date') ? fxISOFromDays(r.days) : null,
             };
           },
           checkExpr: function (text, docId, scope) {
@@ -20054,7 +20458,7 @@
             var sess = fxNewSession(null, null);
             var r = fxEvalAst(ast, { scope: sc, doc: doc }, sess);
             if (!r.ok) return { ok: false, syntax: false, code: r.code, error: r.msg };
-            return { ok: true, num: r.kind === 'num' ? r.num : null, kind: r.kind, text: r.kind === 'text' ? r.text : null, display: fxResultDisplay(r, 'general') };
+            return { ok: true, num: r.kind === 'num' ? r.num : null, kind: r.kind, text: r.kind === 'text' ? r.text : null, date: r.kind === 'date' ? fxISOFromDays(r.days) : null, display: fxResultDisplay(r, 'general') };
           },
           anchorText: function (docId, vid) { var d = varDocById(docId); return d ? varAnchorTextInContent(d.content, vid) : null; },
           /* Build -141: the Keep path's stored-tree walk,
@@ -47242,7 +47646,7 @@
                 shareChipAct({ action: 'choose', vid: detail.vid, vscope: detail.vscope, index: i });
               }));
             });
-          });
+          }, 'menu:' + detail.vid);
         }
         function shareChipOpenSlider(detail) {
           var sess = shareChipSession;
@@ -47320,7 +47724,7 @@
             sRow.appendChild(inp);
             sRow.appendChild(shareStepBtn('+', 1, 'Increase ' + data.name));
             el.appendChild(sRow);
-          });
+          }, 'slider:' + detail.vid);
         }
         function shareChipOpenDate(detail) {
           var sess = shareChipSession;
