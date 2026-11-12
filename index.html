@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261111-171" />
+    <meta name="folio-build" content="20261112-172" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5246,6 +5246,38 @@
         padding: 6px; display: flex; flex-direction: column; gap: 2px;
       }
       .sh-tips[hidden] { display: none; }
+      /* Build -172: the Shorthand section's one-line brief
+         and its Full grammar door. The full grammar text
+         moved out of the modal body into a popover — the
+         brief row is all that stands under the field now. */
+      #varEditModal .var-sh-brief {
+        display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+      }
+      #varEditModal .var-sh-brief .var-sh-tip { flex: 1 1 auto; min-width: 0; }
+      .var-sh-grammar-btn {
+        flex: 0 0 auto; font: inherit; font-size: 12.5px; font-weight: 600;
+        color: var(--accent); background: transparent; border: none;
+        padding: 2px 0; cursor: pointer; text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .var-sh-grammar-btn:hover { color: var(--ink); }
+      /* The grammar popover: painted with the .sh-tips
+         register, capped and internally scrollable, so on
+         the phone it floats over the modal (an overlay,
+         never layout) and can never crowd out the form. */
+      .sh-grammar-pop {
+        position: fixed; z-index: 1100; width: min(92vw, 560px);
+        max-height: min(52vh, 380px); overflow-y: auto;
+        background: var(--surface); color: var(--ink);
+        border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+        padding: 10px 14px 12px;
+      }
+      .sh-grammar-pop[hidden] { display: none; }
+      .sh-grammar-head {
+        font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+        color: var(--ink-2); padding: 2px 0 6px;
+      }
+      .sh-grammar-text { font-size: 13.5px; line-height: 1.55; color: var(--ink-2); margin: 0; }
       .sh-tips-head {
         font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
         color: var(--ink-2); padding: 5px 10px 3px;
@@ -7104,7 +7136,10 @@
           <h3 class="var-sec-head"><span>Shorthand</span></h3>
           <input class="text-input var-sh-input" id="varEditShorthand" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Shorthand" />
           <p class="var-sh-error" id="varShorthandError" hidden></p>
-          <p class="form-note var-sh-tip" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals, Date) or Unit: x, and a chip like stepper.max(100).min(10).step(5). A format can wear .commas for thousands separators (Whole.commas), and dates take a pattern: Date.format(ISO), date.format("MM/DD/YYYY") on the date chip — Default, ISO, or a quoted pattern of YYYY, MM, DD tokens. A value like {green, blue} makes a dropdown with those options — the first is the value — and dropdown.opts(green, blue) sets a dropdown's options too. Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
+          <div class="var-sh-brief">
+          <p class="form-note var-sh-tip" style="margin-top:6px">Name @= value — then | scope, format, chip. Tips appear as you type.</p>
+          <button class="var-sh-grammar-btn" id="varShGrammarBtn" type="button" aria-haspopup="dialog" aria-expanded="false">Full grammar</button>
+        </div>
         </section>
         <nav class="var-jumpnav" id="varJumpNav" aria-label="Variable sections"></nav>
         </div>
@@ -7220,6 +7255,11 @@
           <button class="btn-primary" id="varEditSave" type="button">Save</button>
         </div>
       </div>
+    </div>
+
+    <div class="sh-grammar-pop" id="varShGrammarPop" hidden role="dialog" aria-label="Shorthand grammar">
+      <div class="sh-grammar-head"><span>Shorthand grammar</span></div>
+      <p class="sh-grammar-text">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals, Date) or Unit: x, and a chip like stepper.max(100).min(10).step(5). A format can wear .commas for thousands separators (Whole.commas), and dates take a pattern: Date.format(ISO), date.format("MM/DD/YYYY") on the date chip — Default, ISO, or a quoted pattern of YYYY, MM, DD tokens. A value like {green, blue} makes a dropdown with those options — the first is the value — and dropdown.opts(green, blue) sets a dropdown's options too. Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
     </div>
 
     <div class="overlay" id="varDefineModal" hidden>
@@ -14228,8 +14268,56 @@
            real (if effectively invisible) date input is
            parked at the chip and its picker opened; choosing
            a day commits, dismissing it changes nothing. */
+        /* Build -172: the native-date session is SINGLE and
+           owned. Before this build every chip fire created a
+           fresh invisible input and summoned its picker —
+           the probe (Chromium, seeded date chip) showed a
+           plain double press leaving TWO live .chip-native-date
+           inputs with two pickers summoned, after which the
+           double-click door opened the Edit modal, yanked
+           focus into it, and both inputs were removed by blur
+           timers from under their live pickers. On the owner's
+           iPad that sequence is the reported crash: WebKit's
+           native date sheet is attached to the FOCUSED input,
+           and stacking picker sessions, then removing the
+           focused input while its sheet is up and a modal
+           steals focus in the same gesture, kills the page.
+           The modal's own construction is innocent — the
+           probe opened it cleanly for fresh, pre--170
+           (no-pattern) and ISO-pattern date records alike,
+           through the reference door, the definition door
+           and the panel. So the fix lives here, in the race:
+           (1) one session at a time — a re-entry replaces,
+           never stacks; (2) a re-fire for the SAME variable
+           within 600 ms while its session is live is the
+           second half of a double press: the session is
+           cancelled and NO second picker is summoned (the
+           dblclick that follows opens the modal instead);
+           (3) openVarEdit cancels any live session
+           synchronously, BEFORE the modal unhides or takes
+           focus, so removal never happens under a live
+           picker by timer. A cancelled session is marked
+           done, so a late change / input event from it can
+           never write. Single-tap behavior is untouched:
+           the first press summons the picker exactly as
+           before, and choosing a day commits exactly once. */
+        var chipDateSession = null;
+        function chipCancelNativeDate() {
+          var s = chipDateSession;
+          chipDateSession = null;
+          if (s) {
+            s.done = true;
+            if (s.inp.parentNode) s.inp.parentNode.removeChild(s.inp);
+          }
+        }
         function chipNativeDate(found, rect) {
           chipClosePop();
+          if (chipDateSession && chipDateSession.vid === found.rec.id &&
+              Date.now() - chipDateSession.at < 600) {
+            chipCancelNativeDate();
+            return;
+          }
+          chipCancelNativeDate();
           var rec = found.rec;
           var cur = varRecordValue(rec, found.scope === 'doc' ? currentDoc() : null);
           var inp = document.createElement('input');
@@ -14239,8 +14327,13 @@
           inp.setAttribute('aria-label', rec.name);
           if (rect) { inp.style.left = rect.left + 'px'; inp.style.top = rect.bottom + 'px'; }
           document.body.appendChild(inp);
+          var session = { inp: inp, vid: rec.id, at: Date.now(), done: false };
+          chipDateSession = session;
           var done = false;
-          function cleanup() { if (inp.parentNode) inp.parentNode.removeChild(inp); }
+          function cleanup() {
+            if (chipDateSession === session) chipDateSession = null;
+            if (inp.parentNode) inp.parentNode.removeChild(inp);
+          }
           /* Build -166: the picker's commit arrives as
              'change' in some engines and 'input' in others
              (iOS's native date picker has shipped both
@@ -14250,8 +14343,9 @@
              events now feed the one commit, and the done
              flag keeps it to exactly one write. */
           function commitDate() {
-            if (done) return;
+            if (done || session.done) return;
             done = true;
+            session.done = true;
             varChipCommitValue(found, inp.value || '');
             cleanup();
             /* Build -144: a keyboard-locked date re-seats
@@ -14262,7 +14356,7 @@
           }
           inp.addEventListener('change', commitDate);
           inp.addEventListener('input', function () { if (inp.value) commitDate(); });
-          inp.addEventListener('blur', function () { setTimeout(function () { if (!done) cleanup(); }, 350); });
+          inp.addEventListener('blur', function () { setTimeout(function () { if (!done && !session.done) cleanup(); }, 350); });
           try { inp.focus(); } catch (e) {}
           try {
             if (typeof inp.showPicker === 'function') inp.showPicker();
@@ -17012,6 +17106,32 @@
           shTipsRange = null;
           shSigCtx = null;
         }
+        /* Build -172: the Full grammar popover. The complete
+           grammar text lives behind the Shorthand section's
+           "Full grammar" button (its markup stands beside the
+           modal); the popover is placed like the tips popover
+           and dismisses like the other popovers — an outside
+           press, Escape (a layer in the modal's own Escape
+           stack), the button again, or the modal closing. */
+        function shGrammarPopEl() { return document.getElementById('varShGrammarPop'); }
+        function shGrammarBtnEl() { return document.getElementById('varShGrammarBtn'); }
+        function shGrammarIsOpen() { var p = shGrammarPopEl(); return !!(p && !p.hidden); }
+        function shGrammarHide() {
+          var p = shGrammarPopEl();
+          if (p) { p.hidden = true; p._folioSide = null; }
+          var b = shGrammarBtnEl();
+          if (b) b.setAttribute('aria-expanded', 'false');
+        }
+        function shGrammarToggle() {
+          var p = shGrammarPopEl(), b = shGrammarBtnEl();
+          if (!p || !b) return;
+          if (!p.hidden) { shGrammarHide(); return; }
+          shTipsHide();
+          p.hidden = false;
+          b.setAttribute('aria-expanded', 'true');
+          var r = b.getBoundingClientRect();
+          folioPopupPlace(p, { left: r.left, top: r.top, bottom: r.bottom }, 6);
+        }
         function shTipsIsOpen() {
           /* Build -155: signature help owns no items, but
              the popup is just as open — the modal's capture
@@ -17309,6 +17429,21 @@
             if (shTipsEl.contains(ev.target)) return;
             shTipsHide();
           }, true);
+          /* Build -172: the Full grammar button toggles its
+             popover; a press anywhere outside the popover and
+             the button dismisses it at press start, the -164
+             rule the tips popover follows, so a tap can never
+             land on the still-open popover instead of the
+             control beneath it. */
+          var grammarBtn = shGrammarBtnEl();
+          if (grammarBtn) grammarBtn.addEventListener('click', function () { shGrammarToggle(); });
+          document.addEventListener('pointerdown', function (ev) {
+            if (!shGrammarIsOpen()) return;
+            var gp = shGrammarPopEl(), gb = shGrammarBtnEl();
+            if (gp && gp.contains(ev.target)) return;
+            if (gb && (ev.target === gb || gb.contains(ev.target))) return;
+            shGrammarHide();
+          }, true);
           if (inp) {
             varFieldHygiene(inp);
             inp.addEventListener('focus', function () { shFocused = true; shTipsShow(); shFollowSeg = null; shCaretFollow(); });
@@ -17538,6 +17673,12 @@
         function openVarEdit(scope, rec, opts) {
           opts = opts || {};
           varAtMenusDismissForModal();
+          /* Build -172: every door into this modal (chip
+             double-press, Variables panel, context menu,
+             Option+Enter) cancels a live native-date session
+             first — synchronously, before the modal unhides
+             or takes focus (see chipNativeDate). */
+          chipCancelNativeDate();
           /* Build -158: in template context the modal's home
              document is the template's pseudo-document, so
              its doc scope, formula context and anchor homes
@@ -17693,6 +17834,8 @@
           /* Build -150: the shorthand tips popover and its
              focus state stand down with the modal. */
           shTipsHide();
+          /* Build -172: the grammar popover stands down too. */
+          shGrammarHide();
           shFocused = false;
           document.getElementById('varEditModal').hidden = true;
           var ctx = varEditCtx;
@@ -20160,6 +20303,15 @@
               fxCloseTokenPop();
               var f = fxFieldEl();
               if (f) f.focus();
+              return;
+            }
+            /* Build -172: the grammar popover is a layer
+               above the modal, like the token popover. */
+            if (shGrammarIsOpen()) {
+              ev.preventDefault(); ev.stopPropagation();
+              shGrammarHide();
+              var gb = shGrammarBtnEl();
+              if (gb) gb.focus();
               return;
             }
             ev.preventDefault(); ev.stopPropagation();
@@ -48380,6 +48532,11 @@
         function shareChipOpenDate(detail) {
           var sess = shareChipSession;
           if (!sess) return;
+          /* Build -172: one native-date session at a time
+             here too — a second summon while one is live
+             stacks invisible inputs and pickers exactly as
+             the editor's did (see chipNativeDate). */
+          if (document.querySelector('input.chip-native-date')) return;
           chipClosePop(false);
           var cur = shareChipWithStore(function () {
             var f = varFindAny(detail.vid);
@@ -53702,7 +53859,7 @@
         var host = document.getElementById('overlayHost');
         if (!host) return;
         var backdrop = document.getElementById('overlayBackdrop');
-        var SURFACE_SEL = '.overlay, .auth-overlay, .share-view, .menu, .fmt-pop, .folder-pop, .suggest, .action-bar, .folio-toast, .update-banner, .tooltip, .drag-ghost, .folio-border-menu, .fx-token-pop, .chip-pop, .sh-tips';
+        var SURFACE_SEL = '.overlay, .auth-overlay, .share-view, .menu, .fmt-pop, .folder-pop, .suggest, .action-bar, .folio-toast, .update-banner, .tooltip, .drag-ghost, .folio-border-menu, .fx-token-pop, .chip-pop, .sh-tips, .sh-grammar-pop';
         var MODAL_SEL = '.overlay, .auth-overlay, .share-view';
         function matches(el, sel) {
           return !!(el && el.nodeType === 1 && el.matches && el.matches(sel));
