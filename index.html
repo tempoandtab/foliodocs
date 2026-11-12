@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261111-169" />
+    <meta name="folio-build" content="20261111-171" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -412,7 +412,7 @@
       :root[data-theme="binding"] .sidebar .doc-item.current { color: #f7f1dc; }
       :root[data-theme="binding"] .sidebar .doc-act { color: rgba(241, 234, 214, 0.75); }
       :root[data-theme="binding"] .sidebar .doc-act:hover { background: rgba(241, 234, 214, 0.13); color: #fff8e7; }
-      :root[data-theme="binding"] .sidebar .folder-badge { color: rgba(241, 234, 214, 0.78); }
+      :root[data-theme="binding"] .sidebar .folder-badge, :root[data-theme="binding"] .sidebar .doc-badge { color: rgba(241, 234, 214, 0.78); }
       :root[data-theme="binding"] .sidebar .folder-menu-btn { color: rgba(241, 234, 214, 0.75); }
       :root[data-theme="binding"] .sidebar .folder-menu-btn:hover { background: rgba(241, 234, 214, 0.13); color: #fff8e7; }
       :root[data-theme="binding"] .sidebar .doc-item:hover,
@@ -426,7 +426,7 @@
       :root[data-theme="binding"] .theme-pop { color: var(--ink); }
       :root[data-theme="binding"] .theme-pop .pop-label { color: var(--ink-2); }
       :root[data-theme="binding"] .folder.tinted { background: color-mix(in srgb, var(--fb) 17%, transparent); }
-      :root[data-theme="binding"] .folder-badge.tinted {
+      :root[data-theme="binding"] .folder-badge.tinted, :root[data-theme="binding"] .doc-badge.tinted {
         background: color-mix(in srgb, var(--fb) 30%, transparent);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 45%, transparent);
         color: color-mix(in srgb, var(--fb) 60%, #ffffff);
@@ -2241,21 +2241,29 @@
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       }
       .folder-count { font-size: 11.5px; font-weight: 600; color: var(--ink-3); padding-right: 2px; }
-      .folder-badge {
+      .folder-badge, .doc-badge {
         width: 28px; height: 28px; flex: 0 0 28px; border-radius: 8px;
         display: inline-flex; align-items: center; justify-content: center;
         color: var(--ink-2); font-size: 16px; line-height: 1;
       }
-      .folder-badge.tinted {
+      .folder-badge.tinted, .doc-badge.tinted {
         color: var(--fb);
         background: color-mix(in srgb, var(--fb) 16%, transparent);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 35%, transparent);
       }
-      :root[data-theme="midnight"] .folder-badge.tinted, :root[data-theme="binding-dark"] .folder-badge.tinted , :root[data-theme="binding-midnight"] .folder-badge.tinted , :root[data-theme="ember"] .folder-badge.tinted , :root[data-theme="plum"] .folder-badge.tinted , :root[data-theme="abyss"] .folder-badge.tinted {
+      :root[data-theme="midnight"] .folder-badge.tinted, :root[data-theme="binding-dark"] .folder-badge.tinted , :root[data-theme="binding-midnight"] .folder-badge.tinted , :root[data-theme="ember"] .folder-badge.tinted , :root[data-theme="plum"] .folder-badge.tinted , :root[data-theme="abyss"] .folder-badge.tinted, :root[data-theme="midnight"] .doc-badge.tinted, :root[data-theme="binding-dark"] .doc-badge.tinted , :root[data-theme="binding-midnight"] .doc-badge.tinted , :root[data-theme="ember"] .doc-badge.tinted , :root[data-theme="plum"] .doc-badge.tinted , :root[data-theme="abyss"] .doc-badge.tinted {
         background: color-mix(in srgb, var(--fb) 30%, transparent);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb) 45%, transparent);
         color: color-mix(in srgb, var(--fb) 60%, #ffffff);
       }
+      /* Build -171: a document badge sits smaller in the
+         Book's rows and the search / suggest rows than in
+         the sidebar, matching those rows' tighter leading
+         slots; the emoji itself carries the color through
+         the tinted treatment above. */
+      .book-row .doc-badge { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 7px; font-size: 14px; }
+      .om-icon .doc-badge, .suggest-item .doc-badge { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 6px; font-size: 13px; }
+      .om-icon.emoji, .suggest-item .s-ic.emoji { font-size: 15px; line-height: 1; }
       .folder-menu-btn {
         width: 30px; height: 30px; border-radius: 7px; flex: 0 0 auto;
         display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2);
@@ -7096,7 +7104,7 @@
           <h3 class="var-sec-head"><span>Shorthand</span></h3>
           <input class="text-input var-sh-input" id="varEditShorthand" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Shorthand" />
           <p class="var-sh-error" id="varShorthandError" hidden></p>
-          <p class="form-note var-sh-tip" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals, Date) or Unit: x, and a chip like stepper.max(100).min(10).step(5). A value like {green, blue} makes a dropdown with those options — the first is the value — and dropdown.opts(green, blue) sets a dropdown's options too. Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
+          <p class="form-note var-sh-tip" style="margin-top:6px">Name @= value — or =formula for a formula — then | local or global, unanchored, a format (Percent, USD, Whole, Decimals, Date) or Unit: x, and a chip like stepper.max(100).min(10).step(5). A format can wear .commas for thousands separators (Whole.commas), and dates take a pattern: Date.format(ISO), date.format("MM/DD/YYYY") on the date chip — Default, ISO, or a quoted pattern of YYYY, MM, DD tokens. A value like {green, blue} makes a dropdown with those options — the first is the value — and dropdown.opts(green, blue) sets a dropdown's options too. Anchored is the default; chip settings can point at variables, like stepper.max(limit), and stay live.</p>
         </section>
         <nav class="var-jumpnav" id="varJumpNav" aria-label="Variable sections"></nav>
         </div>
@@ -7142,6 +7150,21 @@
           <div id="varEditUnitWrap" hidden>
             <label class="form-note var-field-label" for="varEditUnit" style="display:block;margin-top:10px">Unit — shown after the number, exactly as typed</label>
             <input class="text-input" id="varEditUnit" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Unit suffix" placeholder="g — or ␣tbsp, with the space" style="width:100%;margin-top:6px" />
+          </div>
+          <label class="chip-toggle-row" id="varEditCommasRow" style="margin-top:10px"><input type="checkbox" id="varEditCommas" /><span>Thousands separators<span class="chip-toggle-note">5980 shows as 5,980. Display only — formulas keep computing with the real value.</span></span></label>
+          <div id="varEditDatePatWrap" hidden>
+            <label class="form-note var-field-label" for="varEditDatePatSel" style="display:block;margin-top:12px">Date pattern — how this variable&rsquo;s dates are written, wherever they appear</label>
+            <select class="text-input" id="varEditDatePatSel" aria-label="Date pattern" style="width:100%;margin-top:6px">
+              <option value="default">Default — Nov 19, 2026</option>
+              <option value="iso">ISO — 2026-11-19</option>
+              <option value="custom">Custom pattern&hellip;</option>
+            </select>
+            <div id="varEditDatePatCustomWrap" hidden>
+              <input class="text-input" id="varEditDatePatCustom" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Custom date pattern" placeholder="MM/DD/YYYY" style="width:100%;margin-top:6px" />
+              <p class="form-note" style="margin-top:6px">Tokens: YYYY, YY, MMMM (November), MMM (Nov), MM, M, DD, D. Everything else — / - . , and spaces — is written as-is.</p>
+              <p class="var-sh-error" id="varEditDatePatError" hidden></p>
+            </div>
+            <p class="form-note" id="varEditDatePatPreview" style="margin-top:6px" aria-live="polite"></p>
           </div>
         </div>
         <div id="varEditChipWrap" class="var-sec">
@@ -8353,6 +8376,12 @@
           if (d.folderId === undefined) d.folderId = null;
           if (d.folderId && !lib.folders.some(function (f) { return f.id === d.folderId; })) d.folderId = null;
           d.favorite = !!d.favorite;
+          /* Build -171: document icon & color — the folder
+             system's fields, with the folder normalization's
+             exact value shapes (an emoji string or null; a
+             #rrggbb string or null). */
+          if (typeof d.icon !== 'string' || !d.icon) d.icon = null;
+          if (typeof d.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(d.color)) d.color = null;
         });
         // Tags must start with a letter: "#1" is a heading or a
         // list number, never a tag. Tag nodes saved before the
@@ -8423,6 +8452,7 @@
         var folderMenuTimer = null;
         var folderPopEl = document.getElementById('folderPop');
         var folderPopId = null;
+        var docPopId = null; // build -171: the same popover, editing a document
         var folderLongPressAt = 0;
         var docMenuEl = document.getElementById('docMenu');
         var docMenuDocId = null;
@@ -11036,6 +11066,14 @@
             closeFn();
             if (moveAnchor) openMoveMenu(moveAnchor, d.id);
           }, 'move-doc');
+          /* Build -171: the folder menu's "Edit folder (icon &
+             color)" door, mirrored for documents — the same
+             picker popover, anchored where this menu was. */
+          item(PALETTE_SVG, 'Edit document (icon & color)', '', '', function () {
+            var anchor = moveAnchor;
+            closeFn();
+            openDocPop(d.id, anchor || docMenuEl, true);
+          });
           sep();
           item(DOWNLOAD_SVG, 'Export as Markdown', '', hintFor('export-md'), function () {
             closeFn();
@@ -11754,6 +11792,81 @@
           var now = new Date();
           return Math.round(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
         }
+        /* Build -170: date DISPLAY patterns. A variable may
+           carry rec.datePat — absent (Default: the standing
+           face, "Nov 19, 2026"), the word 'ISO' (YYYY-MM-DD),
+           or a custom pattern built from the tokens YYYY,
+           YY, MMMM, MMM, MM, M, DD, D with every other
+           character a literal separator. The pattern is a
+           property of the VARIABLE, independent of its
+           display format: it decides the face whenever that
+           variable renders a date. A letter run that is not
+           a token is a validation error, never a fallback. */
+        var FX_DATE_MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        var FX_DATE_MONTHS_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        var FX_DATE_TOKENS = ['YYYY', 'MMMM', 'MMM', 'YY', 'MM', 'DD', 'M', 'D'];
+        function fxDatePatternValidate(pat) {
+          if (typeof pat !== 'string' || !pat) return { ok: false, msg: 'The date pattern is empty — build it from tokens like YYYY, MM and DD, with separators between them.' };
+          var i = 0, any = false;
+          while (i < pat.length) {
+            var c = pat.charAt(i);
+            if (/[A-Za-z]/.test(c)) {
+              var hit = null;
+              for (var k = 0; k < FX_DATE_TOKENS.length; k++) { if (pat.substr(i, FX_DATE_TOKENS[k].length) === FX_DATE_TOKENS[k]) { hit = FX_DATE_TOKENS[k]; break; } }
+              if (!hit) {
+                var run = /^[A-Za-z]+/.exec(pat.slice(i))[0];
+                return { ok: false, msg: '\u201C' + run + '\u201D isn\u2019t a date pattern token — the tokens are YYYY, YY, MMMM, MMM, MM, M, DD and D; everything else must be a separator like / - . , or a space.' };
+              }
+              any = true; i += hit.length; continue;
+            }
+            i++;
+          }
+          if (!any) return { ok: false, msg: 'The date pattern needs at least one token — YYYY, MM, DD and friends.' };
+          return { ok: true };
+        }
+        function fxSanitizeDatePat(v) {
+          if (v === 'ISO') return 'ISO';
+          if (typeof v === 'string' && v && fxDatePatternValidate(v).ok) return v;
+          return null;
+        }
+        function fxDateRender(days, pat) {
+          if (!pat) return fxDateFaceFromDays(days);
+          if (pat === 'ISO') return fxISOFromDays(days);
+          var dt = new Date(Math.round(days) * 86400000);
+          var y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + 1, d = dt.getUTCDate();
+          var out = '', i = 0;
+          while (i < pat.length) {
+            var hit = null;
+            for (var k = 0; k < FX_DATE_TOKENS.length; k++) { if (pat.substr(i, FX_DATE_TOKENS[k].length) === FX_DATE_TOKENS[k]) { hit = FX_DATE_TOKENS[k]; break; } }
+            if (!hit) { out += pat.charAt(i); i++; continue; }
+            i += hit.length;
+            if (hit === 'YYYY') out += String(y).padStart(4, '0');
+            else if (hit === 'YY') out += String(Math.abs(y) % 100).padStart(2, '0');
+            else if (hit === 'MMMM') out += FX_DATE_MONTHS_FULL[mo - 1];
+            else if (hit === 'MMM') out += FX_DATE_MONTHS_ABBR[mo - 1];
+            else if (hit === 'MM') out += String(mo).padStart(2, '0');
+            else if (hit === 'M') out += String(mo);
+            else if (hit === 'DD') out += String(d).padStart(2, '0');
+            else out += String(d);
+          }
+          return out;
+        }
+        function fxDateRenderISO(v, pat) {
+          var dd = fxDateDaysFromISO(v);
+          return dd === null ? v : fxDateRender(dd, pat);
+        }
+        /* Build -170: thousands separators — group the
+           integer part of a plain decimal string; anything
+           else (exponent forms, already-formatted text)
+           passes through untouched. */
+        function fxAddCommas(s) {
+          var neg = s.charAt(0) === '-';
+          var body = neg ? s.slice(1) : s;
+          var parts = body.split('.');
+          if (!/^\d+$/.test(parts[0])) return s;
+          parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+          return (neg ? '-' : '') + parts.join('.');
+        }
 
         function varNormalizeRec(r, isGlobal) {
           if (!r || !r.id || typeof r.name !== 'string' || !r.name) return null;
@@ -11787,6 +11900,16 @@
              computation keeps reading the raw value. */
           if (FX_FORMATS.indexOf(r.fmt) !== -1) out.fmt = r.fmt;
           if (typeof r.unit === 'string' && r.unit) out.unit = r.unit.slice(0, 32);
+          /* Build -170: the date display pattern and the
+             thousands-separator switch ride the record
+             beside the format — display only, like it. An
+             invalid stored pattern is dropped (validation
+             lives at the authoring surfaces); commas is a
+             plain boolean, absent = off, so older records
+             render exactly as they always have. */
+          var dp170 = fxSanitizeDatePat(r.datePat);
+          if (dp170) out.datePat = dp170;
+          if (r.commas === true) out.commas = true;
           /* Smart chips (build -142): the chip config rides
              the record — normalized like everything else, so
              a store from another device (or an older build's
@@ -12018,7 +12141,7 @@
              stale last-good number can never be served. */
           if (rec && typeof rec.expr === 'string' && rec.expr) {
             var fr = fxEvalTop(rec);
-            return fxResultDisplay(fr, rec.fmt, rec.unit);
+            return fxResultDisplay(fr, rec.fmt, rec.unit, rec);
           }
           /* Smart chips (build -142): a dropdown tracking a
              live reference option reads THROUGH to that
@@ -12058,17 +12181,28 @@
            number — and where it does, as with Whole, the
            format is idempotent over it). */
         function varDisplayText(rec, raw) {
-          if (!rec || typeof raw !== 'string' || !rec.fmt || rec.fmt === 'general') return raw;
+          if (!rec || typeof raw !== 'string') return raw;
           /* Build -168: the Date format renders an ISO date
              value in the date chips' face; anything else
-             under it shows exactly as stored. */
+             under it shows exactly as stored. Build -170:
+             the face is the variable's date pattern when it
+             carries one (Default keeps the standing face). */
           if (rec.fmt === 'date') {
             var dd = fxDateDaysFromISO(raw);
-            return dd === null ? raw : fxDateFaceFromDays(dd);
+            return dd === null ? raw : fxDateRender(dd, rec.datePat);
           }
+          /* Build -170: a date CHIP's stored ISO value is a
+             date wherever the variable renders — its face
+             follows the variable's pattern too (Default =
+             the standing chip face). */
+          if (chipIsActive(rec) && chipCfgOf(rec).type === 'date') {
+            var cd = fxDateDaysFromISO(raw);
+            if (cd !== null) return fxDateRender(cd, rec.datePat);
+          }
+          if ((!rec.fmt || rec.fmt === 'general') && !rec.commas) return raw;
           var n = fxParseNum(raw);
           if (n === null) return raw;
-          return fxFormat(n, rec.fmt, rec.unit);
+          return fxFormat(n, rec.fmt, rec.unit, rec.commas);
         }
         function varDisplayValue(rec, homeDoc) {
           return varDisplayText(rec, varRecordValue(rec, homeDoc));
@@ -12251,18 +12385,22 @@
         }
         /* Display formatting — display ONLY: downstream
            formulas always consume the raw numeric result. */
-        function fxFormat(num, fmt, unit) {
+        function fxFormat(num, fmt, unit, commas) {
           if (typeof num !== 'number' || !isFinite(num)) return '#NUM!';
+          /* Build -170: commas groups the numeric part
+             under every numeric format (USD already groups,
+             so the switch simply agrees with it there);
+             the Unit suffix rides untouched after it. */
           switch (fmt) {
-            case 'whole': return String(Math.round(num));
-            case 'fixed2': return num.toFixed(2);
-            case 'percent': return fxGeneral(Math.round(num * 10000) / 100) + '%';
+            case 'whole': { var w = String(Math.round(num)); return commas ? fxAddCommas(w) : w; }
+            case 'fixed2': { var f2 = num.toFixed(2); return commas ? fxAddCommas(f2) : f2; }
+            case 'percent': { var p = fxGeneral(Math.round(num * 10000) / 100); return (commas ? fxAddCommas(p) : p) + '%'; }
             case 'usd': return fxUsd(num);
             /* Build -144: the suffix renders EXACTLY as
                typed — "g" gives 100g, " tbsp" gives
                2 tbsp; the spacing is the user's. */
-            case 'unit': return fxGeneral(num) + (typeof unit === 'string' ? unit : '');
-            default: return fxGeneral(num);
+            case 'unit': { var g = fxGeneral(num); return (commas ? fxAddCommas(g) : g) + (typeof unit === 'string' ? unit : ''); }
+            default: { var gn = fxGeneral(num); return commas ? fxAddCommas(gn) : gn; }
           }
         }
         /* ----- Formulas v2 typed results (build -135) -----
@@ -12274,13 +12412,19 @@
            General and Date alike, and the numeric formats
            never render its serial number: each format
            family bites only on its own type. */
-        function fxResultDisplay(res, fmt, unit) {
+        /* Build -170: the optional fourth argument carries
+           the owning variable's display extras — { datePat,
+           commas } (callers pass the record itself). A date
+           result renders in the variable's pattern under
+           EVERY format (the -168 rule stands: no serial
+           numbers, ever); numbers group when commas is on. */
+        function fxResultDisplay(res, fmt, unit, fo) {
           if (!res) return '#VALUE!';
           if (!res.ok) return res.code;
-          if (res.kind === 'date') return fxDateFaceFromDays(res.days);
+          if (res.kind === 'date') return fxDateRender(res.days, fo && fo.datePat);
           if (res.kind === 'text') return res.text;
           if (res.kind === 'blank') return '';
-          return fxFormat(res.num, fmt, unit);
+          return fxFormat(res.num, fmt, unit, !!(fo && fo.commas));
         }
         /* Build -168: the shared #VALUE! for a date fed to
            something that wanted a number or text. */
@@ -12306,6 +12450,11 @@
         function fxToText(v) {
           if (v.kind === 'text') return v.text;
           if (v.kind === 'blank') return '';
+          /* Build -170: a date joined into text renders as
+             a date — in the pattern of the variable it came
+             from (carried on the value as dp), Default when
+             it has none — matching reference rendering. */
+          if (v.kind === 'date') return fxDateRender(v.days, v.dp);
           return fxGeneral(v.num);
         }
         /* The ratified truthiness: nonzero number true,
@@ -12611,6 +12760,10 @@
               if (r.code === '#CYCLE!') return { ok: false, code: '#CYCLE!', cyc: 'dep', msg: 'Depends on a formula in a cycle' };
               return r;
             }
+            /* Build -170: a date result carries its owning
+               variable's pattern (dp) so a text join renders
+               it the way its own references do. */
+            if (r.kind === 'date') return { ok: true, kind: 'date', days: r.days, nm: target.name, dp: target.datePat || null };
             return r;
           }
           /* Formulas v2: a plain variable contributes its
@@ -12628,7 +12781,7 @@
              stay text; there are no date literals). */
           if (chipIsActive(target) && chipCfgOf(target).type === 'date') {
             var dd = fxDateDaysFromISO(text);
-            if (dd !== null) return { ok: true, kind: 'date', days: dd, nm: target.name };
+            if (dd !== null) return { ok: true, kind: 'date', days: dd, nm: target.name, dp: target.datePat || null };
           }
           var num = fxParseNum(text);
           if (num != null) return { ok: true, kind: 'num', num: num, nm: target.name };
@@ -12651,10 +12804,10 @@
               if (!a.ok) return a;
               b = fxEvalAst(node.r, ctx, sess);
               if (!b.ok) return b;
-              /* Build -168: joining a date with text is a
-                 type mix, not a join — #VALUE!. */
-              if (a.kind === 'date') return fxDateMisuse(a, 'text');
-              if (b.kind === 'date') return fxDateMisuse(b, 'text');
+              /* Build -170: joining a date with & renders
+                 the date (its source variable's pattern, via
+                 fxToText) — a join is a display, not a use
+                 of the date AS text. */
               return { ok: true, kind: 'text', text: fxToText(a) + fxToText(b) };
             }
             case 'cmp': {
@@ -12731,7 +12884,7 @@
                   if (node.op === '-' && a.kind !== 'date') {
                     return { ok: false, code: '#VALUE!', msg: 'A date can’t be subtracted from a number' };
                   }
-                  return { ok: true, kind: 'date', days: dside.days + shift, nm: dside.nm };
+                  return { ok: true, kind: 'date', days: dside.days + shift, nm: dside.nm, dp: dside.dp || null };
                 }
                 var dbl = a.kind === 'date' ? a : b;
                 return { ok: false, code: '#VALUE!', msg: (dbl.nm ? '“' + dbl.nm + '” is a date' : 'That is a date') + ' — dates can only be added to or subtracted; multiply and divide work on numbers and day counts' };
@@ -12788,10 +12941,15 @@
                 case 'LEN':
                 case 'UPPER':
                 case 'LOWER': {
-                  /* Build -168: the text functions refuse a
-                     date rather than stringifying it. */
-                  for (i = 0; i < vals.length; i++) {
-                    if (vals[i].kind === 'date') return fxDateMisuse(vals[i], 'text');
+                  /* Build -170: CONCAT is a join, like & —
+                     a date inside it renders as a date (its
+                     pattern, via fxToText). The measuring /
+                     casing functions still refuse a date
+                     rather than stringifying it (-168). */
+                  if (node.name !== 'CONCAT') {
+                    for (i = 0; i < vals.length; i++) {
+                      if (vals[i].kind === 'date') return fxDateMisuse(vals[i], 'text');
+                    }
                   }
                   if (node.name === 'CONCAT') return { ok: true, kind: 'text', text: vals.map(fxToText).join('') };
                   if (node.name === 'LEN') return { ok: true, kind: 'num', num: fxToText(vals[0]).length };
@@ -12992,7 +13150,7 @@
             var sn = fxParseNum(value);
             d.num = sn === null ? d.min : Math.min(d.max, Math.max(d.min, sn));
           }
-          if (cfg.type === 'date') d.value = chipDateDisplay(value);
+          if (cfg.type === 'date') d.value = fxDateRenderISO(value, rec.datePat);
           return d;
         }
         function chipOptionDescriptor(rec, homeDoc, cfg, o, curValue) {
@@ -15779,6 +15937,10 @@
           Object.keys(show).forEach(function (k) {
             document.getElementById(show[k]).hidden = formula || type !== k;
           });
+          /* Build -170: the Date pattern section's visibility
+             follows the chip type too (a date chip can hold
+             a date whatever the mode / format). */
+          varEditSyncDatePat();
         }
         /* The variables a live dropdown option may bind:
            the scope rule in picker form — a global
@@ -15950,7 +16112,7 @@
           slider: ['step', 'min', 'max', 'inline'],
           toggle: ['on', 'off'],
           dropdown: ['opts', 'options', 'segmented'],
-          checkbox: [], multiplier: [], date: [],
+          checkbox: [], multiplier: [], date: ['format'],
         };
         var shDirty = false;
         var shFocused = false;
@@ -16077,6 +16239,28 @@
           }
           return { text: t };
         }
+        /* Build -170: a .format(...) argument — a bare
+           Default or ISO, or a quoted custom pattern. An
+           invalid custom pattern is an error here (and so
+           in the shorthand), never a silent fallback. */
+        function shDatePatArg(raw) {
+          var t = String(raw == null ? '' : raw).trim();
+          if (!t) return { error: 'date.format(\u2026) needs Default, ISO, or a quoted pattern like "MM/DD/YYYY".' };
+          if (/^["']/.test(t)) {
+            var p = shUnquote(t);
+            var v = fxDatePatternValidate(p);
+            if (!v.ok) return { error: v.msg };
+            return { datePat: p, datePatSet: true };
+          }
+          var low = t.toLowerCase();
+          if (low === 'default') return { datePat: null, datePatSet: true };
+          if (low === 'iso') return { datePat: 'ISO', datePatSet: true };
+          return { error: 'date.format(\u2026) takes Default, ISO, or a quoted pattern like "MM/DD/YYYY" — quote a custom pattern.' };
+        }
+        function shPatArg(pat) {
+          if (pat === 'ISO') return 'ISO';
+          return '"' + String(pat).replace(/"/g, '""') + '"';
+        }
         function shParseChipToken(tok, env) {
           var m = /^([A-Za-z]+)((?:\.[A-Za-z]+(?:\([^()]*\))?)*)$/.exec(tok);
           if (!m) return null;
@@ -16089,6 +16273,7 @@
             return { chip: cfg, chipType: null };
           }
           var allowed = SH_CHIP_SUBS[head] || [];
+          var patFromChip = null, patSetFromChip = false;
           var subRe = /\.([A-Za-z]+)(?:\(([^()]*)\))?/g;
           var sm;
           while ((sm = subRe.exec(m[2])) !== null) {
@@ -16143,9 +16328,17 @@
                 opts.push({ k: 'lit', v: it });
               }
               cfg.dropdown.options = opts;
+            } else if (head === 'date') {
+              /* Build -170: date.format(...) — the pattern
+                 is a property of the VARIABLE, carried back
+                 on the parse result beside the chip. */
+              var pa = shDatePatArg(arg);
+              if (pa.error) return pa;
+              patFromChip = pa.datePat;
+              patSetFromChip = true;
             }
           }
-          return { chip: chipNormalize(cfg), chipType: head };
+          return { chip: chipNormalize(cfg), chipType: head, datePat: patFromChip, datePatSet: patSetFromChip };
         }
         /* Build -155: a brace-list value — {green, blue} —
            is input sugar for a dropdown whose options are
@@ -16228,6 +16421,9 @@
             ok: true, name: name, mode: 'value', value: '', tokens: null,
             scope: targetScope, anchor: null, fmt: null, unit: null,
             chipProvided: false, chipType: null, chip: null, braceOptions: null,
+            /* Build -170: the separators switch and the
+               date pattern a .format(...) subtoken set. */
+            commas: false, datePat: null, datePatSet: false,
           };
           if (valuePart.charAt(0) === '=') {
             var exprText = valuePart.slice(1).trim();
@@ -16259,6 +16455,38 @@
               if (low === 'global') { st.scope = 'global'; continue; }
               if (low === 'unanchored') { st.anchor = 'unanchored'; continue; }
               if (low === 'anchored') { st.anchor = 'anchored'; continue; }
+              /* Build -170: a format token wearing subtokens
+                 — Whole.commas, Date.format(ISO),
+                 General.commas, Decimals.format("MM/DD/YYYY")
+                 and friends. The base must be a real format
+                 name ('Date' exact for the Date format, per
+                 the -168 case rule; lowercase 'date.format'
+                 falls through to the date CHIP below). */
+              var fmtSubM = /^([A-Za-z]+)((?:\.(?:commas|format\([^()]*\)))+)$/.exec(tok);
+              if (fmtSubM) {
+                var baseFmt = null;
+                if (fmtSubM[1] === 'Date') baseFmt = 'date';
+                else if (Object.prototype.hasOwnProperty.call(SH_FMT_TOKENS, fmtSubM[1].toLowerCase())) baseFmt = SH_FMT_TOKENS[fmtSubM[1].toLowerCase()];
+                if (baseFmt) {
+                  st.fmt = baseFmt;
+                  var subRe170 = /\.(commas|format)(?:\(([^()]*)\))?/g, sm170, badPat170 = null;
+                  while ((sm170 = subRe170.exec(fmtSubM[2])) !== null) {
+                    if (sm170[1] === 'commas') { st.commas = true; continue; }
+                    var pa170 = shDatePatArg(sm170[2]);
+                    if (pa170.error) { badPat170 = pa170.error; break; }
+                    st.datePat = pa170.datePat; st.datePatSet = true;
+                  }
+                  if (badPat170) return err(badPat170);
+                  continue;
+                }
+              }
+              if (/^unit\.commas\s*:/i.test(tok)) {
+                st.fmt = 'unit'; st.commas = true;
+                var ux170 = tok.slice(tok.indexOf(':') + 1);
+                if (ux170.charAt(0) === ' ') ux170 = ux170.slice(1);
+                st.unit = ux170;
+                continue;
+              }
               /* Build -168: exactly 'Date' (the format's
                  printed spelling) sets the Date format;
                  lowercase 'date' falls through to the chip
@@ -16278,6 +16506,9 @@
                 st.chipProvided = true;
                 st.chipType = chipRes.chipType;
                 st.chip = chipRes.chip;
+                /* Build -170: date.format(...) on the chip
+                   token sets the variable's pattern. */
+                if (chipRes.datePatSet) { st.datePat = chipRes.datePat; st.datePatSet = true; }
                 continue;
               }
               /* A token that OPENS like a chip setting but
@@ -16358,7 +16589,7 @@
         }
         /* ----- rendering the line from state ----- */
         function shRefName(ref) { return (ref && (ref.n || varNameForId(ref.vid))) || 'variable'; }
-        function shChipToken(cfg) {
+        function shChipToken(cfg, datePat) {
           if (!cfg || !cfg.type) return '';
           var t = cfg.type;
           function numSub(group, key, label, skipVal) {
@@ -16392,6 +16623,10 @@
             if (cfg.dropdown.segmented === false) d += '.segmented(false)';
             return d;
           }
+          /* Build -170: the pattern rides the date chip
+             token when the format token isn't carrying it
+             (see shLineFromState's placement rule). */
+          if (t === 'date') return 'date' + (datePat ? '.format(' + shPatArg(datePat) + ')' : '');
           return t;
         }
         function shLineFromState(st) {
@@ -16399,9 +16634,24 @@
           var attrs = [];
           attrs.push(st.scope === 'global' ? 'global' : 'local');
           if (st.mode !== 'formula' && !st.anchored) attrs.push('unanchored');
-          if (st.fmt === 'unit') attrs.push('Unit: ' + (st.unit || ''));
-          else if (st.fmt && st.fmt !== 'general') attrs.push(SH_FMT_LABEL[st.fmt] || st.fmt);
-          var ct = shChipToken(st.chip);
+          /* Build -170: canonical subtoken placement — the
+             pattern rides the Date FORMAT token when the
+             format is Date, otherwise the date CHIP token;
+             a pattern with neither host (a formula wearing
+             General) summons a General token to carry it.
+             .commas rides its format token. The pattern is
+             emitted once, and Default emits nothing. */
+          var patOnChip = !!(st.datePat && st.chip && st.chip.type === 'date' && st.fmt !== 'date');
+          var fmtTok = null;
+          if (st.fmt === 'unit') fmtTok = 'Unit' + (st.commas ? '.commas' : '') + ': ' + (st.unit || '');
+          else if (st.fmt && st.fmt !== 'general') fmtTok = SH_FMT_LABEL[st.fmt] || st.fmt;
+          else if (st.commas || (st.datePat && !patOnChip)) fmtTok = 'General';
+          if (fmtTok && st.fmt !== 'unit') {
+            if (st.datePat && !patOnChip) fmtTok += '.format(' + shPatArg(st.datePat) + ')';
+            if (st.commas) fmtTok += '.commas';
+          }
+          if (fmtTok) attrs.push(fmtTok);
+          var ct = shChipToken(st.chip, patOnChip ? st.datePat : null);
           if (ct) attrs.push(ct);
           return line + ' | ' + attrs.join(', ');
         }
@@ -16425,6 +16675,14 @@
             anchored: !!(rec && rec.anchor) && varEditAnchorChoice !== 'move',
             fmt: document.getElementById('varEditFormat').value,
             unit: document.getElementById('varEditUnit').value,
+            /* Build -170: the modal's pattern + separators
+               state, in the record's own field names so the
+               state can ride fxResultDisplay / varDisplayText
+               calls directly. An invalid in-progress custom
+               pattern renders as Default in the line; the
+               field's own error (and Save) still refuse it. */
+            datePat: varEditDisplayExtras().datePat,
+            commas: varEditDisplayExtras().commas,
             chip: varEditChipCollect(),
           };
         }
@@ -16479,13 +16737,17 @@
           if (st.mode === 'formula') {
             bits.push('panel formula');
             var w = fxWorkingEval();
-            bits.push('= ' + st.formulaText + ' \u2192 ' + (w && w.result ? fxResultDisplay(w.result, st.fmt, st.unit) : '\u2026'));
+            bits.push('= ' + st.formulaText + ' \u2192 ' + (w && w.result ? fxResultDisplay(w.result, st.fmt, st.unit, st) : '\u2026'));
           } else {
             bits.push(st.anchored ? 'anchored in the text' : 'defined in the panel');
-            bits.push('value \u201C' + varDisplayText({ fmt: st.fmt === 'general' ? undefined : st.fmt, unit: st.unit || undefined }, st.value) + '\u201D');
+            bits.push('value \u201C' + varDisplayText({ fmt: st.fmt === 'general' ? undefined : st.fmt, unit: st.unit || undefined, datePat: st.datePat || undefined, commas: st.commas || undefined, chip: st.chip || undefined }, st.value) + '\u201D');
           }
           if (st.fmt === 'unit') bits.push('Unit \u201C' + (st.unit || '') + '\u201D');
           else if (st.fmt && st.fmt !== 'general') bits.push((SH_FMT_LABEL[st.fmt] || st.fmt) + ' format');
+          /* Build -170: the two new display settings speak
+             in the quick-look like everything else. */
+          if (st.datePat) bits.push('dates as ' + (st.datePat === 'ISO' ? 'ISO' : '\u201C' + st.datePat + '\u201D'));
+          if (st.commas) bits.push('thousands separators');
           if (st.chip && st.chip.type) bits.push(st.chip.type + ' chip' + shChipSummary(st.chip));
           q.appendChild(document.createTextNode(' \u2014 ' + bits.join(' \u00B7 ')));
         }
@@ -16589,12 +16851,24 @@
           }
           document.getElementById('varEditFormat').value = st.fmt || 'general';
           document.getElementById('varEditUnit').value = st.unit || '';
+          /* Build -170: the line's .commas is the switch's
+             whole state (absence = off, like the format);
+             its .format(...) sets the pattern only when the
+             line speaks of one — a line silent on patterns
+             leaves the field's pattern standing. The chip
+             is applied just below, and its type decides the
+             pattern section's visibility, so the pattern is
+             set after it (the second sync covers it). */
+          document.getElementById('varEditCommas').checked = !!st.commas;
           varEditSyncFormat();
           if (st.mode === 'formula') fxUpdatePreview();
           if (st.chipProvided) {
             varEditChipDraft = shMergeChip(varEditChipDraft, st);
             varEditChipPopulateInputs();
           }
+          /* Build -170: now the chip type is settled, a
+             pattern the line named can land in its field. */
+          if (st.datePatSet) varEditSetDatePat(st.datePat);
           shDirty = false;
           shHideError();
           shRenderFromFields();
@@ -16848,7 +17122,7 @@
               var dotIx = tail.lastIndexOf('.');
               var partialSub = dotIx === -1 ? null : tail.slice(dotIx + 1);
               if (partialSub !== null && !/\(/.test(partialSub)) {
-                var sigs = { step: '(number or variable)', min: '(number or variable)', max: '(number or variable)', inline: '(true or false)', on: '(value or variable)', off: '(value or variable)', opts: '(a, b, \u2026)', options: '(a, b, \u2026)', segmented: '(true or false)' };
+                var sigs = { step: '(number or variable)', min: '(number or variable)', max: '(number or variable)', inline: '(true or false)', on: '(value or variable)', off: '(value or variable)', opts: '(a, b, \u2026)', options: '(a, b, \u2026)', segmented: '(true or false)', format: '(Default, ISO, or "MM/DD/YYYY")' };
                 /* Build -151: a chained dot (after a completed
                    subtoken's closing paren) offers the chip's
                    REMAINING subtokens — the ones already
@@ -16883,7 +17157,8 @@
               { main: 'USD', desc: 'Display format', ins: 'USD' },
               { main: 'Whole', desc: 'Format — whole number', ins: 'Whole' },
               { main: 'Decimals', desc: 'Format — 2 decimals', ins: 'Decimals' },
-              { main: 'Date', desc: 'Format — date', ins: 'Date' },
+              { main: 'Date', desc: 'Format — date · add .format(ISO) or .format("MM/DD/YYYY") for a pattern', ins: 'Date' },
+              { main: 'General.commas', desc: 'Format — with thousands separators (any format takes .commas)', ins: 'General.commas' },
               { main: 'Unit: ', desc: 'Format — suffix after the number', ins: 'Unit: ' },
               { main: 'stepper', desc: 'Smart chip', ins: 'stepper' },
               { main: 'slider', desc: 'Smart chip', ins: 'slider' },
@@ -17117,7 +17392,7 @@
                what it currently computes. */
             parts.push(fxTokensText(st.tokens));
             var r = shEvalTokens(st.tokens, 'doc', doc, st.name);
-            parts.push('\u2192 ' + (r.ok ? fxResultDisplay(r, st.fmt, st.unit) : r.code));
+            parts.push('\u2192 ' + (r.ok ? fxResultDisplay(r, st.fmt, st.unit, st) : r.code));
           } else {
             /* Build -155: a dropdown's row names the chip,
                its options, and its current value explicitly
@@ -17189,6 +17464,12 @@
           function applyFmtChip(r) {
             if (st.fmt && st.fmt !== 'general') { r.fmt = st.fmt; if (st.fmt === 'unit') { if (st.unit) r.unit = String(st.unit).slice(0, 32); else delete r.unit; } }
             else if (st.fmt === 'general') { delete r.fmt; delete r.unit; }
+            /* Build -170: the line's display extras land
+               with its format — .commas is the switch's
+               whole state; a named pattern replaces, an
+               explicit Default clears. */
+            if (st.commas) r.commas = true; else delete r.commas;
+            if (st.datePat) r.datePat = st.datePat; else if (st.datePatSet) delete r.datePat;
             if (st.chipProvided) r.chip = shMergeChip(r.chip, st);
           }
           if (st.mode === 'formula' || !st.anchored) {
@@ -17205,8 +17486,10 @@
               rec.expr = JSON.stringify(st.tokens);
               if (st.fmt && st.fmt !== 'general') { rec.fmt = st.fmt; if (st.fmt === 'unit' && st.unit) rec.unit = String(st.unit).slice(0, 32); }
               else { delete rec.fmt; delete rec.unit; }
+              if (st.commas) rec.commas = true; else delete rec.commas;
+              if (st.datePat) rec.datePat = st.datePat; else if (st.datePatSet) delete rec.datePat;
               if (st.chipProvided) rec.chip = shMergeChip(rec.chip, st);
-              var disp = fxResultDisplay(shEvalTokens(st.tokens, targetScope, doc, name), rec.fmt, rec.unit);
+              var disp = fxResultDisplay(shEvalTokens(st.tokens, targetScope, doc, name), rec.fmt, rec.unit, rec);
               rec.value = disp;
               if (rec.anchor) varConvertAnchorToRef(targetScope, rec, disp);
               rec.anchor = false;
@@ -17245,6 +17528,8 @@
             var changed = false;
             if (st.fmt && st.fmt !== 'unit' && st.fmt !== 'general') { rec2.fmt = st.fmt; changed = true; }
             if (st.fmt === 'general' && (rec2.fmt || rec2.unit)) { delete rec2.fmt; delete rec2.unit; changed = true; }
+            if (st.commas) { rec2.commas = true; changed = true; } else if (rec2.commas) { delete rec2.commas; changed = true; }
+            if (st.datePat) { rec2.datePat = st.datePat; changed = true; } else if (st.datePatSet && rec2.datePat) { delete rec2.datePat; changed = true; }
             if (st.chipProvided) { rec2.chip = shMergeChip(rec2.chip, st); changed = true; }
             if (changed) { varSave(); varRefreshEditorRefs(); if (varPanelDocId) renderVarPanel(); }
           }
@@ -17334,6 +17619,10 @@
              format; the wrap shows only while Unit is the
              picked format (varEditSyncFormat). */
           document.getElementById('varEditUnit').value = (rec && rec.unit) || '';
+          /* Build -170: the separators switch and the date
+             pattern load from the record beside the format. */
+          document.getElementById('varEditCommas').checked = !!(rec && rec.commas);
+          varEditSetDatePat(rec && rec.datePat ? rec.datePat : null);
           varEditSyncFormat();
           if (varEditMode === 'formula') {
             var toks = [];
@@ -18095,7 +18384,7 @@
             pv.appendChild(document.createTextNode('= '));
             var b = document.createElement('span');
             b.className = 'fx-preview-result';
-            var disp = fxResultDisplay(r, document.getElementById('varEditFormat').value, document.getElementById('varEditUnit').value);
+            var disp = fxResultDisplay(r, document.getElementById('varEditFormat').value, document.getElementById('varEditUnit').value, varEditDisplayExtras());
             b.textContent = disp === '' ? '(blank)' : disp;
             pv.appendChild(b);
           } else {
@@ -18108,6 +18397,74 @@
         function varEditSyncFormat() {
           var wrap = document.getElementById('varEditUnitWrap');
           if (wrap) wrap.hidden = document.getElementById('varEditFormat').value !== 'unit';
+          varEditSyncDatePat();
+        }
+        /* Build -170: the Date pattern + Thousands separators
+           controls. The pattern section shows whenever the
+           variable can hold a date — a date chip is chosen,
+           the Date format is picked, or the variable is a
+           formula (its result may be a date) — and previews
+           TODAY rendered in the pattern, live. The commas
+           checkbox is enabled for the numeric formats and
+           stands down under the Date format. */
+        function varEditCanHoldDate() {
+          if (typeof varEditMode !== 'undefined' && varEditMode === 'formula') return true;
+          var f = document.getElementById('varEditFormat');
+          if (f && f.value === 'date') return true;
+          var ct = document.getElementById('varEditChipType');
+          return !!(ct && ct.value === 'date');
+        }
+        function varEditDatePatValue() {
+          var sel = document.getElementById('varEditDatePatSel');
+          if (!sel) return { pat: null, error: null };
+          if (sel.value === 'iso') return { pat: 'ISO', error: null };
+          if (sel.value === 'custom') {
+            var p = document.getElementById('varEditDatePatCustom').value.trim();
+            var v = fxDatePatternValidate(p);
+            if (!v.ok) return { pat: null, error: v.msg };
+            return { pat: p, error: null };
+          }
+          return { pat: null, error: null };
+        }
+        function varEditSetDatePat(pat) {
+          var sel = document.getElementById('varEditDatePatSel');
+          var inp = document.getElementById('varEditDatePatCustom');
+          if (!sel || !inp) return;
+          if (!pat) { sel.value = 'default'; inp.value = ''; }
+          else if (pat === 'ISO') { sel.value = 'iso'; inp.value = ''; }
+          else { sel.value = 'custom'; inp.value = pat; }
+          varEditSyncDatePat();
+        }
+        function varEditSyncDatePat() {
+          var wrap = document.getElementById('varEditDatePatWrap');
+          if (!wrap) return;
+          wrap.hidden = !varEditCanHoldDate();
+          var sel = document.getElementById('varEditDatePatSel');
+          var cw = document.getElementById('varEditDatePatCustomWrap');
+          if (cw && sel) cw.hidden = sel.value !== 'custom';
+          var v = varEditDatePatValue();
+          var err = document.getElementById('varEditDatePatError');
+          if (err) { err.hidden = !v.error; err.textContent = v.error || ''; }
+          var pv = document.getElementById('varEditDatePatPreview');
+          if (pv) pv.textContent = v.error ? '' : ('Today in this pattern: ' + fxDateRender(fxTodayDays(), v.pat));
+          var fmtEl = document.getElementById('varEditFormat');
+          var numeric = !fmtEl || ['general', 'whole', 'fixed2', 'percent', 'usd', 'unit'].indexOf(fmtEl.value) !== -1;
+          var cb = document.getElementById('varEditCommas');
+          if (cb) cb.disabled = !numeric;
+          var row = document.getElementById('varEditCommasRow');
+          if (row) row.style.opacity = numeric ? '' : '0.5';
+        }
+        function varEditDisplayExtras() {
+          var v = varEditDatePatValue();
+          var cb = document.getElementById('varEditCommas');
+          return { datePat: v.error ? null : v.pat, commas: !!(cb && cb.checked) };
+        }
+        function varEditApplyPatCommas(rec) {
+          var v = varEditDatePatValue();
+          if (!v.error) { if (v.pat) rec.datePat = v.pat; else delete rec.datePat; }
+          var cb = document.getElementById('varEditCommas');
+          if (cb && cb.checked) rec.commas = true;
+          else delete rec.commas;
         }
         /* Build -144: the modal's format choice lands on the
            record — for plain values exactly as for formulas.
@@ -18123,6 +18480,10 @@
           var u = document.getElementById('varEditUnit').value;
           if (u) rec.unit = u.slice(0, 32);
           else delete rec.unit;
+          /* Build -170: the pattern and the separator switch
+             apply exactly like the format — every save path
+             that lands a format lands these too. */
+          varEditApplyPatCommas(rec);
         }
         function fxSetModeUI() {
           var sv = document.getElementById('varEditSrcValue');
@@ -18382,6 +18743,9 @@
             value: document.getElementById('varEditValue').value,
             fmt: document.getElementById('varEditFormat').value,
             unit: document.getElementById('varEditUnit').value,
+            patSel: document.getElementById('varEditDatePatSel').value,
+            patCustom: document.getElementById('varEditDatePatCustom').value,
+            commas: document.getElementById('varEditCommas').checked,
             segs: fxReadSegs(), caret: fxCaretProj(),
             declined: fxDeclinedPromote,
             parked: varEditParkedValue,
@@ -18410,6 +18774,9 @@
           document.getElementById('varEditValue').value = snap.value;
           document.getElementById('varEditFormat').value = snap.fmt;
           document.getElementById('varEditUnit').value = snap.unit || '';
+          document.getElementById('varEditDatePatSel').value = snap.patSel || 'default';
+          document.getElementById('varEditDatePatCustom').value = snap.patCustom || '';
+          document.getElementById('varEditCommas').checked = !!snap.commas;
           varEditSyncFormat();
           var note = document.getElementById('varEditAnchorNote');
           if (note) { note.innerHTML = snap.noteHTML; note.hidden = snap.noteHidden; }
@@ -18582,6 +18949,14 @@
             varEditError('Names start with a letter; letters, digits and underscores after that.');
             return;
           }
+          /* Build -170: an invalid custom date pattern blocks
+             the save with its reason, like any other invalid
+             field — never a silent fallback to Default. */
+          var dpv170 = varEditDatePatValue();
+          if (dpv170.error && varEditCanHoldDate()) {
+            varEditError(dpv170.error);
+            return;
+          }
           /* Build -133 save rules: in Formula mode, syntax
              errors and unknown names BLOCK the save (the
              message says why); evaluation errors (#DIV/0!,
@@ -18621,7 +18996,8 @@
               rec.fmt = fxSanitizeFmt(document.getElementById('varEditFormat').value);
               var nu = document.getElementById('varEditUnit').value;
               if (nu) rec.unit = nu.slice(0, 32); else delete rec.unit;
-              rec.value = fxResultDisplay(fxw.result, rec.fmt, rec.unit);
+              varEditApplyPatCommas(rec);
+              rec.value = fxResultDisplay(fxw.result, rec.fmt, rec.unit, rec);
               /* Build -143: a variable born as a formula parks
                  whatever the value field held, so a later
                  switch back to Value has something to restore. */
@@ -18656,7 +19032,8 @@
             if (formula) {
               var fmt = fxSanitizeFmt(document.getElementById('varEditFormat').value);
               var unit = document.getElementById('varEditUnit').value;
-              var display = fxResultDisplay(fxw.result, fmt, unit);
+              varEditApplyPatCommas(rec);
+              var display = fxResultDisplay(fxw.result, fmt, unit, rec);
               var wasAnchored = !!rec.anchor;
               /* Build -143: park the plain value this formula
                  replaces (the anchor's text when anchored,
@@ -18802,6 +19179,10 @@
              the chip settings the -142 pass carries. */
           if (!rec.expr && rec.fmt) { g.fmt = rec.fmt; }
           if (rec.unit) { g.unit = rec.unit; }
+          /* Build -170: the date pattern and separators
+             travel on promotion too. */
+          if (rec.datePat) { g.datePat = rec.datePat; }
+          if (rec.commas) { g.commas = true; }
           varStore.globals.push(g);
           varSave();
           varOnGlobalsChanged();
@@ -18837,6 +19218,8 @@
           if (typeof rec.pv === 'string') d.pv = rec.pv;
           if (!rec.expr && rec.fmt) d.fmt = rec.fmt;
           if (rec.unit) d.unit = rec.unit;
+          if (rec.datePat) d.datePat = rec.datePat;
+          if (rec.commas) d.commas = true;
           if (rec.chip) d.chip = rec.chip;
           varStore.globals = varStore.globals.filter(function (r) { return r.id !== rec.id; });
           if (!varStore.docVars[docId]) varStore.docVars[docId] = [];
@@ -19999,6 +20382,12 @@
           var low = tok.toLowerCase();
           if (low === 'local' || low === 'global' || low === 'unanchored' || low === 'anchored') return 'varSecDef';
           if (tok === 'Date') return 'varEditFormatWrap'; /* Build -168: the format's spelling; lowercase 'date' is the chip, below */
+          /* Build -170: a format token wearing .commas /
+             .format(...) belongs to the format section;
+             date.format(...) (lowercase) is the chip's. */
+          if (/^unit\.commas\s*:/i.test(tok)) return 'varEditFormatWrap';
+          var fsm170 = /^([A-Za-z]+)\.(?:commas|format\()/.exec(tok);
+          if (fsm170 && (fsm170[1] === 'Date' || Object.prototype.hasOwnProperty.call(SH_FMT_TOKENS, fsm170[1].toLowerCase()))) return 'varEditFormatWrap';
           if (/^unit\s*:/i.test(tok)) return 'varEditFormatWrap';
           if (Object.prototype.hasOwnProperty.call(SH_FMT_TOKENS, low)) return 'varEditFormatWrap';
           var headM = /^([A-Za-z]+)/.exec(tok);
@@ -20141,6 +20530,12 @@
            the formula preview re-renders as either changes. */
         document.getElementById('varEditFormat').addEventListener('change', varEditSyncFormat);
         document.getElementById('varEditUnit').addEventListener('input', fxUpdatePreview);
+        /* Build -170: the pattern + separators controls
+           re-render the preview, the pattern preview and
+           the shorthand line as they change. */
+        document.getElementById('varEditCommas').addEventListener('change', function () { fxUpdatePreview(); shFieldChanged(); });
+        document.getElementById('varEditDatePatSel').addEventListener('change', function () { varEditSyncDatePat(); fxUpdatePreview(); shFieldChanged(); });
+        document.getElementById('varEditDatePatCustom').addEventListener('input', function () { varEditSyncDatePat(); fxUpdatePreview(); shFieldChanged(); });
         /* Build -143: a backdrop click on a modal with a Save
            action SAVES — it runs the same save (validation
            included: invalid contents keep the modal open with
@@ -23496,8 +23891,17 @@
             if (isSel) cb.innerHTML = CHECK_SVG;
             btn.appendChild(cb);
           }
-          var dot = document.createElement('span'); dot.className = 'doc-dot';
-          btn.appendChild(dot);
+          /* Build -171: a document with an icon (or only a
+             color — the badge then carries the tinted glyph,
+             the folder treatment) wears its badge in the
+             dot's place; a fully unset document keeps the
+             dot exactly as before. */
+          if (d.icon || d.color) {
+            btn.appendChild(docBadge(d));
+          } else {
+            var dot = document.createElement('span'); dot.className = 'doc-dot';
+            btn.appendChild(dot);
+          }
           if (d.favorite) {
             var star = document.createElement('span');
             star.className = 'doc-star';
@@ -23736,6 +24140,7 @@
           folderPopEl.hidden = true;
           folderPopEl.innerHTML = '';
           folderPopId = null;
+          docPopId = null;
         }
         function setFolderIcon(f, icon) {
           f.icon = icon || null;
@@ -23860,8 +24265,170 @@
           closeMoveMenu();
           closeFolderMenu();
           closeFmtPop();
+          docPopId = null;
+          folderPopEl.setAttribute('aria-label', 'Edit folder');
           folderPopId = folderId;
           buildFolderPop(f);
+          folderPopEl.hidden = false;
+          var r = anchor.getBoundingClientRect();
+          var w = 252, h = folderPopEl.offsetHeight;
+          var left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+          var top = r.bottom + 6;
+          if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+          folderPopEl.style.left = left + 'px';
+          folderPopEl.style.top = top + 'px';
+        }
+
+        /* ---------------- document icon & color (build -171) ----------------
+           The folder system above, extended to documents
+           unchanged in character: the same popover element,
+           the same emoji set (FOLDER_EMOJIS) and color palette
+           (FOLDER_COLORS), the same custom-emoji and
+           custom-color rows, and the same reset affordances —
+           the default tile clears the icon, the ✕ swatch
+           clears the color. The document record carries the
+           fields in the folders' value shapes (icon: an emoji
+           string or null; color: a #rrggbb string or null).
+           A pick stamps the document, like a favorite toggle
+           or a move — an unstamped metadata change would sit
+           at a permanent timestamp tie for the sync merge. */
+        function docBadge(d) {
+          var b = document.createElement('span');
+          b.className = 'doc-badge' + (d.color ? ' tinted' : '');
+          if (d.color) b.style.setProperty('--fb', d.color);
+          if (d.icon) b.textContent = d.icon;
+          else b.innerHTML = DOC_SVG;
+          return b;
+        }
+        function setDocIcon(d, icon) {
+          d.icon = icon || null;
+          d.updated = Date.now();
+          persist(true);
+          renderDocList();
+          buildDocPop(d);
+        }
+        function setDocColor(d, color) {
+          d.color = color || null;
+          d.updated = Date.now();
+          persist(true);
+          renderDocList();
+          buildDocPop(d);
+        }
+        function buildDocPop(d) {
+          folderPopEl.innerHTML = '';
+          var head = document.createElement('div');
+          head.className = 'fp-head';
+          head.appendChild(docBadge(d));
+          var nm = document.createElement('span');
+          nm.className = 'fp-name';
+          nm.textContent = d.title || 'Untitled';
+          head.appendChild(nm);
+          folderPopEl.appendChild(head);
+
+          var iconLabel = document.createElement('div');
+          iconLabel.className = 'pop-label';
+          iconLabel.textContent = 'Icon';
+          folderPopEl.appendChild(iconLabel);
+          var grid = document.createElement('div');
+          grid.className = 'fp-emojis';
+          var defTile = document.createElement('button');
+          defTile.type = 'button';
+          defTile.className = 'fp-tile' + (!d.icon ? ' on' : '');
+          defTile.innerHTML = DOC_SVG.replace('15', '19').replace('15', '19');
+          defTile.setAttribute('aria-label', 'Default document icon');
+          defTile.setAttribute('data-tip', 'Default icon');
+          defTile.addEventListener('click', function () { setDocIcon(d, null); });
+          grid.appendChild(defTile);
+          FOLDER_EMOJIS.forEach(function (e) {
+            var t = document.createElement('button');
+            t.type = 'button';
+            t.className = 'fp-tile' + (d.icon === e ? ' on' : '');
+            t.textContent = e;
+            t.setAttribute('aria-label', 'Document icon ' + e);
+            t.addEventListener('click', function () { setDocIcon(d, e); });
+            grid.appendChild(t);
+          });
+          folderPopEl.appendChild(grid);
+          var emojiRow = document.createElement('div');
+          emojiRow.className = 'fp-custom';
+          var emojiLab = document.createElement('span');
+          emojiLab.textContent = 'Any emoji';
+          emojiRow.appendChild(emojiLab);
+          var emojiInput = document.createElement('input');
+          emojiInput.className = 'fp-emoji-input';
+          emojiInput.type = 'text';
+          emojiInput.value = d.icon || '';
+          emojiInput.placeholder = 'Type or paste…';
+          emojiInput.setAttribute('aria-label', 'Custom document emoji');
+          emojiInput.addEventListener('keydown', function (ev) {
+            ev.stopPropagation();
+            if (ev.key === 'Enter') { ev.preventDefault(); emojiInput.blur(); }
+          });
+          emojiInput.addEventListener('change', function () {
+            var g = firstGrapheme(emojiInput.value);
+            setDocIcon(d, g || null);
+          });
+          emojiRow.appendChild(emojiInput);
+          folderPopEl.appendChild(emojiRow);
+
+          var colorLabel = document.createElement('div');
+          colorLabel.className = 'pop-label';
+          colorLabel.textContent = 'Color';
+          colorLabel.style.marginTop = '10px';
+          folderPopEl.appendChild(colorLabel);
+          var sw = document.createElement('div');
+          sw.className = 'fmt-swatches';
+          var noneC = document.createElement('button');
+          noneC.type = 'button';
+          noneC.className = 'fmt-swatch fmt-swatch-none' + (!d.color ? ' on' : '');
+          noneC.innerHTML = FMT_X_SVG;
+          noneC.setAttribute('aria-label', 'Default document color');
+          noneC.setAttribute('data-tip', 'Default color');
+          noneC.addEventListener('click', function () { setDocColor(d, null); });
+          sw.appendChild(noneC);
+          FOLDER_COLORS.forEach(function (hex) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'fmt-swatch' + (d.color === hex ? ' on' : '');
+            b.style.background = hex;
+            b.setAttribute('aria-label', 'Document color ' + hex);
+            b.setAttribute('data-tip', hex);
+            b.addEventListener('click', function () { setDocColor(d, hex); });
+            sw.appendChild(b);
+          });
+          folderPopEl.appendChild(sw);
+          var customRow = document.createElement('div');
+          customRow.className = 'fp-custom';
+          var customLab = document.createElement('span');
+          customLab.textContent = 'Custom color';
+          customRow.appendChild(customLab);
+          var customInput = document.createElement('input');
+          customInput.type = 'color';
+          customInput.value = d.color || '#2e6b4c';
+          customInput.setAttribute('aria-label', 'Custom document color');
+          customInput.addEventListener('change', function () { setDocColor(d, customInput.value); });
+          customRow.appendChild(customInput);
+          if (d.color && FOLDER_COLORS.indexOf(d.color) === -1) {
+            var cur = document.createElement('span');
+            cur.textContent = d.color;
+            customRow.appendChild(cur);
+          }
+          folderPopEl.appendChild(customRow);
+          /* Same rebuild-on-pick rhythm as the folder pop. */
+          popNavPrime(folderPopEl);
+        }
+        function openDocPop(docId, anchor, force) {
+          var d = lib.docs.find(function (x) { return x.id === docId; });
+          if (!d) return;
+          if (docPopId === docId && !folderPopEl.hidden && !force) { closeFolderPop(); return; }
+          closeMoveMenu();
+          closeDocMenu();
+          closeFolderMenu();
+          closeFmtPop();
+          folderPopId = null;
+          folderPopEl.setAttribute('aria-label', 'Edit document');
+          docPopId = docId;
+          buildDocPop(d);
           folderPopEl.hidden = false;
           var r = anchor.getBoundingClientRect();
           var w = 252, h = folderPopEl.offsetHeight;
@@ -24102,16 +24669,19 @@
 
         function computeSuggestItems(query) {
           var q = String(query || '').trim().toLowerCase();
-          var titles = lib.docs.map(function (d) { return d.title; });
-          var items = titles
-            .filter(function (t) { return !q || t.toLowerCase().indexOf(q) !== -1; })
+          /* Build -171: items carry their document's icon &
+             color beside the title, so the suggest rows can
+             wear the badge like every other document row. */
+          var items = lib.docs
+            .filter(function (d) { return !q || (d.title || '').toLowerCase().indexOf(q) !== -1; })
             .sort(function (a, b) {
-              var ai = a.toLowerCase().indexOf(q), bi = b.toLowerCase().indexOf(q);
+              var at = a.title || '', bt = b.title || '';
+              var ai = at.toLowerCase().indexOf(q), bi = bt.toLowerCase().indexOf(q);
               if (ai !== bi) return ai - bi;
-              return a.localeCompare(b);
+              return at.localeCompare(bt);
             })
             .slice(0, 7)
-            .map(function (t) { return { title: t, create: false }; });
+            .map(function (d) { return { title: d.title, create: false, icon: d.icon || null, color: d.color || null }; });
           var raw = String(query || '').trim();
           if (raw && !findDocByTitle(raw)) {
             items.push({ title: raw, create: true });
@@ -24140,7 +24710,8 @@
             b.setAttribute('role', 'option');
             var ic = document.createElement('span');
             ic.className = 's-ic';
-            ic.innerHTML = DOC_SVG;
+            if (item.icon || item.color) ic.appendChild(docBadge({ icon: item.icon || null, color: item.color || null }));
+            else ic.innerHTML = DOC_SVG;
             b.appendChild(ic);
             var t = document.createElement('span');
             t.className = 's-title';
@@ -25447,6 +26018,8 @@
             content: { type: 'doc', content: [{ type: 'paragraph' }] },
             folderId: null,
             favorite: false,
+            icon: null,
+            color: null,
             updated: Date.now(),
           };
           lib.docs.push(doc);
@@ -32050,6 +32623,12 @@
           stripe.className = 'book-row-stripe';
           stripe.style.background = isTplRow ? 'var(--accent)' : tabFolderColor(d);
           row.appendChild(stripe);
+          /* Build -171: a document tab with an icon (or only
+             a color — the tinted glyph) wears its badge beside
+             the stripe; unset documents (and template rows,
+             which are not documents) keep the row exactly as
+             before. */
+          if (d && (d.icon || d.color)) row.appendChild(docBadge(d));
           var nm = document.createElement('span');
           nm.className = 'book-row-name';
           nm.textContent = tabDisplayTitle(r);
@@ -34677,7 +35256,14 @@
           if (opts.icon != null) {
             var ic = document.createElement('span');
             ic.className = 'm-icon';
-            ic.innerHTML = opts.icon;
+            /* Build -171: an emoji icon (a document's own
+               icon) renders as text in its color, the menu
+               system's existing emoji treatment. */
+            if (typeof opts.icon === 'string' && opts.icon.charAt(0) !== '<') {
+              ic.classList.add('emoji');
+              ic.textContent = opts.icon;
+            } else ic.innerHTML = opts.icon;
+            if (opts.iconColor) ic.style.color = opts.iconColor;
             b.appendChild(ic);
           }
           var s = document.createElement('span');
@@ -36667,7 +37253,8 @@
             b.setAttribute('role', 'option');
             var ic = document.createElement('span');
             ic.className = 's-ic';
-            ic.innerHTML = DOC_SVG;
+            if (item.icon || item.color) ic.appendChild(docBadge({ icon: item.icon || null, color: item.color || null }));
+            else ic.innerHTML = DOC_SVG;
             b.appendChild(ic);
             var t = document.createElement('span');
             t.className = 's-title';
@@ -37695,7 +38282,14 @@
           if (opts.icon != null) {
             var ic = document.createElement('span');
             ic.className = 'm-icon';
-            ic.innerHTML = opts.icon;
+            /* Build -171: an emoji icon (a document's own
+               icon) renders as text in its color, the menu
+               system's existing emoji treatment. */
+            if (typeof opts.icon === 'string' && opts.icon.charAt(0) !== '<') {
+              ic.classList.add('emoji');
+              ic.textContent = opts.icon;
+            } else ic.innerHTML = opts.icon;
+            if (opts.iconColor) ic.style.color = opts.iconColor;
             b.appendChild(ic);
           }
           var s = document.createElement('span');
@@ -37876,7 +38470,7 @@
             recents.forEach(function (d) {
               var title = d.title || 'Untitled';
               el.appendChild(rcMenuItem({
-                icon: DOC_SVG, label: title,
+                icon: d.icon || DOC_SVG, iconColor: d.color || null, label: title,
                 run: function () {
                   if (!editorHandle) return;
                   editorHandle.editor.chain().focus().insertContent([
@@ -40306,7 +40900,11 @@
           if (!oldSigs.docs) oldSigs.docs = {};
           if (!oldSigs.folders) oldSigs.folders = {};
           function docSig(d) {
-            return JSON.stringify([d.title || 'Untitled', d.folderId ? (idmap.folders[d.folderId] || '') : '', !!d.favorite, d.updated || 0, d.content]);
+            /* Build -171: the document's icon & color ride
+               the signature, so changing either alone marks
+               the document changed and earns a push — the
+               folderSig treatment of the same fields. */
+            return JSON.stringify([d.title || 'Untitled', d.folderId ? (idmap.folders[d.folderId] || '') : '', !!d.favorite, d.icon || null, d.color || null, d.updated || 0, d.content]);
           }
           function folderSig(f) {
             /* Build -159: the folder's default-template
@@ -40408,15 +41006,30 @@
               content: d.content,
               tags: docTags(d).map(function (t) { return t.name; }),
               favorites: !!d.favorite,
+              /* Build -171: icon & color ride the widest
+                 payload, on the same optional-column footing
+                 as the folders' fields and default_template_id
+                 before them: while the documents table has no
+                 icon/color columns the upsert below retries
+                 narrower and the pair stays per-device —
+                 document sync itself never breaks over the
+                 missing columns. */
+              icon: d.icon || null,
+              color: d.color || null,
               updated_at: new Date(d.updated || Date.now()).toISOString(),
             });
             docPushedSigs[p.rid] = p.sig;
           });
           var allDocRids = docPlan.map(function (p) { return p.rid; });
           var allFolderRids = folderPlan.map(function (p) { return p.rid; });
+          var docRowsNoIcon = docRows.map(function (r) {
+            var c = {};
+            Object.keys(r).forEach(function (k) { if (k !== 'icon' && k !== 'color') c[k] = r[k]; });
+            return c;
+          });
           var docRowsBasic = docRows.map(function (r) {
             var c = {};
-            Object.keys(r).forEach(function (k) { if (k !== 'favorites') c[k] = r[k]; });
+            Object.keys(r).forEach(function (k) { if (k !== 'favorites' && k !== 'icon' && k !== 'color') c[k] = r[k]; });
             return c;
           });
           // A locally deleted row is never in the same push's
@@ -40480,8 +41093,19 @@
             // ever errors again, retry without the star so
             // document sync itself never breaks (favorites stay
             // local-only).
+            /* Build -171: the widest payload now also carries
+               icon & color. The fallback chain widens the
+               fail-soft ladder by one rung — full, then without
+               icon/color (favorites kept), then without
+               favorites either — and docFullOk records only a
+               WIDEST landing, so a row landed narrower keeps no
+               signature and retries in full next push, exactly
+               as the folder ladder treats its missing columns. */
             jobs.push(sb.from('documents').upsert(docRows, { onConflict: 'id' }).then(function (r) {
-              if (r && r.error) return sb.from('documents').upsert(docRowsBasic, { onConflict: 'id' });
+              if (r && r.error) return sb.from('documents').upsert(docRowsNoIcon, { onConflict: 'id' }).then(function (r2) {
+                if (r2 && r2.error) return sb.from('documents').upsert(docRowsBasic, { onConflict: 'id' });
+                return r2;
+              });
               docFullOk = true;
               return r;
             }));
@@ -40919,6 +41543,11 @@
                 content: rd.content || { type: 'doc', content: [{ type: 'paragraph' }] },
                 folderId: fl,
                 favorite: 'favorites' in rd ? !!rd.favorites : false,
+                /* Build -171: icon & color adopt with the row
+                   when the pull carried them; without the
+                   columns the local pair simply starts unset. */
+                icon: 'icon' in rd ? (rd.icon || null) : null,
+                color: 'color' in rd ? (rd.color || null) : null,
                 updated: rUpdated,
               });
               seenDocs[adoptId] = true;
@@ -40945,6 +41574,12 @@
                   // pushed, and a stale row could flip a newer
                   // local star back off.
                   if ('favorites' in rd) ld.favorite = !!rd.favorites;
+                  /* Build -171: icon & color ride the same
+                     newer-wins rule (when the pull carried
+                     them; without the columns the local pair
+                     is left untouched, like the star). */
+                  if ('icon' in rd) ld.icon = rd.icon || null;
+                  if ('color' in rd) ld.color = rd.color || null;
                   // Membership follows the remote row only when its
                   // folder actually resolved to a local folder, or
                   // the local membership is already dangling. A
@@ -40980,6 +41615,12 @@
                   // so a pull can never stomp a change this device
                   // hasn't pushed yet.
                   if ('favorites' in rd) ld.favorite = !!rd.favorites;
+                  /* Build -171: icon & color are metadata of
+                     the favorite kind — they heal on an exact
+                     tie the same way, when the pull carried
+                     them. */
+                  if ('icon' in rd) ld.icon = rd.icon || null;
+                  if ('color' in rd) ld.color = rd.color || null;
                   if (flResolved && (ld.folderId || null) !== fl) ld.folderId = fl;
                 } else if (rUpdated < (ld.updated || 0)) {
                   // The local copy is strictly newer, and the
@@ -41000,6 +41641,8 @@
                   var localFolderRid = ld.folderId ? (idmap.folders[ld.folderId] || null) : null;
                   if (localFolderRid !== (rd.folder_id || null) ||
                       (('favorites' in rd) && !!rd.favorites !== !!ld.favorite) ||
+                      (('icon' in rd) && (rd.icon || null) !== (ld.icon || null)) ||
+                      (('color' in rd) && (rd.color || null) !== (ld.color || null)) ||
                       (rd.title || 'Untitled') !== (ld.title || 'Untitled') ||
                       docTextSignature(ld.content) !== docTextSignature(rd.content)) {
                     relandRids.push(rd.id);
@@ -41033,7 +41676,7 @@
             if (d.folderId && !lib.folders.some(function (f) { return f.id === d.folderId; })) d.folderId = null;
           });
           if (!lib.docs.length) {
-            lib.docs.push({ id: uid(), title: 'Untitled', content: { type: 'doc', content: [{ type: 'paragraph' }] }, folderId: null, updated: Date.now() });
+            lib.docs.push({ id: uid(), title: 'Untitled', content: { type: 'doc', content: [{ type: 'paragraph' }] }, folderId: null, icon: null, color: null, updated: Date.now() });
             lib.currentId = lib.docs[0].id;
           }
           if (relandRids.length) {
@@ -41146,9 +41789,17 @@
             });
             return r0;
           });
-          var docsReq = sb.from('documents').select('id, folder_id, title, content, updated_at, favorites').then(function (r) {
-            if (r && r.error) return sb.from('documents').select('id, folder_id, title, content, updated_at');
-            return r;
+          /* Build -171: the widest select names icon & color;
+             while the documents table lacks those columns
+             PostgREST rejects it and the pull retries with the
+             previous select, then the starless one — the same
+             fail-soft ladder the folders pull climbs. */
+          var docsReq = sb.from('documents').select('id, folder_id, title, content, updated_at, favorites, icon, color').then(function (r0) {
+            if (r0 && r0.error) return sb.from('documents').select('id, folder_id, title, content, updated_at, favorites').then(function (r) {
+              if (r && r.error) return sb.from('documents').select('id, folder_id, title, content, updated_at');
+              return r;
+            });
+            return r0;
           });
           /* Tag stars/colors pull beside the library. A table
              that does not exist yet resolves to null, never an
@@ -52280,6 +52931,8 @@
             kind: 'doc',
             docId: d.id,
             icon: DOC_SVG,
+            docIcon: d.icon || null,
+            docColor: d.color || null,
             label: d.title || 'Untitled',
             sub: snippet || '',
             hint: f ? omniFolderPath(f, true) : '',
@@ -52448,8 +53101,17 @@
               var ic = document.createElement('span');
               ic.className = 'om-icon';
               ic.setAttribute('aria-hidden', 'true');
-              ic.innerHTML = e.icon;
-              if (e.tagColor) ic.style.color = e.tagColor;
+              /* Build -171: a document result with an icon
+                 shows the emoji in its color (the badge, at
+                 this row's smaller size; a color-only result
+                 shows the tinted glyph); every other result
+                 keeps its kind glyph exactly as before. */
+              if (e.docIcon || e.docColor) {
+                ic.appendChild(docBadge({ icon: e.docIcon || null, color: e.docColor || null }));
+              } else {
+                ic.innerHTML = e.icon;
+                if (e.tagColor) ic.style.color = e.tagColor;
+              }
               b.appendChild(ic);
               var main = document.createElement('span');
               main.className = 'ab-main';
