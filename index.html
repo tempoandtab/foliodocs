@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261112-172" />
+    <meta name="folio-build" content="20261112-173" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2478,6 +2478,37 @@
          its table context carries the full table tool set,
          and its open handler caps the height to the screen. */
       #editorMenu { overflow-y: auto; }
+      /* Build -173: the paste catcher — the fallback door when
+         the async clipboard read is refused. It is a REAL text
+         field, deliberately outside every native-menu
+         suppression scope (the editor mount, the sidebar, the
+         menus): like the sidebar's rename fields, it keeps the
+         native iOS edit menu, so a tap-and-hold inside it can
+         summon the system's own Paste. */
+      #pasteCatch {
+        position: fixed; left: 50%; transform: translateX(-50%);
+        top: max(12px, 9dvh); z-index: 600;
+        width: min(330px, calc(100vw - 32px));
+        background: var(--surface); color: var(--ink);
+        border: 1px solid var(--line); border-radius: 14px;
+        box-shadow: var(--shadow); padding: 14px;
+      }
+      #pasteCatch[hidden] { display: none; }
+      #pasteCatch .pc-title { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+      #pasteCatch .pc-hint { font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; line-height: 1.45; }
+      #pasteCatchField {
+        width: 100%; box-sizing: border-box; resize: none;
+        font: inherit; font-size: 16px; color: var(--ink);
+        background: var(--bg); border: 1px solid var(--line);
+        border-radius: 9px; padding: 9px 10px; outline: none;
+      }
+      #pasteCatchField:focus { border-color: var(--accent); }
+      #pasteCatch .pc-row { display: flex; justify-content: flex-end; margin-top: 10px; }
+      #pasteCatchCancel {
+        font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+        color: var(--ink); background: var(--hover);
+        border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px;
+      }
       .menu-head {
         font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
         color: var(--ink-3); padding: 7px 10px 4px;
@@ -20968,6 +20999,26 @@
           closeVarConfirm();
           if (cb) cb();
         });
+        /* Build -173: the paste doors, for the app's own test
+           harness — deliver text at the live caret through the
+           real delivery path, run the clipboard request, and
+           read / open the catcher's state. */
+        window.FolioPaste = {
+          deliver: function (text) {
+            return pasteDeliverText(String(text == null ? '' : text), '', pasteCaptureTarget());
+          },
+          request: function () { pasteFromClipboard(); return true; },
+          catcherOpen: function () { return !!(pasteCatchEl && !pasteCatchEl.hidden); },
+          openCatcher: function () { pasteCatchOpen(pasteCaptureTarget()); return true; },
+          closeCatcher: function () { pasteCatchClose(); return true; },
+          menuHasPaste: function () {
+            var found = false;
+            document.querySelectorAll('#editorMenu .menu-item .m-label').forEach(function (el) {
+              if (el.textContent === 'Paste') found = true;
+            });
+            return found;
+          }
+        };
         /* A small read/write surface for the app's own test
            harness, in the FolioShareBundle mold: the store,
            resolution, and the bake, so variable behavior can
@@ -35325,6 +35376,239 @@
           updateSelPaint();
         }
 
+        /* ---------------- Build -173: Paste ----------------
+           Why there was no way to paste on the phone. The native
+           iOS edit callout (Cut / Copy / Paste) rides on the
+           contextmenu event and on a live DOM selection — the
+           two things this app deliberately takes away inside the
+           editor: the capture-phase contextmenu guard above
+           preventDefaults every contextmenu on the mount (-83),
+           and dismissNativeEditMenu collapses the DOM selection
+           whenever one of the app's own menus opens. That
+           suppression is load-bearing (it keeps Apple's menu
+           from floating over the app's menus and the spellcheck
+           Spelling section) and stays. But it left plain text
+           with NO paste door at all on touch: the right-click
+           door is mouse-only, the long-press door yields plain
+           text to text selection, the editor menu carried no
+           Paste item in any context, and the tap that summons
+           the callout in other apps — a single tap on the caret
+           or on a selection — was eaten as an ordinary caret
+           placement / selection press, so the menu never showed.
+           The fix gives the APP's menu the Paste the native one
+           cannot show, behind doors a phone can actually reach:
+             · a Paste item in the editor menu's caret,
+               selection, and table-cell contexts;
+             · a tap-on-caret / tap-on-selection watcher (below,
+               beside the long-press watcher) that opens that
+               menu for the eaten tap;
+             · delivery through the REAL paste pipeline: the
+               clipboard text (and HTML, when the async read
+               offers it) is dispatched as a genuine paste event
+               on the editor surface, so the -146 link rules and
+               the Markdown paste path claim it exactly as they
+               claim a keyboard paste. When the platform cannot
+               build that event, the same claims are applied by
+               hand (linkifyPasteText, then a plain insert in
+               the Markdown listener's own fallback shape).
+             · when the async clipboard read itself is refused
+               (iOS denies cross-app reads without the system's
+               consent prompt, and sometimes outright), a paste
+               catcher opens instead: a plain text field outside
+               every suppression scope — the same exception the
+               sidebar's rename fields have always had — where
+               the native callout DOES appear, and whatever is
+               pasted into it is forwarded to the saved caret. */
+        var PASTE_SVG = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11v6"/><path d="m9 14 3 3 3-3"/></svg>';
+        var pasteCatchEl = null;
+        var pasteCatchFieldEl = null;
+        var pasteTarget = null;
+        function pasteCaptureTarget() {
+          if (!editorHandle || !editorHandle.editor) return null;
+          var sel = editorHandle.editor.state.selection;
+          if (!sel || sel.node) return null;
+          if (sel.ranges && sel.ranges.length > 1) return null;
+          return { docId: lib.currentId, from: sel.from, to: sel.to };
+        }
+        function pasteRestoreTarget(t) {
+          if (!t || !editorHandle || !editorHandle.editor) return false;
+          if (t.docId !== lib.currentId) return false;
+          var ed = editorHandle.editor;
+          try {
+            var size = ed.state.doc.content.size;
+            var from = Math.max(0, Math.min(t.from, size));
+            var to = Math.max(from, Math.min(t.to, size));
+            ed.chain().focus().setTextSelection({ from: from, to: to }).run();
+          } catch (e) {
+            try { ed.chain().focus().run(); } catch (e2) {}
+          }
+          return true;
+        }
+        function pasteDeliverText(text, html, target) {
+          if (!text && !html) return false;
+          if (!pasteRestoreTarget(target)) {
+            folioToast('Paste cancelled — the document changed.', 2600);
+            return false;
+          }
+          var ed = editorHandle.editor;
+          var before = '';
+          try { before = JSON.stringify(ed.getJSON()); } catch (e) {}
+          try {
+            if (typeof DataTransfer === 'function' && typeof ClipboardEvent === 'function') {
+              var dt = new DataTransfer();
+              if (text) dt.setData('text/plain', text);
+              if (html) dt.setData('text/html', html);
+              ed.view.dom.dispatchEvent(new ClipboardEvent('paste', {
+                bubbles: true, cancelable: true, clipboardData: dt
+              }));
+            }
+          } catch (e) {}
+          var after = '';
+          try { after = JSON.stringify(ed.getJSON()); } catch (e) {}
+          if (after && after !== before) { refreshToolbar(); return true; }
+          if (!text) return false;
+          /* The event could not be built, or no paste path
+             claimed it: apply the claims by hand, in the same
+             order the listeners would have. */
+          if (linkifyPasteText(text)) { refreshToolbar(); return true; }
+          try {
+            var raw = text.replace(/\r\n?/g, '\n');
+            if (raw.indexOf('\n') === -1) {
+              ed.view.dispatch(ed.state.tr.insertText(raw));
+            } else {
+              var blocks = raw.split(/\n+/).map(function (seg) {
+                return seg
+                  ? { type: 'paragraph', content: [{ type: 'text', text: seg }] }
+                  : { type: 'paragraph', content: [] };
+              });
+              var ok = false;
+              try { ok = ed.chain().focus().insertContent(blocks).run(); } catch (e) { ok = false; }
+              if (!ok) ed.view.dispatch(ed.state.tr.insertText(raw));
+            }
+            refreshToolbar();
+            return true;
+          } catch (e) { return false; }
+        }
+        function pasteCatchBuild() {
+          var wrap = document.createElement('div');
+          wrap.id = 'pasteCatch';
+          wrap.hidden = true;
+          var title = document.createElement('div');
+          title.className = 'pc-title';
+          title.textContent = 'Paste';
+          wrap.appendChild(title);
+          var hint = document.createElement('p');
+          hint.className = 'pc-hint';
+          hint.textContent = 'This device would not share the clipboard directly. Tap and hold in the box, then tap Paste — what lands there goes into the document.';
+          wrap.appendChild(hint);
+          var field = document.createElement('textarea');
+          field.id = 'pasteCatchField';
+          field.rows = 3;
+          field.setAttribute('placeholder', 'Tap and hold here, then Paste');
+          field.setAttribute('aria-label', 'Paste here');
+          wrap.appendChild(field);
+          var row = document.createElement('div');
+          row.className = 'pc-row';
+          var cancel = document.createElement('button');
+          cancel.type = 'button';
+          cancel.id = 'pasteCatchCancel';
+          cancel.textContent = 'Cancel';
+          row.appendChild(cancel);
+          wrap.appendChild(row);
+          document.body.appendChild(wrap);
+          pasteCatchEl = wrap;
+          pasteCatchFieldEl = field;
+          cancel.addEventListener('click', function () {
+            var t = pasteTarget;
+            pasteCatchClose();
+            if (t) pasteRestoreTarget(t);
+          });
+          field.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape') {
+              var t = pasteTarget;
+              pasteCatchClose();
+              if (t) pasteRestoreTarget(t);
+            }
+          });
+          field.addEventListener('paste', function (ev) {
+            var cd = ev.clipboardData || window.clipboardData;
+            var t = '', h = '';
+            if (cd && cd.getData) {
+              try { t = cd.getData('text/plain') || ''; } catch (e) {}
+              try { h = cd.getData('text/html') || ''; } catch (e) {}
+            }
+            if (!t && !h) return; /* let the field take it; the input path below forwards it */
+            ev.preventDefault();
+            var tgt = pasteTarget;
+            pasteCatchClose();
+            pasteDeliverText(t, h, tgt);
+          });
+          field.addEventListener('input', function () {
+            if (!field.value) return;
+            var v = field.value;
+            var tgt = pasteTarget;
+            pasteCatchClose();
+            pasteDeliverText(v, '', tgt);
+          });
+        }
+        function pasteCatchOpen(target) {
+          if (!pasteCatchEl) pasteCatchBuild();
+          pasteTarget = target;
+          pasteCatchFieldEl.value = '';
+          pasteCatchEl.hidden = false;
+          try { pasteCatchFieldEl.focus({ preventScroll: true }); } catch (e) {
+            try { pasteCatchFieldEl.focus(); } catch (e2) {}
+          }
+        }
+        function pasteCatchClose() {
+          if (pasteCatchEl) pasteCatchEl.hidden = true;
+          if (pasteCatchFieldEl) pasteCatchFieldEl.value = '';
+          pasteTarget = null;
+        }
+        function pasteFromClipboard(target) {
+          target = target || pasteCaptureTarget();
+          if (!target) { folioToast('Nothing to paste into here.', 2200); return; }
+          var settled = false;
+          function fail() {
+            if (settled) return;
+            settled = true;
+            pasteCatchOpen(target);
+          }
+          function got(text, html) {
+            if (settled) return;
+            settled = true;
+            if (!text && !html) { pasteCatchOpen(target); return; }
+            if (!pasteDeliverText(text || '', html || '', target)) {
+              folioToast('Could not paste here.', 2600);
+            }
+          }
+          function readTextFallback() {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+              navigator.clipboard.readText().then(function (t) { got(t || '', ''); }, fail);
+            } else fail();
+          }
+          try {
+            if (navigator.clipboard && navigator.clipboard.read) {
+              navigator.clipboard.read().then(function (items) {
+                var textItem = null, htmlItem = null;
+                (items || []).forEach(function (it) {
+                  if (!it || !it.types) return;
+                  if (!textItem && it.types.indexOf('text/plain') !== -1) textItem = it;
+                  if (!htmlItem && it.types.indexOf('text/html') !== -1) htmlItem = it;
+                });
+                function readType(it, type) {
+                  if (!it) return Promise.resolve('');
+                  return it.getType(type).then(function (b) { return b.text(); });
+                }
+                Promise.all([readType(textItem, 'text/plain'), readType(htmlItem, 'text/html')])
+                  .then(function (r) { got(r[0] || '', r[1] || ''); }, readTextFallback);
+              }, readTextFallback);
+              return;
+            }
+            readTextFallback();
+          } catch (e) { fail(); }
+        }
+
         /* ---------------- editor right-click menu ----------------
            The document area's own right-click menu (mouse only,
            like the table menu it grew out of), context-aware:
@@ -36329,6 +36613,13 @@
               var real = barBtn(sel);
               if (real) el.appendChild(tblMenuProxyItem(real, danger));
             }
+            /* Build -173: Paste into the cell leads the set —
+               the caret inside a cell is a paste target too. */
+            el.appendChild(edMenuItem({
+              icon: PASTE_SVG, label: 'Paste',
+              run: function () { pasteFromClipboard(); }
+            }));
+            el.appendChild(edMenuSep());
             addTbl('[data-tact="row-above"]');
             addTbl('[data-tact="row-below"]');
             addTbl('[data-tact="col-left"]');
@@ -36542,6 +36833,14 @@
             return;
           }
           if (ctx.kind === 'selection') {
+            /* Build -173: Paste leads the text contexts — on
+               touch this menu is the only paste door there is
+               (the native callout is suppressed by design). */
+            el.appendChild(edMenuItem({
+              icon: PASTE_SVG, label: 'Paste',
+              run: function () { pasteFromClipboard(); }
+            }));
+            el.appendChild(edMenuSep());
             buildFoldMenuItem(el);
             el.appendChild(edMenuCalloutDoors());
             el.appendChild(edMenuSep());
@@ -36602,6 +36901,14 @@
              format, the [[ link prompt. (The composed
              variants — divider styles, date formats, recent
              documents — stay on the buttons' right-clicks.) */
+          /* Build -173: Paste leads the caret context too —
+             at a bare caret it is the item this menu exists
+             for on a phone. */
+          el.appendChild(edMenuItem({
+            icon: PASTE_SVG, label: 'Paste',
+            run: function () { pasteFromClipboard(); }
+          }));
+          el.appendChild(edMenuSep());
           buildFoldMenuItem(el);
           el.appendChild(edMenuCalloutDoors());
           el.appendChild(edMenuSep());
@@ -40134,6 +40441,94 @@
           lpSwallowClick = true;
           editorContextAt(press.x, press.y, t);
         }
+
+        /* ---------------- Build -173: tap on caret / selection ----------------
+           The single tap the app used to eat. In iOS's own text
+           surfaces, once the caret sits in text (or a selection
+           is live), ONE more tap on that caret / selection is
+           the gesture that summons the edit menu — Paste's home.
+           Here that tap could only ever re-place the caret or
+           press the selection, and the native menu it should
+           have summoned is suppressed by design (see the Paste
+           block above), so it arrived nowhere. This watcher
+           gives the tap its iOS meaning with the app's own
+           menu: a short, stationary touch tap whose point
+           resolves to the ALREADY-PLACED caret (or lands inside
+           the live selection), while the editor already holds
+           focus, opens the shared editor menu at that point —
+           the caret / selection context, Paste first.
+           The fences are the point: the editor must already be
+           focused (the first tap into a document still just
+           places the caret); the tap must arrive more than
+           450ms after the previous tap lifted (inside that
+           window the gesture is a double- or triple-tap, and
+           word / paragraph selection keeps it, untouched); the
+           target must be plain editor surface (buttons, links,
+           chips, handle segments, previews, rules and callout
+           icons keep their own tap doors); drift past 10px or
+           a hold past 600ms cancels (scrolling and the
+           long-press watcher keep those gestures). The claimed
+           tap's trailing click is swallowed once, exactly as
+           the long-press door swallows its own, so it cannot
+           also activate whatever the finger lifts over. Mouse
+           input never enters: a desktop click keeps its
+           meaning, and right-click keeps the contextmenu door. */
+        var ctPress = null;
+        var ctSwallowClick = false;
+        var ctLastUpAt = 0;
+        function ctCancelPress() { ctPress = null; }
+        document.addEventListener('pointerdown', function () { ctSwallowClick = false; }, true);
+        editorMountEl.addEventListener('pointerdown', function (ev) {
+          ctCancelPress();
+          if (ev.pointerType !== 'touch' && ev.pointerType !== 'pen') return;
+          if (editorMenuOpen) return;
+          if (typeof suggestState !== 'undefined' && suggestState && suggestState.active) return;
+          if (typeof tagSuggestState !== 'undefined' && tagSuggestState && tagSuggestState.active) return;
+          if (typeof linkPopState !== 'undefined' && linkPopState) return;
+          if (!editorHandle || !editorHandle.editor || !ev.target.closest) return;
+          if (ev.target.closest('input, textarea')) return;
+          if (ev.target.closest('button, a, .var-ref, .folio-handle-seg, [data-link-preview], hr, .callout-icon-btn')) return;
+          if (Date.now() - ctLastUpAt < 450) return;
+          var ed = editorHandle.editor;
+          var focused = false;
+          try { focused = ed.view.hasFocus(); } catch (e) { focused = false; }
+          if (!focused) return;
+          var sel = ed.state.selection;
+          if (!sel || sel.node) return;
+          var cp = null;
+          try { cp = ed.view.posAtCoords({ left: ev.clientX, top: ev.clientY }); } catch (e) { cp = null; }
+          if (!cp || typeof cp.pos !== 'number') return;
+          var claim = sel.empty
+            ? cp.pos === sel.head
+            : (cp.pos >= sel.from && cp.pos <= sel.to);
+          if (!claim) return;
+          ctPress = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, target: ev.target, t: Date.now() };
+        }, true);
+        document.addEventListener('pointermove', function (ev) {
+          if (ctPress && ev.pointerId === ctPress.id &&
+              (Math.abs(ev.clientX - ctPress.x) > 10 || Math.abs(ev.clientY - ctPress.y) > 10)) ctCancelPress();
+        }, true);
+        document.addEventListener('pointerup', function (ev) {
+          if ((ev.pointerType === 'touch' || ev.pointerType === 'pen') &&
+              ev.target && ev.target.closest && ev.target.closest('#editorMount')) {
+            ctLastUpAt = Date.now();
+          }
+          if (!ctPress || ev.pointerId !== ctPress.id) return;
+          var press = ctPress;
+          ctCancelPress();
+          if (Date.now() - press.t > 600) return;
+          ctSwallowClick = true;
+          editorContextAt(press.x, press.y, press.target);
+        }, true);
+        document.addEventListener('pointercancel', function (ev) {
+          if (ctPress && ev.pointerId === ctPress.id) ctCancelPress();
+        }, true);
+        document.addEventListener('click', function (ev) {
+          if (!ctSwallowClick) return;
+          ctSwallowClick = false;
+          ev.preventDefault();
+          ev.stopPropagation();
+        }, true);
 
         /* ---------------- title editing ---------------- */
         var titleInput = document.getElementById('titleInput');
