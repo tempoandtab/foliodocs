@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261112-174" />
+    <meta name="folio-build" content="20261113-175" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12018,6 +12018,22 @@
         /* Build -158: the variable system has booted — mirror
            every template's canonical vars into the store. */
         try { tplHydrateAllVars(); } catch (e) {}
+        /* Build -175: once the app has finished booting,
+           sweep every document once through the ensure pass
+           (whose re-homing lead repairs split variable
+           homes — see varRehomeDocRecords), so existing
+           documents heal on load whether or not they are
+           ever opened. Deferred past the boot sequence so
+           the library, the editor, and persistence are all
+           live before any content rewrite lands. */
+        setTimeout(function () {
+          try {
+            if (!lib || !Array.isArray(lib.docs)) return;
+            var heal175 = false;
+            lib.docs.forEach(function (d) { if (varEnsureDocRecords(d)) heal175 = true; });
+            if (heal175) { varSaveSoon(); persist(true); }
+          } catch (e) {}
+        }, 0);
         function varTouch() { varStore.updated = Date.now(); }
         function varSave() {
           varTouch();
@@ -14402,9 +14418,207 @@
            are authoritative for anchoring — an unclaimed
            global found anchored in a document claims that
            document as its anchor home. */
+        /* Re-point one record's internal bindings (formula
+           tokens, chip references) through an id map, in
+           place. The binding twin of tplRemapVarSet's inner
+           remap, for records that stay where they are while
+           the records they bind change ids. */
+        function varRemapBindingsInPlace(rec, idMap) {
+          if (!rec) return false;
+          var changed = false;
+          if (typeof rec.expr === 'string' && rec.expr) {
+            try {
+              var toks = JSON.parse(rec.expr);
+              var dirty = false;
+              toks.forEach(function (tk) {
+                if (tk && tk.t === 'r' && tk.s !== 'g' && idMap[tk.vid]) { tk.vid = idMap[tk.vid]; tk.s = 'd'; dirty = true; }
+              });
+              if (dirty) { rec.expr = JSON.stringify(toks); changed = true; }
+            } catch (e) {}
+          }
+          if (rec.chip) {
+            var cfg = chipNormalize(rec.chip);
+            function ro(o) {
+              if (o && o.k === 'ref' && o.s !== 'g' && idMap[o.vid]) { changed = true; return { k: 'ref', vid: idMap[o.vid], s: 'd', n: o.n || '' }; }
+              return o;
+            }
+            function rr(r0) {
+              if (r0 && typeof r0.vid === 'string' && r0.s !== 'g' && idMap[r0.vid]) { changed = true; return { vid: idMap[r0.vid], s: 'd', n: r0.n || '' }; }
+              return r0;
+            }
+            cfg.dropdown.options = cfg.dropdown.options.map(ro);
+            if (cfg.dropdown.sel) cfg.dropdown.sel = ro(cfg.dropdown.sel);
+            ['stepper', 'slider', 'toggle'].forEach(function (gname) {
+              var g = cfg[gname];
+              if (g && g.refs) Object.keys(g.refs).forEach(function (k) { if (g.refs[k]) g.refs[k] = rr(g.refs[k]); });
+            });
+            rec.chip = cfg;
+          }
+          return changed;
+        }
+        /* Rebind the OPEN editor's variable nodes and marks
+           through an id map — the live twin of rewriting a
+           stored content tree, history-free like the refresh
+           (varRefreshEditorRefs' pattern): the transaction
+           changes only attrs and marks, and the refresh that
+           follows any heal re-stamps names and values. */
+        function varRebindEditorVids(idMap) {
+          if (!editorHandle || !editorHandle.editor || !editorHandle.editor.state) return false;
+          var ed = editorHandle.editor;
+          var st = ed.state;
+          if (!st.schema.nodes.varRef || !st.schema.marks.varDef) return false;
+          var tr = st.tr;
+          var dirty = false;
+          st.doc.descendants(function (node, pos) {
+            if (node.type.name === 'varRef' && node.attrs.vid && idMap[node.attrs.vid]) {
+              var na = Object.assign({}, node.attrs, { vid: idMap[node.attrs.vid] });
+              tr.setNodeMarkup(pos, undefined, na);
+              dirty = true;
+            }
+            if (node.isText && node.marks) {
+              node.marks.forEach(function (m) {
+                if (m.type.name === 'varDef' && m.attrs.vid && idMap[m.attrs.vid]) {
+                  tr.removeMark(pos, pos + node.nodeSize, st.schema.marks.varDef);
+                  tr.addMark(pos, pos + node.nodeSize, st.schema.marks.varDef.create({ vid: idMap[m.attrs.vid], vname: m.attrs.vname }));
+                  dirty = true;
+                }
+              });
+            }
+          });
+          if (dirty) {
+            tr.setMeta('addToHistory', false);
+            ed.view.dispatch(tr);
+          }
+          return dirty;
+        }
+        /* Build -175: RE-HOMING — the repair for the split
+           store behind the recurring "that variable could
+           not be found" report. A document's content can
+           come to bind doc-scope variables whose records
+           live in ANOTHER document's list (or a template's
+           mirror, or a dead key whose document is gone):
+           content copied from a sibling document keeps its
+           ids, an import lands content wholesale, and the
+           old ensure pass below refused to adopt a record
+           varFindAny could see anywhere — so the binding
+           stayed foreign forever. Every doc-scoped resolver
+           then missed it inside this document: reference
+           chips never re-stamped (a stale value served
+           indefinitely), formula tokens bound through the
+           record's foreign home while the edit modal
+           evaluated against this document, and the modal
+           itself — which opens happily through the doors'
+           varFindAny fallback — keyed its context to THIS
+           document, so Save's lookup missed the very record
+           on screen (the -169 not-found error when the
+           shorthand line was clean, a silent no-commit when
+           the shorthand gate swallowed the same miss), and
+           the shorthand <-> fields live binding died on the
+           same lookup. One syndrome, one cause.
+           The heal runs wherever records are ensured (every
+           editor sync, panel open, doc open): any doc-scope
+           id this content binds — references, definition
+           marks, and the internal bindings of records
+           already homed here — that this document's own
+           list and the globals cannot resolve is adopted:
+             - home key DEAD (its document is gone, its
+               template deleted): the record MOVES here,
+               id unchanged — this document is its only
+               claimant, and nothing else can lose it.
+             - home ALIVE (another document, a live
+               template): this document gets its own COPY
+               under a fresh id — closure included, the
+               tplRemapVarSet precedent — and its content
+               (or the live editor) and its homed records'
+               bindings re-point at the copy. The home keeps
+               its record untouched: a same-named variable
+               in another scope is genuinely distinct and
+               is never merged or stripped.
+           Values are never dropped: a move keeps the
+           record whole; a copy clones it whole, and where
+           copies of one name land side by side the remap's
+           standing rename rule (name_2) keeps both. The
+           pass is silent and returns whether it changed
+           anything, so callers save and repaint as usual. */
+        function varRehomeDocRecords(doc) {
+          if (!doc || !doc.content) return false;
+          var bound = {};
+          varWalkJson(doc.content, function (n) {
+            if (n.type === 'varRef' && n.attrs && n.attrs.vid) bound[n.attrs.vid] = true;
+            if (n.type === 'text' && Array.isArray(n.marks)) {
+              n.marks.forEach(function (m) { if (m.type === 'varDef' && m.attrs && m.attrs.vid) bound[m.attrs.vid] = true; });
+            }
+          });
+          varDocList(doc.id).forEach(function (r) {
+            tplVarBoundVids(r, function (vid, s) { if (s !== 'g') bound[vid] = true; });
+          });
+          var missing = Object.keys(bound).filter(function (vid) { return !varDocVar(doc.id, vid) && !varGlobalById(vid); });
+          if (!missing.length) return false;
+          var changed = false;
+          var onStage = !!(typeof varHomeOnStage === 'function' && varHomeOnStage(doc.id) && typeof editorHandle !== 'undefined' && editorHandle && editorHandle.editor);
+          var stageIdMap = null;
+          /* One adoption map for the whole pass: a record
+             adopted for one missing id is the SAME copy a
+             later missing id's closure must bind — without
+             it, a formula and the variable it binds, adopted
+             in separate iterations, would land as two copies
+             of the dependency (the second renamed _2), and
+             the formula would compute from the copy the
+             document's own definition does not feed. */
+          var passMap = {};
+          missing.forEach(function (vid) {
+            if (passMap[vid] || varDocVar(doc.id, vid) || varGlobalById(vid)) return;
+            var f = varFindAny(vid);
+            if (!f || f.scope !== 'doc' || !f.rec || !f.docId) return;
+            var homeKey = f.docId;
+            var homeAlive = !!varDocById(homeKey);
+            if (!homeAlive) {
+              var srcList = varStore.docVars[homeKey] || [];
+              var ix = srcList.indexOf(f.rec);
+              if (ix !== -1) srcList.splice(ix, 1);
+              if (!srcList.length) delete varStore.docVars[homeKey];
+              if (!varStore.docVars[doc.id]) varStore.docVars[doc.id] = [];
+              varStore.docVars[doc.id].push(f.rec);
+              passMap[vid] = vid;
+              changed = true;
+              return;
+            }
+            var own = {};
+            varDocList(doc.id).forEach(function (r) { own[r.id] = 1; });
+            Object.keys(passMap).forEach(function (k) { own[k] = 1; });
+            var src = tplVarClosure([f.rec], own);
+            var newContent = onStage ? null : varClone(doc.content);
+            var res = tplRemapVarSet(src, newContent, function (nm) { return !!varDocVarByName(doc.id, nm); });
+            if (!res.records.length) return;
+            if (!varStore.docVars[doc.id]) varStore.docVars[doc.id] = [];
+            res.records.forEach(function (r) {
+              /* Bindings to copies adopted earlier in this
+                 pass re-point at those copies, not at the
+                 foreign originals the closure skipped. */
+              varRemapBindingsInPlace(r, passMap);
+              varStore.docVars[doc.id].push(r);
+            });
+            Object.keys(res.idMap).forEach(function (k) { passMap[k] = res.idMap[k]; });
+            varDocList(doc.id).forEach(function (r) {
+              if (res.records.indexOf(r) === -1 && varRemapBindingsInPlace(r, res.idMap)) changed = true;
+            });
+            if (newContent) { doc.content = newContent; doc.updated = Date.now(); }
+            else if (onStage) {
+              if (!stageIdMap) stageIdMap = {};
+              Object.keys(res.idMap).forEach(function (k) { stageIdMap[k] = res.idMap[k]; });
+            }
+            changed = true;
+          });
+          if (stageIdMap) varRebindEditorVids(stageIdMap);
+          return changed;
+        }
         function varEnsureDocRecords(doc) {
           if (!doc || !doc.content) return false;
-          var changed = false;
+          /* Build -175: re-home foreign-bound records before
+             the minting logic below judges what is missing —
+             a record adopted here is a record the mint can
+             no longer duplicate under the same id. */
+          var changed = varRehomeDocRecords(doc);
           var defNames = {};
           var refs = [];
           varWalkJson(doc.content, function (n) {
@@ -15867,7 +16081,7 @@
         }
         function varEditPromoteClick() {
           if (!varEditCtx || varEditCtx.scope !== 'doc' || !varEditCtx.id) return;
-          var rec = varDocVar(varEditCtx.docId, varEditCtx.id);
+          var rec = varEditLookup(varEditCtx);
           if (!rec) return;
           varPromote(rec, function (finalRec) {
             if (finalRec && varEditCtx) {
@@ -16782,7 +16996,7 @@
         }
         function shStateFromFields() {
           if (!varEditCtx) return null;
-          var rec = varEditCtx.id ? (varEditCtx.scope === 'doc' ? varDocVar(varEditCtx.docId, varEditCtx.id) : varGlobalById(varEditCtx.id)) : null;
+          var rec = varEditCtx.id ? varEditLookup(varEditCtx) : null;
           var formulaText = '';
           if (varEditMode === 'formula') {
             var coll = fxCollect();
@@ -16910,10 +17124,33 @@
           if (el) { el.hidden = true; el.textContent = ''; }
         }
         /* ----- applying a parsed line to the modal ----- */
+        /* Build -175: the modal's record lookup. The scoped
+           lookup is the rule; but when it misses and the
+           record demonstrably exists elsewhere in the store
+           (a mis-homed record the -175 re-homing has not
+           reached — a variable opened from another
+           document's panel, a formula token, a template
+           mirror), the context ADOPTS the record's true
+           home instead of reporting the record missing.
+           The -169 not-found error remains for records
+           that are genuinely gone; it is unreachable for
+           any record this modal itself opened, because the
+           doors only open records the store can produce,
+           and this lookup can produce exactly those. */
+        function varEditLookup(ctx) {
+          if (!ctx || !ctx.id) return null;
+          var rec = ctx.scope === 'doc' ? varDocVar(ctx.docId, ctx.id) : varGlobalById(ctx.id);
+          if (rec) return rec;
+          var f = varFindAny(ctx.id);
+          if (!f || !f.rec) return null;
+          ctx.scope = f.scope;
+          if (f.scope === 'doc' && f.docId) ctx.docId = f.docId;
+          return f.rec;
+        }
         function shApplyToModal(st) {
           var ctx = varEditCtx;
           if (!ctx) return false;
-          var rec = ctx.id ? (ctx.scope === 'doc' ? varDocVar(ctx.docId, ctx.id) : varGlobalById(ctx.id)) : null;
+          var rec = ctx.id ? varEditLookup(ctx) : null;
           if (ctx.id && !rec) return false;
           document.getElementById('varEditName').value = st.name;
           if (st.scope !== ctx.scope) {
@@ -17715,6 +17952,22 @@
              its doc scope, formula context and anchor homes
              all resolve to the template. */
           var doc = (typeof tplEditingId !== 'undefined' && tplEditingId) ? varDocById(tplVarKey(tplEditingId)) : varDocById(varPanelDocId || lib.currentId);
+          /* Build -175: the modal's home document is the
+             RECORD's home, not merely the stage's. When the
+             record being opened does not live in the stage
+             document's list (a mis-homed record, pre-heal),
+             the context follows the record — otherwise every
+             lookup this modal makes (formula context, anchor
+             homes, Save) would key to a list that does not
+             hold it, and the modal could render a variable
+             it then claimed not to find. */
+          if (rec && scope === 'doc' && !(doc && varDocVar(doc.id, rec.id))) {
+            var fh175 = varFindAny(rec.id);
+            if (fh175 && fh175.scope === 'doc' && fh175.docId) {
+              var hd175 = varDocById(fh175.docId);
+              if (hd175) doc = hd175;
+            }
+          }
           /* Build -140: what a keyboard-confirmed save owes
              the editor (see varFocusAfterSavedVar): the caret
              held right now, and the invoking element when the
@@ -19141,7 +19394,7 @@
             fxw = fxWorkingEval();
             if (fxw.invalid) { varEditError(fxw.invalid); return; }
           }
-          var rec = ctx.id ? (ctx.scope === 'doc' ? varDocVar(ctx.docId, ctx.id) : varGlobalById(ctx.id)) : null;
+          var rec = ctx.id ? varEditLookup(ctx) : null;
           /* Build -169: a missing record used to close the
              modal SILENTLY — the exact silhouette of the
              -169 report (Save dismisses, nothing changes, no
@@ -26163,6 +26416,14 @@
              this document already carries when it is opened
              is never "added through editing". */
           seedWatchTags(doc);
+          /* Build -175: opening a document heals its
+             variable homes before the editor mounts —
+             varEnsureDocRecords now leads with the
+             re-homing pass — so its references resolve
+             and repaint from the first frame, and its
+             records sit in its own list before any door
+             (panel, chip, modal) comes looking for them. */
+          if (varEnsureDocRecords(doc)) varSaveSoon();
           document.getElementById('titleInput').value = doc.title;
           fitTitleHeight();
           fitTitlePhone();
