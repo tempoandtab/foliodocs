@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261112-173" />
+    <meta name="folio-build" content="20261112-174" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35411,6 +35411,15 @@
                build that event, the same claims are applied by
                hand (linkifyPasteText, then a plain insert in
                the Markdown listener's own fallback shape).
+             · (build -174) the by-hand fallback described
+               above originally ran linkify and a plain insert
+               ONLY — the Markdown gate never saw the text, so
+               Markdown pasted through this door (and through
+               the catcher, which forwards here) landed raw on
+               the owner's iPhone, where the synthetic event's
+               DataTransfer is not readable by the listeners.
+               The fallback now runs claimPasteText, the one
+               shared claim pipeline, before any plain insert.
              · when the async clipboard read itself is refused
                (iOS denies cross-app reads without the system's
                consent prompt, and sometimes outright), a paste
@@ -35444,6 +35453,264 @@
           }
           return true;
         }
+        /* ---------------- Build -174: one claim pipeline ----------------
+           Diagnosis of the raw-Markdown paste the owner hit on
+           his iPhone. The -173 delivery first dispatches a
+           synthetic ClipboardEvent, and on WebKit that event's
+           DataTransfer never reaches the capture-phase paste
+           listeners' getData reads the way a native event's
+           does (the ClipboardEvent constructor there does not
+           carry a readable clipboardData — and on some builds
+           the DataTransfer constructor itself throws, which the
+           delivery's try/catch swallowed). No listener claimed,
+           the document did not change, and delivery fell
+           through to its by-hand fallback — which ran ONLY
+           linkifyPasteText and then a plain insert. The -76
+           Markdown gate/converter lives inside the keyboard
+           paste listener and was never consulted on that route,
+           so "- **Fermentation time**:" landed with its dash
+           and asterisks literal. The paste catcher's two
+           forwarding paths call the same delivery function, so
+           they inherited the same raw route.
+           The fix is structural, not a patch on one route:
+           the gate (pasteMdGate), the container flattening
+           (pasteMdFlattenInto), and the insertion itself are
+           hoisted here, beside pasteDeliverText, as ONE claim
+           pipeline — claimPasteText — and every route runs it:
+           the keyboard/Markdown paste listener below is now a
+           thin shell over it, and pasteDeliverText's fallback
+           calls it before any plain insert. The claim order is
+           the keyboard order: linkify (a bare URL) -> the
+           Markdown gate/convert -> the literal insertion for
+           pattern-carrying prose the gate rejects -> (the
+           caller's) plain insert. No route can insert
+           clipboard text raw while another route converts it,
+           and a claimed conversion is the same single
+           insertContent transaction (closeHistory) on every
+           route, so it is one undo step everywhere. */
+        function pasteMdGate(rawText) {
+          var text = String(rawText || '').replace(/\r\n?/g, '\n');
+          if (text.indexOf('\n') === -1) {
+      /* Build -174: one principled single-line exception.
+         A lone list item whose content carries strong inline
+         Markdown (**bold** / __bold__) has no plain-prose
+         reading — the marker and the emphasis corroborate
+         each other — so it converts on its own. (The owner's
+         photographed paste was exactly this shape:
+         "- **Fermentation time**:", which the multi-line
+         gate could never see.) A lone PLAIN list item and
+         every other single line stay literal, as before. */
+      var sm = mdListItemMatch(text.replace(/^\s+|\s+$/g, ''));
+      return !!(sm && (/\*\*[^*\n]+\*\*/.test(sm.rest) || /__[^_\n]+__/.test(sm.rest)));
+    }
+          var lines = text.split('\n');
+          var nonEmpty = 0, hasBlank = false;
+          var headingCount = 0, fenceCount = 0, quoteLines = 0, listItems = 0, dividerCount = 0, strongListItems = 0;
+          var tableFound = false, tableRows = 0;
+          var inFence = false, fenceChar = '';
+          var proseLines = [];
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            if (/^\s*$/.test(line)) { hasBlank = true; continue; }
+            nonEmpty++;
+            var fm = /^\s*(```+|~~~+)/.exec(line);
+            if (fm) {
+              if (!inFence) { inFence = true; fenceChar = fm[1].charAt(0); fenceCount++; }
+              else if (fm[1].charAt(0) === fenceChar) inFence = false;
+              continue;
+            }
+            if (inFence) continue;
+            proseLines.push(line);
+            if (/^\s{0,3}#{1,6}\s+\S/.test(line)) headingCount++;
+            else if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) dividerCount++;
+            if (/^\s{0,3}>\s?/.test(line)) quoteLines++;
+            var lim = mdListItemMatch(line);
+      if (lim) {
+        listItems++;
+        if (/\*\*[^*\n]+\*\*/.test(lim.rest) || /__[^_\n]+__/.test(lim.rest)) strongListItems++;
+      }
+            if (!tableFound && line.indexOf('|') !== -1 && i + 1 < lines.length && mdIsTableDelim(lines[i + 1])) {
+              tableFound = true;
+              var r = i + 2;
+              while (r < lines.length && !/^\s*$/.test(lines[r]) && lines[r].indexOf('|') !== -1) { tableRows++; r++; }
+            }
+          }
+          if (strongListItems >= 1) return true;
+    if (nonEmpty < 2) return false;
+          var joined = proseLines.join('\n');
+          var strongInline = /\*\*[^*\n]+\*\*/.test(joined) || /__[^_\n]+__/.test(joined) ||
+            /\[\[[^\]\n]+\]\]/.test(joined) || /\[[^\]\n]+\]\([^)\n]+\)/.test(joined);
+          var cats = (headingCount ? 1 : 0) + (fenceCount ? 1 : 0) + (tableFound ? 1 : 0) +
+            (quoteLines ? 1 : 0) + (listItems ? 1 : 0) + (dividerCount ? 1 : 0);
+          if (fenceCount) return true;
+          if (tableFound && tableRows >= 1) return true;
+          if (headingCount === 1 && hasBlank) return true;
+          if (headingCount >= 2 && (cats >= 2 || strongInline)) return true;
+          if (cats >= 2) return true;
+          if (listItems >= 2 && listItems * 2 >= nonEmpty) return true;
+          if (quoteLines >= 2 && quoteLines === nonEmpty) return true;
+          return false;
+        }
+        /* Container flattening for converted pastes (see
+           claimPasteText): inside a table cell or a blockquote
+           (callouts are blockquotes), top-level structures
+           cannot be spliced in wholesale, so the converted
+           blocks are flattened to the paragraphs that DO fit,
+           keeping every word and inline mark. */
+        function pasteMdFlattenInto(blocks, out) {
+          (blocks || []).forEach(function (b) {
+            if (!b || !b.type) return;
+            switch (b.type) {
+              case 'paragraph':
+                out.push(b); break;
+              case 'heading':
+                out.push({ type: 'paragraph', content: b.content || [] }); break;
+              case 'codeBlock': {
+                var t = (b.content && b.content[0] && b.content[0].text) || '';
+                if (!t) break;
+                var content = [];
+                t.split('\n').forEach(function (ln, idx) {
+                  if (idx > 0) content.push({ type: 'hardBreak' });
+                  if (ln) content.push({ type: 'text', text: ln, marks: [{ type: 'code' }] });
+                });
+                if (content.length) out.push({ type: 'paragraph', content: content });
+                break;
+              }
+              case 'bulletList': case 'orderedList':
+                (b.content || []).forEach(function (item) { pasteMdFlattenInto(item.content || [], out); });
+                break;
+              case 'blockquote':
+                pasteMdFlattenInto(b.content || [], out); break;
+              case 'table':
+                (b.content || []).forEach(function (row) {
+                  var rc = [];
+                  (row.content || []).forEach(function (cell, ci) {
+                    if (ci > 0) rc.push({ type: 'text', text: ' | ' });
+                    (cell.content || []).forEach(function (cb) {
+                      if (cb && cb.type === 'paragraph') (cb.content || []).forEach(function (n) { rc.push(n); });
+                      else if (cb) {
+                        var sub = [];
+                        pasteMdFlattenInto([cb], sub);
+                        sub.forEach(function (sp) {
+                          (sp.content || []).forEach(function (n) { if (n.type !== 'hardBreak') rc.push(n); });
+                        });
+                      }
+                    });
+                  });
+                  if (rc.length) out.push({ type: 'paragraph', content: rc });
+                });
+                break;
+              case 'horizontalRule':
+                break;
+              case 'linkPreview': {
+                var pa = b.attrs || {};
+                var txt = pa.display || pa.href || '';
+                if (txt) out.push({ type: 'paragraph', content: [{ type: 'text', text: txt }] });
+                break;
+              }
+              default:
+                if (b.content && b.content.length &&
+                    (b.content[0].type === 'text' || b.content[0].type === 'wikiLink' ||
+                     b.content[0].type === 'tag' || b.content[0].type === 'hardBreak')) {
+                  out.push({ type: 'paragraph', content: b.content });
+                } else if (b.content) pasteMdFlattenInto(b.content, out);
+                break;
+            }
+          });
+          return out;
+        }
+        function claimPasteText(raw, hasHtml) {
+          if (!editorHandle || !editorHandle.editor) return false;
+          var ed = editorHandle.editor;
+          if (ed.isEditable === false) return false;
+          if (!raw) return false;
+          if (linkifyPasteText(raw)) return true;
+          if (hasHtml) return false; /* HTML flavor: the stock rich paste owns it, as on the keyboard path */
+            var convertMd = pasteMdGate(raw);
+            /* A text-only paste the gate rejects must still land
+               BYTE-FOR-BYTE plain — but the stock path cannot
+               promise that: TipTap's mark paste rules rewrite
+               *emphasis*, **bold**, `code`, ~~strike~~ and
+               [text](url) inside otherwise ordinary prose (the
+               sentence "2 * 3 * 4" used to lose its asterisks
+               to an accidental italic span). So a rejected paste
+               carrying any of those patterns is inserted here
+               literally, in exactly the shape the stock plain
+               paste builds — one paragraph per run of lines
+               (the clipboard parser's own split), carrying the
+               caret's current marks — through the same single
+               insertContent transaction, whose paste rules are
+               off. Rejected pastes without such patterns keep
+               the stock path untouched. */
+            var literalText = false;
+            if (!convertMd) {
+              if (!/(?:\*\*[^*\n]+\*\*)|(?:__[^_\n]+__)|(?:\*[^*\n]+\*)|(?:_[^_\n]+_)|(?:~~[^~\n]+~~)|(?:`[^`\n]+`)|(?:\[[^\]\n]+\]\([^)\n]+\))|(?:==[^=\n]+==)/.test(raw)) return false;
+              literalText = true;
+            }
+            var st = ed.state, sel = st.selection;
+            if (!sel || sel.node || sel.isCellSelection) return false;
+            if (sel.ranges && sel.ranges.length > 1) return false;
+            if (window.FolioKit && FolioKit.folioCellSelCount && FolioKit.folioCellSelCount(st) > 1) return false;
+            var $from = null, $to = null;
+            try { $from = st.doc.resolve(sel.from); $to = st.doc.resolve(sel.to); } catch (e) { return false; }
+            if (!$from.parent || !$from.parent.isTextblock) return false;
+            if ($from.parent.type.name === 'codeBlock') return false; /* code stays literal */
+            try {
+              if ($from.marks && $from.marks().some(function (m) { return m.type.name === 'code'; })) return false;
+            } catch (e) {}
+            var inTable = false, inQuote = false, fromCell = null, toCell = null, fromQuote = null, toQuote = null;
+            for (var d = 1; d <= $from.depth; d++) {
+              var nd = $from.node(d);
+              if (nd.type.name === 'tableCell' || nd.type.name === 'tableHeader') { inTable = true; fromCell = nd; }
+              if (nd.type.name === 'blockquote') { inQuote = true; fromQuote = nd; }
+            }
+            for (var d2 = 1; d2 <= $to.depth; d2++) {
+              var ne = $to.node(d2);
+              if (ne.type.name === 'tableCell' || ne.type.name === 'tableHeader') toCell = ne;
+              if (ne.type.name === 'blockquote') toQuote = ne;
+            }
+            if (!sel.empty) {
+              /* A selection reaching out of the container it
+                 starts in is left to the stock paste rather
+                 than risk the container's structure. */
+              if (inTable !== !!toCell || inQuote !== !!toQuote) return false;
+              if (inTable && fromCell !== toCell) return false;
+              if (inQuote && fromQuote !== toQuote) return false;
+            }
+            var blocks = null;
+            try {
+              if (literalText) {
+                var caretMarks = null;
+                try {
+                  var ms = $from.marks ? $from.marks() : [];
+                  if (ms && ms.length) caretMarks = ms.map(function (m) { return m.toJSON(); });
+                } catch (e) { caretMarks = null; }
+                blocks = raw.replace(/\r\n?/g, '\n').split(/\n+/).map(function (seg) {
+                  if (!seg) return { type: 'paragraph', content: [] };
+                  var tn = { type: 'text', text: seg };
+                  if (caretMarks) tn.marks = caretMarks;
+                  return { type: 'paragraph', content: [tn] };
+                });
+              } else {
+                var parsed = markdownToDoc(raw);
+                mdFixWikiLinks(parsed.content);
+                blocks = (parsed.content && parsed.content.content) || [];
+                if (inTable || inQuote) blocks = pasteMdFlattenInto(blocks, []);
+              }
+              if (!blocks.length) return false;
+            } catch (e) { return false; }
+            var inserted = false;
+            try {
+              inserted = ed.chain().insertContent(blocks).setMeta('closeHistory$', true).run();
+            } catch (e) { inserted = false; }
+            if (!inserted) {
+              /* Never lose the paste: fall back to the plain
+                 text, exactly what this paste did before -76. */
+              try { ed.view.dispatch(ed.state.tr.insertText(raw)); } catch (e) {}
+            }
+            refreshToolbar();
+            return true;
+        }
         function pasteDeliverText(text, html, target) {
           if (!text && !html) return false;
           if (!pasteRestoreTarget(target)) {
@@ -35468,9 +35735,12 @@
           if (after && after !== before) { refreshToolbar(); return true; }
           if (!text) return false;
           /* The event could not be built, or no paste path
-             claimed it: apply the claims by hand, in the same
-             order the listeners would have. */
-          if (linkifyPasteText(text)) { refreshToolbar(); return true; }
+             claimed it: run the one claim pipeline by hand
+             (build -174 — linkify, then the Markdown
+             gate/converter, then the literal insertion), in
+             the same order the listeners would have. Only a
+             paste the pipeline stands down on lands plain. */
+          if (claimPasteText(text, !!html)) { refreshToolbar(); return true; }
           try {
             var raw = text.replace(/\r\n?/g, '\n');
             if (raw.indexOf('\n') === -1) {
@@ -38339,7 +38609,9 @@
              conversion falls back to inserting the plain text
              rather than losing the paste.
 
-             THE GATE (mdPasteGate). Conversion is all-or-
+             THE GATE (pasteMdGate — hoisted beside
+             pasteDeliverText in build -174; see claimPasteText).
+             Conversion is all-or-
              nothing per paste and deliberately conservative:
              ordinary prose must survive byte-for-byte, so
              inline marks alone (a stray *asterisk*, an
@@ -38370,52 +38642,6 @@
              corroboration) stays literal; multi-paragraph
              prose, however many asterisks it contains, stays
              literal. */
-          function mdPasteGate(rawText) {
-            var text = String(rawText || '').replace(/\r\n?/g, '\n');
-            if (text.indexOf('\n') === -1) return false;
-            var lines = text.split('\n');
-            var nonEmpty = 0, hasBlank = false;
-            var headingCount = 0, fenceCount = 0, quoteLines = 0, listItems = 0, dividerCount = 0;
-            var tableFound = false, tableRows = 0;
-            var inFence = false, fenceChar = '';
-            var proseLines = [];
-            for (var i = 0; i < lines.length; i++) {
-              var line = lines[i];
-              if (/^\s*$/.test(line)) { hasBlank = true; continue; }
-              nonEmpty++;
-              var fm = /^\s*(```+|~~~+)/.exec(line);
-              if (fm) {
-                if (!inFence) { inFence = true; fenceChar = fm[1].charAt(0); fenceCount++; }
-                else if (fm[1].charAt(0) === fenceChar) inFence = false;
-                continue;
-              }
-              if (inFence) continue;
-              proseLines.push(line);
-              if (/^\s{0,3}#{1,6}\s+\S/.test(line)) headingCount++;
-              else if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) dividerCount++;
-              if (/^\s{0,3}>\s?/.test(line)) quoteLines++;
-              if (mdListItemMatch(line)) listItems++;
-              if (!tableFound && line.indexOf('|') !== -1 && i + 1 < lines.length && mdIsTableDelim(lines[i + 1])) {
-                tableFound = true;
-                var r = i + 2;
-                while (r < lines.length && !/^\s*$/.test(lines[r]) && lines[r].indexOf('|') !== -1) { tableRows++; r++; }
-              }
-            }
-            if (nonEmpty < 2) return false;
-            var joined = proseLines.join('\n');
-            var strongInline = /\*\*[^*\n]+\*\*/.test(joined) || /__[^_\n]+__/.test(joined) ||
-              /\[\[[^\]\n]+\]\]/.test(joined) || /\[[^\]\n]+\]\([^)\n]+\)/.test(joined);
-            var cats = (headingCount ? 1 : 0) + (fenceCount ? 1 : 0) + (tableFound ? 1 : 0) +
-              (quoteLines ? 1 : 0) + (listItems ? 1 : 0) + (dividerCount ? 1 : 0);
-            if (fenceCount) return true;
-            if (tableFound && tableRows >= 1) return true;
-            if (headingCount === 1 && hasBlank) return true;
-            if (headingCount >= 2 && (cats >= 2 || strongInline)) return true;
-            if (cats >= 2) return true;
-            if (listItems >= 2 && listItems * 2 >= nonEmpty) return true;
-            if (quoteLines >= 2 && quoteLines === nonEmpty) return true;
-            return false;
-          }
           /* Container flattening: inside a table cell or a
              blockquote (callouts are blockquotes), top-level
              structures cannot be spliced in wholesale — a
@@ -38429,68 +38655,6 @@
              a table becomes one paragraph per row with its
              cells' text joined by " | ", and dividers (which
              carry no text) drop. */
-          function mdPasteFlattenInto(blocks, out) {
-            (blocks || []).forEach(function (b) {
-              if (!b || !b.type) return;
-              switch (b.type) {
-                case 'paragraph':
-                  out.push(b); break;
-                case 'heading':
-                  out.push({ type: 'paragraph', content: b.content || [] }); break;
-                case 'codeBlock': {
-                  var t = (b.content && b.content[0] && b.content[0].text) || '';
-                  if (!t) break;
-                  var content = [];
-                  t.split('\n').forEach(function (ln, idx) {
-                    if (idx > 0) content.push({ type: 'hardBreak' });
-                    if (ln) content.push({ type: 'text', text: ln, marks: [{ type: 'code' }] });
-                  });
-                  if (content.length) out.push({ type: 'paragraph', content: content });
-                  break;
-                }
-                case 'bulletList': case 'orderedList':
-                  (b.content || []).forEach(function (item) { mdPasteFlattenInto(item.content || [], out); });
-                  break;
-                case 'blockquote':
-                  mdPasteFlattenInto(b.content || [], out); break;
-                case 'table':
-                  (b.content || []).forEach(function (row) {
-                    var rc = [];
-                    (row.content || []).forEach(function (cell, ci) {
-                      if (ci > 0) rc.push({ type: 'text', text: ' | ' });
-                      (cell.content || []).forEach(function (cb) {
-                        if (cb && cb.type === 'paragraph') (cb.content || []).forEach(function (n) { rc.push(n); });
-                        else if (cb) {
-                          var sub = [];
-                          mdPasteFlattenInto([cb], sub);
-                          sub.forEach(function (sp) {
-                            (sp.content || []).forEach(function (n) { if (n.type !== 'hardBreak') rc.push(n); });
-                          });
-                        }
-                      });
-                    });
-                    if (rc.length) out.push({ type: 'paragraph', content: rc });
-                  });
-                  break;
-                case 'horizontalRule':
-                  break;
-                case 'linkPreview': {
-                  var pa = b.attrs || {};
-                  var txt = pa.display || pa.href || '';
-                  if (txt) out.push({ type: 'paragraph', content: [{ type: 'text', text: txt }] });
-                  break;
-                }
-                default:
-                  if (b.content && b.content.length &&
-                      (b.content[0].type === 'text' || b.content[0].type === 'wikiLink' ||
-                       b.content[0].type === 'tag' || b.content[0].type === 'hardBreak')) {
-                    out.push({ type: 'paragraph', content: b.content });
-                  } else if (b.content) mdPasteFlattenInto(b.content, out);
-                  break;
-              }
-            });
-            return out;
-          }
           editorMountForLinks.addEventListener('paste', function (ev) {
             if (!editorHandle || !editorHandle.editor) return;
             var ed = editorHandle.editor;
@@ -38505,91 +38669,17 @@
             var raw = '';
             try { raw = cd.getData('text/plain') || ''; } catch (e) { return; }
             if (!raw) return;
-            var convertMd = mdPasteGate(raw);
-            /* A text-only paste the gate rejects must still land
-               BYTE-FOR-BYTE plain — but the stock path cannot
-               promise that: TipTap's mark paste rules rewrite
-               *emphasis*, **bold**, `code`, ~~strike~~ and
-               [text](url) inside otherwise ordinary prose (the
-               sentence "2 * 3 * 4" used to lose its asterisks
-               to an accidental italic span). So a rejected paste
-               carrying any of those patterns is inserted here
-               literally, in exactly the shape the stock plain
-               paste builds — one paragraph per run of lines
-               (the clipboard parser's own split), carrying the
-               caret's current marks — through the same single
-               insertContent transaction, whose paste rules are
-               off. Rejected pastes without such patterns keep
-               the stock path untouched. */
-            var literalText = false;
-            if (!convertMd) {
-              if (!/(?:\*\*[^*\n]+\*\*)|(?:__[^_\n]+__)|(?:\*[^*\n]+\*)|(?:_[^_\n]+_)|(?:~~[^~\n]+~~)|(?:`[^`\n]+`)|(?:\[[^\]\n]+\]\([^)\n]+\))|(?:==[^=\n]+==)/.test(raw)) return;
-              literalText = true;
-            }
-            var st = ed.state, sel = st.selection;
-            if (!sel || sel.node || sel.isCellSelection) return;
-            if (sel.ranges && sel.ranges.length > 1) return;
-            if (window.FolioKit && FolioKit.folioCellSelCount && FolioKit.folioCellSelCount(st) > 1) return;
-            var $from = null, $to = null;
-            try { $from = st.doc.resolve(sel.from); $to = st.doc.resolve(sel.to); } catch (e) { return; }
-            if (!$from.parent || !$from.parent.isTextblock) return;
-            if ($from.parent.type.name === 'codeBlock') return; /* code stays literal */
-            try {
-              if ($from.marks && $from.marks().some(function (m) { return m.type.name === 'code'; })) return;
-            } catch (e) {}
-            var inTable = false, inQuote = false, fromCell = null, toCell = null, fromQuote = null, toQuote = null;
-            for (var d = 1; d <= $from.depth; d++) {
-              var nd = $from.node(d);
-              if (nd.type.name === 'tableCell' || nd.type.name === 'tableHeader') { inTable = true; fromCell = nd; }
-              if (nd.type.name === 'blockquote') { inQuote = true; fromQuote = nd; }
-            }
-            for (var d2 = 1; d2 <= $to.depth; d2++) {
-              var ne = $to.node(d2);
-              if (ne.type.name === 'tableCell' || ne.type.name === 'tableHeader') toCell = ne;
-              if (ne.type.name === 'blockquote') toQuote = ne;
-            }
-            if (!sel.empty) {
-              /* A selection reaching out of the container it
-                 starts in is left to the stock paste rather
-                 than risk the container's structure. */
-              if (inTable !== !!toCell || inQuote !== !!toQuote) return;
-              if (inTable && fromCell !== toCell) return;
-              if (inQuote && fromQuote !== toQuote) return;
-            }
-            var blocks = null;
-            try {
-              if (literalText) {
-                var caretMarks = null;
-                try {
-                  var ms = $from.marks ? $from.marks() : [];
-                  if (ms && ms.length) caretMarks = ms.map(function (m) { return m.toJSON(); });
-                } catch (e) { caretMarks = null; }
-                blocks = raw.replace(/\r\n?/g, '\n').split(/\n+/).map(function (seg) {
-                  if (!seg) return { type: 'paragraph', content: [] };
-                  var tn = { type: 'text', text: seg };
-                  if (caretMarks) tn.marks = caretMarks;
-                  return { type: 'paragraph', content: [tn] };
-                });
-              } else {
-                var parsed = markdownToDoc(raw);
-                mdFixWikiLinks(parsed.content);
-                blocks = (parsed.content && parsed.content.content) || [];
-                if (inTable || inQuote) blocks = mdPasteFlattenInto(blocks, []);
-              }
-              if (!blocks.length) return;
-            } catch (e) { return; }
+            /* Build -174: the claim is the shared pipeline —
+               the same claimPasteText the -173 delivery routes
+               run — so a paste claimed here and a paste
+               delivered by hand can never diverge: linkify,
+               then the Markdown gate/converter, then the
+               literal insertion for pattern-carrying prose the
+               gate rejects. Standing down (false) leaves the
+               paste to the stock paths, exactly as before. */
+            if (!claimPasteText(raw)) return;
             ev.preventDefault();
             ev.stopPropagation();
-            var inserted = false;
-            try {
-              inserted = ed.chain().insertContent(blocks).setMeta('closeHistory$', true).run();
-            } catch (e) { inserted = false; }
-            if (!inserted) {
-              /* Never lose the paste: fall back to the plain
-                 text, exactly what this paste did before -76. */
-              try { ed.view.dispatch(ed.state.tr.insertText(raw)); } catch (e) {}
-            }
-            refreshToolbar();
           }, true);
           /* ----- zombie list exits -----
              A block can sit inside a list without the shape the
