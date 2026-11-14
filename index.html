@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261114-187" />
+    <meta name="folio-build" content="20261114-188" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -7869,6 +7869,11 @@
             <option value="shown">Shown on card</option>
             <option value="hidden">Hidden from card</option>
           </select>
+        </section>
+        <section class="var-sec" id="cgpDefaultSec">
+          <h3 class="var-sec-head"><span>Default for new rows</span></h3>
+          <p class="form-note" style="margin-top:6px">Only brand-new objects created in THIS collection start with this value — it belongs to this collection alone, never changes existing members, and is never applied when an existing object is added. Leave it empty for no default.</p>
+          <div id="cgpDefaultWrap" style="margin-top:8px"></div>
         </section>
         <p class="form-note" id="cgpNote" style="margin-top:10px"></p>
         <p class="var-sh-error" id="cgpError" hidden></p>
@@ -21217,6 +21222,44 @@
         function objCleanName(raw) {
           return String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
         }
+        /* Build -188: property DEFAULTS for new collection
+           members. A defaults map lives on ONE creation
+           context — a named collection record, or a
+           collection-valued property's own metadata — keyed
+           by member property name (lowercase, the cross-
+           member key the grid already uses). A spec is
+           { k: 'lit', v: <raw value, same representation as
+           the property's own values> } or { k: 'owner' } —
+           the dynamic token that resolves at creation time
+           to the containing object's headline (text
+           properties only, and only for grids / editors
+           opened from an owner object). Normalization is
+           fail-soft like the rest of the object store: a
+           malformed spec is dropped, never fatal. */
+        function objNormalizeDefaultSpec(s) {
+          if (!s || typeof s !== 'object') return null;
+          if (s.k === 'owner') return { k: 'owner' };
+          if (s.k !== 'lit') return null;
+          var v = s.v;
+          if (typeof v === 'string') return v === '' ? null : { k: 'lit', v: v };
+          if (v && typeof v === 'object' && !Array.isArray(v)) {
+            if (typeof v.oid === 'string' && v.oid) return { k: 'lit', v: { oid: v.oid, s: v.s === 'g' ? 'g' : 'd' } };
+            if (typeof v.vid === 'string' && v.vid) return { k: 'lit', v: { vid: v.vid, s: v.s === 'g' ? 'g' : 'd' } };
+            if (typeof v.pending === 'string' && v.pending.trim()) return { k: 'lit', v: { pending: v.pending } };
+          }
+          return null;
+        }
+        function objNormalizeDefaults(m) {
+          if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+          var out = {};
+          Object.keys(m).forEach(function (k) {
+            var key = String(k || '').trim().toLowerCase();
+            if (!key) return;
+            var n = objNormalizeDefaultSpec(m[k]);
+            if (n) out[key] = n;
+          });
+          return Object.keys(out).length ? out : null;
+        }
         function objNormalizeProp(p) {
           if (!p || typeof p.name !== 'string' || !p.name) return null;
           var type = OBJ_PROP_TYPES.indexOf(p.type) !== -1 ? p.type : 'text';
@@ -21242,6 +21285,12 @@
                collection's membership. */
             out.value = [];
             if (Array.isArray(p.value)) p.value.forEach(function (m) { var n = objNormalizeMember(m); if (n) out.value.push(n); });
+            /* Build -188: this property's own new-member
+               defaults ride its metadata (and so survive
+               sync and the -175 homing copy of the owner
+               record itself) — they are NOT member values. */
+            var cdef = objNormalizeDefaults(p.defaults);
+            if (cdef) out.defaults = cdef;
           } else if (type === 'doclink') {
             /* Build -181: a doclink value is a document id
                string, '' for none, or { pending: title } — a
@@ -21309,6 +21358,10 @@
           if (!c || !c.id || typeof c.name !== 'string' || !c.name) return null;
           var out = { id: String(c.id), name: c.name, members: [] };
           if (Array.isArray(c.members)) c.members.forEach(function (m) { var n = objNormalizeMember(m); if (n) out.members.push(n); });
+          /* Build -188: the named collection's own new-member
+             defaults, stored on the collection record. */
+          var ndef = objNormalizeDefaults(c.defaults);
+          if (ndef) out.defaults = ndef;
           return out;
         }
         function objLoad() {
@@ -22464,6 +22517,315 @@
           for (var i = list.length - 1; i >= 0; i--) if (list[i].oid === oid) list.splice(i, 1);
           return list.length !== before;
         }
+        /* ----- Build -188: defaults — read, write, apply -----
+           The map for a creation context, read live from the
+           store (never a copy the caller can strand). */
+        function collDefaultsMapFor(src, doc) {
+          var s = collSourceMembers(src, doc);
+          if (!s) return null;
+          var m = src.cid ? s.coll.defaults : s.prop.defaults;
+          return (m && typeof m === 'object' && !Array.isArray(m)) ? m : null;
+        }
+        /* The writable map: creates the container on the
+           collection record / collection property itself, so
+           objSave() persists it through the same fail-soft
+           store paths as the collection it belongs to. */
+        function collEnsureDefaults(src, doc) {
+          var s = collSourceMembers(src, doc);
+          if (!s) return null;
+          var holder = src.cid ? s.coll : s.prop;
+          if (!holder.defaults || typeof holder.defaults !== 'object' || Array.isArray(holder.defaults)) holder.defaults = {};
+          return holder.defaults;
+        }
+        function collClearDefaultsHolder(src, doc) {
+          var s = collSourceMembers(src, doc);
+          if (!s) return;
+          var holder = src.cid ? s.coll : s.prop;
+          if (holder.defaults && !Object.keys(holder.defaults).length) delete holder.defaults;
+        }
+        /* Does a stored spec still fit this property shape?
+           Rename follows the name key; a type (or Status
+           options) change that the literal no longer fits
+           invalidates it — settings surfaces clear it with a
+           note rather than ever applying garbage. */
+        function collDefaultFits(spec, type, dress, options) {
+          if (!spec) return false;
+          if (spec.k === 'owner') return type === 'text';
+          var v = spec.v;
+          if (type === 'text') {
+            if (typeof v !== 'string') return false;
+            if (dress === 'status' && options && options.length) return options.indexOf(v) !== -1;
+            return true;
+          }
+          if (type === 'image') return typeof v === 'string';
+          if (type === 'number') return typeof v === 'string' && (!v.trim() || fxParseNum(v) !== null);
+          if (type === 'date') return typeof v === 'string' && (!v.trim() || fxDateDaysFromISO(v) !== null);
+          if (type === 'doclink') return typeof v === 'string' || !!(v && typeof v.pending === 'string');
+          if (type === 'objref') return !!(v && typeof v.oid === 'string' && v.oid);
+          if (type === 'live') return !!(v && typeof v.vid === 'string' && v.vid);
+          return false;
+        }
+        function objPropIsEmpty(p) {
+          if (!p) return true;
+          if (p.type === 'coll') return !Array.isArray(p.value) || !p.value.length;
+          if (p.type === 'objref' || p.type === 'live') return !p.value;
+          if (p.type === 'doclink' && p.value && typeof p.value === 'object') return !p.value.pending;
+          return p.value == null || String(p.value).trim() === '';
+        }
+        /* Resolve one spec to a raw value at creation time.
+           The owner token reads the containing object's
+           headline NOW — later renames never rewrite values
+           already created. */
+        function collDefaultResolve(spec, src, doc) {
+          if (!spec) return undefined;
+          if (spec.k === 'owner') {
+            if (!src || !src.oid) return undefined;
+            var rr = objResolveBound(doc, src.oid, src.os);
+            if (!rr) return undefined;
+            var hd = rr.scope === 'doc' ? (varDocById(objHomeKeyOf(rr.rec.id)) || doc) : null;
+            return objHeadline(rr.rec, hd);
+          }
+          return objClone(spec.v);
+        }
+        /* Apply a context's defaults to a BRAND-NEW record
+           being created into it. Only properties that would
+           otherwise be empty are filled — values typed or
+           chosen during creation (the ghost row's headline
+           included) always win. A property the new record
+           lacks is created from the first current member
+           that carries it (the template every column op in
+           the grid already uses). Existing-object adds never
+           pass through here. */
+        function collApplyDefaults(src, doc, rec) {
+          var map = collDefaultsMapFor(src, doc);
+          if (!map || !rec) return 0;
+          var s = collSourceMembers(src, doc);
+          var members = s ? collMembersResolved(s.members, doc) : [];
+          var filled = 0;
+          Object.keys(map).forEach(function (key) {
+            var spec = map[key];
+            var p = objPropByName(rec, key);
+            if (!p) {
+              var tmpl = null;
+              members.forEach(function (e) { if (!tmpl) tmpl = objPropByName(e.rec, key); });
+              if (!tmpl || tmpl.type === 'coll') return;
+              p = objNormalizeProp({
+                name: tmpl.name, type: tmpl.type, dress: tmpl.dress || null,
+                options: tmpl.options ? tmpl.options.slice() : [], show: tmpl.show !== false,
+                value: tmpl.type === 'objref' || tmpl.type === 'live' ? null : '',
+              });
+              if (!p) return;
+              rec.props.push(p);
+            }
+            if (!objPropIsEmpty(p)) return;
+            if (!collDefaultFits(spec, p.type, p.dress || null, p.options || null)) return;
+            var v = collDefaultResolve(spec, src, doc);
+            if (v === undefined || v === null || v === '') return;
+            p.value = v;
+            filled++;
+          });
+          return filled;
+        }
+        /* ----- Build -188: the default-spec editor -----
+           One editor per member property, appropriate to its
+           type: text/number/date/image inputs, a Status
+           options select, the -181 Document search picker,
+           the -183 object / variable search pickers for
+           Object and Live properties. Collection properties
+           get an honest note instead of a dead control (their
+           members are objects, not a literal). For text
+           properties in an owner-object context, a source
+           select offers "Use containing object's name".
+           _specValue() reads the pending spec (null = no
+           default); hosts commit it on their own Save/Apply. */
+        function objDefaultSpecEditor(col, spec, opts) {
+          opts = opts || {};
+          var wrap = document.createElement('div');
+          wrap.className = 'obj-default-editor';
+          var cur = spec ? objClone(spec) : null;
+          if (col.type === 'coll') {
+            var cn = document.createElement('p');
+            cn.className = 'form-note';
+            cn.textContent = 'Collection properties start empty — their members are added in the grid, so there is no literal default.';
+            wrap.appendChild(cn);
+            wrap._specValue = function () { return null; };
+            return wrap;
+          }
+          var doc = opts.doc || null;
+          var homeDoc = doc;
+          var sourceSel = null;
+          if (col.type === 'text' && opts.ownerAvailable) {
+            sourceSel = document.createElement('select');
+            sourceSel.className = 'text-input';
+            sourceSel.setAttribute('aria-label', col.name + ' — default source');
+            sourceSel.style.width = '100%';
+            [['lit', 'Literal value'], ['owner', 'Use containing object’s name']].forEach(function (pair) {
+              var o = document.createElement('option');
+              o.value = pair[0]; o.textContent = pair[1];
+              sourceSel.appendChild(o);
+            });
+            sourceSel.value = cur && cur.k === 'owner' ? 'owner' : 'lit';
+            wrap.appendChild(sourceSel);
+          }
+          var litHolder = document.createElement('div');
+          litHolder.style.marginTop = sourceSel ? '6px' : '0';
+          wrap.appendChild(litHolder);
+          var litGetter = function () { return ''; };
+          function textIn(ph, val, isDate) {
+            var inp = document.createElement('input');
+            inp.className = 'text-input';
+            inp.type = isDate ? 'date' : 'text';
+            if (col.type === 'number') inp.setAttribute('inputmode', 'decimal');
+            inp.setAttribute('autocomplete', 'off');
+            inp.setAttribute('autocorrect', 'off');
+            inp.setAttribute('autocapitalize', 'none');
+            inp.setAttribute('spellcheck', 'false');
+            inp.setAttribute('placeholder', ph);
+            inp.setAttribute('aria-label', col.name + ' — default value');
+            inp.style.width = '100%';
+            inp.value = val || '';
+            litHolder.appendChild(inp);
+            return function () { return inp.value; };
+          }
+          var litVal = cur && cur.k === 'lit' ? cur.v : null;
+          if (col.type === 'text' && col.dress === 'status') {
+            var sel = document.createElement('select');
+            sel.className = 'text-input';
+            sel.setAttribute('aria-label', col.name + ' — default value');
+            sel.style.width = '100%';
+            var o0 = document.createElement('option');
+            o0.value = ''; o0.textContent = '(no default)';
+            sel.appendChild(o0);
+            (col.options || []).forEach(function (o) {
+              var oe = document.createElement('option');
+              oe.value = o; oe.textContent = o;
+              sel.appendChild(oe);
+            });
+            if (typeof litVal === 'string' && litVal && (col.options || []).indexOf(litVal) === -1) {
+              var ox = document.createElement('option');
+              ox.value = litVal; ox.textContent = litVal;
+              sel.appendChild(ox);
+            }
+            sel.value = typeof litVal === 'string' ? litVal : '';
+            litHolder.appendChild(sel);
+            litGetter = function () { return sel.value; };
+          } else if (col.type === 'date') {
+            litGetter = textIn('', typeof litVal === 'string' ? litVal : '', true);
+          } else if (col.type === 'number') {
+            litGetter = textIn('e.g. 5.8', typeof litVal === 'string' ? litVal : '', false);
+          } else if (col.type === 'image') {
+            litGetter = textIn('https://…', typeof litVal === 'string' ? litVal : '', false);
+          } else if (col.type === 'doclink') {
+            var dp = objBuildDocPicker(litVal == null ? '' : litVal, null);
+            litHolder.appendChild(dp);
+            litGetter = function () { return dp._docpickValue(); };
+          } else if (col.type === 'objref' || col.type === 'live') {
+            var isObj = col.type === 'objref';
+            var initV = '';
+            if (litVal && typeof litVal === 'object') {
+              if (isObj && litVal.oid) initV = (litVal.s || 'd') + ':' + litVal.oid;
+              if (!isObj && litVal.vid) initV = (litVal.s || 'd') + ':' + litVal.vid;
+            }
+            var rp = objBuildRefPicker({
+              initial: initV,
+              noneLabel: isObj ? '(no default)' : '(no default)',
+              placeholder: isObj ? 'Search objects…' : 'Search variables…',
+              ariaLabel: col.name + ' — default ' + (isObj ? 'object' : 'variable'),
+              candidates: function () {
+                var out = [];
+                if (isObj) {
+                  if (homeDoc) objDocList(homeDoc.id).forEach(function (r) { out.push({ v: 'd:' + r.id, label: r.name + ' — ' + objHeadline(r, homeDoc), tag: 'This document' }); });
+                  objStore.globals.forEach(function (r) { out.push({ v: 'g:' + r.id, label: r.name + ' — ' + objHeadline(r, null), tag: 'Global' }); });
+                } else {
+                  if (homeDoc) varDocList(homeDoc.id).forEach(function (r) { out.push({ v: 'd:' + r.id, label: r.name + ' — ' + varDisplayValue(r, homeDoc), tag: 'This document' }); });
+                  varStore.globals.forEach(function (r) { out.push({ v: 'g:' + r.id, label: r.name + ' — ' + varDisplayValue(r, null), tag: 'Global' }); });
+                }
+                return out;
+              },
+            });
+            litHolder.appendChild(rp);
+            litGetter = function () {
+              var pv = rp._pickValue();
+              if (!pv) return null;
+              return isObj ? { oid: pv.slice(2), s: pv.charAt(0) } : { vid: pv.slice(2), s: pv.charAt(0) };
+            };
+          } else {
+            litGetter = textIn('', typeof litVal === 'string' ? litVal : '', false);
+          }
+          function syncSource() {
+            if (sourceSel) litHolder.style.display = sourceSel.value === 'owner' ? 'none' : '';
+          }
+          if (sourceSel) sourceSel.addEventListener('change', syncSource);
+          syncSource();
+          wrap._specValue = function () {
+            if (sourceSel && sourceSel.value === 'owner') return { k: 'owner' };
+            var v = litGetter();
+            if (v === null || v === undefined || (typeof v === 'string' && v.trim() === '')) return null;
+            return { k: 'lit', v: v };
+          };
+          return wrap;
+        }
+        /* The multi-property list used by the object modal
+           and Detail: one spec editor per member property
+           known from current members. _defaultsValue()
+           returns the whole pending map. */
+        function objDefaultsListEditor(memberProps, defaultsMap, opts) {
+          opts = opts || {};
+          var wrap = document.createElement('div');
+          wrap.className = 'obj-defaults-list';
+          var editors = [];
+          if (!memberProps.length) {
+            var e = document.createElement('p');
+            e.className = 'form-note';
+            e.textContent = 'No member properties to default yet — defaults can be set once this collection has a member (or from the grid).';
+            wrap.appendChild(e);
+          }
+          memberProps.forEach(function (mp) {
+            if (mp.type === 'coll') return;
+            var row = document.createElement('div');
+            row.style.marginTop = '10px';
+            var lab = document.createElement('div');
+            lab.className = 'form-note';
+            lab.style.fontWeight = '700';
+            lab.textContent = mp.name;
+            row.appendChild(lab);
+            var ed = objDefaultSpecEditor(mp, defaultsMap ? defaultsMap[mp.name.toLowerCase()] : null, opts);
+            row.appendChild(ed);
+            wrap.appendChild(row);
+            editors.push({ key: mp.name.toLowerCase(), ed: ed });
+          });
+          wrap._defaultsValue = function () {
+            var out = {};
+            editors.forEach(function (x) {
+              var sp = x.ed._specValue();
+              if (sp) out[x.key] = sp;
+            });
+            return out;
+          };
+          return wrap;
+        }
+        /* Member property shapes known from a member list —
+           the defaults vocabulary for the modal / Detail
+           editors (first-seen wins, headline first). */
+        function collMemberPropShapes(members, doc) {
+          var resolved = collMembersResolved(members || [], doc);
+          var cols = [], byKey = {};
+          resolved.forEach(function (e) {
+            e.rec.props.forEach(function (p) {
+              var k = p.name.toLowerCase();
+              if (!byKey[k]) {
+                byKey[k] = { name: p.name, type: p.type, dress: p.dress || null, options: p.options ? p.options.slice() : [], headline: false };
+                cols.push(byKey[k]);
+              }
+            });
+          });
+          resolved.forEach(function (e) {
+            var hp = objPropById(e.rec, e.rec.headline);
+            if (hp && byKey[hp.name.toLowerCase()]) byKey[hp.name.toLowerCase()].headline = true;
+          });
+          cols.sort(function (a, b) { return (b.headline ? 1 : 0) - (a.headline ? 1 : 0); });
+          return cols;
+        }
         /* ----- node actions from the editor bundle ----- */
         function objNodeAction(detail) {
           if (!detail) return;
@@ -23408,6 +23770,9 @@
               id: p.id, name: p.name, type: p.type,
               dress: p.dress || null, options: p.options ? p.options.slice() : [],
               show: p.show !== false, value: p.value == null ? (p.type === 'objref' || p.type === 'live' ? null : '') : objClone(p.value),
+              /* Build -188: a collection property's new-member
+                 defaults draft alongside its member list. */
+              defaults: (p.type === 'coll' && p.defaults) ? objClone(p.defaults) : undefined,
             };
           });
         }
@@ -23832,11 +24197,17 @@
            add-existing picker (the manager's conventions in
            miniature). State lives in the closure; the save
            read takes it back through _collValue. */
-        function objBuildCollEditor(initial, pid) {
+        function objBuildCollEditor(initial, pid, defaultsInit) {
           var wrap = document.createElement('div');
           wrap.className = 'obj-coll-edit obj-p-value';
-          var state = { members: Array.isArray(initial) ? objClone(initial) : [] };
+          var state = { members: Array.isArray(initial) ? objClone(initial) : [], defaults: defaultsInit ? objClone(defaultsInit) : {} };
           wrap._collValue = function () { return objClone(state.members); };
+          /* Build -188: the New member defaults for THIS
+             collection property, read back at save through
+             _collDefaults (the defaults list editor, once
+             rendered, is authoritative). */
+          var defListEd = null;
+          wrap._collDefaults = function () { return defListEd ? defListEd._defaultsValue() : objClone(state.defaults); };
           /* Build -187: the grid door, for an object that
              already exists. The grid edits the SAVED record
              through the store, so the door saves this modal
@@ -23897,6 +24268,33 @@
             },
           });
           addRow.appendChild(picker);
+          /* Build -188: New member defaults — the same map
+             the grid's Property settings edits, reachable
+             without opening the grid. Scoped to THIS
+             collection property on THIS object only. */
+          var defSec = document.createElement('div');
+          defSec.style.marginTop = '12px';
+          defSec.style.borderTop = '1px solid var(--line-soft)';
+          defSec.style.paddingTop = '8px';
+          var defHead = document.createElement('div');
+          defHead.className = 'form-note';
+          defHead.style.fontWeight = '700';
+          defHead.textContent = 'New member defaults';
+          defSec.appendChild(defHead);
+          var defNote = document.createElement('p');
+          defNote.className = 'form-note';
+          defNote.textContent = 'Brand-new objects created into this collection start with these values. Existing members are never changed, and adding an existing object applies none of them.';
+          defSec.appendChild(defNote);
+          var defBody = document.createElement('div');
+          defSec.appendChild(defBody);
+          wrap.appendChild(defSec);
+          function renderDefaults() {
+            if (defListEd) state.defaults = defListEd._defaultsValue();
+            defBody.innerHTML = '';
+            var shapes = collMemberPropShapes(state.members, doc);
+            defListEd = objDefaultsListEditor(shapes, state.defaults, { ownerAvailable: true, doc: doc });
+            defBody.appendChild(defListEd);
+          }
           function render() {
             list.innerHTML = '';
             if (!state.members.length) {
@@ -23926,6 +24324,7 @@
             });
             addRow.hidden = !picker._anyCandidates();
             picker._refresh();
+            renderDefaults();
           }
           render();
           return wrap;
@@ -23933,7 +24332,7 @@
         function objEditValueEl(d) {
           var el;
           if (d.type === 'coll') {
-            return objBuildCollEditor(d.value, d.id);
+            return objBuildCollEditor(d.value, d.id, d.defaults);
           }
           if (d.type === 'doclink') {
             return objBuildDocPicker(d.value, null);
@@ -24010,6 +24409,12 @@
                changed type select: a binding select's encoded
                value must never leak into a text field. */
             var decodeType = prev.type || type;
+            /* Build -188: the collection editor's new-member
+               defaults map, carried in its closure like its
+               member list (only on coll rows). */
+            var rowDefaults = (valEl && typeof valEl._collDefaults === 'function' && type === 'coll')
+              ? valEl._collDefaults()
+              : (prev.type === 'coll' ? prev.defaults : undefined);
             var value;
             if (valEl && typeof valEl._collValue === 'function') {
               /* Build -182: the collection editor carries its
@@ -24057,6 +24462,7 @@
               type: type, dress: dress, options: options,
               show: row.querySelector('.obj-p-show').value !== 'hidden',
               value: value,
+              defaults: rowDefaults,
             });
           });
           return out;
@@ -24316,6 +24722,12 @@
             var pend = collPendingAdd;
             collPendingAdd = null;
             var pdoc = varCtxDoc();
+            /* Build -188: a brand-new object created INTO a
+               collection (a dress's + Add, the panel create-
+               and-add flow) starts from that collection's
+               defaults — explicitly entered values win,
+               defaults fill only what is still empty. */
+            collApplyDefaults(pend.src, pdoc, rec);
             if (collAddMember(pend.src, pdoc, rec.id, ctx.scope === 'global' ? 'g' : 'd')) objSave();
           }
           objRefreshEditorRefs();
@@ -24633,6 +25045,50 @@
             });
             cgridRow.appendChild(cgrid);
             cwrap.appendChild(cgridRow);
+            /* Build -188: New member defaults for THIS
+               collection property — the same map the grid
+               and the edit modal write. An explicit Save:
+               Detail commits values on change, but a map of
+               half-typed defaults should land whole. */
+            var ddefRow = document.createElement('div');
+            ddefRow.style.marginTop = '6px';
+            var ddefBtn = document.createElement('button');
+            ddefBtn.type = 'button';
+            ddefBtn.className = 'btn-ghost';
+            ddefBtn.textContent = 'New member defaults…';
+            var ddefBody = document.createElement('div');
+            ddefBody.hidden = true;
+            ddefBody.style.marginTop = '6px';
+            ddefBtn.addEventListener('click', function () {
+              if (!ddefBody.hidden) { ddefBody.hidden = true; return; }
+              ddefBody.innerHTML = '';
+              var dnote = document.createElement('p');
+              dnote.className = 'form-note';
+              dnote.textContent = 'Only brand-new objects created into this collection start with these values — existing members are never changed, and adding an existing object applies none of them. These defaults belong to this collection alone.';
+              ddefBody.appendChild(dnote);
+              var shapes = collMemberPropShapes(p.value, homeDoc);
+              var ded = objDefaultsListEditor(shapes, p.defaults || {}, { ownerAvailable: true, doc: homeDoc });
+              ddefBody.appendChild(ded);
+              var dsave = document.createElement('button');
+              dsave.type = 'button';
+              dsave.className = 'btn-primary';
+              dsave.textContent = 'Save defaults';
+              dsave.style.marginTop = '10px';
+              dsave.addEventListener('click', function () {
+                var nm = ded._defaultsValue();
+                if (nm && Object.keys(nm).length) p.defaults = nm;
+                else delete p.defaults;
+                objSave();
+                objRefreshEditorRefs();
+                folioToast('New-member defaults saved for “' + p.name + '”.');
+                renderObjDetail();
+              });
+              ddefBody.appendChild(dsave);
+              ddefBody.hidden = false;
+            });
+            ddefRow.appendChild(ddefBtn);
+            ddefRow.appendChild(ddefBody);
+            cwrap.appendChild(ddefRow);
             var caddRow = document.createElement('div');
             caddRow.style.marginTop = '6px';
             var cpick = objBuildRefPicker({
@@ -25977,6 +26433,10 @@
             headline: headlineId, art: artId, props: props,
           });
           if (!rec) return;
+          /* Build -188: this collection's defaults pre-fill
+             the new row — only properties still empty (the
+             typed headline above always wins). */
+          collApplyDefaults(collGridCtx.src, cgDoc(), rec);
           if (scope === 'doc') {
             if (!objStore.docObjs[homeId]) objStore.docObjs[homeId] = [];
             objStore.docObjs[homeId].push(rec);
@@ -26093,8 +26553,19 @@
           col.type = newType;
           if (newType !== 'text' && col.dress === 'status') col.dress = null;
           if (newType !== 'number' && col.dress === 'rating') col.dress = null;
+          /* Build -188: a type change that the column's
+             stored default no longer fits clears the default
+             (with a note) instead of ever applying garbage to
+             a future row. */
+          var defNote = '';
+          var dmap = collDefaultsMapFor(collGridCtx.src, cgDoc());
+          if (dmap && dmap[col.key] && !collDefaultFits(dmap[col.key], newType, col.dress, col.options || null)) {
+            delete dmap[col.key];
+            collClearDefaultsHolder(collGridCtx.src, cgDoc());
+            defNote = ' Its default for new rows no longer fits the new type and was cleared.';
+          }
           cgAfterChange(true);
-          folioToast('“' + col.name + '” is now ' + cgTypeLabel(newType) + ' for every member of this collection.');
+          folioToast('“' + col.name + '” is now ' + cgTypeLabel(newType) + ' for every member of this collection.' + defNote);
         }
         function cgOpenAddProp(anchor) {
           if (!cgEntries().length) {
@@ -26182,6 +26653,30 @@
           document.getElementById('cgpNote').textContent = 'Type changes live in the column header’s ▾ menu. Settings apply across this collection’s current members only.';
           var err = document.getElementById('cgpError');
           err.hidden = true; err.textContent = '';
+          /* Build -188: the Default for new rows editor for
+             THIS column, in THIS collection's context. An
+             existing default that no longer fits the
+             property's current shape is flagged here and
+             cleared on Apply rather than applied. */
+          var dw = document.getElementById('cgpDefaultWrap');
+          dw.innerHTML = '';
+          var dmap0 = collDefaultsMapFor(collGridCtx.src, cgDoc());
+          var curSpec = dmap0 ? (dmap0[col.key] || null) : null;
+          if (curSpec && !collDefaultFits(curSpec, col.type, col.dress || null, col.options || null)) {
+            var dn = document.createElement('p');
+            dn.className = 'form-note';
+            dn.style.color = 'var(--danger)';
+            dn.textContent = 'The saved default no longer fits this property’s type or options, so it will be cleared when you apply.';
+            dw.appendChild(dn);
+            curSpec = null;
+          }
+          var ded = objDefaultSpecEditor(
+            { name: col.name, type: col.type, dress: col.dress || null, options: col.options || [] },
+            curSpec,
+            { ownerAvailable: !!collGridCtx.src.oid, doc: cgDoc() }
+          );
+          dw.appendChild(ded);
+          cgPropCtx.defaultEditor = ded;
           cgPropSyncOptions();
           document.getElementById('collGridPropModal').hidden = false;
           setTimeout(function () { var n = document.getElementById('cgpName'); if (n && cgPropCtx) { n.focus(); n.select(); } }, 30);
@@ -26225,9 +26720,28 @@
             Object.keys(p).forEach(function (k) { delete p[k]; });
             Object.keys(norm).forEach(function (k) { p[k] = norm[k]; });
           });
+          /* Build -188: the default follows a rename (the map
+             is name-keyed), is read back from its editor, and
+             is cleared — with a note — when the new dress /
+             options make the literal unusable. Existing
+             members' values are never touched by any of this. */
+          var defNote = '';
+          var dmap = collEnsureDefaults(collGridCtx.src, cgDoc());
+          if (dmap) {
+            var oldKey = oldName.toLowerCase(), newKey = newName.toLowerCase();
+            if (oldKey !== newKey && dmap[oldKey]) { dmap[newKey] = dmap[oldKey]; delete dmap[oldKey]; }
+            var nspec = cgPropCtx.defaultEditor ? cgPropCtx.defaultEditor._specValue() : null;
+            if (nspec && !collDefaultFits(nspec, col.type, dress, dress === 'status' ? options : null)) {
+              nspec = null;
+              defNote = ' Its saved default no longer fits and was cleared.';
+            }
+            if (nspec) dmap[newKey] = nspec;
+            else if (dmap[newKey]) { delete dmap[newKey]; if (!defNote) defNote = ' Its default was cleared.'; }
+            collClearDefaultsHolder(collGridCtx.src, cgDoc());
+          }
           closeCgPropSettings();
           cgAfterChange(true);
-          folioToast('“' + newName + '” settings applied across this collection.');
+          folioToast('“' + newName + '” settings applied across this collection.' + defNote);
         }
         /* ⌥Enter's registry run (grid scope): Property
            settings for the focused cell's column. */
