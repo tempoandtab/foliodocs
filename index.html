@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261114-185" />
+    <meta name="folio-build" content="20261114-186" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2195,7 +2195,7 @@
         width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto;
         border: 1px solid rgba(128, 128, 128, 0.35);
       }
-      .tag-modal-error { color: var(--danger); font-size: 13.5px; font-weight: 600; margin-top: 10px; }
+      .tag-modal-error { color: var(--err-ink, var(--danger)); font-size: 13.5px; font-weight: 600; margin-top: 10px; }
       .tag-modal-error[hidden] { display: none; }
       .tag-filter-bar {
         display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -3072,7 +3072,7 @@
       .text-area { resize: vertical; line-height: 1.5; }
       .text-input:focus, .text-area:focus { border-color: var(--accent); }
       .field-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin: 0 0 6px; }
-      .form-error { color: var(--danger); font-size: 13.5px; line-height: 1.45; margin: 10px 0 0; }
+      .form-error { color: var(--err-ink, var(--danger)); font-size: 13.5px; line-height: 1.45; margin: 10px 0 0; }
       .form-note { color: var(--ink-2); font-size: 13.5px; line-height: 1.5; margin: 10px 0 0; }
 
       /* ---------------- Account / sync ---------------- */
@@ -5431,7 +5431,7 @@
       }
       .fx-preview { margin-top: 8px; font-size: 13px; color: var(--ink-2); min-height: 18px; }
       .fx-preview .fx-preview-result { font-weight: 700; color: var(--ink); }
-      .fx-preview.err { color: var(--danger); }
+      .fx-preview.err { color: var(--err-ink, var(--danger)); }
       .fx-ins-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
       .fx-ins-btn {
         font: inherit; font-size: 12.5px; font-weight: 600;
@@ -5609,7 +5609,8 @@
         #varEditModal .var-jumpnav { flex: 0 0 auto; }
       }
       #varEditModal .var-sh-input.invalid { border-color: var(--danger); outline-color: var(--danger); }
-      #varEditModal .var-sh-error { color: var(--danger); font-size: 12.5px; margin: 6px 0 0; line-height: 1.45; }
+      #varEditModal .var-sh-error { color: var(--err-ink, var(--danger)); font-size: 12.5px; margin: 6px 0 0; line-height: 1.45; }
+      .var-sh-error { color: var(--err-ink, var(--danger)); }
       #varEditModal .var-sh-error .sh-bad { text-decoration: underline wavy var(--danger) 1px; text-underline-offset: 3px; font-weight: 600; }
       /* The Shorthand tips popover (build -150): a
          Sheets-style suggestion list that follows the
@@ -5680,7 +5681,16 @@
       .sh-tip-argdesc { color: var(--ink-2); font-size: 12px; }
       /* The inline shorthand row in the @ menu (build -150):
          an error row reads in danger and cannot be chosen. */
-      .suggest-item.var-at-shorthand-err { color: var(--danger); cursor: default; }
+      .suggest-item.var-at-shorthand-err { color: var(--err-ink, var(--danger)); cursor: default; }
+      /* Build -186: the error row is the popup's selected row
+         by default, so it renders on the accent highlight —
+         its ink is the danger hue adapted against the ACCENT
+         (see folioErrInkSync), never the raw --danger, which
+         sat at ~1.0–1.6:1 on the highlight in every theme. */
+      .suggest-item.var-at-shorthand-err.sel { color: var(--err-ink-accent, var(--danger)); }
+      /* Build -186: formula completion rows in the @ popup. */
+      .fx-comp-head { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding: 6px 10px 2px; }
+      .fx-comp-sep { border-top: 1px solid var(--line); margin: 4px 2px; }
       .suggest-item.var-at-shorthand-err:hover { background: transparent; }
       .fx-pop-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       /* The template-editing badge: a small gilt pill beside
@@ -8242,10 +8252,40 @@
              (popNavPrime stands down while the pop is hidden). */
           popNavPrime(themePop);
         }
+        /* Build -186: error-text contrast, resolved at theme
+           application time on the -111/-179 discipline. The
+           shipped --danger hue is tuned against the page
+           surface, but error text also renders on the ACCENT
+           highlight (the @ popup's selected row is its error
+           row by default), where the raw hue measured
+           1.0–1.6:1 in all 11 themes — salmon on pale yellow
+           in Binding Dark, illegible in the owner's
+           screenshot. Derive two inks from the PRISTINE
+           stored values each time a theme/accent is applied
+           (never written back): --err-ink, --danger adapted
+           lightness-only against the actual --surface (the
+           suggest popup's and the modals' ground), and
+           --err-ink-accent, the same hue adapted against
+           the actual --accent. chipAdaptTo holds the 4.5:1
+           floor; a hue already clearing it returns
+           byte-identical. Every error-text rule reads these
+           vars with the raw --danger as fallback. */
+        function folioErrInkSync() {
+          try {
+            var cs = window.getComputedStyle(rootEl);
+            var danger = (cs.getPropertyValue('--danger') || '').trim();
+            if (!/^#[0-9a-f]{6}$/i.test(danger)) return;
+            var surface = (cs.getPropertyValue('--surface') || '').trim();
+            if (/^#[0-9a-f]{6}$/i.test(surface)) rootEl.style.setProperty('--err-ink', chipAdaptTo(danger, surface, 4.5));
+            var accent = (cs.getPropertyValue('--accent') || '').trim();
+            if (/^#[0-9a-f]{6}$/i.test(accent)) rootEl.style.setProperty('--err-ink-accent', chipAdaptTo(danger, accent, 4.5));
+          } catch (e) {}
+        }
         function applyTheme() {
           rootEl.setAttribute('data-theme', themeId);
           rootEl.setAttribute('data-accent', accentId);
           applyChipStyle();
+          folioErrInkSync();
           var btn = document.getElementById('themeBtn');
           btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.2-1.8 3-3.5 3H16a2.5 2.5 0 0 0-1.9 4c.5.5.9 1.1.9 2a2.5 2.5 0 0 1-3 1z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/></svg><span>' + currentTheme().name + '</span>';
           renderThemePop();
@@ -18271,6 +18311,49 @@
              of every call clears the dismissal and the
              directory below takes over again. */
           var sigCtx = shFnCallContext(before, atIx);
+          /* Build -186: typing-driven completion joins the
+             directory — the shared engine (fxcContext) reads
+             the formula segment of the WHOLE line and the
+             caret's token in it, so dotted paths and spaced
+             names complete here exactly as in the inline @
+             popup (Saga.Books. offers Pages, Rating, …).
+             An active token with candidates outranks
+             signature help; with no token active (caret on
+             an argument boundary) signature help keeps the
+             floor, and the plain directory below remains
+             the fallback. Acceptance replaces only the
+             token's span in the line (range below) and
+             commits nothing. */
+          var fxc186 = null;
+          try {
+            var atIxF = text.indexOf('@=');
+            var restF = text.slice(atIxF + 2);
+            var leadF = /^\s*/.exec(restF)[0].length;
+            if (restF.charAt(leadF) === '=') {
+              var fStart186 = atIxF + 2 + leadF + 1;
+              var exprSeg186 = shSplitAttrs(text.slice(fStart186)).value;
+              var caret186 = caret - fStart186;
+              if (caret186 >= 0 && caret186 <= exprSeg186.length) {
+                var scope186 = varEditCtx ? varEditCtx.scope : 'doc';
+                var splitF = shSplitAttrs(restF);
+                if (splitF.attrs) splitF.attrs.forEach(function (a) {
+                  var al = a.toLowerCase();
+                  if (al === 'local') scope186 = 'doc';
+                  else if (al === 'global') scope186 = 'global';
+                });
+                fxc186 = fxcContext(exprSeg186, caret186, scope186, fxCtxDoc(), text.slice(0, atIxF).trim());
+                if (fxc186 && fxc186.items.length) {
+                  return {
+                    head: 'Formula',
+                    items: fxc186.items.map(function (it) {
+                      return { main: it.label, sig: it.badge + (it.scopeBadge ? ' \u00B7 ' + it.scopeBadge : ''), ins: it.insert };
+                    }),
+                    range: { from: fStart186 + fxc186.from, to: fStart186 + fxc186.to },
+                  };
+                }
+              }
+            }
+          } catch (e) { fxc186 = null; }
           if (sigCtx) {
             if (shSigDismissed === sigCtx.key) return null;
             return { sigHelp: sigCtx, items: [], head: sigCtx.fn };
@@ -30500,6 +30583,165 @@
           if (tagFilter) renderDocList();
         }
 
+        /* ---------------- formula completion (build -186) ----------------
+           One typing-driven completion engine for the two
+           raw-text formula surfaces: the inline @= definition
+           in the document (its list rides the INSERT VARIABLE
+           popup, above the Define rows it never covers) and
+           the variable modal's Shorthand line (its list rides
+           that field's tips popover). fxcContext reads an
+           expression string and a caret offset and answers
+           the candidates for the identifier token at the
+           caret — or null when no identifier token is active
+           (caret in a string literal, on a number, after an
+           operator or a space). Candidates are the expression
+           language's own names: FUNCTIONS, VARIABLES (doc
+           scope first, then global, each badged), OBJECTS
+           and COLLECTIONS (badged). When the token follows a
+           resolved name + dot — longest match, the -183 WS4
+           rule, so spaced names resolve whole — candidates
+           are that object/collection's PROPERTIES, including
+           collection-valued properties, whose acceptance
+           appends another dot so paths continue
+           (Saga.Books. → Pages, Rating, …). Acceptance text:
+           a function gains "(", an object/collection name or
+           a collection-valued property gains ".", everything
+           else lands bare. The caret steers completions ONLY:
+           parsing, validity and errors stay whole-text
+           (-183 WS2), and accepting a completion edits text —
+           it never commits a definition. The modal's
+           token-based formula field is NOT a raw-text
+           surface (typed text retokenizes into bound
+           segments; its @ menu already completes variables
+           and dotted properties), so it keeps its own system. */
+        var FXC_FNAMES = ['SUM', 'COUNT', 'AVERAGE', 'MIN', 'MAX', 'ROUND', 'ABS', 'IF', 'TODAY', 'CONCAT', 'LEN', 'UPPER', 'LOWER'];
+        function fxcMatchRank(name, partial) {
+          var n = String(name).toLowerCase(), p = String(partial || '').toLowerCase();
+          if (!p) return 0;
+          if (n.indexOf(p) === 0) return 0;
+          if (n.indexOf(p) !== -1) return 1;
+          return -1;
+        }
+        function fxcPropItemsFromProps(props, partial) {
+          var out = [];
+          (props || []).forEach(function (p) {
+            var r = fxcMatchRank(p.name, partial);
+            if (r < 0) return;
+            out.push({ label: p.name, insert: p.name + (p.type === 'coll' ? '.' : ''), badge: 'Property', scopeBadge: '', rank: r, ord: 0 });
+          });
+          return out;
+        }
+        function fxcPropItemsFromMembers(members, doc, partial) {
+          var resolved = collMembersResolved(members || [], doc);
+          var out = [];
+          collPropNames(resolved).forEach(function (nm) {
+            var r = fxcMatchRank(nm, partial);
+            if (r < 0) return;
+            var isColl = false;
+            resolved.forEach(function (e) { var p = objPropByName(e.rec, nm); if (p && p.type === 'coll') isColl = true; });
+            out.push({ label: nm, insert: nm + (isColl ? '.' : ''), badge: 'Property', scopeBadge: '', rank: r, ord: 0 });
+          });
+          return out;
+        }
+        /* The property candidates behind a dotted head, or
+           null when the head resolves to nothing the formula
+           language can path into. */
+        function fxcDottedItems(head, partial, scope, doc) {
+          var o = fxFindObjByNameIn(scope, doc, head);
+          if (o) return fxcPropItemsFromProps(o.rec.props, partial);
+          var c = fxFindCollByNameIn(scope, doc, head);
+          if (c) return fxcPropItemsFromMembers(c.coll.members, doc, partial);
+          var dot = head.indexOf('.');
+          if (dot > 0) {
+            var o1 = fxFindObjByNameIn(scope, doc, head.slice(0, dot));
+            if (o1) {
+              var p1 = objPropByName(o1.rec, head.slice(dot + 1));
+              if (p1 && p1.type === 'coll') {
+                var src = collSourceMembers({ oid: o1.rec.id, os: o1.scope === 'doc' ? 'd' : 'g', pid: p1.id }, doc);
+                if (src) return fxcPropItemsFromMembers(src.members, doc, partial);
+              }
+            }
+          }
+          return null;
+        }
+        function fxcContext(expr, caret, scope, doc, excludeName) {
+          expr = String(expr == null ? '' : expr);
+          caret = Math.max(0, Math.min(typeof caret === 'number' ? caret : expr.length, expr.length));
+          /* Inside a string literal the caret is in text,
+             not in an identifier. */
+          var inQ = false;
+          for (var q = 0; q < caret; q++) {
+            var qc = expr.charAt(q);
+            if (inQ) { if (qc === '"') { if (expr.charAt(q + 1) === '"') q++; else inQ = false; } }
+            else if (qc === '"') inQ = true;
+          }
+          if (inQ) return null;
+          /* The token run at the caret: identifier letters,
+             digits, underscores, dots and the spaces a spaced
+             name carries. Every operator, comma and paren is
+             a boundary, so the run never crosses one. */
+          var start = caret;
+          while (start > 0 && /[A-Za-z0-9_. ]/.test(expr.charAt(start - 1))) start--;
+          var seg = expr.slice(start, caret);
+          if (!seg || /\s$/.test(seg)) return null;
+          var lead = /^\s*/.exec(seg)[0].length;
+          var segStart = start + lead;
+          var core = seg.slice(lead);
+          if (!core || /^[0-9.]+$/.test(core)) return null;
+          var lastDot = core.lastIndexOf('.');
+          if (lastDot !== -1) {
+            var head = core.slice(0, lastDot).trim();
+            var partial = core.slice(lastDot + 1);
+            if (!head || /\s/.test(partial)) return null;
+            var dItems = fxcDottedItems(head, partial, scope, doc);
+            if (!dItems || !dItems.length) return null;
+            dItems.sort(function (a, b) { return (a.rank - b.rank) || a.label.localeCompare(b.label); });
+            var dTo = caret;
+            while (dTo < expr.length && /[A-Za-z0-9_]/.test(expr.charAt(dTo))) dTo++;
+            return { from: segStart + lastDot + 1, to: dTo, partial: partial, items: dItems.slice(0, 8) };
+          }
+          var items = [];
+          function pushVar(scopeName, rec) {
+            if (excludeName && rec.name === excludeName) return;
+            var r = fxcMatchRank(rec.name, core);
+            if (r < 0) return;
+            items.push({ label: rec.name, insert: rec.name, badge: 'Variable', scopeBadge: scopeName === 'doc' ? 'This document' : 'Global', rank: r, ord: 0 });
+          }
+          if (scope === 'doc' && doc) varDocList(doc.id).forEach(function (rec) { pushVar('doc', rec); });
+          varStore.globals.forEach(function (rec) { pushVar('global', rec); });
+          FXC_FNAMES.forEach(function (fn) {
+            var r = fxcMatchRank(fn, core);
+            if (r < 0) return;
+            items.push({ label: fn, insert: fn + '(', badge: 'Function', scopeBadge: '', rank: r, ord: 1 });
+          });
+          function pushObj(scopeName, rec) {
+            var r = fxcMatchRank(rec.name, core);
+            if (r < 0) return;
+            items.push({ label: rec.name, insert: rec.name + '.', badge: 'Object', scopeBadge: scopeName === 'doc' ? 'This document' : 'Global', rank: r, ord: 2 });
+          }
+          function pushColl(scopeName, coll) {
+            var r = fxcMatchRank(coll.name, core);
+            if (r < 0) return;
+            items.push({ label: coll.name, insert: coll.name + '.', badge: 'Collection', scopeBadge: scopeName === 'doc' ? 'This document' : 'Global', rank: r, ord: 3 });
+          }
+          if (scope === 'doc' && doc) {
+            objDocList(doc.id).forEach(function (rec) { pushObj('doc', rec); });
+            collDocList(doc.id).forEach(function (coll) { pushColl('doc', coll); });
+          }
+          (objStore.globals || []).forEach(function (rec) { pushObj('global', rec); });
+          (objStore.gColls || []).forEach(function (coll) { pushColl('global', coll); });
+          if (!items.length) return null;
+          items.sort(function (a, b) { return (a.rank - b.rank) || (a.ord - b.ord) || a.label.localeCompare(b.label); });
+          /* Accepting replaces the partial token only: the
+             run may continue past the caret (a name typed in
+             full, caret parked mid-token), so the span runs
+             to the end of the word run after the caret too. */
+          var to = caret;
+          while (to < expr.length && /[A-Za-z0-9_ ]/.test(expr.charAt(to))) to++;
+          while (to > caret && expr.charAt(to - 1) === ' ') to--;
+          return { from: segStart, to: to, partial: core, items: items.slice(0, 8) };
+        }
+
         /* ---------------- @ variable suggestion popup (build -134) ----------------
            Typing @ in document text opens a variable search
            menu: both scopes, each row badged with its scope
@@ -30529,8 +30771,13 @@
            immediately after a word offers the one-row
            "+ Define <Word> Inline" menu instead (see
            varAtDefineInline). */
-        var varAtState = { active: false, items: [], selected: 0, rect: null, query: '', range: null };
+        var varAtState = { active: false, items: [], selected: 0, rect: null, query: '', range: null, fxItems: [], fxSel: 0, fxRange: null, fxKey: null };
         var varAtDismissed = null;
+        /* Build -186: the completion list's Esc dismissal,
+           keyed by the token context it was dismissed in —
+           the list stays down for that exact context and
+           returns as soon as the token or caret moves on. */
+        var varAtFxDismissed = null;
 
         /* Whether the leaf node at a textblock-local offset
            is a hard break — the one ￼ in the textBetween
@@ -30604,7 +30851,25 @@
               var dval = rawVal.charAt(0) === ' ' ? rawVal.slice(1) : rawVal;
               if (!dval.trim()) dval = '';
               var blockStart = n.pos - n.parentOffset;
-              return { define: true, name: dm[2], value: dval, range: { from: blockStart + spanStart, to: blockStart + full.length }, query: '=' + dm[2] + '=' + rawVal };
+              var hit186 = { define: true, name: dm[2], value: dval, range: { from: blockStart + spanStart, to: blockStart + full.length }, query: '=' + dm[2] + '=' + rawVal };
+              /* Build -186: when the value is a formula, note
+                 where its expression sits in the block and
+                 where the caret sits inside it — the ONLY
+                 caret fact the completion list may read
+                 (-183 WS2: the parse, the verdict and the
+                 commit span stay whole-text). The expression
+                 ends where the shorthand attribute tail
+                 begins (shSplitAttrs' top-level pipe). */
+              if (dval.charAt(0) === '=') {
+                var rvStart = full.length - rawVal.length + (rawVal.charAt(0) === ' ' ? 1 : 0);
+                var exprRaw = dval.slice(1);
+                var exprSeg = shSplitAttrs(exprRaw).value;
+                var caret186 = n.parentOffset - (rvStart + 1);
+                if (caret186 >= 0 && caret186 <= exprSeg.length) {
+                  hit186.fx = { expr: exprSeg, caret: caret186, exprFrom: blockStart + rvStart + 1 };
+                }
+              }
+              return hit186;
             }
           }
           var r = n.parent.textBetween(0, n.parentOffset, undefined, '￼');
@@ -30789,6 +31054,55 @@
           b.addEventListener('click', function () { choose(); });
           return b;
         }
+        /* Build -186: one completion row — the candidate's
+           canonical name, its kind badge, its scope badge.
+           Tap selection follows the -164 discipline
+           (chipPopStepWire: activate on pointerup with a
+           fingertip-slop check, the trailing synthetic click
+           swallowed), and mousedown is preventDefaulted so
+           the editor caret never moves while the tap lands. */
+        function varAtFxRow(item, isSel, choose) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'suggest-item var-at-item fx-comp-item' + (isSel ? ' sel' : '');
+          b.setAttribute('role', 'option');
+          var nm = document.createElement('span');
+          nm.className = 's-title';
+          nm.textContent = item.label;
+          b.appendChild(nm);
+          var kb = document.createElement('span');
+          kb.className = 'var-badge soft';
+          kb.textContent = item.badge;
+          b.appendChild(kb);
+          if (item.scopeBadge) {
+            var sb = document.createElement('span');
+            sb.className = 'var-badge soft';
+            sb.textContent = item.scopeBadge;
+            b.appendChild(sb);
+          }
+          b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+          chipPopStepWire(b, function () { choose(); });
+          return b;
+        }
+        /* Build -186: accepting a completion replaces ONLY
+           the partial token at the caret with the accepted
+           text and parks the caret right after it — the
+           popup stays open, the definition is NOT committed,
+           and the next sync offers the next level (a property
+           list behind the dot an object name just gained). */
+        function varAtFxChoose(i) {
+          var item = varAtState.fxItems[i];
+          var range = varAtState.fxRange;
+          if (!item || !range || !editorHandle || !editorHandle.editor) return;
+          var ed = editorHandle.editor;
+          var caretPos = range.from + item.insert.length;
+          try {
+            var tr = ed.state.tr.insertText(item.insert, range.from, range.to);
+            ed.view.dispatch(tr);
+            ed.chain().focus().setTextSelection({ from: caretPos, to: caretPos }).run();
+          } catch (e) {}
+          varAtSync();
+        }
         function renderVarAt() {
           if (!varAtState.active) {
             if (!suggestState.active && !tagSuggestState.active) { suggestEl.className = 'suggest'; suggestEl.innerHTML = ''; suggestEl._folioSide = null; }
@@ -30805,16 +31119,32 @@
           head.textContent = 'Insert variable';
           suggestEl.appendChild(head);
           var doc = varCtxDoc();
-          if (!varAtState.items.length) {
+          if (!varAtState.items.length && !varAtState.fxItems.length) {
             var empty = document.createElement('div');
             empty.className = 'suggest-empty';
             empty.textContent = 'No variable by that name.';
             suggestEl.appendChild(empty);
           }
+          /* Build -186: the completion list stands at the
+             head of the popup, the Define rows below the
+             rule — the list extends the popup, it never
+             covers them. */
+          if (varAtState.fxItems.length) {
+            var fxHead = document.createElement('div');
+            fxHead.className = 'fx-comp-head';
+            fxHead.textContent = 'Complete';
+            suggestEl.appendChild(fxHead);
+            varAtState.fxItems.forEach(function (item, i) {
+              suggestEl.appendChild(varAtFxRow(item, i === varAtState.fxSel, function () { varAtFxChoose(i); }));
+            });
+            var fxSep = document.createElement('div');
+            fxSep.className = 'fx-comp-sep';
+            suggestEl.appendChild(fxSep);
+          }
           varAtState.items.forEach(function (item, i) {
             suggestEl.appendChild(varAtRow(item, i === varAtState.selected, doc, function () { varAtChoose(i); }));
           });
-          if (varAtState.rect) positionSuggestPopup(varAtState.rect, varAtState.items.length);
+          if (varAtState.rect) positionSuggestPopup(varAtState.rect, varAtState.items.length + varAtState.fxItems.length);
           if (defineWide) {
             /* positionSuggestPopup clamps against the usual
                menu width; re-clamp against the wide popup's
@@ -30832,6 +31162,9 @@
           varAtState.active = false;
           varAtState.items = [];
           varAtState.range = null;
+          varAtState.fxItems = [];
+          varAtState.fxRange = null;
+          varAtState.fxKey = null;
           renderVarAt();
         }
         function varAtSync() {
@@ -30877,7 +31210,31 @@
             var unitParse = varAtUnitParse(hit.value || '');
             if (unitParse) varAtState.items.push({ define: true, unit: unitParse, name: hit.name, value: hit.value || '' });
             varAtState.items.push({ define: true, name: hit.name, value: hit.value || '' });
+            /* Build -186: completions for the formula being
+               typed ride along in the same popup — computed
+               from the caret's token only, against the whole
+               expression text; they never touch the rows
+               above or the whole-text verdict behind them. */
+            varAtState.fxItems = [];
+            varAtState.fxRange = null;
+            varAtState.fxKey = null;
+            if (hit.fx) {
+              var fxc = null;
+              try { fxc = fxcContext(hit.fx.expr, hit.fx.caret, 'doc', doc, hit.name); } catch (e) { fxc = null; }
+              if (fxc && fxc.items.length) {
+                var fxKey = hit.fx.exprFrom + '|' + fxc.from + '|' + hit.fx.expr.slice(0, hit.fx.caret);
+                if (varAtFxDismissed !== fxKey) {
+                  if (varAtState.fxKey !== fxKey) varAtState.fxSel = 0;
+                  varAtState.fxItems = fxc.items;
+                  varAtState.fxRange = { from: hit.fx.exprFrom + fxc.from, to: hit.fx.exprFrom + fxc.to };
+                  varAtState.fxKey = fxKey;
+                }
+              }
+            }
           } else {
+            varAtState.fxItems = [];
+            varAtState.fxRange = null;
+            varAtState.fxKey = null;
             varAtState.items = varAtComputeItems(doc, hit.query);
           }
           if (fresh || varAtState.selected >= varAtState.items.length) varAtState.selected = 0;
@@ -31063,6 +31420,36 @@
         }
         function varAtMenuKey(ev) {
           if (!varAtState.active) return;
+          /* Build -186: while the completion list is up it
+             owns the menu keys — arrows move its highlight,
+             Enter/Tab accept (text only, never a commit),
+             Esc dismisses the list alone and leaves the
+             popup's Define rows standing. */
+          if (varAtState.fxItems.length) {
+            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+              ev.preventDefault();
+              ev.stopPropagation();
+              var fd = ev.key === 'ArrowDown' ? 1 : -1;
+              varAtState.fxSel = (varAtState.fxSel + fd + varAtState.fxItems.length) % varAtState.fxItems.length;
+              renderVarAt();
+              return;
+            }
+            if (ev.key === 'Enter' || ev.key === 'Tab') {
+              ev.preventDefault();
+              ev.stopPropagation();
+              varAtFxChoose(varAtState.fxSel);
+              return;
+            }
+            if (ev.key === 'Escape') {
+              ev.preventDefault();
+              ev.stopPropagation();
+              varAtFxDismissed = varAtState.fxKey;
+              varAtState.fxItems = [];
+              varAtState.fxRange = null;
+              renderVarAt();
+              return;
+            }
+          }
           if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
             if (!varAtState.items.length) return;
             ev.preventDefault();
