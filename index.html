@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261115-190" />
+    <meta name="folio-build" content="20261115-191" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5842,6 +5842,37 @@
         color: var(--ink-2); padding: 2px 0 6px;
       }
       .sh-grammar-text { font-size: 13.5px; line-height: 1.55; color: var(--ink-2); margin: 0; }
+      /* Build -191: the object shorthand modal — textarea,
+         completion pop, live preview card, property popup. */
+      .osh-wrap { position: relative; margin-top: 8px; }
+      .osh-area {
+        width: 100%; min-height: 168px; resize: vertical;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13.5px; line-height: 1.55;
+      }
+      .osh-area.invalid { border-color: var(--danger); outline-color: var(--danger); }
+      .osh-pop {
+        position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
+        margin-top: 0; max-height: 240px;
+      }
+      .osh-errors { margin-top: 6px; }
+      .osh-errors .osh-err-line { color: var(--err-ink, var(--danger)); font-size: 12.5px; line-height: 1.45; margin: 2px 0 0; }
+      .osh-errors .sh-bad { text-decoration: underline wavy var(--danger) 1px; text-underline-offset: 3px; font-weight: 600; }
+      .osh-preview-wrap { margin-top: 8px; }
+      .osh-preview-wrap .obj-card { margin: 0; max-width: none; }
+      .osh-pv-row { cursor: pointer; border-radius: 6px; }
+      .osh-pv-row:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .osh-ghost { opacity: 0.55; }
+      .osh-ghost .obj-card-label, .osh-ghost .obj-card-val { font-style: italic; }
+      .osh-hidden-tag {
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        border: 1px dashed var(--ink-3); border-radius: 999px; padding: 0 6px; color: var(--ink-2);
+        flex: 0 0 auto;
+      }
+      .osh-info-btn { margin-left: auto; }
+      #objShPropModal .panel { max-width: 520px; }
+      .osh-formula-note { margin-top: 6px; }
+
       .sh-tips-head {
         font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
         color: var(--ink-2); padding: 5px 10px 3px;
@@ -7710,44 +7741,55 @@
     </div>
 
     <div class="overlay" id="objEditModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="objEditTitle" style="max-width:600px">
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="objEditTitle" style="max-width:760px">
         <div class="panel-head">
           <h2 id="objEditTitle">Object</h2>
+          <button class="icon-btn osh-info-btn" id="objShGrammarBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Shorthand grammar" data-tip="Full grammar">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
+          </button>
           <button class="icon-btn" id="objEditClose" type="button" tabindex="-1" aria-label="Cancel" data-tip="Cancel">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
         <section class="var-sec">
           <h3 class="var-sec-head"><span>Name</span></h3>
-          <label class="form-note" for="objEditName" style="display:block;margin-top:2px">Starts with a letter; letters, digits, spaces and underscores after — no period: formulas refer to it as <em>Name.Property</em>.</label>
           <input class="text-input" id="objEditName" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Object name" style="width:100%;margin-top:6px" />
         </section>
         <section class="var-sec">
           <h3 class="var-sec-head"><span>Kind &amp; face</span></h3>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-            <label style="flex:1 1 170px"><span class="form-note" style="display:block">Kind</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <label style="flex:1 1 150px"><span class="form-note" style="display:block">Kind</span>
               <select class="text-input" id="objEditKind" aria-label="Object kind" style="width:100%;margin-top:4px">
                 <option value="">Freeform — no kind</option>
                 <option value="Book">Book</option>
               </select></label>
-            <label style="flex:0 1 92px"><span class="form-note" style="display:block">Emoji</span>
+            <label style="flex:0 1 80px"><span class="form-note" style="display:block">Emoji</span>
               <input class="text-input" id="objEditEmoji" type="text" autocomplete="off" aria-label="Object emoji" style="width:100%;margin-top:4px" /></label>
-            <label style="flex:0 1 92px"><span class="form-note" style="display:block">Color</span>
+            <label style="flex:0 1 80px"><span class="form-note" style="display:block">Color</span>
               <input class="text-input" id="objEditColor" type="color" aria-label="Object color" style="width:100%;margin-top:4px;padding:2px;height:38px" /></label>
           </div>
-          <div id="objEditPromote" hidden style="margin-top:12px"></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-            <label style="flex:1 1 200px"><span class="form-note" style="display:block">Headline property — the object&rsquo;s display name on cards and chips</span>
+          <div id="objEditPromote" hidden style="margin-top:10px"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <label style="flex:1 1 180px"><span class="form-note" style="display:block">Headline property</span>
               <select class="text-input" id="objEditHeadline" aria-label="Headline property" style="width:100%;margin-top:4px"></select></label>
-            <label style="flex:1 1 200px"><span class="form-note" style="display:block">Art property — the image shown on the card</span>
+            <label style="flex:1 1 180px"><span class="form-note" style="display:block">Art property</span>
               <select class="text-input" id="objEditArt" aria-label="Art property" style="width:100%;margin-top:4px"></select></label>
           </div>
         </section>
         <section class="var-sec">
-          <h3 class="var-sec-head"><span>Properties</span></h3>
-          <div id="objEditProps" style="margin-top:10px"></div>
-          <button class="btn-ghost" id="objEditAddProp" type="button">+ Add property</button>
+          <h3 class="var-sec-head"><span>Shorthand</span></h3>
+          <div class="osh-wrap">
+            <textarea class="text-input osh-area" id="objEditShorthand" rows="8" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Object shorthand — one property per line" placeholder="Title.text = House of Suns"></textarea>
+            <div class="obj-docpick-list osh-pop" id="objShPop" hidden></div>
+          </div>
+          <div class="osh-errors" id="objShErrors" aria-live="polite"></div>
+          <button class="btn-ghost" id="objEditAddProp" type="button" style="margin-top:8px">+ Add property line</button>
         </section>
+        <section class="var-sec">
+          <h3 class="var-sec-head"><span>Live preview</span></h3>
+          <div class="folio-prose osh-preview-wrap" id="objShPreview"></div>
+        </section>
+        <div id="objEditProps" hidden></div>
         <p class="var-sh-error" id="objEditError" hidden></p>
         <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px">
           <button class="btn-danger" id="objEditDelete" type="button" hidden>Delete object</button>
@@ -7757,6 +7799,29 @@
         </div>
       </div>
     </div>
+
+    <div class="sh-grammar-pop" id="objShGrammarPop" hidden role="dialog" aria-label="Object shorthand grammar">
+      <div class="sh-grammar-head"><span>Object shorthand grammar</span></div>
+      <p class="sh-grammar-text">One property per line: Name.type.display.visibility = value — like Title.text = House of Suns, Rating.number.stars = 4.9, Status.text.pill = {TBR, Reading, Finished}, DateFinished.date.format(ISO) = 2026-01-01, Eggs.number.commas = =eggs*3000. Types: text, number, date, image, document, object, collection, live. Display and visibility are optional (plain and shown by default): pill and stars are the dresses, hidden ghost-renders in the preview, and numbers take .commas while dates take .format(Default), .format(ISO) or .format(&quot;MM/DD/YYYY&quot;). A value starting with = is a formula — the type names the result type. A {brace list} on a text property defines its pill options, first item as the value; a bare value leaves existing options alone. Document values are titles (an unmatched title stays pending); object and collection values pick by name and must match. Line order is card order; deleting a line deletes the property. Tab jumps from the shorthand to the preview card; arrows cross between them; Enter on a preview property opens its settings, which rewrite the line.</p>
+    </div>
+
+    <div class="overlay" id="objShPropModal" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="objShPropTitle">
+        <div class="panel-head">
+          <h2 id="objShPropTitle">Property</h2>
+          <button class="icon-btn" id="objShPropClose" type="button" aria-label="Close property settings" data-tip="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div id="objShPropBody"></div>
+        <p class="var-sh-error" id="objShPropError" hidden></p>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <button class="btn-ghost" id="objShPropCancel" type="button">Cancel</button>
+          <button class="btn-primary" id="objShPropApply" type="button">Apply</button>
+        </div>
+      </div>
+    </div>
+
 
     <div class="overlay" id="objDetailModal" hidden>
       <div class="panel" role="dialog" aria-modal="true" aria-labelledby="objDetailTitle" style="max-width:540px">
@@ -21363,6 +21428,21 @@
           } else {
             out.value = typeof p.value === 'string' ? p.value : (p.value == null ? '' : String(p.value));
           }
+          /* Build -191: the shorthand's expressed extras —
+             a formula (the property is computed; the type
+             names the RESULT type), the thousands-separator
+             switch on numbers, and a date display pattern.
+             A Live property's chip object (its binding's
+             parked settings) also survives untouched. None
+             of these exist on a collection property: its
+             members and defaults are its whole state. */
+          if (type !== 'coll') {
+            if (typeof p.formula === 'string' && p.formula.trim()) out.formula = p.formula;
+            if (p.commas === true && type === 'number') out.commas = true;
+            var npat = (p.datePat === 'ISO' || (typeof p.datePat === 'string' && p.datePat)) ? fxSanitizeDatePat(p.datePat) : null;
+            if (npat && (type === 'date' || type === 'live' || out.formula)) out.datePat = npat;
+            if (p.chip && typeof p.chip === 'object' && !Array.isArray(p.chip)) { try { out.chip = objClone(p.chip); } catch (e) {} }
+          }
           return out;
         }
         function objNormalizeRec(r) {
@@ -21860,10 +21940,23 @@
         }
         function objPropDisplay(rec, prop, homeDoc) {
           if (!rec || !prop) return '';
+          /* Build -191: a computed property — its formula
+             evaluates fresh on every read (a new session, so
+             a referenced variable's current value is what
+             renders), and the declared result type's display
+             chain (commas, date pattern) formats the result. */
+          if (prop.formula) {
+            var fr = oshEvalFormula(prop.formula, homeDoc);
+            if (!fr.ok) return fr.code || '#VALUE!';
+            if (fr.kind === 'date') return fxDateRender(fr.days, prop.datePat);
+            if (fr.kind === 'text') return fr.text;
+            if (fr.kind === 'blank') return '';
+            return fxFormat(fr.num, 'general', null, !!prop.commas);
+          }
           switch (prop.type) {
             case 'text': return prop.value || '';
-            case 'number': return prop.value || '';
-            case 'date': return prop.value ? chipDateDisplay(prop.value) : '';
+            case 'number': return prop.commas ? fxAddCommas(prop.value || '') : (prop.value || '');
+            case 'date': return prop.value ? (prop.datePat ? fxDateRenderISO(prop.value, prop.datePat) : chipDateDisplay(prop.value)) : '';
             case 'image': return prop.value || '';
             case 'doclink': {
               if (!prop.value) return '';
@@ -23825,15 +23918,19 @@
         /* ----- the create / edit modal ----- */
         function objEditDraftOf(rec) {
           if (!rec) return [{ id: null, name: 'Name', type: 'text', dress: null, options: [], show: true, value: '' }];
+          /* Build -191: the draft is a FULL clone of each
+             stored property — every field the shorthand does
+             not express (a collection's members and -188
+             defaults, a Live binding's chip, advanced
+             settings) rides along untouched, so an
+             open-and-save cycle can leave the record
+             byte-identical. */
           return rec.props.map(function (p) {
-            return {
-              id: p.id, name: p.name, type: p.type,
-              dress: p.dress || null, options: p.options ? p.options.slice() : [],
-              show: p.show !== false, value: p.value == null ? (p.type === 'objref' || p.type === 'live' ? null : '') : objClone(p.value),
-              /* Build -188: a collection property's new-member
-                 defaults draft alongside its member list. */
-              defaults: (p.type === 'coll' && p.defaults) ? objClone(p.defaults) : undefined,
-            };
+            var d = objClone(p);
+            if (!d.options) d.options = [];
+            if (d.show === undefined) d.show = true;
+            if (d.value == null && d.type !== 'objref' && d.type !== 'live') d.value = d.type === 'coll' ? [] : '';
+            return d;
           });
         }
         function openObjEdit(scope, rec) {
@@ -23858,6 +23955,9 @@
           document.getElementById('objEditDelete').hidden = !rec;
           objEditError('');
           objEditSyncPromote(rec);
+          oshBadLines = [];
+          oshErrors = [];
+          oshSeedFromPending(rec);
           objEditRenderProps();
           document.getElementById('objEditModal').hidden = false;
           setTimeout(function () {
@@ -23867,6 +23967,7 @@
         }
         function closeObjEdit() {
           document.getElementById('objEditModal').hidden = true;
+          try { oshClosePropPop(); oshPopHide(); oshGrammarHide(); } catch (e) {}
           objEditCtx = null;
           collPendingAdd = null;
         }
@@ -23896,12 +23997,18 @@
         }
         function objEditApplyKind(kind) {
           if (!objEditCtx || !kind || !OBJ_KINDS[kind]) return;
+          /* Build -191: the shorthand text is synced first —
+             the kind change works on the staged lines, then
+             re-serializes. It APPENDS the kind's missing
+             properties, never deletes a typed line, and
+             toasts what was added (point 7). A brand-new
+             object still starts from the kind's full schema
+             when nothing real has been typed yet. */
+          objEditCtx.draft = objEditReadRows();
           var schema = OBJ_KINDS[kind].schema();
           var blankOnly = objEditCtx.draft.length === 1 && !objEditCtx.draft[0].id && !objEditCtx.draft[0].value && objEditCtx.draft[0].name === 'Name';
           if (!objEditCtx.id && (blankOnly || !objEditCtx.draft.length)) {
-            objEditCtx.draft = schema.props.map(function (p) {
-              return { id: p.id, name: p.name, type: p.type, dress: p.dress || null, options: p.options ? p.options.slice() : [], show: true, value: p.value == null ? null : p.value };
-            });
+            objEditCtx.draft = schema.props.map(function (p) { return objClone(p); });
             objEditCtx.headlineIdx = objEditCtx.draft.findIndex(function (d) { return d.id === schema.headline; });
             objEditCtx.artIdx = objEditCtx.draft.findIndex(function (d) { return d.id === schema.art; });
             var em = document.getElementById('objEditEmoji');
@@ -23910,11 +24017,14 @@
             if (OBJ_KINDS[kind].color) co.value = OBJ_KINDS[kind].color;
           } else {
             var have = {};
-            objEditCtx.draft.forEach(function (d) { have[d.name.toLowerCase()] = true; });
+            objEditCtx.draft.forEach(function (d) { have[(d.name || '').toLowerCase()] = true; });
+            var added = [];
             schema.props.forEach(function (p) {
               if (have[p.name.toLowerCase()]) return;
-              objEditCtx.draft.push({ id: p.id, name: p.name, type: p.type, dress: p.dress || null, options: p.options ? p.options.slice() : [], show: true, value: p.value == null ? null : p.value });
+              objEditCtx.draft.push(objClone(p));
+              added.push(p.name);
             });
+            if (added.length) folioToast('Added from ' + kind + ': ' + added.join(', ') + '.');
           }
           objEditRenderProps();
         }
@@ -24454,232 +24564,23 @@
           el.value = typeof d.value === 'string' ? d.value : '';
           return el;
         }
+        /* Build -191: the rows UI is gone — the draft is
+           read back from the SHORTHAND TEXT (oshSyncFromText
+           parses every line independently into the staged
+           draft, preserving unexpressed fields), and
+           "rendering the properties" re-serializes the draft
+           into the textarea, syncs the face selects, and
+           repaints the live preview. The names stay because
+           the save path, the kind door and Detail all call
+           them. */
         function objEditReadRows() {
-          var out = [];
-          var rows = document.querySelectorAll('#objEditProps .obj-prop-row');
-          rows.forEach(function (row, idx) {
-            var prev = (objEditCtx && objEditCtx.draft[idx]) || {};
-            var type = row.querySelector('.obj-p-type').value;
-            var dressSel = row.querySelector('.obj-p-dress');
-            var dress = dressSel && dressSel.value ? dressSel.value : null;
-            var valEl = row.querySelector('.obj-p-value');
-            var raw = valEl ? valEl.value : '';
-            /* Decode by the type the value was AUTHORED as
-               (the draft's), not the row's possibly-just-
-               changed type select: a binding select's encoded
-               value must never leak into a text field. */
-            var decodeType = prev.type || type;
-            /* Build -188: the collection editor's new-member
-               defaults map, carried in its closure like its
-               member list (only on coll rows). */
-            var rowDefaults = (valEl && typeof valEl._collDefaults === 'function' && type === 'coll')
-              ? valEl._collDefaults()
-              : (prev.type === 'coll' ? prev.defaults : undefined);
-            var value;
-            if (valEl && typeof valEl._collValue === 'function') {
-              /* Build -182: the collection editor carries its
-                 member list in its closure. */
-              value = type === 'coll' ? valEl._collValue() : '';
-            }
-            else if (valEl && typeof valEl._docpickValue === 'function' && (decodeType === 'doclink' || type === 'doclink')) {
-              /* Build -181: the Document picker carries its
-                 own state — a bound id, a pending title, or
-                 uncommitted text the read resolves (an exact
-                 title binds; anything else stays pending).
-                 When the row's type has just changed AWAY
-                 from Document, the value flattens to the
-                 document's title as plain text. */
-              var dv = valEl._docpickValue();
-              if (type === 'doclink') value = dv;
-              else if (typeof dv === 'string') {
-                var dd = dv ? lib.docs.find(function (x) { return x.id === dv; }) : null;
-                value = dd ? (dd.title || 'Untitled') : '';
-              } else value = dv && dv.pending ? dv.pending : '';
-            }
-            else if (valEl && typeof valEl._pickValue === 'function') {
-              /* Build -183 (WS3): the search picker holds the
-                 binding — its encoded value is authoritative
-                 while the row wears the binding type; a row
-                 whose type has moved on flattens like any
-                 other object value. */
-              var pv = valEl._pickValue();
-              if (type === 'objref') value = pv ? { oid: pv.slice(2), s: pv.charAt(0) } : null;
-              else if (type === 'live') value = pv ? { vid: pv.slice(2), s: pv.charAt(0) } : null;
-              else value = (prev.value && typeof prev.value === 'object') ? '' : raw;
-            }
-            else if (decodeType === 'objref' && prev.type) value = (prev.value && typeof prev.value === 'object') ? prev.value : (raw && raw.indexOf(':') === 1 ? { oid: raw.slice(2), s: raw.charAt(0) } : null);
-            else if (decodeType === 'live' && prev.type) value = (prev.value && typeof prev.value === 'object') ? prev.value : (raw && raw.indexOf(':') === 1 ? { vid: raw.slice(2), s: raw.charAt(0) } : null);
-            else if (type === 'objref') value = raw && raw.indexOf(':') === 1 ? { oid: raw.slice(2), s: raw.charAt(0) } : null;
-            else if (type === 'live') value = raw && raw.indexOf(':') === 1 ? { vid: raw.slice(2), s: raw.charAt(0) } : null;
-            else value = (prev.value && typeof prev.value === 'object') ? '' : raw;
-            var options = [];
-            var optEl = row.querySelector('.obj-p-options');
-            if (optEl) options = optEl.value.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s; });
-            else if (prev.dress === 'status') options = prev.options || [];
-            out.push({
-              id: prev.id || null,
-              name: row.querySelector('.obj-p-name').value.trim(),
-              type: type, dress: dress, options: options,
-              show: row.querySelector('.obj-p-show').value !== 'hidden',
-              value: value,
-              defaults: rowDefaults,
-            });
-          });
-          return out;
+          if (!objEditCtx) return [];
+          oshSyncFromText();
+          return objEditCtx.draft;
         }
         function objEditRenderProps() {
           if (!objEditCtx) return;
-          var wrap = document.getElementById('objEditProps');
-          /* Build -181: EVERY re-render of this list used to
-             zero the modal's scroll. The panel (the modal's
-             own scroll container, per the -125 rule) measures
-             its scroll height from the live DOM; emptying the
-             wrap collapses that height below the current
-             scrollTop, the browser clamps scrollTop to the
-             shrunken maximum — often zero — and the rebuilt
-             list never restores it. So the scroll position is
-             captured before the rebuild and restored after
-             (and once more on the next frame, for engines
-             that settle layout late), for add, remove,
-             reorder, type change, dress change and kind-apply
-             alike — they all funnel through here. */
-          var panel = wrap.closest ? wrap.closest('.panel') : null;
-          var keepScroll = panel ? panel.scrollTop : 0;
-          wrap.innerHTML = '';
-          objEditCtx.draft.forEach(function (d, idx) {
-            var row = document.createElement('div');
-            row.className = 'obj-prop-row';
-            var head = document.createElement('div');
-            head.className = 'obj-prop-head';
-            var nameIn = document.createElement('input');
-            nameIn.className = 'text-input obj-p-name';
-            nameIn.type = 'text';
-            nameIn.value = d.name || '';
-            nameIn.setAttribute('aria-label', 'Property name');
-            nameIn.setAttribute('autocomplete', 'off');
-            nameIn.setAttribute('autocorrect', 'off');
-            nameIn.setAttribute('autocapitalize', 'none');
-            nameIn.setAttribute('spellcheck', 'false');
-            head.appendChild(nameIn);
-            var typeSel = document.createElement('select');
-            typeSel.className = 'text-input obj-p-type';
-            typeSel.setAttribute('aria-label', 'Property type');
-            [['text', 'Text'], ['number', 'Number'], ['date', 'Date'], ['image', 'Image URL'], ['doclink', 'Document'], ['objref', 'Object'], ['live', 'Live variable'], ['coll', 'Collection']].forEach(function (pair) {
-              var o = document.createElement('option');
-              o.value = pair[0]; o.textContent = pair[1];
-              typeSel.appendChild(o);
-            });
-            typeSel.value = d.type;
-            typeSel.addEventListener('change', function () {
-              objEditCtx.draft = objEditReadRows();
-              var nd = objEditCtx.draft[idx];
-              nd.type = typeSel.value;
-              if (nd.type !== 'text' && nd.dress === 'status') nd.dress = null;
-              if (nd.type !== 'number' && nd.dress === 'rating') nd.dress = null;
-              if (nd.type === 'objref' || nd.type === 'live') { if (typeof nd.value === 'string') nd.value = null; }
-              else if (nd.type === 'coll') { if (!Array.isArray(nd.value)) nd.value = []; }
-              else if (nd.value && typeof nd.value === 'object' && nd.type !== 'doclink') nd.value = '';
-              /* Build -181: arriving at Document from a plain
-                 text field, the typed string resolves like
-                 picker text — an exact title binds by
-                 identity, anything else becomes a pending
-                 title. */
-              if (nd.type === 'doclink' && typeof nd.value === 'string') nd.value = objDocPickResolveText(nd.value);
-              objEditRenderProps();
-            });
-            head.appendChild(typeSel);
-            var acts = document.createElement('span');
-            acts.className = 'obj-prop-acts';
-            acts.appendChild(objIconBtn('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m18 15-6-6-6 6"/></svg>', 'Move property up', '', function () {
-              if (idx === 0) return;
-              objEditCtx.draft = objEditReadRows();
-              var t = objEditCtx.draft[idx - 1]; objEditCtx.draft[idx - 1] = objEditCtx.draft[idx]; objEditCtx.draft[idx] = t;
-              if (objEditCtx.headlineIdx === idx) objEditCtx.headlineIdx = idx - 1; else if (objEditCtx.headlineIdx === idx - 1) objEditCtx.headlineIdx = idx;
-              if (objEditCtx.artIdx === idx) objEditCtx.artIdx = idx - 1; else if (objEditCtx.artIdx === idx - 1) objEditCtx.artIdx = idx;
-              objEditRenderProps();
-            }));
-            acts.appendChild(objIconBtn('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>', 'Move property down', '', function () {
-              if (idx >= objEditCtx.draft.length - 1) return;
-              objEditCtx.draft = objEditReadRows();
-              var t = objEditCtx.draft[idx + 1]; objEditCtx.draft[idx + 1] = objEditCtx.draft[idx]; objEditCtx.draft[idx] = t;
-              if (objEditCtx.headlineIdx === idx) objEditCtx.headlineIdx = idx + 1; else if (objEditCtx.headlineIdx === idx + 1) objEditCtx.headlineIdx = idx;
-              if (objEditCtx.artIdx === idx) objEditCtx.artIdx = idx + 1; else if (objEditCtx.artIdx === idx + 1) objEditCtx.artIdx = idx;
-              objEditRenderProps();
-            }));
-            acts.appendChild(objIconBtn(TRASH_SVG, 'Remove property', 'danger', function () {
-              objEditCtx.draft = objEditReadRows();
-              objEditCtx.draft.splice(idx, 1);
-              if (objEditCtx.headlineIdx === idx) objEditCtx.headlineIdx = objEditCtx.draft.length ? 0 : null;
-              else if (objEditCtx.headlineIdx != null && objEditCtx.headlineIdx > idx) objEditCtx.headlineIdx--;
-              if (objEditCtx.artIdx === idx) objEditCtx.artIdx = null;
-              else if (objEditCtx.artIdx != null && objEditCtx.artIdx > idx) objEditCtx.artIdx--;
-              objEditRenderProps();
-            }));
-            head.appendChild(acts);
-            row.appendChild(head);
-            var valWrap = document.createElement('div');
-            valWrap.className = 'obj-prop-val';
-            valWrap.appendChild(objEditValueEl(d));
-            row.appendChild(valWrap);
-            var meta = document.createElement('div');
-            meta.className = 'obj-prop-meta';
-            var dressSel = document.createElement('select');
-            dressSel.className = 'text-input obj-p-dress';
-            dressSel.setAttribute('aria-label', 'Property dress');
-            var dressOpts = [['', 'Plain']];
-            if (d.type === 'text') dressOpts.push(['status', 'Status pill']);
-            if (d.type === 'number') dressOpts.push(['rating', 'Rating (stars)']);
-            dressOpts.forEach(function (pair) {
-              var o = document.createElement('option');
-              o.value = pair[0]; o.textContent = pair[1];
-              dressSel.appendChild(o);
-            });
-            dressSel.value = d.dress || '';
-            dressSel.addEventListener('change', function () {
-              objEditCtx.draft = objEditReadRows();
-              objEditRenderProps();
-            });
-            meta.appendChild(dressSel);
-            var showSel = document.createElement('select');
-            showSel.className = 'text-input obj-p-show';
-            showSel.setAttribute('aria-label', 'Show on card');
-            [['shown', 'Shown on card'], ['hidden', 'Hidden from card']].forEach(function (pair) {
-              var o = document.createElement('option');
-              o.value = pair[0]; o.textContent = pair[1];
-              showSel.appendChild(o);
-            });
-            showSel.value = d.show === false ? 'hidden' : 'shown';
-            meta.appendChild(showSel);
-            row.appendChild(meta);
-            if (d.dress === 'status') {
-              var optIn = document.createElement('input');
-              optIn.className = 'text-input obj-p-options';
-              optIn.type = 'text';
-              optIn.value = (d.options || []).join(', ');
-              optIn.setAttribute('aria-label', 'Status options, comma separated');
-              optIn.setAttribute('placeholder', 'Options, comma separated — the card pill cycles them');
-              optIn.setAttribute('autocomplete', 'off');
-              optIn.setAttribute('autocorrect', 'off');
-              optIn.setAttribute('autocapitalize', 'none');
-              optIn.setAttribute('spellcheck', 'false');
-              optIn.style.width = '100%';
-              optIn.style.marginTop = '8px';
-              row.appendChild(optIn);
-            }
-            wrap.appendChild(row);
-          });
-          objEditSyncFace();
-          if (panel && keepScroll) {
-            panel.scrollTop = keepScroll;
-            /* The clamp this guards against only ever pulls
-               scrollTop DOWN, so the frame-late restore only
-               raises it back — a deliberate scroll past the
-               preserved point in the same frame (the Add
-               handler revealing the new card) is left alone. */
-            requestAnimationFrame(function () {
-              if (panel.isConnected && objEditCtx && panel.scrollTop < keepScroll) panel.scrollTop = keepScroll;
-            });
-          }
+          oshRenderAll(true);
         }
         function objEditSyncFace() {
           if (!objEditCtx) return;
@@ -24709,6 +24610,10 @@
           if (!objEditCtx) return false;
           var ctx = objEditCtx;
           ctx.draft = objEditReadRows();
+          /* Build -191 (-164 discipline): any invalid
+             shorthand line blocks the save with the reason
+             on the fixed error line, and nothing commits. */
+          if (oshErrors.length) { objEditError(oshErrors[0].msg); return false; }
           ctx.headlineIdx = (function () { var v = document.getElementById('objEditHeadline').value; return v === '' ? null : parseInt(v, 10); })();
           ctx.artIdx = (function () { var v = document.getElementById('objEditArt').value; return v === '' ? null : parseInt(v, 10); })();
           var name = objCleanName(document.getElementById('objEditName').value);
@@ -25630,6 +25535,1096 @@
             }
           }
         }
+        /* ============================================================
+           Build -191: OBJECT SHORTHAND + LIVE PREVIEW.
+           The object modal's properties section is now a
+           shorthand text area (one property per line:
+           Name.type[.display][.visibility][.subtoken...] = value)
+           two-way bound to a live preview card rendered by the
+           card's own display rules. Lines parse INDEPENDENTLY
+           and LIVE into the staged draft (the -154 discipline):
+           an invalid line changes nothing, flags itself in red,
+           and blocks Save with its reason on the fixed error
+           line (the -164 discipline). Settings the grammar does
+           not express — a collection's members and -188
+           defaults, a Live binding's chip, advanced fields —
+           are PRESERVED across line edits and open/save cycles:
+           the draft entry starts as a clone of the previous
+           staged property and only expressed fields move.
+           ============================================================ */
+        var OSH_TYPE_TOKENS = { text: 'text', number: 'number', date: 'date', image: 'image', document: 'doclink', doclink: 'doclink', object: 'objref', objref: 'objref', collection: 'coll', coll: 'coll', live: 'live' };
+        var OSH_TYPE_LABEL = { text: 'text', number: 'number', date: 'date', image: 'image', doclink: 'document', objref: 'object', coll: 'collection', live: 'live' };
+        var oshErrors = [];
+        var oshBadLines = [];
+        var oshPopItems = [];
+        var oshPopHi = 0;
+        var oshPopCtx = null;
+        var oshPropCtx = null;
+        var oshFocusIdx = 0;
+
+        function oshDoc() { return objEditCtx && objEditCtx.docId ? varDocById(objEditCtx.docId) : null; }
+        function oshScope() { return objEditCtx && objEditCtx.scope === 'doc' ? 'doc' : 'global'; }
+        function oshArea() { return document.getElementById('objEditShorthand'); }
+
+        /* Evaluate a formula expression text against the
+           current stores. A fresh session per call, so the
+           preview (and every card read) always sees current
+           values — when `eggs` changes, the next render
+           recomputes. */
+        function oshEvalFormula(expr, homeDoc) {
+          var scope = homeDoc ? 'doc' : 'global';
+          var conv = fxTokensFromText(String(expr || ''), scope, homeDoc, null, null);
+          if (conv.error) return { ok: false, code: '#VALUE!', msg: conv.error };
+          try {
+            var ast = fxParse(conv.tokens);
+            var pseudo = { id: '__osh__', name: 'object' };
+            var sess = fxNewSession(pseudo, { scope: scope, doc: homeDoc });
+            return fxEvalAst(ast, { scope: scope, doc: homeDoc }, sess);
+          } catch (e) {
+            return { ok: false, code: '#VALUE!', msg: (e && e.fx) || 'That formula can’t be evaluated.' };
+          }
+        }
+        function oshFormulaError(expr, homeDoc) {
+          var scope = homeDoc ? 'doc' : 'global';
+          var conv = fxTokensFromText(String(expr || ''), scope, homeDoc, null, null);
+          if (conv.error) {
+            if (conv.unknown) return 'Unknown name “' + conv.unknown + '” in the formula.';
+            return conv.error;
+          }
+          try { fxParse(conv.tokens); } catch (e) { return (e && e.fx) || 'The formula can’t be read.'; }
+          return null;
+        }
+
+        /* Split a line's header on its segment dots, honoring
+           parentheses and quotes (a .format("MM.DD.YYYY")
+           pattern may itself contain dots). Returns segments
+           with their start offsets in the header. */
+        function oshSplitHeader(header) {
+          var segs = [], depth = 0, inQ = false, start = 0;
+          for (var i = 0; i <= header.length; i++) {
+            var c = header.charAt(i);
+            if (i === header.length || (c === '.' && depth === 0 && !inQ)) { segs.push({ t: header.slice(start, i), at: start }); start = i + 1; continue; }
+            if (inQ) { if (c === '"') inQ = false; continue; }
+            if (c === '"') inQ = true;
+            else if (c === '(') depth++;
+            else if (c === ')') depth--;
+          }
+          return segs;
+        }
+
+        /* Parse ONE shorthand line against the previous staged
+           entry (prev, may be null). Returns { entry } or
+           { error, bad }. Only expressed fields are written;
+           everything else is inherited from prev. */
+        function oshParseLine(raw, prev) {
+          function err(msg, bad) { return { error: msg, bad: bad || null }; }
+          var line = String(raw == null ? '' : raw);
+          var eq = line.indexOf('=');
+          if (eq === -1) return err('Each line needs “= value” after its segments — like Title.text = House of Suns.');
+          var header = line.slice(0, eq).trim();
+          var valuePart = line.slice(eq + 1).trim();
+          var segs = oshSplitHeader(header);
+          var name = (segs[0] ? segs[0].t : '').trim();
+          if (!VAR_NAME_RE.test(name)) return err('“' + (name || '(blank)') + '” isn’t a property name — a letter first, then letters, digits and underscores (no period: the dot separates the segments).', name || null);
+          if (segs.length < 2 || !segs[1].t.trim()) return err('“' + name + '” needs a type — text, number, date, image, document, object, collection or live.', name);
+          var typeTok = segs[1].t.trim().toLowerCase();
+          var type = OSH_TYPE_TOKENS[typeTok];
+          if (!type) return err('“' + segs[1].t.trim() + '” isn’t a type — text, number, date, image, document, object, collection or live.', segs[1].t.trim());
+          var entry = prev ? objClone(prev) : { id: null, name: name, type: type, dress: null, options: [], show: true, value: type === 'coll' ? [] : (type === 'objref' || type === 'live' ? null : '') };
+          entry.name = name;
+          /* A type change follows the old modal's semantics:
+             bindings and member lists never leak across types. */
+          if (prev && prev.type !== type) {
+            if (type === 'coll') entry.value = [];
+            else if (type === 'objref' || type === 'live') entry.value = null;
+            else if (entry.value && typeof entry.value === 'object') entry.value = '';
+            if (type !== 'coll') delete entry.defaults;
+            delete entry.formula;
+          }
+          entry.type = type;
+          /* Segments after the type, classified by vocabulary
+             in any order (the VarCode subtoken chaining rule).
+             Absence speaks too: display defaults to plain and
+             visibility to shown — that IS the grammar. */
+          var dress = null, dressSeen = false, show = true, commas = false, datePat = undefined, datePatSet = false;
+          for (var si = 2; si < segs.length; si++) {
+            var seg = segs[si].t.trim();
+            if (!seg) return err('An empty segment in “' + header + '” — check the dots.', header);
+            var low = seg.toLowerCase();
+            if (low === 'plain') { dress = null; dressSeen = true; continue; }
+            if (low === 'pill' || low === 'status' || low === 'dropdown') {
+              if (type !== 'text') return err('The ' + low + ' dress only fits a text property — “' + name + '” is ' + OSH_TYPE_LABEL[type] + '.', seg);
+              dress = 'status'; dressSeen = true; continue;
+            }
+            if (low === 'stars' || low === 'rating') {
+              if (type !== 'number') return err('The stars dress only fits a number property — “' + name + '” is ' + OSH_TYPE_LABEL[type] + '.', seg);
+              dress = 'rating'; dressSeen = true; continue;
+            }
+            if (low === 'shown') { show = true; continue; }
+            if (low === 'hidden') { show = false; continue; }
+            if (low === 'commas') {
+              if (type !== 'number' && !valuePart.startsWith('=')) return err('.commas only fits a number property — “' + name + '” is ' + OSH_TYPE_LABEL[type] + '.', seg);
+              commas = true; continue;
+            }
+            var fm = /^format\((.*)\)$/i.exec(seg);
+            if (fm) {
+              var pa = shDatePatArg(fm[1]);
+              if (pa.error) return err(pa.error, seg);
+              datePat = pa.datePat; datePatSet = true; continue;
+            }
+            if (['stepper', 'slider', 'toggle', 'checkbox', 'multiplier'].indexOf(low) !== -1 || /^(stepper|slider|toggle|checkbox|multiplier)\./.test(low)) {
+              return err('“' + seg + '” is a chip dress an object property can’t wear — a Live property takes its chip from the variable it binds.', seg);
+            }
+            return err('“' + seg + '” isn’t a display, visibility or setting for a ' + OSH_TYPE_LABEL[type] + ' property.', seg);
+          }
+          entry.dress = dress;
+          entry.show = show;
+          if (type === 'number' || valuePart.startsWith('=')) entry.commas = commas ? true : undefined;
+          if (entry.commas === undefined) delete entry.commas;
+          if (datePatSet) { if (datePat) entry.datePat = datePat; else delete entry.datePat; }
+          /* ----- the value ----- */
+          var doc = oshDoc();
+          if (valuePart.charAt(0) === '=') {
+            var expr = valuePart.slice(1).trim();
+            if (!expr) return err('The formula is empty after the = sign.');
+            var ferr = oshFormulaError(expr, doc);
+            if (ferr) return err(ferr, expr);
+            /* Live round-trip: a formula that is exactly the
+               bound variable's name, on the property that
+               already binds it, stays the binding. */
+            if (prev && prev.type === 'live' && prev.value && prev.value.vid && /^[A-Za-z][A-Za-z0-9_]*$/.test(expr)) {
+              var bf = varFindAny(prev.value.vid);
+              if (bf && bf.rec.name.toLowerCase() === expr.toLowerCase()) {
+                entry.type = 'live'; entry.value = objClone(prev.value); delete entry.formula;
+                return { entry: entry };
+              }
+            }
+            if (type === 'live' && /^[A-Za-z][A-Za-z0-9_]*$/.test(expr)) {
+              var vf = fxFindByNameIn(oshScope(), doc, expr);
+              if (vf) { entry.type = 'live'; entry.value = { vid: vf.rec.id, s: vf.scope === 'doc' ? 'd' : 'g' }; delete entry.formula; return { entry: entry }; }
+            }
+            if (type === 'coll') return err('A collection property can’t be a formula — its members are managed in the preview popup.', expr);
+            entry.formula = expr;
+            return { entry: entry };
+          }
+          delete entry.formula;
+          if (valuePart.charAt(0) === '{') {
+            if (type !== 'text') return err('A {…} option list makes a dropdown — it only fits a text property, and “' + name + '” is ' + OSH_TYPE_LABEL[type] + '.', valuePart);
+            if (valuePart.charAt(valuePart.length - 1) !== '}') return err('The option list that opens with “{” needs its closing “}” — like {TBR, Reading, Finished}.', valuePart);
+            var items = shSplitTop(valuePart.slice(1, -1), ',').map(function (x) { return shUnquote(x.trim()); });
+            if (!items.length || items.some(function (x) { return !x; })) return err('The option list needs at least one non-empty option — like {TBR, Reading, Finished}.', valuePart);
+            entry.options = items.slice(0, 12);
+            entry.dress = 'status';
+            entry.value = items[0];
+            return { entry: entry };
+          }
+          switch (type) {
+            case 'text': {
+              entry.value = valuePart;
+              if (entry.dress === 'status') {
+                var hadOpts = prev && prev.type === 'text' && prev.options && prev.options.length;
+                if (!hadOpts) entry.options = valuePart ? [valuePart] : [];
+                else entry.options = prev.options.slice();
+              }
+              break;
+            }
+            case 'number': {
+              if (valuePart && fxParseNum(valuePart) === null) return err('“' + name + '” is a number property — “' + valuePart + '” isn’t a number.', valuePart);
+              entry.value = valuePart;
+              break;
+            }
+            case 'date': {
+              if (valuePart && fxDateDaysFromISO(valuePart) === null) return err('“' + name + '” is a date property — write the date as 2026-01-01.', valuePart);
+              entry.value = valuePart;
+              break;
+            }
+            case 'image': entry.value = valuePart; break;
+            case 'doclink': entry.value = valuePart ? objDocPickResolveText(valuePart) : ''; break;
+            case 'objref': {
+              if (!valuePart) { entry.value = null; break; }
+              var of = fxFindObjByNameIn(oshScope(), doc, valuePart);
+              if (!of) return err('“' + valuePart + '” isn’t an object — pick one from the list as you type; objects can’t be pending.', valuePart);
+              entry.value = { oid: of.rec.id, s: of.scope === 'doc' ? 'd' : 'g' };
+              break;
+            }
+            case 'coll': {
+              if (!valuePart) break; /* members ride the staged entry untouched */
+              var cf = fxFindCollByNameIn(oshScope(), doc, valuePart);
+              if (!cf) return err('“' + valuePart + '” isn’t a collection — pick one from the list as you type, or leave the value empty and manage members in the preview popup.', valuePart);
+              entry.value = objClone(cf.coll.members || []);
+              break;
+            }
+            case 'live': {
+              if (!valuePart) { entry.value = null; break; }
+              var lf = fxFindByNameIn(oshScope(), doc, valuePart);
+              if (!lf) return err('“' + valuePart + '” isn’t a variable — pick one from the list as you type.', valuePart);
+              entry.value = { vid: lf.rec.id, s: lf.scope === 'doc' ? 'd' : 'g' };
+              break;
+            }
+          }
+          return { entry: entry };
+        }
+
+        /* Serialize one staged entry back to its canonical
+           line. A Live binding renders its known result type
+           in the type slot (live when unknown) and its
+           variable as a one-name formula — the parse rule
+           above reads that straight back into the binding. */
+        function oshSerializeEntry(d) {
+          var doc = oshDoc();
+          var typeTok = OSH_TYPE_LABEL[d.type] || 'text';
+          var valueText = '';
+          if (d.type === 'live' && d.value && d.value.vid && !d.formula) {
+            var f = varFindAny(d.value.vid);
+            if (f) {
+              var rv = varRecordValue(f.rec, f.scope === 'doc' ? (varDocById(f.docId) || doc) : null);
+              var rt = 'live';
+              if (typeof rv === 'string' && rv.trim() !== '') {
+                if (fxParseNum(rv) !== null) rt = 'number';
+                else if (fxDateDaysFromISO(rv) !== null) rt = 'date';
+                else rt = 'text';
+              }
+              typeTok = rt;
+              valueText = '=' + f.rec.name;
+            } else typeTok = 'live';
+          } else if (d.formula) {
+            valueText = '=' + d.formula;
+          } else if (d.type === 'doclink') {
+            var pend = objDoclinkPendingTitle(d.value);
+            if (pend) valueText = pend;
+            else if (typeof d.value === 'string' && d.value) {
+              var dd = lib.docs.find(function (x) { return x.id === d.value; });
+              valueText = dd ? (dd.title || 'Untitled') : '';
+            }
+          } else if (d.type === 'objref') {
+            if (d.value && d.value.oid) {
+              var t = objResolveBound(doc, d.value.oid, d.value.s);
+              valueText = t ? t.rec.name : '';
+            }
+          } else if (d.type === 'coll') {
+            valueText = '';
+          } else if (d.type === 'live') {
+            valueText = '';
+          } else {
+            valueText = typeof d.value === 'string' ? d.value : '';
+          }
+          var line = d.name + '.' + typeTok;
+          if (d.dress === 'status') line += '.pill';
+          else if (d.dress === 'rating') line += '.stars';
+          if (d.show === false) line += '.hidden';
+          if (d.commas) line += '.commas';
+          if (d.datePat) line += '.format(' + shPatArg(d.datePat) + ')';
+          return line + ' = ' + valueText;
+        }
+
+        /* Parse the whole textarea into the staged draft.
+           Lines apply independently: a valid line replaces
+           its staged entry (matched by position, then by
+           name, so reordered lines keep their identities and
+           unexpressed fields); an invalid line leaves the
+           previously staged entry standing and records its
+           error. Blank lines are ignored. */
+        function oshSyncFromText() {
+          if (!objEditCtx) return;
+          var area = oshArea();
+          if (!area) return;
+          var prevDraft = objEditCtx.draft || [];
+          var headlineId = objEditCtx.headlineIdx != null && prevDraft[objEditCtx.headlineIdx] ? prevDraft[objEditCtx.headlineIdx].id : null;
+          var artId = objEditCtx.artIdx != null && prevDraft[objEditCtx.artIdx] ? prevDraft[objEditCtx.artIdx].id : null;
+          var lines = area.value.split('\n');
+          var next = [], errs = [], seen = {}, usedPrev = {};
+          oshBadLines = [];
+          lines.forEach(function (raw, li) {
+            if (!raw.trim()) return;
+            var guessName = (oshSplitHeader(raw.slice(0, raw.indexOf('=') === -1 ? raw.length : raw.indexOf('=')))[0] || {}).t;
+            guessName = (guessName || '').trim().toLowerCase();
+            var prev = null, prevIx = -1;
+            if (prevDraft[li] && !usedPrev[li] && (prevDraft[li].name || '').toLowerCase() === guessName) { prev = prevDraft[li]; prevIx = li; }
+            else {
+              for (var k = 0; k < prevDraft.length; k++) {
+                if (!usedPrev[k] && (prevDraft[k].name || '').toLowerCase() === guessName && guessName) { prev = prevDraft[k]; prevIx = k; break; }
+              }
+              if (!prev && prevDraft[li] && !usedPrev[li]) {
+                /* Positional fallback (the rename case: the
+                   name changed, so the name search missed) —
+                   but ONLY when the line's declared type still
+                   matches the entry that sat here. Without the
+                   type gate, deleting lines above shifts
+                   everything up and an unrelated broken line
+                   would silently "retain" a property the user
+                   deleted (a Bogus.bogus line keeping the old
+                   line-2 Status alive). A rename keeps its
+                   type; a retype-and-rename in one edit falls
+                   back to delete + create. */
+                var hSegs = oshSplitHeader(raw.slice(0, raw.indexOf('=') === -1 ? raw.length : raw.indexOf('=')));
+                var hTypeTok = hSegs[1] ? (hSegs[1].t || '').trim().toLowerCase() : '';
+                var hType = OSH_TYPE_IN[hTypeTok];
+                if (hType && hType === prevDraft[li].type) { prev = prevDraft[li]; prevIx = li; }
+              }
+            }
+            var r = oshParseLine(raw, prev);
+            if (r.error) {
+              errs.push({ line: li + 1, msg: 'Line ' + (li + 1) + ': ' + r.error, bad: r.bad });
+              /* A brand-new line that doesn't parse yet has
+                 no staged entry to serialize from — remember
+                 its raw text so a re-render (a popup Apply, a
+                 Kind change) can splice it back instead of
+                 silently deleting the user's in-progress
+                 line. (An invalid EDIT of an existing property
+                 needs no splice: the staged entry serializes
+                 canonically, the property survives.) */
+              if (!prev) oshBadLines.push({ at: next.length, raw: raw });
+              if (prev) { next.push(objClone(prev)); if (prevIx >= 0) usedPrev[prevIx] = true; }
+              return;
+            }
+            var low = r.entry.name.toLowerCase();
+            if (seen[low]) {
+              errs.push({ line: li + 1, msg: 'Line ' + (li + 1) + ': Two properties named “' + r.entry.name + '” — property names are unique within an object.', bad: r.entry.name });
+              if (prev) { next.push(objClone(prev)); if (prevIx >= 0) usedPrev[prevIx] = true; }
+              return;
+            }
+            seen[low] = true;
+            if (prevIx >= 0) usedPrev[prevIx] = true;
+            next.push(r.entry);
+          });
+          objEditCtx.draft = next;
+          oshErrors = errs;
+          oshBadLines = oshBadLines.filter(function (b) { return b.raw && b.raw.trim(); });
+          objEditCtx.headlineIdx = headlineId ? next.findIndex(function (d) { return d.id === headlineId; }) : (next.length ? 0 : null);
+          if (objEditCtx.headlineIdx === -1) objEditCtx.headlineIdx = next.length ? 0 : null;
+          objEditCtx.artIdx = artId ? next.findIndex(function (d) { return d.id === artId; }) : null;
+          if (objEditCtx.artIdx === -1) objEditCtx.artIdx = null;
+          oshRenderErrors();
+          objEditSyncFace();
+          oshRenderPreview();
+        }
+        function oshRenderErrors() {
+          var box = document.getElementById('objShErrors');
+          var area = oshArea();
+          if (area) area.classList.toggle('invalid', oshErrors.length > 0);
+          if (!box) return;
+          box.innerHTML = '';
+          oshErrors.forEach(function (e) {
+            var p = document.createElement('p');
+            p.className = 'osh-err-line';
+            if (e.bad && e.msg.indexOf(e.bad) !== -1) {
+              var ix = e.msg.indexOf(e.bad);
+              p.appendChild(document.createTextNode(e.msg.slice(0, ix)));
+              var sp = document.createElement('span');
+              sp.className = 'sh-bad';
+              sp.textContent = e.bad;
+              p.appendChild(sp);
+              p.appendChild(document.createTextNode(e.msg.slice(ix + e.bad.length)));
+            } else p.textContent = e.msg;
+            box.appendChild(p);
+          });
+        }
+        /* Re-serialize the draft into the textarea and repaint
+           everything (open, kind change, popup apply, seeding). */
+        function oshRenderAll(preserveBad) {
+          if (!objEditCtx) return;
+          var area = oshArea();
+          if (area) {
+            var outLines = objEditCtx.draft.map(oshSerializeEntry);
+            if (preserveBad) {
+              oshBadLines.forEach(function (b, k) {
+                outLines.splice(Math.min(b.at + k, outLines.length), 0, b.raw);
+              });
+            }
+            area.value = outLines.join('\n');
+          }
+          if (!preserveBad) oshErrors = [];
+          oshRenderErrors();
+          objEditSyncFace();
+          oshRenderPreview();
+        }
+
+        /* Create-into-a-collection seeding (point 9): when the
+           modal was opened by a collection's create door, the
+           new object's lines start from that collection's -188
+           defaults — literal specs become value text, the
+           containing-object-name spec resolves now. Save still
+           runs collApplyDefaults, which fills only what's
+           empty, so the seeded lines and the store agree. */
+        function oshSeedFromPending(rec) {
+          if (rec || !objEditCtx || !collPendingAdd) return;
+          var doc = oshDoc() || varCtxDoc();
+          var map = null;
+          try { map = collDefaultsMapFor(collPendingAdd.src, doc); } catch (e) {}
+          if (!map) return;
+          Object.keys(map).forEach(function (key) {
+            var spec = map[key];
+            var d = null;
+            objEditCtx.draft.forEach(function (x) { if ((x.name || '').toLowerCase() === key) d = x; });
+            if (!d) {
+              var s = null;
+              try { s = collSourceMembers(collPendingAdd.src, doc); } catch (e) {}
+              var tmpl = null;
+              if (s) collMembersResolved(s.members, doc).forEach(function (e2) { if (!tmpl) tmpl = objPropByName(e2.rec, key); });
+              if (!tmpl || tmpl.type === 'coll') return;
+              d = objClone(tmpl);
+              d.id = null; d.value = tmpl.type === 'objref' || tmpl.type === 'live' ? null : '';
+              objEditCtx.draft.push(d);
+            }
+            if (!objPropIsEmpty(d)) return;
+            var v = collDefaultResolve(spec, collPendingAdd.src, doc);
+            if (v === undefined || v === null || v === '') return;
+            if (spec.k === 'lit' || spec.k === 'owner') d.value = v;
+          });
+        }
+
+        /* ----- the live preview card -----
+           The staged object rendered with the card's own
+           display rules (objPropDisplay + the Detail face
+           helpers): live pill, fractional stars, dashed
+           pending documents. Hidden properties render
+           GHOSTED with a marker (point 5) so they stay
+           clickable; on a real card they are absent. */
+        function oshPreviewRec() {
+          var name = document.getElementById('objEditName').value;
+          var props = objEditCtx.draft.map(function (d) { var n = objNormalizeProp(objClone(d)); return n || objClone(d); });
+          var rec = {
+            id: objEditCtx.id || '__osh_preview__', name: name || 'Object',
+            kind: document.getElementById('objEditKind').value || null,
+            emoji: document.getElementById('objEditEmoji').value.trim(),
+            color: document.getElementById('objEditColor').value || '',
+            headline: null, art: null, props: props,
+          };
+          var h = objEditCtx.headlineIdx, a = objEditCtx.artIdx;
+          if (h != null && props[h]) rec.headline = props[h].id;
+          if (a != null && props[a]) rec.art = props[a].id;
+          if (!rec.headline && props.length) rec.headline = props[0].id;
+          return rec;
+        }
+        function oshRenderPreview() {
+          var wrap = document.getElementById('objShPreview');
+          if (!wrap || !objEditCtx) return;
+          var keepFocus = document.activeElement && wrap.contains(document.activeElement) ? oshFocusIdx : null;
+          wrap.innerHTML = '';
+          var rec = oshPreviewRec();
+          var doc = oshDoc();
+          var card = document.createElement('div');
+          card.className = 'obj-card';
+          var artP = rec.art ? rec.props.find(function (p) { return p.id === rec.art; }) : null;
+          var artUrl = artP && artP.type === 'image' ? objPropDisplay(rec, artP, doc) : '';
+          if (artUrl) {
+            var img = document.createElement('img');
+            img.className = 'obj-card-art';
+            img.src = artUrl;
+            img.alt = '';
+            card.appendChild(img);
+          } else if (rec.emoji || rec.color) {
+            var fb = document.createElement('div');
+            fb.className = 'obj-card-fallback';
+            if (rec.color) fb.style.background = rec.color;
+            fb.textContent = rec.emoji || '';
+            card.appendChild(fb);
+          }
+          var body = document.createElement('div');
+          body.className = 'obj-card-body';
+          var head = document.createElement('div');
+          head.className = 'obj-card-head';
+          head.textContent = objHeadline(rec, doc) || rec.name;
+          body.appendChild(head);
+          if (rec.kind) {
+            var kd = document.createElement('div');
+            kd.className = 'obj-card-kind';
+            kd.textContent = rec.kind;
+            body.appendChild(kd);
+          }
+          var rows = document.createElement('div');
+          rows.className = 'obj-card-rows';
+          rec.props.forEach(function (p, idx) {
+            if (p.id === rec.headline || p.id === rec.art) return;
+            var row = document.createElement('div');
+            row.className = 'obj-card-row osh-pv-row' + (p.show === false ? ' osh-ghost' : '');
+            row.tabIndex = 0;
+            row.setAttribute('role', 'button');
+            row.setAttribute('aria-label', 'Edit property ' + p.name);
+            row.dataset.oshIdx = String(idx);
+            var lab = document.createElement('span');
+            lab.className = 'obj-card-label';
+            lab.textContent = p.name;
+            row.appendChild(lab);
+            var val = document.createElement('span');
+            val.className = 'obj-card-val';
+            oshPaintPreviewValue(val, rec, p, doc);
+            row.appendChild(val);
+            if (p.show === false) {
+              var tag = document.createElement('span');
+              tag.className = 'osh-hidden-tag';
+              tag.textContent = 'hidden';
+              row.appendChild(tag);
+            }
+            row.addEventListener('click', function () { oshFocusIdx = idx; oshOpenPropPop(idx, row); });
+            row.addEventListener('focus', function () { oshFocusIdx = idx; });
+            row.addEventListener('keydown', function (ev) { oshPreviewKeydown(ev, idx); });
+            rows.appendChild(row);
+          });
+          body.appendChild(rows);
+          card.appendChild(body);
+          wrap.appendChild(card);
+          if (keepFocus != null) {
+            var el = wrap.querySelector('[data-osh-idx="' + keepFocus + '"]');
+            if (el) el.focus();
+          }
+        }
+        function oshPaintPreviewValue(val, rec, p, doc) {
+          if (p.dress === 'status' && p.type === 'text' && !p.formula) {
+            var pill = document.createElement('span');
+            pill.className = 'obj-pill';
+            var c = objStatusColors(p.value || '');
+            pill.style.background = c.bg; pill.style.color = c.fg; pill.style.borderColor = c.bd;
+            pill.textContent = p.value || '(empty)';
+            val.appendChild(pill);
+            return;
+          }
+          if (p.dress === 'rating' && p.type === 'number' && !p.formula) {
+            var rv = objRatingValue(p);
+            if (rv !== null) {
+              val.appendChild(objRatingStarsEl(rv, function () {}));
+              if (objRatingNeedsNum(rv)) {
+                var num = document.createElement('span');
+                num.className = 'obj-rating-num';
+                num.textContent = fxGeneral(rv);
+                val.appendChild(num);
+              }
+              return;
+            }
+          }
+          if (p.type === 'image' && p.value && !p.formula) {
+            var im = document.createElement('img');
+            im.className = 'obj-card-thumb';
+            im.src = p.value;
+            im.alt = '';
+            val.appendChild(im);
+            return;
+          }
+          if (p.type === 'doclink' && !p.formula) {
+            var pend = objDoclinkPendingTitle(p.value);
+            var chip = document.createElement('span');
+            chip.className = 'obj-mini' + (pend ? ' obj-doc-pending' : '');
+            chip.textContent = objPropDisplay(rec, p, doc) || '(no document)';
+            val.appendChild(chip);
+            return;
+          }
+          if ((p.type === 'objref' || p.type === 'coll') && !p.formula) {
+            var chip2 = document.createElement('span');
+            chip2.className = 'obj-mini';
+            chip2.textContent = objPropDisplay(rec, p, doc) || (p.type === 'coll' ? '(no members)' : '(no object)');
+            val.appendChild(chip2);
+            return;
+          }
+          val.textContent = objPropDisplay(rec, p, doc);
+        }
+        /* Keyboard inside the preview (point 8): Up/Down move
+           property to property, Enter opens the popup, Esc
+           returns to the text area; Up from the first property
+           crosses back into the text area. */
+        function oshPreviewKeydown(ev, idx) {
+          var wrap = document.getElementById('objShPreview');
+          var rowsEls = wrap ? Array.prototype.slice.call(wrap.querySelectorAll('.osh-pv-row')) : [];
+          var pos = rowsEls.findIndex(function (el) { return el.dataset.oshIdx === String(idx); });
+          if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            ev.preventDefault();
+            var np = pos + (ev.key === 'ArrowDown' ? 1 : -1);
+            if (np < 0) { oshFocusAreaEnd(); return; }
+            if (np >= rowsEls.length) return;
+            rowsEls[np].focus();
+          } else if (ev.key === 'Enter') {
+            ev.preventDefault();
+            var el2 = rowsEls[pos];
+            oshOpenPropPop(idx, el2);
+          } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            oshFocusAreaEnd();
+          }
+        }
+        function oshFocusAreaEnd() {
+          var area = oshArea();
+          if (!area) return;
+          area.focus();
+          try { area.setSelectionRange(area.value.length, area.value.length); } catch (e) {}
+        }
+        function oshFocusPreview() {
+          var wrap = document.getElementById('objShPreview');
+          if (!wrap) return;
+          var first = wrap.querySelector('.osh-pv-row');
+          if (first) first.focus();
+        }
+
+        /* ----- the property popup -----
+           Value field + the settings the line carries (type,
+           display, visibility) + the ADVANCED settings it
+           doesn't (options editor, commas, date pattern; a
+           collection's members, grid door and defaults ride
+           the shared collection editor). Applying rewrites
+           the shorthand line — the line stays the source of
+           truth. */
+        function oshPropError(msg) {
+          var e = document.getElementById('objShPropError');
+          e.hidden = !msg;
+          e.textContent = msg || '';
+        }
+        function oshOpenPropPop(idx, anchorEl) {
+          if (!objEditCtx || !objEditCtx.draft[idx]) return;
+          oshSyncFromText();
+          if (!objEditCtx.draft[idx]) return;
+          oshPropCtx = { idx: idx };
+          oshRenderPropPop();
+          document.getElementById('objShPropModal').hidden = false;
+          oshPropError('');
+          setTimeout(function () {
+            var b = document.getElementById('objShPropBody');
+            var inp = b ? b.querySelector('input, select, textarea') : null;
+            if (inp) { try { inp.focus(); if (inp.tagName === 'INPUT' && inp.type === 'text') inp.select(); } catch (e) {} }
+          }, 30);
+        }
+        function oshClosePropPop() {
+          var m = document.getElementById('objShPropModal');
+          if (m) m.hidden = true;
+          oshPropCtx = null;
+        }
+        function oshRenderPropPop() {
+          if (!oshPropCtx || !objEditCtx) return;
+          var d = objEditCtx.draft[oshPropCtx.idx];
+          if (!d) { oshClosePropPop(); return; }
+          document.getElementById('objShPropTitle').textContent = 'Property — ' + d.name;
+          var body = document.getElementById('objShPropBody');
+          body.innerHTML = '';
+          function sec(title) {
+            var s = document.createElement('section');
+            s.className = 'var-sec';
+            var h = document.createElement('h3');
+            h.className = 'var-sec-head';
+            var sp = document.createElement('span');
+            sp.textContent = title;
+            h.appendChild(sp);
+            s.appendChild(h);
+            body.appendChild(s);
+            return s;
+          }
+          function selField(parent, label, pairs, value, aria) {
+            var lab = document.createElement('label');
+            lab.style.display = 'block';
+            lab.style.marginTop = '8px';
+            var cap = document.createElement('span');
+            cap.className = 'form-note';
+            cap.style.display = 'block';
+            cap.textContent = label;
+            lab.appendChild(cap);
+            var sel = document.createElement('select');
+            sel.className = 'text-input';
+            sel.setAttribute('aria-label', aria || label);
+            sel.style.width = '100%';
+            sel.style.marginTop = '4px';
+            pairs.forEach(function (pr) {
+              var o = document.createElement('option');
+              o.value = pr[0]; o.textContent = pr[1];
+              sel.appendChild(o);
+            });
+            sel.value = value;
+            lab.appendChild(sel);
+            parent.appendChild(lab);
+            return sel;
+          }
+          var sType = sec('Type & display');
+          var typeSel = selField(sType, 'Type', [['text', 'Text'], ['number', 'Number'], ['date', 'Date'], ['image', 'Image URL'], ['doclink', 'Document'], ['objref', 'Object'], ['live', 'Live variable'], ['coll', 'Collection']], d.type, 'Property type');
+          typeSel.id = 'oshPopType';
+          var dressPairs = [['', 'Plain']];
+          if (d.type === 'text') dressPairs.push(['status', 'Status pill']);
+          if (d.type === 'number') dressPairs.push(['rating', 'Rating (stars)']);
+          var dressSel = selField(sType, 'Display', dressPairs, d.dress || '', 'Property display');
+          dressSel.id = 'oshPopDress';
+          var showSel = selField(sType, 'On cards', [['shown', 'Shown on card'], ['hidden', 'Hidden from card (ghosted in this preview)']], d.show === false ? 'hidden' : 'shown', 'Show on card');
+          showSel.id = 'oshPopShow';
+          typeSel.addEventListener('change', function () { oshPopCollect(false); oshRenderPropPop(); });
+          dressSel.addEventListener('change', function () { oshPopCollect(false); oshRenderPropPop(); });
+          var sVal = sec('Value');
+          var valWrap = document.createElement('div');
+          valWrap.style.marginTop = '8px';
+          valWrap.id = 'oshPopValueWrap';
+          if (d.formula) {
+            var fin = document.createElement('input');
+            fin.className = 'text-input';
+            fin.type = 'text';
+            fin.value = '=' + d.formula;
+            fin.setAttribute('aria-label', d.name + ' — formula');
+            fin.setAttribute('autocomplete', 'off');
+            fin.setAttribute('autocorrect', 'off');
+            fin.setAttribute('autocapitalize', 'none');
+            fin.setAttribute('spellcheck', 'false');
+            fin.id = 'oshPopFormula';
+            valWrap.appendChild(fin);
+            var fnote = document.createElement('p');
+            fnote.className = 'form-note osh-formula-note';
+            fnote.textContent = 'Computed — the value is the formula’s result, formatted by the declared type.';
+            valWrap.appendChild(fnote);
+          } else {
+            valWrap.appendChild(objEditValueEl(objClone(d)));
+          }
+          sVal.appendChild(valWrap);
+          if (d.type === 'live' && !d.formula) {
+            var lnote = document.createElement('p');
+            lnote.className = 'form-note osh-formula-note';
+            lnote.textContent = 'The chip this property wears is the bound variable’s own — edit it on the variable.';
+            sVal.appendChild(lnote);
+          }
+          var sAdv = sec('Advanced');
+          var advAny = false;
+          if (d.dress === 'status' || (d.type === 'text' && !d.formula)) {
+            advAny = true;
+            var olab = document.createElement('label');
+            olab.style.display = 'block';
+            olab.style.marginTop = '8px';
+            var ocap = document.createElement('span');
+            ocap.className = 'form-note';
+            ocap.style.display = 'block';
+            ocap.textContent = 'Pill options, comma separated';
+            olab.appendChild(ocap);
+            var oin = document.createElement('input');
+            oin.className = 'text-input';
+            oin.type = 'text';
+            oin.id = 'oshPopOptions';
+            oin.value = (d.options || []).join(', ');
+            oin.setAttribute('aria-label', 'Pill options, comma separated');
+            oin.setAttribute('autocomplete', 'off');
+            oin.setAttribute('autocorrect', 'off');
+            oin.setAttribute('autocapitalize', 'none');
+            oin.setAttribute('spellcheck', 'false');
+            oin.style.width = '100%';
+            oin.style.marginTop = '4px';
+            olab.appendChild(oin);
+            sAdv.appendChild(olab);
+          }
+          if (d.type === 'number') {
+            advAny = true;
+            var crow = document.createElement('label');
+            crow.className = 'chip-toggle-row';
+            crow.style.marginTop = '10px';
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.id = 'oshPopCommas';
+            cb.checked = !!d.commas;
+            crow.appendChild(cb);
+            var csp = document.createElement('span');
+            csp.textContent = 'Thousands separators';
+            crow.appendChild(csp);
+            sAdv.appendChild(crow);
+          }
+          if (d.type === 'date') {
+            advAny = true;
+            var patSel = selField(sAdv, 'Date pattern', [['', 'Default'], ['ISO', 'ISO — 2026-01-01'], ['custom', 'Custom pattern…']], d.datePat ? (d.datePat === 'ISO' ? 'ISO' : 'custom') : '', 'Date pattern');
+            patSel.id = 'oshPopDatePat';
+            var pin = document.createElement('input');
+            pin.className = 'text-input';
+            pin.type = 'text';
+            pin.id = 'oshPopDatePatCustom';
+            pin.value = d.datePat && d.datePat !== 'ISO' ? d.datePat : '';
+            pin.setAttribute('aria-label', 'Custom date pattern');
+            pin.setAttribute('placeholder', 'MM/DD/YYYY');
+            pin.setAttribute('autocomplete', 'off');
+            pin.setAttribute('autocorrect', 'off');
+            pin.setAttribute('autocapitalize', 'none');
+            pin.setAttribute('spellcheck', 'false');
+            pin.style.width = '100%';
+            pin.style.marginTop = '6px';
+            pin.hidden = !(d.datePat && d.datePat !== 'ISO');
+            sAdv.appendChild(pin);
+            patSel.addEventListener('change', function () { pin.hidden = patSel.value !== 'custom'; });
+          }
+          if (!advAny) {
+            var np = document.createElement('p');
+            np.className = 'form-note';
+            np.style.marginTop = '8px';
+            np.textContent = d.type === 'coll'
+              ? 'Members, “Open in grid” and new-member defaults live in the Value section above — membership is not a shorthand value.'
+              : 'No advanced settings for this type — everything it has is in the shorthand line.';
+            sAdv.appendChild(np);
+          }
+        }
+        /* Read the popup's fields back into the staged entry.
+           With rewrite=true the shorthand line is re-serialized
+           (the two-way binding: the line is the source of
+           truth) and the preview repaints. */
+        function oshPopCollect(rewrite) {
+          if (!oshPropCtx || !objEditCtx) return false;
+          var d = objEditCtx.draft[oshPropCtx.idx];
+          if (!d) return false;
+          var typeSel = document.getElementById('oshPopType');
+          var newType = typeSel ? typeSel.value : d.type;
+          if (newType !== d.type) {
+            d.type = newType;
+            if (newType !== 'text' && d.dress === 'status') d.dress = null;
+            if (newType !== 'number' && d.dress === 'rating') d.dress = null;
+            if (newType === 'coll') { if (!Array.isArray(d.value)) d.value = []; }
+            else if (newType === 'objref' || newType === 'live') { if (!d.value || typeof d.value !== 'object' || Array.isArray(d.value)) d.value = null; }
+            else if (d.value && typeof d.value === 'object' && newType !== 'doclink') d.value = '';
+            if (newType !== 'coll') delete d.defaults;
+          }
+          var dressSel = document.getElementById('oshPopDress');
+          if (dressSel) d.dress = dressSel.value || null;
+          var showSel = document.getElementById('oshPopShow');
+          if (showSel) d.show = showSel.value !== 'hidden';
+          var fin = document.getElementById('oshPopFormula');
+          if (fin) {
+            var fv = fin.value.trim();
+            if (fv.charAt(0) === '=') {
+              var expr = fv.slice(1).trim();
+              var ferr = oshFormulaError(expr, oshDoc());
+              if (ferr) { oshPropError(ferr); return false; }
+              d.formula = expr;
+            } else if (fv) {
+              d.value = fv;
+              delete d.formula;
+            } else delete d.formula;
+          } else {
+            var wrap = document.getElementById('oshPopValueWrap');
+            var valEl = wrap ? wrap.querySelector('.obj-p-value') : null;
+            if (valEl) {
+              if (typeof valEl._collValue === 'function' && d.type !== 'coll') {
+                /* The type moved away from Collection in this
+                   popup — the member list does not follow it. */
+              } else if (typeof valEl._collValue === 'function') {
+                d.value = valEl._collValue();
+                if (typeof valEl._collDefaults === 'function') {
+                  var nd = valEl._collDefaults();
+                  if (nd && Object.keys(nd).length) d.defaults = nd; else delete d.defaults;
+                }
+              } else if (typeof valEl._docpickValue === 'function') {
+                var dvv = valEl._docpickValue();
+                if (d.type === 'doclink') d.value = dvv;
+                else if (typeof dvv === 'string') { var ddd = dvv ? lib.docs.find(function (x) { return x.id === dvv; }) : null; d.value = ddd ? (ddd.title || 'Untitled') : ''; }
+                else d.value = dvv && dvv.pending ? dvv.pending : '';
+              } else if (typeof valEl._pickValue === 'function') {
+                var pv = valEl._pickValue();
+                if (d.type === 'objref') d.value = pv ? { oid: pv.slice(2), s: pv.charAt(0) } : null;
+                else if (d.type === 'live') d.value = pv ? { vid: pv.slice(2), s: pv.charAt(0) } : null;
+              } else if (typeof valEl.value === 'string') {
+                d.value = valEl.value;
+              }
+            }
+          }
+          var oin = document.getElementById('oshPopOptions');
+          if (oin) d.options = oin.value.split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; }).slice(0, 12);
+          if (d.dress === 'status' && (!d.options || !d.options.length)) { oshPropError('The Status pill needs at least one option.'); return false; }
+          var cb = document.getElementById('oshPopCommas');
+          if (cb) { if (cb.checked) d.commas = true; else delete d.commas; }
+          var patSel = document.getElementById('oshPopDatePat');
+          if (patSel) {
+            if (patSel.value === 'ISO') d.datePat = 'ISO';
+            else if (patSel.value === 'custom') {
+              var pin = document.getElementById('oshPopDatePatCustom');
+              var pv2 = pin ? pin.value.trim() : '';
+              var vv = fxDatePatternValidate(pv2);
+              if (!vv.ok) { oshPropError(vv.msg); return false; }
+              d.datePat = pv2;
+            } else delete d.datePat;
+          }
+          oshPropError('');
+          if (rewrite) oshRenderAll();
+          return true;
+        }
+        function oshPopApply() {
+          if (!oshPopCollect(true)) return;
+          var idx = oshPropCtx ? oshPropCtx.idx : null;
+          oshClosePropPop();
+          if (idx != null) {
+            oshFocusIdx = idx;
+            var wrap = document.getElementById('objShPreview');
+            var el = wrap ? wrap.querySelector('[data-osh-idx="' + idx + '"]') : null;
+            if (el) el.focus();
+          }
+        }
+
+        /* ----- segment-aware autocomplete -----
+           In the -186 / variable-tips style: after the name's
+           dot, the type list; after the type, the displays,
+           visibility and subtokens valid for it; in the value
+           slot, the type's own list (documents, objects,
+           collections, pill options, variables) — and when
+           the value starts with =, the formula engine's
+           names (functions, variables, objects). */
+        function oshPopHide() {
+          var pop = document.getElementById('objShPop');
+          if (pop) { pop.hidden = true; pop.innerHTML = ''; }
+          oshPopItems = [];
+          oshPopCtx = null;
+        }
+        function oshPopShow(items, ctx) {
+          var pop = document.getElementById('objShPop');
+          if (!pop) return;
+          if (!items.length) { oshPopHide(); return; }
+          oshPopItems = items;
+          oshPopCtx = ctx;
+          oshPopHi = 0;
+          pop.innerHTML = '';
+          items.forEach(function (it, i) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'obj-docpick-item' + (i === oshPopHi ? ' sel' : '');
+            var t = document.createElement('span');
+            t.className = 's-title';
+            t.textContent = it.label;
+            b.appendChild(t);
+            if (it.tag) {
+              var tg = document.createElement('span');
+              tg.className = 's-tag';
+              tg.textContent = it.tag;
+              b.appendChild(tg);
+            }
+            b.addEventListener('mousedown', function (ev) { ev.preventDefault(); oshPopAccept(i); });
+            pop.appendChild(b);
+          });
+          pop.hidden = false;
+        }
+        function oshPopPaintHi() {
+          var pop = document.getElementById('objShPop');
+          if (!pop) return;
+          Array.prototype.forEach.call(pop.children, function (el, i) { el.classList.toggle('sel', i === oshPopHi); });
+        }
+        function oshPopAccept(i) {
+          var it = oshPopItems[i];
+          var ctx = oshPopCtx;
+          if (!it || !ctx) return;
+          var area = oshArea();
+          if (!area) return;
+          var v = area.value;
+          area.value = v.slice(0, ctx.from) + it.insert + v.slice(ctx.to);
+          var caret = ctx.from + (it.caret != null ? it.caret : it.insert.length);
+          oshPopHide();
+          area.focus();
+          try { area.setSelectionRange(caret, caret); } catch (e) {}
+          oshSyncFromText();
+          oshPopSync();
+        }
+        function oshObjectCandidates() {
+          var out = [];
+          var doc = oshDoc();
+          if (objEditCtx && objEditCtx.docId) objDocList(objEditCtx.docId).forEach(function (r) { if (r.id !== objEditCtx.id) out.push({ label: r.name, tag: 'This document' }); });
+          objStore.globals.forEach(function (r) { if (r.id !== (objEditCtx && objEditCtx.id)) out.push({ label: r.name, tag: 'Global' }); });
+          return out;
+        }
+        function oshCollectionCandidates() {
+          var out = [];
+          if (objEditCtx && objEditCtx.docId) collDocList(objEditCtx.docId).forEach(function (c) { out.push({ label: c.name, tag: 'This document' }); });
+          (objStore.gColls || []).forEach(function (c) { out.push({ label: c.name, tag: 'Global' }); });
+          return out;
+        }
+        function oshVariableCandidates() {
+          var out = [];
+          var doc = oshDoc();
+          if (doc) varDocList(doc.id).forEach(function (r) { out.push({ label: r.name, tag: 'This document' }); });
+          varStore.globals.forEach(function (r) { out.push({ label: r.name, tag: 'Global' }); });
+          return out;
+        }
+        function oshPopSync() {
+          if (!objEditCtx) return;
+          var area = oshArea();
+          if (!area || document.activeElement !== area) return;
+          var v = area.value;
+          var caret = area.selectionStart;
+          if (caret == null || area.selectionEnd !== caret) { oshPopHide(); return; }
+          var lineStart = v.lastIndexOf('\n', caret - 1) + 1;
+          var lineEnd = v.indexOf('\n', caret);
+          if (lineEnd === -1) lineEnd = v.length;
+          var line = v.slice(lineStart, lineEnd);
+          var inLine = caret - lineStart;
+          var eq = line.indexOf('=');
+          var filt = function (items, q) {
+            var ql = q.toLowerCase();
+            return items.filter(function (it) { return !ql || it.label.toLowerCase().indexOf(ql) !== -1; }).slice(0, 12);
+          };
+          if (eq === -1 || inLine <= eq) {
+            /* header context */
+            var before = line.slice(0, inLine);
+            if (before.indexOf('(') !== -1 && /format\([^)]*$/.test(before)) {
+              var fq = before.slice(before.lastIndexOf('(') + 1);
+              var fitems = [{ label: 'Default', insert: 'Default' }, { label: 'ISO', insert: 'ISO' }, { label: '"MM/DD/YYYY"', insert: '"MM/DD/YYYY"' }].filter(function (it) { return it.label.toLowerCase().indexOf(fq.toLowerCase()) !== -1; });
+              oshPopShow(fitems, { from: lineStart + before.lastIndexOf('(') + 1, to: caret });
+              return;
+            }
+            var segs = oshSplitHeader(before);
+            if (segs.length < 2) { oshPopHide(); return; }
+            var cur = segs[segs.length - 1];
+            var curFrom = lineStart + cur.at + (cur.t.length - cur.t.trim().length);
+            var partial = cur.t.trim();
+            if (segs.length === 2) {
+              var types = Object.keys(OSH_TYPE_TOKENS).filter(function (k) { return ['text', 'number', 'date', 'image', 'document', 'object', 'collection', 'live'].indexOf(k) !== -1; }).map(function (k) { return { label: k, insert: k }; });
+              oshPopShow(filt(types, partial), { from: curFrom, to: caret });
+              return;
+            }
+            var typeTok = (segs[1].t || '').trim().toLowerCase();
+            var type = OSH_TYPE_TOKENS[typeTok];
+            if (!type) { oshPopHide(); return; }
+            var opts = [{ label: 'plain', insert: 'plain' }, { label: 'shown', insert: 'shown' }, { label: 'hidden', insert: 'hidden' }];
+            if (type === 'text') opts.push({ label: 'pill', insert: 'pill' });
+            if (type === 'number') { opts.push({ label: 'stars', insert: 'stars' }); opts.push({ label: 'commas', insert: 'commas' }); }
+            if (type === 'date') opts.push({ label: 'format(...)', insert: 'format(ISO)', caret: 10 });
+            oshPopShow(filt(opts, partial), { from: curFrom, to: caret });
+            return;
+          }
+          /* value context */
+          var headerSegs = oshSplitHeader(line.slice(0, eq));
+          var vtype = headerSegs.length >= 2 ? OSH_TYPE_TOKENS[(headerSegs[1].t || '').trim().toLowerCase()] : null;
+          if (!vtype) { oshPopHide(); return; }
+          var valFrom = lineStart + eq + 1;
+          var rawVal = line.slice(eq + 1);
+          var lead = rawVal.length - rawVal.replace(/^\s+/, '').length;
+          var valText = rawVal.trim();
+          var valStart = valFrom + lead;
+          if (valText.charAt(0) === '=') {
+            var upto = line.slice(eq + 2, inLine);
+            var wm = /([A-Za-z][A-Za-z0-9_]*)$/.exec(upto);
+            var word = wm ? wm[1] : '';
+            var items = [];
+            Object.keys(SH_FN_SIGS).forEach(function (fn) { items.push({ label: fn, tag: SH_FN_SIGS[fn], insert: fn + '(', caret: fn.length + 1 }); });
+            oshVariableCandidates().forEach(function (c) { items.push({ label: c.label, tag: c.tag, insert: c.label }); });
+            oshObjectCandidates().forEach(function (c) { items.push({ label: c.label, tag: 'Object', insert: c.label }); });
+            oshPopShow(filt(items, word), { from: caret - word.length, to: caret });
+            return;
+          }
+          if (vtype === 'doclink') {
+            var docs = lib.docs.map(function (d) { return { label: d.title || 'Untitled', insert: d.title || 'Untitled' }; });
+            oshPopShow(filt(docs, valText), { from: valStart, to: lineStart + line.length });
+            return;
+          }
+          if (vtype === 'objref') { oshPopShow(filt(oshObjectCandidates(), valText), { from: valStart, to: lineStart + line.length }); return; }
+          if (vtype === 'coll') { oshPopShow(filt(oshCollectionCandidates(), valText), { from: valStart, to: lineStart + line.length }); return; }
+          if (vtype === 'live') { oshPopShow(filt(oshVariableCandidates(), valText), { from: valStart, to: lineStart + line.length }); return; }
+          if (vtype === 'text') {
+            var nm = (headerSegs[0].t || '').trim().toLowerCase();
+            var staged = (objEditCtx.draft || []).find(function (d) { return (d.name || '').toLowerCase() === nm; });
+            if (staged && staged.dress === 'status' && staged.options && staged.options.length) {
+              oshPopShow(filt(staged.options.map(function (o) { return { label: o, insert: o }; }), valText), { from: valStart, to: lineStart + line.length });
+              return;
+            }
+          }
+          oshPopHide();
+        }
+
+        /* ----- the grammar popover (the -172 pattern) ----- */
+        function oshGrammarHide() {
+          var pop = document.getElementById('objShGrammarPop');
+          if (pop) pop.hidden = true;
+          var btn = document.getElementById('objShGrammarBtn');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+        function oshGrammarToggle() {
+          var pop = document.getElementById('objShGrammarPop');
+          var btn = document.getElementById('objShGrammarBtn');
+          if (!pop || !btn) return;
+          var open = pop.hidden;
+          if (open) {
+            var r = btn.getBoundingClientRect();
+            pop.style.top = (r.bottom + 8) + 'px';
+            pop.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+            pop.hidden = false;
+            btn.setAttribute('aria-expanded', 'true');
+          } else oshGrammarHide();
+        }
+
+
         /* ----- modal / panel wiring ----- */
         document.getElementById('objPanelClose').addEventListener('click', closeObjPanel);
         document.getElementById('objPanel').addEventListener('mousedown', function (ev) {
@@ -25691,31 +26686,103 @@
         });
         document.getElementById('objEditAddProp').addEventListener('click', function () {
           if (!objEditCtx) return;
-          objEditCtx.draft = objEditReadRows();
-          objEditCtx.draft.push({ id: null, name: '', type: 'text', dress: null, options: [], show: true, value: '' });
-          objEditRenderProps();
-          /* Build -181: the render preserved the scroll (see
-             objEditRenderProps); if the new card landed below
-             the panel's fold, scroll the minimum to reveal
-             it — never a jump, and never back to the top. */
-          var panel = document.querySelector('#objEditModal .panel');
-          var rows = document.querySelectorAll('#objEditProps .obj-prop-row');
-          var lastRow = rows[rows.length - 1];
-          if (panel && lastRow) {
-            var pr = panel.getBoundingClientRect();
-            var rr = lastRow.getBoundingClientRect();
-            if (rr.bottom > pr.bottom - 4) panel.scrollTop += rr.bottom - pr.bottom + 12;
-            else if (rr.top < pr.top) panel.scrollTop -= pr.top - rr.top + 12;
+          /* Build -191: a new property is a new shorthand
+             line — appended, focused, ready to rename. */
+          var area = oshArea();
+          if (!area) return;
+          oshSyncFromText();
+          var base = 'Property';
+          var n = 1;
+          var names = {};
+          objEditCtx.draft.forEach(function (d) { names[(d.name || '').toLowerCase()] = true; });
+          while (names[(base + (n === 1 ? '' : n)).toLowerCase()]) n++;
+          var line = base + (n === 1 ? '' : n) + '.text = ';
+          area.value = area.value.replace(/\s+$/, '') + (area.value.trim() ? '\n' : '') + line;
+          area.focus();
+          try { area.setSelectionRange(area.value.length - line.length, area.value.length - line.length + line.indexOf('.')); } catch (e) {}
+          oshSyncFromText();
+        });
+        /* Build -191: the shorthand text area — live sync on
+           every keystroke, segment-aware completion, and the
+           point-8 keyboard rules: TAB anywhere in the area
+           jumps to the live preview card; DOWN-arrow on the
+           last line crosses into the card. */
+        (function () {
+          var area = oshArea();
+          if (!area) return;
+          area.addEventListener('input', function () { oshSyncFromText(); oshPopSync(); });
+          area.addEventListener('click', function () { oshPopSync(); });
+          area.addEventListener('blur', function () { setTimeout(oshPopHide, 150); });
+          area.addEventListener('keydown', function (ev) {
+            var pop = document.getElementById('objShPop');
+            var popOpen = pop && !pop.hidden && oshPopItems.length;
+            if (popOpen) {
+              if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                ev.preventDefault();
+                oshPopHi = Math.max(0, Math.min(oshPopItems.length - 1, oshPopHi + (ev.key === 'ArrowDown' ? 1 : -1)));
+                oshPopPaintHi();
+                return;
+              }
+              if (ev.key === 'Enter' || ev.key === 'Tab') {
+                ev.preventDefault();
+                oshPopAccept(oshPopHi);
+                return;
+              }
+              if (ev.key === 'Escape') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                oshPopHide();
+                return;
+              }
+            }
+            if (ev.key === 'Tab') {
+              ev.preventDefault();
+              oshPopHide();
+              oshFocusPreview();
+              return;
+            }
+            if (ev.key === 'ArrowDown') {
+              var caret = area.selectionStart;
+              if (caret != null && area.value.indexOf('\n', caret) === -1) {
+                ev.preventDefault();
+                oshFocusPreview();
+              }
+              return;
+            }
+          });
+        })();
+        document.getElementById('objShGrammarBtn').addEventListener('click', function (ev) { ev.stopPropagation(); oshGrammarToggle(); });
+        document.getElementById('objShPropClose').addEventListener('click', function () { oshClosePropPop(); });
+        document.getElementById('objShPropCancel').addEventListener('click', function () { oshClosePropPop(); });
+        document.getElementById('objShPropApply').addEventListener('click', function () { oshPopApply(); });
+        document.getElementById('objShPropModal').addEventListener('mousedown', function (ev) {
+          if (ev.target === ev.currentTarget) oshClosePropPop();
+        });
+        document.getElementById('objShPropModal').addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            var idx = oshPropCtx ? oshPropCtx.idx : null;
+            oshClosePropPop();
+            if (idx != null) {
+              var wrap = document.getElementById('objShPreview');
+              var el = wrap ? wrap.querySelector('[data-osh-idx="' + idx + '"]') : null;
+              if (el) el.focus();
+            }
           }
+        });
+        ['objEditName', 'objEditEmoji', 'objEditColor'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.addEventListener('input', function () { if (objEditCtx) oshRenderPreview(); });
         });
         document.getElementById('objEditKind').addEventListener('change', function (ev) {
           objEditApplyKind(ev.target.value);
         });
         document.getElementById('objEditHeadline').addEventListener('change', function (ev) {
-          if (objEditCtx) objEditCtx.headlineIdx = ev.target.value === '' ? null : parseInt(ev.target.value, 10);
+          if (objEditCtx) { objEditCtx.headlineIdx = ev.target.value === '' ? null : parseInt(ev.target.value, 10); oshRenderPreview(); }
         });
         document.getElementById('objEditArt').addEventListener('change', function (ev) {
-          if (objEditCtx) objEditCtx.artIdx = ev.target.value === '' ? null : parseInt(ev.target.value, 10);
+          if (objEditCtx) { objEditCtx.artIdx = ev.target.value === '' ? null : parseInt(ev.target.value, 10); oshRenderPreview(); }
         });
         document.getElementById('objEditDelete').addEventListener('click', function () {
           if (!objEditCtx || !objEditCtx.id) return;
