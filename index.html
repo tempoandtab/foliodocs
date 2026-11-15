@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261115-194" />
+    <meta name="folio-build" content="20261115-195" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4514,6 +4514,40 @@
         letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-2);
       }
       .var-section-head:first-child { margin-top: 4px; }
+      /* Build -195 (corrected): the OBJECTS PANEL's chip
+         navigation bar — a pinned chip row in the panel's fixed
+         header zone, under the search field, one chip per panel
+         section. The panel becomes a fixed stack (head,
+         explainer, search, chip row) over ONE scrolling list
+         (#objPanelBody), so the header never scrolls away.
+         (An earlier -195 draft put a chip row in the object
+         EDIT modal; the owner corrected the target surface —
+         the edit modal carries no chip bar.) */
+      #objPanel .panel { display: flex; flex-direction: column; overflow: hidden; }
+      #objPanel .panel-head, #objPanel .panel > .form-note, #objPanel .var-search-input, #objPanel .obj-panel-jumpnav { flex: 0 0 auto; }
+      #objPanelBody {
+        flex: 1 1 auto; min-height: 0; overflow-y: auto;
+        overscroll-behavior: contain; scrollbar-gutter: stable;
+      }
+      #objPanel .obj-panel-jumpnav {
+        display: flex; flex-wrap: nowrap; gap: 6px;
+        overflow-x: auto; overflow-y: hidden;
+        padding: 9px 0 9px; margin-top: 8px;
+        background: var(--surface); border-bottom: 1px solid var(--line);
+        scrollbar-width: thin; -webkit-overflow-scrolling: touch;
+      }
+      #objPanel .obj-panel-jump-chip {
+        flex: 0 0 auto; white-space: nowrap;
+        font: inherit; font-size: 12px; font-weight: 600; line-height: 1.2;
+        padding: 6px 11px; border-radius: 999px; cursor: pointer;
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+        touch-action: manipulation;
+      }
+      #objPanel .obj-panel-jump-chip:hover { border-color: var(--accent); color: var(--ink); }
+      #objPanel .obj-panel-jump-chip.on {
+        background: var(--accent-soft); border-color: var(--accent); color: var(--ink);
+      }
+      #objPanel .obj-panel-jump-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       .var-row {
         display: flex; align-items: center; gap: 8px;
         padding: 7px 8px; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 6px;
@@ -4966,6 +5000,23 @@
       .coll-grid-table thead th:nth-child(2) { z-index: 4; }
       .coll-grid-table td:nth-child(2) { font-weight: 600; }
       .coll-grid-table th:last-child, .coll-grid-table td:last-child { min-width: 44px; width: 44px; border-right: 0; }
+      /* Build -195 (WS-2): explicit column widths — the table
+         goes fixed-layout with a <colgroup> the grid render
+         builds (grip, one col per property, + Property, row
+         menu), so a width set on a col is THE width, and the
+         cells' old min-widths stand down. The frozen headline
+         column keeps its -189 sticky geometry (left offset =
+         the grip width, unchanged); only its width varies. */
+      .coll-grid-table.cg-sized { table-layout: fixed; }
+      .coll-grid-table.cg-sized th, .coll-grid-table.cg-sized td { min-width: 0; }
+      .coll-grid-resize {
+        position: absolute; top: 0; right: 0; width: 9px; height: 100%;
+        cursor: col-resize; touch-action: none; z-index: 6;
+        background: transparent;
+      }
+      .coll-grid-resize:hover, .coll-grid-resize.dragging {
+        background: color-mix(in srgb, var(--accent) 38%, transparent);
+      }
       .coll-grid-table tr.dragging td { opacity: 0.45; }
       .coll-grid-table tr.dragover td { box-shadow: inset 0 2px 0 var(--accent); }
       .coll-grid-th-name { font-weight: 700; color: var(--ink); }
@@ -7861,6 +7912,7 @@
         </div>
         <p class="form-note">Objects for &ldquo;<span id="objPanelDocName"></span>&rdquo;. A document object shadows a global of the same name in this document. Insert one as a Card, or insert a single property as a live chip; formulas can read <em>Name.Property</em>.</p>
         <input class="text-input var-search-input" id="objPanelSearch" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Search objects" placeholder="Search objects…" />
+        <nav class="obj-panel-jumpnav" id="objPanelJumpNav" aria-label="Object panel sections"></nav>
         <div id="objPanelBody"></div>
       </div>
     </div>
@@ -23314,9 +23366,13 @@
           if (objEnsureDocRecords(doc)) { objSaveSoon(); persist(true); }
           renderObjPanel();
           document.getElementById('objPanel').hidden = false;
+          /* Build -195: re-run the chip spy now the panel is
+             laid out (the render-pass spy ran hidden). */
+          objPanelJumpSpy();
           setTimeout(function () {
             var s = document.getElementById('objPanelSearch');
             if (s && objPanelDocId) s.focus();
+            objPanelJumpSpy();
           }, 30);
         }
         function openObjPanelFor(docId) { openObjPanel(docId || lib.currentId); }
@@ -23402,6 +23458,7 @@
           function section(scope, list, title) {
             var head = document.createElement('div');
             head.className = 'var-section-head';
+            head.setAttribute('data-obj-sec', scope === 'doc' ? 'doc' : 'global');
             var t = document.createElement('span');
             t.textContent = title;
             head.appendChild(t);
@@ -23424,6 +23481,9 @@
           }
           section('doc', objDocList(doc.id), doc.__tpl ? 'Template objects' : 'This document');
           section('global', objStore.globals, 'Global');
+          /* Build -195: the chip row mirrors the sections
+             this render actually produced (see objPanelJumpRefresh,
+             called at the end of renderObjPanel). */
           /* Build -182: collections list in the same panel,
              badged as collections, with member counts. */
           collSection('doc', collDocList(doc.id), doc.__tpl ? 'Template collections' : 'Collections — this document');
@@ -23447,6 +23507,7 @@
           function collSection(scope, list, title) {
             var head = document.createElement('div');
             head.className = 'var-section-head';
+            head.setAttribute('data-obj-sec', scope === 'doc' ? 'coll-doc' : 'coll-global');
             var tt = document.createElement('span');
             tt.textContent = title;
             head.appendChild(tt);
@@ -23469,6 +23530,124 @@
             shown.forEach(function (coll) { body.appendChild(collPanelRow(scope, coll, doc)); });
             pshown.forEach(function (pc) { body.appendChild(collPropPanelRow(scope, pc.rec, pc.prop, doc)); });
           }
+          objPanelJumpRefresh();
+        }
+        /* ----- Build -195: the Objects panel chip nav -----
+           One chip per panel section, in the fixed header zone
+           under the search field (#objPanelJumpNav). A chip
+           exists only when its section header was rendered in
+           this pass (a section that renders no header hides its
+           chip). Clicking smooth-scrolls #objPanelBody — the
+           panel's one scrolling region — to the section header;
+           a scroll-spy highlights the chip of the section at the
+           top of the list as the user scrolls by any means.
+           Chips are real buttons in the panel's Tab order;
+           activation follows the app's pointerup discipline
+           (chipPopStepWire, -165): a short near-stationary
+           pointerup activates, the trailing synthetic click is
+           swallowed by timestamp, and a keyboard Enter / Space
+           (a click with no pointer sequence) still lands. */
+        var OBJ_PANEL_SECTIONS = [
+          ['doc', 'Doc objects'],
+          ['global', 'Global'],
+          ['coll-doc', 'Doc collections'],
+          ['coll-global', 'Global collections']
+        ];
+        var objPanelJumpHold = null;
+        var objPanelJumpWired = false;
+        function objPanelJumpWire(b, fn) {
+          var downAt = null, firedAt = 0;
+          b.addEventListener('dblclick', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
+          b.addEventListener('pointerdown', function (ev) { downAt = { x: ev.clientX, y: ev.clientY }; });
+          b.addEventListener('pointercancel', function () { downAt = null; });
+          b.addEventListener('pointerup', function (ev) {
+            var d = downAt; downAt = null;
+            if (!d) return;
+            if (Math.abs(ev.clientX - d.x) > 14 || Math.abs(ev.clientY - d.y) > 14) return;
+            firedAt = Date.now();
+            ev.preventDefault(); ev.stopPropagation();
+            fn(ev);
+          });
+          b.addEventListener('click', function (ev) {
+            if (Date.now() - firedAt < 800) return;
+            fn(ev);
+          });
+        }
+        function objPanelSectionHead(key) {
+          return document.querySelector('#objPanelBody [data-obj-sec="' + key + '"]');
+        }
+        function objPanelJumpRefresh() {
+          var nav = document.getElementById('objPanelJumpNav');
+          var body = document.getElementById('objPanelBody');
+          if (!nav || !body) return;
+          if (!objPanelJumpWired) {
+            objPanelJumpWired = true;
+            var ticking = false;
+            body.addEventListener('scroll', function () {
+              if (ticking) return;
+              ticking = true;
+              requestAnimationFrame(function () { ticking = false; objPanelJumpSpy(); });
+            }, { passive: true });
+          }
+          objPanelJumpHold = null;
+          nav.innerHTML = '';
+          OBJ_PANEL_SECTIONS.forEach(function (pair) {
+            if (!objPanelSectionHead(pair[0])) return;
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'obj-panel-jump-chip';
+            b.textContent = pair[1];
+            b.setAttribute('data-obj-jump', pair[0]);
+            objPanelJumpWire(b, function () { objPanelJumpTo(pair[0]); });
+            nav.appendChild(b);
+          });
+          objPanelJumpSpy();
+        }
+        function objPanelJumpTo(key) {
+          var body = document.getElementById('objPanelBody');
+          var head = objPanelSectionHead(key);
+          if (!body || !head) return;
+          objPanelJumpHold = { key: key, until: Date.now() + 700 };
+          var y = body.scrollTop + head.getBoundingClientRect().top - body.getBoundingClientRect().top - 6;
+          body.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+          objPanelJumpSpy();
+        }
+        function objPanelJumpSpy() {
+          var nav = document.getElementById('objPanelJumpNav');
+          var body = document.getElementById('objPanelBody');
+          if (!nav || !body) return;
+          var active = null;
+          if (objPanelJumpHold && Date.now() < objPanelJumpHold.until) active = objPanelJumpHold.key;
+          if (!active && body.getBoundingClientRect().height === 0) {
+            /* The panel is still hidden (renderObjPanel runs
+               before the overlay is shown): every rect reads 0,
+               which would make the LAST section look "at the
+               top". Stand down to the first section; the spy
+               re-runs on open and on scroll. */
+            var first0 = OBJ_PANEL_SECTIONS.filter(function (pair) { return !!objPanelSectionHead(pair[0]); })[0];
+            active = first0 ? first0[0] : null;
+          }
+          if (!active) {
+            var line = body.getBoundingClientRect().top + 24;
+            OBJ_PANEL_SECTIONS.forEach(function (pair) {
+              var h = objPanelSectionHead(pair[0]);
+              if (h && h.getBoundingClientRect().top <= line) active = pair[0];
+            });
+            if (!active) {
+              var first = OBJ_PANEL_SECTIONS.filter(function (pair) { return !!objPanelSectionHead(pair[0]); })[0];
+              active = first ? first[0] : null;
+            }
+          }
+          Array.prototype.forEach.call(nav.querySelectorAll('.obj-panel-jump-chip'), function (chip) {
+            var on = chip.getAttribute('data-obj-jump') === active;
+            chip.classList.toggle('on', on);
+            if (on) {
+              chip.setAttribute('aria-current', 'true');
+              var cr = chip.getBoundingClientRect(), nr = nav.getBoundingClientRect();
+              if (cr.left < nr.left) nav.scrollLeft -= (nr.left - cr.left + 8);
+              else if (cr.right > nr.right) nav.scrollLeft += (cr.right - nr.right + 8);
+            } else chip.removeAttribute('aria-current');
+          });
         }
         function collPanelRow(scope, coll, doc) {
           var row = document.createElement('div');
@@ -27812,6 +27991,159 @@
           try { return localStorage.getItem(CG_DENSITY_KEY) === 'compact' ? 'compact' : 'full'; }
           catch (e) { return 'full'; }
         }
+        /* ----- Build -195 (WS-2): column widths -----
+           The headline (first) column AUTO-FITS by default:
+           wide enough for the longest visible headline value,
+           capped at ~40% of the grid's visible width, and
+           recomputed on every render (so member changes
+           re-fit it). Every property column carries a drag
+           handle on its header's right border (pointer drag,
+           mouse + touch); a manual width overrides auto-fit
+           for that column, and double-clicking the border
+           auto-fits THAT column (headline cap 40%, a looser
+           60% cap for the rest). Manual widths persist per
+           device in localStorage, keyed by collection
+           identity + property name, alongside the density
+           preference; "Reset column widths" in a column's ▾
+           menu clears the current collection's entry. */
+        var CG_WIDTHS_KEY = 'folio-collgrid-widths';
+        function cgCollKey() {
+          if (!collGridCtx) return '';
+          var s = collGridCtx.src;
+          if (s.cid) return 'c:' + (s.cs || '') + ':' + s.cid;
+          return 'p:' + (s.os || '') + ':' + (s.oid || '') + ':' + (s.pid || '');
+        }
+        function cgWidthsAll() {
+          try { return JSON.parse(localStorage.getItem(CG_WIDTHS_KEY) || '{}') || {}; }
+          catch (e) { return {}; }
+        }
+        function cgWidths() {
+          var all = cgWidthsAll();
+          return all[cgCollKey()] || {};
+        }
+        function cgSetWidth(col, px) {
+          try {
+            var all = cgWidthsAll();
+            var k = cgCollKey();
+            if (!all[k]) all[k] = {};
+            all[k][col.key] = Math.round(px);
+            localStorage.setItem(CG_WIDTHS_KEY, JSON.stringify(all));
+          } catch (e) {}
+        }
+        function cgResetWidths() {
+          try {
+            var all = cgWidthsAll();
+            delete all[cgCollKey()];
+            localStorage.setItem(CG_WIDTHS_KEY, JSON.stringify(all));
+          } catch (e) {}
+          cgRender();
+        }
+        var cgMeasureCtxCache = null;
+        function cgMeasureText(text, font) {
+          if (!cgMeasureCtxCache) {
+            try { cgMeasureCtxCache = document.createElement('canvas').getContext('2d'); } catch (e) { return String(text || '').length * 7; }
+          }
+          cgMeasureCtxCache.font = font;
+          return cgMeasureCtxCache.measureText(String(text || '')).width;
+        }
+        /* The measurable content of one cell: the text it
+           shows plus the chrome around it (cell padding, the
+           editor's own padding, a pill's or chip's padding).
+           Non-text cells (image thumb, rating stars, a
+           collection's count + door) report a fixed need. */
+        function cgColCellNeed(entry, col) {
+          var p = objPropByName(entry.rec, col.name);
+          var pad = collGridCtx.density === 'compact' ? 26 : 30;
+          if (!p) return pad;
+          var homeDoc = collMemberHomeDoc(entry, cgDoc());
+          var type = p.type, dress = p.dress || null;
+          if (type === 'image') return 62;
+          if (type === 'number' && dress === 'rating') return 178;
+          if (type === 'coll') return 196;
+          var txt = objPropDisplay(entry.rec, p, homeDoc);
+          txt = txt == null ? '' : String(txt);
+          var fontPx = collGridCtx.density === 'compact' ? 13 : 14;
+          var font = (col.headline ? '600 ' : '400 ') + fontPx + 'px "Public Sans", -apple-system, sans-serif';
+          var extra = pad + 14;
+          if (type === 'text' && dress === 'status') extra += 22;
+          if (type === 'doclink') extra += 40;
+          if (type === 'objref' || type === 'live') extra += 16;
+          return cgMeasureText(txt, font) + extra;
+        }
+        function cgGridVisibleWidth() {
+          var sc = document.getElementById('collGridScroll');
+          var w = sc ? sc.clientWidth : 0;
+          return w > 0 ? w : 1100;
+        }
+        function cgAutoFitWidth(col, vis) {
+          var vw = cgGridVisibleWidth();
+          var cap = Math.floor(vw * (col.headline ? 0.40 : 0.60));
+          var fontPx = collGridCtx.density === 'compact' ? 13 : 14;
+          var w = cgMeasureText(col.name, '700 12.5px "Public Sans", -apple-system, sans-serif') + 44;
+          (vis || []).forEach(function (e) { w = Math.max(w, cgColCellNeed(e, col)); });
+          var min = col.headline ? 96 : 72;
+          return Math.round(Math.max(min, Math.min(cap, w)));
+        }
+        function cgDefaultWidth(col) {
+          /* Columns whose editor has its own floor (the
+             Document picker's 170px min-width, a collection
+             cell's count + door, the rating stars + number)
+             start at a width that fits the editor. */
+          if (col.type === 'doclink') return 216;
+          if (col.type === 'coll') return 200;
+          if (col.dress === 'rating') return 190;
+          return 150;
+        }
+        function cgResolveWidths(cols, vis) {
+          var manual = cgWidths();
+          cols.forEach(function (col) {
+            if (manual[col.key]) col._w = manual[col.key];
+            else if (col.headline) col._w = cgAutoFitWidth(col, vis);
+            else col._w = cgDefaultWidth(col);
+          });
+        }
+        function cgApplyWidth(col, px) {
+          col._w = Math.round(px);
+          if (col._colEl) col._colEl.style.width = col._w + 'px';
+          var tbl = document.getElementById('collGridTable');
+          if (tbl) {
+            var cg = tbl.querySelector('colgroup');
+            if (cg) {
+              var total = 0;
+              Array.prototype.forEach.call(cg.children, function (c) { total += parseFloat(c.style.width) || 0; });
+              tbl.style.width = total + 'px';
+            }
+          }
+        }
+        function cgAutoFitColumn(col, persist) {
+          var w = cgAutoFitWidth(col, cgVisibleEntries(cgEntries()));
+          cgApplyWidth(col, w);
+          if (persist) cgSetWidth(col, w);
+        }
+        function cgStartResize(ev, col) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          var handle = ev.target;
+          var startX = ev.clientX;
+          var startW = col._w || cgDefaultWidth(col);
+          var maxW = Math.max(240, cgGridVisibleWidth());
+          try { handle.setPointerCapture(ev.pointerId); } catch (e) {}
+          handle.classList.add('dragging');
+          function move(e2) {
+            var w = Math.round(Math.max(56, Math.min(maxW, startW + (e2.clientX - startX))));
+            cgApplyWidth(col, w);
+          }
+          function up() {
+            handle.classList.remove('dragging');
+            handle.removeEventListener('pointermove', move);
+            handle.removeEventListener('pointerup', up);
+            handle.removeEventListener('pointercancel', up);
+            if (col._w) cgSetWidth(col, col._w);
+          }
+          handle.addEventListener('pointermove', move);
+          handle.addEventListener('pointerup', up);
+          handle.addEventListener('pointercancel', up);
+        }
         function openCollGrid(src, doc) {
           doc = doc || varCtxDoc() || null;
           var s = collSourceMembers(src, doc);
@@ -28043,8 +28375,34 @@
         }
         function cgRenderBody(vis, cols, totalCount) {
           var tbl = document.getElementById('collGridTable');
-          tbl.className = 'coll-grid-table density-' + collGridCtx.density;
+          tbl.className = 'coll-grid-table density-' + collGridCtx.density + ' cg-sized';
           tbl.innerHTML = '';
+          /* Build -195 (WS-2): the colgroup that carries the
+             column widths — grip (the -189 frozen zone's fixed
+             34px, 30px at phone widths, matching the sticky
+             offsets in the stylesheet), one col per property
+             at its resolved width, the + Property column, and
+             the 44px row-menu column. Fixed layout makes these
+             THE widths; the table's own width is their sum
+             (its CSS min-width:100% still stretches it to fill
+             a wider frame, distributing the slack). */
+          cgResolveWidths(cols, vis);
+          var gripW = (window.matchMedia && window.matchMedia('(max-width: 640px)').matches) ? 30 : 34;
+          var cg = document.createElement('colgroup');
+          var total = 0;
+          function addCol(w, col) {
+            var c = document.createElement('col');
+            c.style.width = w + 'px';
+            total += w;
+            if (col) col._colEl = c;
+            cg.appendChild(c);
+          }
+          addCol(gripW, null);
+          cols.forEach(function (col) { addCol(col._w, col); });
+          addCol(132, null);
+          addCol(44, null);
+          tbl.appendChild(cg);
+          tbl.style.width = total + 'px';
           var thead = document.createElement('thead');
           var htr = document.createElement('tr');
           htr.appendChild(document.createElement('th'));
@@ -28091,6 +28449,25 @@
           btn.setAttribute('aria-label', col.name + ' — column menu: change type, property settings');
           btn.addEventListener('click', function () { cgOpenColMenu(btn, col); });
           th.appendChild(btn);
+          /* Build -195 (WS-2): the resize handle on the
+             header's right border — pointer drag (mouse +
+             touch) resizes live and persists on release;
+             double-click auto-fits this column. The frozen
+             headline column carries one too; resizing it only
+             changes its width, never its sticky left offset. */
+          var rz = document.createElement('span');
+          rz.className = 'coll-grid-resize';
+          rz.setAttribute('role', 'separator');
+          rz.setAttribute('aria-label', 'Resize the ' + col.name + ' column');
+          rz.title = 'Drag to resize · double-click to auto-fit';
+          rz.addEventListener('pointerdown', function (ev) { cgStartResize(ev, col); });
+          rz.addEventListener('dblclick', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            cgAutoFitColumn(col, true);
+          });
+          rz.addEventListener('click', function (ev) { ev.stopPropagation(); });
+          th.appendChild(rz);
           return th;
         }
         function cgRow(e, cols) {
@@ -28612,6 +28989,18 @@
             el.appendChild(chipPopItem('Property settings…', false, function () {
               chipClosePop(false);
               openCgPropSettings(col);
+            }));
+            var sep2 = document.createElement('div');
+            sep2.className = 'chip-pop-sep';
+            el.appendChild(sep2);
+            el.appendChild(chipPopItem('Auto-fit this column', false, function () {
+              chipClosePop(false);
+              cgAutoFitColumn(col, true);
+            }));
+            el.appendChild(chipPopItem('Reset column widths', false, function () {
+              chipClosePop(false);
+              cgResetWidths();
+              folioToast('Column widths reset for this collection.');
             }));
           }, 'cgcol:' + col.key);
         }
