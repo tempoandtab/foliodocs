@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261114-188" />
+    <meta name="folio-build" content="20261115-190" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4668,7 +4668,14 @@
       .obj-card-rows { margin-top: 5px; display: flex; flex-direction: column; gap: 2px; }
       .obj-card-row { display: flex; align-items: center; gap: 8px; font-size: 13.5px; min-height: 22px; }
       .obj-card-label { flex: 0 0 86px; color: var(--ink-2); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .obj-card-val { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+      /* Build -189: flex-wrap lets a value whose parts cannot
+         shrink — a fractional rating's star row plus its
+         numeric tag, a status pill beside a chip — take a
+         second line inside the value column instead of
+         forcing the card (and, in a collection, the whole
+         dress) wider than its container. When the value fits
+         on one line, wrap never engages and nothing moves. */
+      .obj-card-val { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; row-gap: 2px; }
       .obj-card-bake { font-size: 13.5px; color: var(--ink-2); }
       .obj-card-thumb { width: 34px; height: 46px; object-fit: cover; border-radius: 4px; }
       .obj-stars { display: inline-flex; gap: 0; }
@@ -4709,6 +4716,7 @@
         border-radius: 999px; padding: 2px 10px; font-size: 12.5px; font-weight: 700;
         letter-spacing: 0.01em;
         cursor: pointer; touch-action: manipulation;
+        max-width: 100%;
       }
       /* Build -179: a Status Chip dress renders the pill
          itself; its .obj-ref wrapper sheds the chip wash so
@@ -4721,6 +4729,10 @@
         background: var(--accent-soft); color: var(--chip-ink);
         border-radius: 999px; padding: 2px 10px; font-size: 12.5px; font-weight: 600;
         cursor: pointer; touch-action: manipulation;
+        /* Build -189: a document/object chip (a long pending
+           title, "(missing document)") wraps inside its
+           column rather than stretching it. */
+        max-width: 100%;
       }
       /* Build -181: a document link whose target does not
          exist yet — the property holds a pending title, and
@@ -4772,7 +4784,7 @@
          under-card button rows are gone, so a gallery's
          second row can no longer cover the first row's
          controls. */
-      .folio-prose .obj-coll { margin: 14px 0; break-inside: avoid; }
+      .folio-prose .obj-coll { margin: 14px 0; break-inside: avoid; max-width: 100%; }
       .obj-coll-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
       .obj-coll-name { font-weight: 700; font-size: 15px; }
       .obj-coll-cap { color: var(--ink-3); font-size: 12px; font-weight: 600; }
@@ -4787,8 +4799,16 @@
       .obj-coll-member { position: relative; }
       .obj-coll-btn.danger:hover { color: var(--danger, #c0392b); border-color: var(--danger, #c0392b); }
       .obj-coll--gallery .obj-coll-members {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px;
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 12px;
       }
+      /* Build -189: a member's min-content must never widen
+         its track past the dress — the member takes the
+         track's width and the card caps at the member, so a
+         card whose rows cannot shrink (see .obj-card-val)
+         wraps inside its track instead of pushing the whole
+         dress — and the page — sideways. */
+      .obj-coll--gallery .obj-coll-member { min-width: 0; }
+      .obj-coll .obj-card { max-width: min(560px, 100%); }
       .obj-coll--gallery .obj-card { margin: 0; height: 100%; }
       .obj-coll--stack .obj-coll-members { display: flex; flex-direction: column; }
       .obj-coll--stack .obj-coll-member { margin-top: -34px; }
@@ -4814,7 +4834,7 @@
         border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: middle;
       }
       .obj-coll-table th { font-size: 12px; letter-spacing: 0.03em; color: var(--ink-2); background: var(--surface-2, transparent); }
-      .obj-coll-tablewrap { overflow-x: auto; }
+      .obj-coll-tablewrap { overflow-x: auto; max-width: 100%; }
       .obj-coll-empty {
         color: var(--ink-3); font-size: 13.5px; font-style: italic;
         border: 1px dashed var(--line); border-radius: 10px; padding: 12px;
@@ -4878,8 +4898,16 @@
       }
       .coll-grid-table th:first-child, .coll-grid-table td:first-child {
         min-width: 34px; width: 34px; text-align: center; color: var(--ink-3);
+        /* Build -189: the grip column belongs to the frozen
+           zone — sticky at left:0, so grip + headline (at
+           left:34px) freeze as one flush unit against the
+           scroll container's left edge. Up to -188 the grip
+           scrolled away while the headline froze 34px in,
+           leaving a gap strip that scrolled content showed
+           through and that clipped the next column's edge. */
+        position: sticky; left: 0;
       }
-      .coll-grid-table td:first-child { cursor: grab; touch-action: none; }
+      .coll-grid-table td:first-child { cursor: grab; touch-action: none; z-index: 2; }
       .coll-grid-table thead th:first-child { z-index: 5; }
       .coll-grid-table th:nth-child(2), .coll-grid-table td:nth-child(2) {
         position: sticky; left: 34px; z-index: 2;
@@ -4952,7 +4980,39 @@
         .coll-grid-table th:nth-child(2), .coll-grid-table td:nth-child(2) { left: 30px; }
       }
       @media (max-width: 640px) {
-        .obj-coll--gallery .obj-coll-members { grid-template-columns: 1fr; }
+        /* Build -189: minmax(0, 1fr), not 1fr — a bare 1fr
+           track's automatic minimum is the widest member's
+           min-content, which is exactly how one unshrinkable
+           card row used to widen the whole dress past the
+           paper and give the page a horizontal scroll. */
+        .obj-coll--gallery .obj-coll-members { grid-template-columns: minmax(0, 1fr); }
+        /* Build -189: at phone width, a live card's fixed
+           reserves — 64px art, 86px label, and the body's
+           74px right reserve for the ⋯/pencil buttons —
+           would leave the value column a ~35px sliver of
+           the ~300px editor column (a status pill squeezed
+           letter-by-letter, values stacked a word a line).
+           The reserve moves onto the headline alone (the
+           only row the buttons overlap), so the property
+           rows get the body's full width and their values
+           wrap to fit. Collection member cards and
+           standalone cards alike; wider widths unchanged. */
+        .obj-card--live .obj-card-body { padding-right: 0; }
+        .obj-card--live .obj-card-head { padding-right: 74px; }
+        /* Build -189: the List dress at phone width — the
+           compact row's art + Details/Remove buttons would
+           crush the text column to a sliver and ellipsize
+           the headline and meta line unreadably. At phone
+           width the text column takes the row's first line
+           beside the art and wraps in full; the buttons drop
+           to a line of their own, right-aligned. Wider
+           widths keep the single-line compact row. */
+        .obj-coll--list .obj-coll-row { flex-wrap: wrap; }
+        .obj-coll--list .obj-coll-row-main { flex: 1 1 calc(100% - 40px); }
+        .obj-coll--list .obj-coll-row-head, .obj-coll--list .obj-coll-row-sum {
+          white-space: normal; overflow: visible; text-overflow: clip;
+        }
+        .obj-coll--list .obj-coll-row .obj-coll-btn:first-of-type { margin-left: auto; }
       }
       /* The Objects panel rows wear the Variables panel's
          shape, with the object's emoji/color avatar at the
@@ -49332,12 +49392,55 @@
         new MutationObserver(function () { fitTitlePhone(); }).observe(document.documentElement, {
           attributes: true, attributeFilter: ['data-toolbars', 'data-focus']
         });
+        /* Build -190: clicking or tapping into the title when
+           it is NOT already being edited selects the whole
+           title, so typing immediately replaces it (the Enter
+           and blur commit paths are unchanged). Once editing,
+           further clicks place the caret normally, so
+           word-level editing stays possible. Two entry paths,
+           because a press can place its caret after the focus
+           event fires and overwrite a selection made only
+           there: a pointer entry is recorded at pointerdown
+           (before focus) and the selection is applied on the
+           click, which follows pointerup and its caret
+           placement; a keyboard or programmatic entry, where
+           no click follows, selects in focus plus a zero-delay
+           pass. titlePointerEntry is set only when the press
+           landed while the title was not already focused, so
+           a second click while editing is never hijacked into
+           re-selecting, and the deferred pass runs only for
+           non-pointer entries so it can never race a mouseup. */
+        var titleWasEditing = false;
+        var titlePointerEntry = false;
+        function titleSelectAll() {
+          try { titleInput.select(); } catch (e) {}
+          try { titleInput.setSelectionRange(0, titleInput.value.length); } catch (e) {}
+        }
+        titleInput.addEventListener('pointerdown', function () {
+          titlePointerEntry = !(titleWasEditing || document.activeElement === titleInput);
+        });
         titleInput.addEventListener('focus', function () {
+          var freshEntry = !titleWasEditing;
+          titleWasEditing = true;
           titleInput.classList.add('title-editing');
           clearTitlePhoneDisplay();
           fitTitleHeight();
+          if (!freshEntry) return;
+          titleSelectAll();
+          if (!titlePointerEntry) {
+            setTimeout(function () {
+              if (document.activeElement === titleInput && titleWasEditing) titleSelectAll();
+            }, 0);
+          }
+        });
+        titleInput.addEventListener('click', function () {
+          if (!titlePointerEntry) return;
+          titlePointerEntry = false;
+          titleSelectAll();
         });
         titleInput.addEventListener('blur', function () {
+          titleWasEditing = false;
+          titlePointerEntry = false;
           titleInput.classList.remove('title-editing');
           fitTitlePhone();
         });
