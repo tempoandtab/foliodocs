@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261115-195" />
+    <meta name="folio-build" content="20261115-196" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4979,6 +4979,16 @@
         background: color-mix(in srgb, var(--ink) 5%, var(--surface));
         font-size: 12.5px; letter-spacing: 0.02em; color: var(--ink-2);
         white-space: nowrap;
+        /* Build -196: the whole column-header region is
+           non-selectable — header cells, the ▾ menu buttons,
+           the resize handles and the + Property ghost header
+           all live inside these th elements, so dragging a
+           resize handle or click-dragging across the headers
+           never paints random text-selection highlights.
+           Scoped to thead only: body cells keep their normal
+           selection behavior. The -webkit- prefix is for
+           iPadOS Safari. */
+        -webkit-user-select: none; user-select: none;
       }
       .coll-grid-table th:first-child, .coll-grid-table td:first-child {
         min-width: 34px; width: 34px; text-align: center; color: var(--ink-3);
