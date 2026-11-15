@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261115-192" />
+    <meta name="folio-build" content="20261115-193" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21643,6 +21643,10 @@
           if (cur && objEnsureDocRecords(cur)) objSaveSoon();
           objRefreshEditorRefs();
           if (objPanelDocId) renderObjPanel();
+          /* Build -193 (WS-D): a store replaced by sync is
+             reconciled into an open grid like any other
+             outside change. */
+          try { cgReconcile(); } catch (e) {}
           return true;
         }
         function pushObjects(meta0) {
@@ -23149,6 +23153,22 @@
                 if (mfound) openObjEdit(mfound.scope, mfound.rec);
                 else openObjPanel(lib.currentId);
               }));
+              /* Build -193 (WS-C): the owner card's own door
+                 into each collection it carries — one
+                 "Open <Property> in grid…" per collection-
+                 valued property, opening the same grid
+                 editor the panel row and Detail open. Before
+                 -193 a property collection was reachable
+                 only through the owner's Open Details. */
+              if (mfound) {
+                mfound.rec.props.forEach(function (p) {
+                  if (p.type !== 'coll') return;
+                  el.appendChild(chipPopItem('Open ' + p.name + ' in grid…', false, function () {
+                    chipClosePop(false);
+                    openCollGrid({ oid: mfound.rec.id, os: mfound.scope === 'global' ? 'g' : 'd', pid: p.id }, doc);
+                  }));
+                });
+              }
               if (detail.member) {
                 el.appendChild(chipPopItem('Remove from collection', false, function () {
                   chipClosePop(false);
@@ -23360,6 +23380,22 @@
              badged as collections, with member counts. */
           collSection('doc', collDocList(doc.id), doc.__tpl ? 'Template collections' : 'Collections — this document');
           collSection('global', objStore.gColls || [], 'Collections — global');
+          /* Build -193 (WS-C): collection-valued properties
+             are collections in their own right — each is
+             listed in its OWNER's scope section beside the
+             named collections, labeled Owner.Property (a
+             Saga's Books reads "Red Rising Saga.Books").
+             Before -193 they appeared nowhere in this panel:
+             a property collection was reachable only through
+             its owner's Open Details. */
+          function propCollsFor(scope) {
+            var owners = scope === 'doc' ? objDocList(doc.id) : (objStore.globals || []);
+            var out = [];
+            owners.forEach(function (rec) {
+              rec.props.forEach(function (p) { if (p.type === 'coll') out.push({ rec: rec, prop: p }); });
+            });
+            return out;
+          }
           function collSection(scope, list, title) {
             var head = document.createElement('div');
             head.className = 'var-section-head';
@@ -23374,7 +23410,8 @@
             head.appendChild(add);
             body.appendChild(head);
             var shown = list.filter(function (c) { return !q || c.name.toLowerCase().indexOf(q) !== -1; });
-            if (!shown.length) {
+            var pshown = propCollsFor(scope).filter(function (pc) { return !q || (pc.rec.name + '.' + pc.prop.name).toLowerCase().indexOf(q) !== -1; });
+            if (!shown.length && !pshown.length) {
               var e = document.createElement('div');
               e.className = 'var-empty';
               e.textContent = q ? 'No collections match “' + objPanelQuery.trim() + '”.' : 'No collections yet.';
@@ -23382,6 +23419,7 @@
               return;
             }
             shown.forEach(function (coll) { body.appendChild(collPanelRow(scope, coll, doc)); });
+            pshown.forEach(function (pc) { body.appendChild(collPropPanelRow(scope, pc.rec, pc.prop, doc)); });
           }
         }
         function collPanelRow(scope, coll, doc) {
@@ -23441,6 +23479,96 @@
           row.appendChild(acts);
           row.addEventListener('click', function () { openCollManager(scope, coll); });
           return row;
+        }
+        /* Build -193 (WS-C): a collection-valued property's
+           row in the Collections sections — labeled
+           Owner.Property with its live member count, filed
+           under the owner's scope. Its doors are the
+           collection's own (insert a dress into the
+           document, Open in grid — the same grid editor,
+           membership editing and ghost-row creation as a
+           named collection's) plus the owner's ("Open
+           owner…" opens the owner object's Detail). There
+           is deliberately NO delete and NO promote on this
+           row: the property's life is the owner's, and
+           deleting or promoting stays with the property's
+           own editing surfaces. The row itself opens the
+           grid — the collection's own surface. */
+        function collPropPanelRow(scope, rec, prop, doc) {
+          var src = { oid: rec.id, os: scope === 'doc' ? 'd' : 'g', pid: prop.id };
+          var row = document.createElement('div');
+          row.className = 'var-row';
+          var av = document.createElement('span');
+          av.className = 'obj-avatar';
+          av.textContent = '🗂';
+          row.appendChild(av);
+          var main = document.createElement('div');
+          main.className = 'var-row-main';
+          var nm = document.createElement('div');
+          nm.className = 'var-row-name';
+          nm.textContent = rec.name + '.' + prop.name;
+          main.appendChild(nm);
+          var val = document.createElement('div');
+          val.className = 'var-row-value';
+          var n = (Array.isArray(prop.value) ? prop.value : []).length;
+          val.textContent = n + (n === 1 ? ' member' : ' members');
+          main.appendChild(val);
+          row.appendChild(main);
+          var kb = document.createElement('span');
+          kb.className = 'var-badge soft';
+          kb.textContent = 'Collection';
+          row.appendChild(kb);
+          var acts = document.createElement('div');
+          acts.className = 'var-row-actions';
+          var insBtn = objIconBtn(PLUS_SVG, 'Insert collection', '', function () {});
+          insBtn.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            propCollOpenInsertMenu(insBtn, src, rec, prop);
+          });
+          acts.appendChild(insBtn);
+          acts.appendChild(objIconBtn('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>', 'Open in grid editor', '', function () {
+            openCollGrid(src, doc);
+          }));
+          acts.appendChild(objIconBtn(OBJ_SVG, 'Open owner…', '', function () { openObjDetail(scope, rec); }));
+          row.appendChild(acts);
+          row.addEventListener('click', function () { openCollGrid(src, doc); });
+          return row;
+        }
+        function propCollOpenInsertMenu(anchorEl, src, rec, prop) {
+          if (objInsertMenuEl) { objCloseInsertMenu(); return; }
+          var menu = document.createElement('div');
+          menu.className = 'obj-insert-menu';
+          var head = document.createElement('div');
+          head.className = 'obj-insert-head';
+          head.textContent = 'Insert “' + rec.name + '.' + prop.name + '” as…';
+          menu.appendChild(head);
+          function item(label, dress) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = label;
+            b.addEventListener('click', function () {
+              objCloseInsertMenu();
+              collPanelInsert(src, dress);
+            });
+            menu.appendChild(b);
+          }
+          item('Gallery — a grid of cards', 'gallery');
+          item('Stack — overlapping cards', 'stack');
+          item('Table — one row per member', 'table');
+          item('List — compact rows', 'list');
+          document.body.appendChild(menu);
+          objInsertMenuEl = menu;
+          var r = anchorEl.getBoundingClientRect();
+          menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 240)) + 'px';
+          menu.style.top = Math.min(r.bottom + 4, window.innerHeight - 200) + 'px';
+          setTimeout(function () {
+            document.addEventListener('mousedown', function h(ev) {
+              if (objInsertMenuEl && !objInsertMenuEl.contains(ev.target)) {
+                objCloseInsertMenu();
+                document.removeEventListener('mousedown', h);
+              }
+            });
+          }, 0);
         }
         function collOpenInsertMenu(anchorEl, scope, coll) {
           if (objInsertMenuEl) { objCloseInsertMenu(); return; }
@@ -23874,6 +24002,11 @@
           persist(true);
           objRefreshEditorRefs();
           if (objPanelDocId) renderObjPanel();
+          /* Build -193 (WS-D): a grid open on the collection
+             being deleted closes with it; any other open grid
+             reconciles against the new store. */
+          if (collGridCtx && collGridCtx.src.cid === coll.id) closeCollGrid();
+          else try { cgReconcile(); } catch (e) {}
           if (collMgrCtx && collMgrCtx.coll && collMgrCtx.coll.id === coll.id) closeCollManager();
           folioToast('Collection “' + coll.name + '” deleted — its members were not deleted.');
         }
@@ -24707,6 +24840,13 @@
             cgBtn.className = 'btn-ghost';
             cgBtn.textContent = 'Open in grid';
             cgBtn.addEventListener('click', function () {
+              /* Build -193 (WS-C): this editor's only host is
+                 the property popup, whose fields are staged —
+                 collect them into the draft first, so member
+                 edits made in this very editor (and any type /
+                 display change staged in the popup) are not
+                 silently dropped by the save-first rule. */
+              if (oshPropCtx && !oshPopCollect(false)) return;
               var oid = objEditCtx.id, os = objEditCtx.scope === 'global' ? 'g' : 'd';
               var homeDoc = objEditCtx.docId ? varDocById(objEditCtx.docId) : null;
               if (objSaveEdit()) openCollGrid({ oid: oid, os: os, pid: pid }, homeDoc);
@@ -25603,6 +25743,10 @@
           persist(true);
           objRefreshEditorRefs();
           if (objPanelDocId) renderObjPanel();
+          /* Build -193 (WS-D): an open grid showing this
+             object as a member re-renders in the same commit
+             — its row is gone, not zombied. */
+          try { cgReconcile(); } catch (e) {}
           if (objDetailCtx && objDetailCtx.rec.id === rec.id) closeObjDetail();
           if (objEditCtx && objEditCtx.id === rec.id) closeObjEdit();
           folioToast('“' + rec.name + '” deleted — its cards, chips and formula references are plain text now.');
@@ -26497,6 +26641,28 @@
           if (m) m.hidden = true;
           oshPropCtx = null;
         }
+        /* Build -193 (WS-A): the popup's focusable fields, in
+           DOM order — the focus trap's whole world while the
+           popup is open. The -192 trap only intercepted the
+           two edge cases (first field Shift+Tab, last field
+           Tab) and left every mid-list press to the browser's
+           native Tab order; that order is not confined to the
+           topmost overlay on iPadOS, whose focus engine treats
+           the still-visible parent modal as part of the same
+           order, so Shift+Tab out of the popup's early fields
+           landed in the parent modal. The -193 trap therefore
+           computes EVERY step itself (see the keydown handler
+           below), and a focusin watchdog (registered with the
+           popup's wiring) pulls focus back inside whenever it
+           lands outside by any path the keydown never sees. */
+        function oshPropFocusables() {
+          var modal = document.getElementById('objShPropModal');
+          if (!modal) return [];
+          return Array.prototype.slice.call(modal.querySelectorAll('button, input, textarea, select, [tabindex]')).filter(function (el2) {
+            return !el2.disabled && el2.tabIndex >= 0 && !!(el2.offsetParent || el2.getClientRects().length);
+          });
+        }
+        var oshPropLastFocus = null;
         function oshRenderPropPop() {
           if (!oshPropCtx || !objEditCtx) return;
           var d = objEditCtx.draft[oshPropCtx.idx];
@@ -26547,7 +26713,54 @@
           showSel.id = 'oshPopShow';
           typeSel.addEventListener('change', function () { oshPopCollect(false); oshRenderPropPop(); });
           dressSel.addEventListener('change', function () { oshPopCollect(false); oshRenderPropPop(); });
-          var sVal = sec('Value');
+          /* Build -193 (WS-C): a collection property's
+             membership is a first-class section of this
+             popup — headed Members, with the member count,
+             a create-new-into door and the member manager
+             (the shared collection editor: Open in grid,
+             search-add existing, remove) — not a value
+             field the membership hides inside. */
+          var sVal = sec(d.type === 'coll' && !d.formula ? 'Members' : 'Value');
+          if (d.type === 'coll' && !d.formula) {
+            var mHead = document.createElement('div');
+            mHead.style.display = 'flex';
+            mHead.style.alignItems = 'center';
+            mHead.style.gap = '8px';
+            mHead.style.marginTop = '8px';
+            var mCount = document.createElement('span');
+            mCount.className = 'form-note';
+            var mn = Array.isArray(d.value) ? d.value.length : 0;
+            mCount.textContent = mn + (mn === 1 ? ' member' : ' members') + ' — membership is managed here; it is not a shorthand value.';
+            mHead.appendChild(mCount);
+            /* Create-new-into: the new object is created in
+               the owner's scope and joins THIS property's
+               list, with the property's new-member defaults
+               applied — the -188 collPendingAdd flow. The
+               door saves the owner first (the grid door's
+               rule: the collection must exist in the store
+               before anything joins it), so a brand-new
+               owner — or a property typed in this session
+               and not yet saved — has no door yet. */
+            if (objEditCtx.id && d.id) {
+              var mNew = document.createElement('button');
+              mNew.type = 'button';
+              mNew.className = 'btn-ghost';
+              mNew.style.marginLeft = 'auto';
+              mNew.style.flex = '0 0 auto';
+              mNew.textContent = '＋ New object…';
+              mNew.addEventListener('click', function () {
+                if (!oshPopCollect(false)) return;
+                var ownerId = objEditCtx.id, oscope = objEditCtx.scope, pid2 = d.id;
+                oshClosePropPop();
+                if (objSaveEdit()) {
+                  collPendingAdd = { src: { oid: ownerId, os: oscope === 'global' ? 'g' : 'd', pid: pid2 } };
+                  openObjEdit(oscope, null);
+                }
+              });
+              mHead.appendChild(mNew);
+            }
+            sVal.appendChild(mHead);
+          }
           var valWrap = document.createElement('div');
           valWrap.style.marginTop = '8px';
           valWrap.id = 'oshPopValueWrap';
@@ -26645,7 +26858,7 @@
             np.className = 'form-note';
             np.style.marginTop = '8px';
             np.textContent = d.type === 'coll'
-              ? 'Members, “Open in grid” and new-member defaults live in the Value section above — membership is not a shorthand value.'
+              ? 'Members, “Open in grid” and new-member defaults live in the Members section above — membership is not a shorthand value.'
               : 'No advanced settings for this type — everything it has is in the shorthand line.';
             sAdv.appendChild(np);
           }
@@ -27058,6 +27271,57 @@
             }
           });
         })();
+        /* Build -193 (WS-B): the modal-level arrow walk, in
+           the CAPTURE phase and driven by where focus
+           actually is, so the -191 model no longer depends on
+           which descendant the key event targets or on the
+           per-row listeners surviving a preview repaint.
+           Ground truth (probe, pre--193): the shipped
+           handlers fire in a desktop browser, but in the real
+           editing flow the crossing is defeated whenever the
+           segment completion pop is open over the caret — it
+           opens on click / typing in a value slot with
+           candidates (the Saga's Books line lists the named
+           collections), and its branch of the textarea
+           handler routes EVERY ArrowDown to the pop's
+           highlight, so Down on the last line never crosses
+           into the preview. The rule here: a completion the
+           user is actively typing (a non-empty query segment)
+           keeps its arrows; an empty-query listing — the pop
+           merely open because the caret sits in an empty
+           slot — stands down on the last line, closes, and
+           the Down crosses, exactly as the ratified model
+           says. Inside the preview, Up/Down move property to
+           property and Up from the first crosses back (via
+           oshPreviewKeydown, the one walker); Enter and Esc
+           keep their existing per-row handling. */
+        document.getElementById('objEditModal').addEventListener('keydown', function (ev) {
+          if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+          if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.shiftKey) return;
+          var ae = document.activeElement;
+          if (!ae) return;
+          if (ae.classList && ae.classList.contains('osh-pv-row')) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            var ridx = parseInt(ae.getAttribute('data-osh-idx'), 10);
+            oshPreviewKeydown(ev, isNaN(ridx) ? oshFocusIdx : ridx);
+            return;
+          }
+          if (ae !== oshArea() || ev.key !== 'ArrowDown') return;
+          var area = ae;
+          var caret = area.selectionStart;
+          if (caret == null || area.selectionEnd !== caret) return;
+          if (area.value.indexOf('\n', caret) !== -1) return;
+          var pop = document.getElementById('objShPop');
+          if (pop && !pop.hidden && oshPopItems.length) {
+            var q = oshPopCtx ? area.value.slice(oshPopCtx.from, caret).trim() : '';
+            if (q) return;
+            oshPopHide();
+          }
+          ev.preventDefault();
+          ev.stopPropagation();
+          oshFocusPreview();
+        }, true);
         document.getElementById('objShGrammarBtn').addEventListener('click', function (ev) { ev.stopPropagation(); oshGrammarToggle(); });
         document.getElementById('objShPropClose').addEventListener('click', function () { oshClosePropPop(); });
         document.getElementById('objShPropCancel').addEventListener('click', function () { oshClosePropPop(); });
@@ -27078,22 +27342,49 @@
             }
             return;
           }
-          /* Build -192 (WS4): Tab travel wraps inside the
-             popup — first field to last and back — so the
-             keyboard model is a closed loop over the popup's
-             own fields and its Cancel / Apply row, in DOM
-             order. (A menu-select list, while open, owns Tab
-             itself and closes first: see objMenuSelectOpen.) */
+          /* Build -193 (WS-A): the trap is SYMMETRIC and
+             TOTAL — while the popup is open, every Tab and
+             Shift+Tab is computed here, in both directions,
+             cycling strictly within oshPropFocusables(); no
+             press is left to the browser's native order (the
+             -192 edge-only wrap leaked backward into the
+             parent modal on iPadOS — see oshPropFocusables).
+             A menu-select list, while open, owns Tab itself:
+             its capture-phase handler closes the list and
+             travels from its button, marking the event
+             handled, so this handler stands down for that one
+             press. Esc layering and ⌘Enter-apply are handled
+             elsewhere and unchanged. */
           if (ev.key === 'Tab') {
-            var modal = document.getElementById('objShPropModal');
-            var f = Array.prototype.slice.call(modal.querySelectorAll('button, input, textarea, select, [tabindex]')).filter(function (el2) {
-              return !el2.disabled && el2.tabIndex >= 0 && !!(el2.offsetParent || el2.getClientRects().length);
-            });
-            if (!f.length) return;
+            if (ev.defaultPrevented) return;
+            var f = oshPropFocusables();
+            if (!f.length) { ev.preventDefault(); return; }
             var i = f.indexOf(document.activeElement);
-            if (ev.shiftKey && (i === 0 || i === -1)) { ev.preventDefault(); f[f.length - 1].focus(); }
-            else if (!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); }
+            ev.preventDefault();
+            var n;
+            if (i === -1) n = ev.shiftKey ? f[f.length - 1] : f[0];
+            else n = f[(i + (ev.shiftKey ? -1 : 1) + f.length) % f.length];
+            oshPropLastFocus = n;
+            try { n.focus(); } catch (e) {}
           }
+        });
+        /* Build -193 (WS-A): the trap's safety net — a
+           focusin watchdog. Some focus moves never deliver a
+           keydown the trap can compute from (iPadOS native
+           focus navigation among them); whenever focus lands
+           OUTSIDE the popup while it is open, it is pulled
+           back to the last field it held inside (or the first
+           field). A confirm stacked over the popup is a
+           legitimate layer above it and stands the watchdog
+           down, exactly as Esc layering treats it. */
+        document.addEventListener('focusin', function (ev) {
+          var m = document.getElementById('objShPropModal');
+          if (!m || m.hidden) return;
+          if (ev.target && m.contains(ev.target)) { oshPropLastFocus = ev.target; return; }
+          var confirmEl = document.getElementById('varConfirmModal');
+          if (confirmEl && !confirmEl.hidden) return;
+          var back = (oshPropLastFocus && m.contains(oshPropLastFocus)) ? oshPropLastFocus : oshPropFocusables()[0];
+          if (back) { try { back.focus(); } catch (e) {} }
         });
         ['objEditName', 'objEditEmoji', 'objEditColor'].forEach(function (id) {
           var el = document.getElementById(id);
@@ -27319,6 +27610,27 @@
           if (!collGridCtx) return;
           if (rerender) cgRender();
           else cgRenderFoot();
+        }
+        /* Build -193 (WS-D): reconcile the open grid with
+           the store after a change the grid did not make —
+           a member object deleted through the Objects panel,
+           the Detail view, the object modal, or a sync merge
+           that replaced the store. Before -193 nothing told
+           the grid, so the deleted member's row stayed
+           painted from its stale closure entry: a zombie row
+           whose record was gone, inert to every action and
+           unresolvable by the cell context menu. cgRender
+           re-derives rows from the live store through
+           cgEntries / collMembersResolved, which drop member
+           ids that no longer resolve — the render invariant:
+           a row exists only for a member id that resolves to
+           a live record. Every delete funnel (objDoDelete,
+           collDoDelete, mergeObjectsRemote) calls this. */
+        function cgReconcile() {
+          if (!collGridCtx) return;
+          var m = document.getElementById('collGridModal');
+          if (!m || m.hidden) return;
+          cgRender();
         }
         /* A rating cell is composite — stars + numeric input
            — and a value commit deliberately does NOT rebuild
@@ -28262,7 +28574,23 @@
                 'Delete “' + entry.rec.name + '”?',
                 'Its cards, chips and formula references everywhere bake to their current text, in one undoable step per document. This can’t be undone.',
                 'Delete',
-                function () { objDoDelete(entry.scope, entry.rec); cgAfterChange(true); }
+                function () {
+                  /* Build -193 (WS-D): the row leaves in the
+                     same commit (objDoDelete now reconciles
+                     the grid), and focus moves to a
+                     neighboring row — the deleted row's id is
+                     about to stop resolving, so leaving the
+                     focus model pointing at it would strand
+                     the keyboard on nothing. */
+                  var sibs = cgEntries();
+                  var si = sibs.findIndex(function (x) { return x.rec.id === entry.rec.id; });
+                  var nb = si !== -1 ? (sibs[si + 1] || sibs[si - 1]) : null;
+                  if (nb && collGridCtx) {
+                    collGridCtx.focus = { oid: nb.rec.id, col: (collGridCtx.cols && collGridCtx.cols[0]) ? collGridCtx.cols[0].key : null };
+                  }
+                  objDoDelete(entry.scope, entry.rec);
+                  cgAfterChange(true);
+                }
               );
             });
             del.classList.add('danger');
