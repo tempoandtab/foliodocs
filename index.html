@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261116-203" />
+    <meta name="folio-build" content="20261116-204" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5963,6 +5963,16 @@
       #varEditModal .var-sh-input {
         width: 100%; margin-top: 6px;
         font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px;
+        /* Build -204: the field is a TEXTAREA now — one logical
+           line that soft-wraps so long definitions (formula +
+           scope + format + chip chains) stay fully visible
+           instead of scrolling off the right edge. JS auto-grows
+           its height with the wrapped content up to the cap
+           below (about five lines), then it scrolls internally,
+           so the modal's fixed stack (-153) never moves. */
+        display: block; line-height: 1.5; resize: none;
+        white-space: pre-wrap; overflow-wrap: anywhere;
+        max-height: 128px; overflow-y: hidden;
       }
       /* Build -164: on a phone the fixed stack (quick-look +
          Shorthand section + jump nav) is flex:0 0 auto, so
@@ -8313,7 +8323,7 @@
         <div class="var-quicklook" id="varQuickLook" aria-live="polite"></div>
         <section class="var-sec var-sh-sec" id="varSecShorthand">
           <h3 class="var-sec-head"><span>Shorthand</span></h3>
-          <input class="text-input var-sh-input" id="varEditShorthand" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Shorthand" />
+          <textarea class="text-input var-sh-input" id="varEditShorthand" rows="1" wrap="soft" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Shorthand"></textarea>
           <p class="var-sh-error" id="varShorthandError" hidden></p>
           <div class="var-sh-brief">
           <p class="form-note var-sh-tip" style="margin-top:6px">Name @= value — then | scope, format, chip. Tips appear as you type.</p>
@@ -17884,6 +17894,20 @@
           if (!on) shTipsHide();
         }
         function shInput() { return document.getElementById('varEditShorthand'); }
+        /* Build -204: auto-grow the shorthand TEXTAREA with its
+           wrapped content, up to the CSS cap (~5 lines); past the
+           cap the field scrolls internally. Height is set inline
+           so the -153 fixed stack (header + shorthand + jump nav
+           pinned, only the section list scrolls) is undisturbed. */
+        function shAutoGrow() {
+          var inp = shInput();
+          if (!inp || inp.tagName !== 'TEXTAREA') return;
+          inp.style.height = 'auto';
+          var cap = 128;
+          var full = inp.scrollHeight || 0;
+          inp.style.height = Math.min(full, cap) + 'px';
+          inp.style.overflowY = full > cap ? 'auto' : 'hidden';
+        }
         function shEnv() {
           if (varEditCtx) return { scope: varEditCtx.scope, doc: fxCtxDoc(), selfId: varEditCtx.id };
           return { scope: 'doc', doc: currentDoc(), selfId: null };
@@ -18460,6 +18484,7 @@
           if (!st) return;
           inp.value = shLineFromState(st);
           shRenderedLine = inp.value;
+          shAutoGrow();
           shHideError();
         }
         /* ----- quick-look ----- */
@@ -18789,10 +18814,15 @@
         var shTipsItems = [];
         var shTipsSel = 0;
         var shTipsRange = null;
+        /* Build -204: the caret the current tips session was
+           built for — an insert-only acceptance lands THERE,
+           not wherever a tap may have moved the live selection. */
+        var shTipsCaret = null;
         function shTipsHide() {
           if (shTipsEl) shTipsEl.hidden = true;
           shTipsItems = [];
           shTipsRange = null;
+          shTipsCaret = null;
           shSigCtx = null;
         }
         /* Build -172: the Full grammar popover. The complete
@@ -19032,9 +19062,10 @@
                   return {
                     head: 'Formula',
                     items: fxc186.items.map(function (it) {
-                      return { main: it.label, sig: it.badge + (it.scopeBadge ? ' \u00B7 ' + it.scopeBadge : ''), ins: it.insert };
+                      return { main: it.label, sig: it.badge + (it.scopeBadge ? ' \u00B7 ' + it.scopeBadge : ''), ins: it.insert, insOnly: !!it.insOnly };
                     }),
                     range: { from: fStart186 + fxc186.from, to: fStart186 + fxc186.to },
+                    caret: caret,
                   };
                 }
               }
@@ -19054,7 +19085,26 @@
             if (!word || fn.indexOf(word.toUpperCase()) === 0) items2.push({ main: fn, sig: SH_FN_SIGS[fn], ins: fn === 'TODAY' ? 'TODAY()' : fn + '(' });
           });
           items2 = items2.concat(shTipsVarItems(word));
-          return { head: 'Formula', items: items2.slice(0, 8), range: { from: caret - word.length, to: caret } };
+          /* Build -204: the directory obeys the same rule as the
+             shared engine — a word that exactly names a function
+             or a variable is a finished token, so differing
+             candidates insert at the caret and every function is
+             offered as an insert-only candidate. */
+          var wordComplete = false;
+          if (word) {
+            var wl204 = word.toLowerCase();
+            if (Object.keys(SH_FN_SIGS).some(function (fn) { return fn.toLowerCase() === wl204; })) wordComplete = true;
+            if (!wordComplete) {
+              try { fxScopeEntries().forEach(function (en) { if (en.rec.name.toLowerCase() === wl204) wordComplete = true; }); } catch (e) {}
+            }
+            if (wordComplete) {
+              items2.forEach(function (it) { if (it.main.toLowerCase() !== wl204) it.insOnly = true; });
+              Object.keys(SH_FN_SIGS).forEach(function (fn) {
+                if (!items2.some(function (x) { return x.main === fn; })) items2.push({ main: fn, sig: SH_FN_SIGS[fn], ins: fn === 'TODAY' ? 'TODAY()' : fn + '(', insOnly: true });
+              });
+            }
+          }
+          return { head: 'Formula', items: items2.slice(0, wordComplete ? 12 : 8), range: { from: caret - word.length, to: caret }, caret: caret };
         }
         function shTipsShow() {
           if (!shorthandTipsOn || !varEditCtx || !shFocused) { shTipsHide(); return; }
@@ -19065,6 +19115,7 @@
           if (!inp) return;
           shTipsItems = built.items;
           shTipsRange = built.range;
+          shTipsCaret = built.caret != null ? built.caret : null;
           shSigCtx = built.sigHelp || null;
           if (shTipsSel >= shTipsItems.length) shTipsSel = 0;
           if (!shTipsEl) {
@@ -19137,10 +19188,21 @@
           var inp = shInput();
           if (!it || !inp || !shTipsRange) return;
           var v = inp.value;
-          inp.value = v.slice(0, shTipsRange.from) + it.ins + v.slice(shTipsRange.to);
-          var caret = shTipsRange.from + it.ins.length;
+          /* Build -204: an insOnly candidate inserts at the caret
+             and consumes nothing — the complete word in front of
+             the caret survives (the owner's report: picking a
+             function ate the preceding word). A normal candidate
+             replaces only its session's partial span (-186). */
+          var aFrom = shTipsRange.from, aTo = shTipsRange.to;
+          if (it.insOnly) {
+            var cp204 = shTipsCaret != null ? shTipsCaret : (typeof inp.selectionStart === 'number' ? inp.selectionStart : aTo);
+            aFrom = cp204; aTo = cp204;
+          }
+          inp.value = v.slice(0, aFrom) + it.ins + v.slice(aTo);
+          var caret = aFrom + it.ins.length;
           inp.focus();
           try { inp.setSelectionRange(caret, caret); } catch (e) {}
+          shAutoGrow();
           shDirty = true;
           shTipsSel = 0;
           shValidateLive();
@@ -19183,12 +19245,43 @@
           }, true);
           if (inp) {
             varFieldHygiene(inp);
-            inp.addEventListener('focus', function () { shFocused = true; shTipsShow(); shFollowSeg = null; shCaretFollow(); });
+            inp.addEventListener('focus', function () { shFocused = true; shAutoGrow(); shTipsShow(); shFollowSeg = null; shCaretFollow(); });
             inp.addEventListener('blur', function () { shFocused = false; setTimeout(shTipsHide, 140); });
-            inp.addEventListener('input', function () { shDirty = true; shTipsSel = 0; shValidateLive(); shTipsShow(); shCaretFollow(); shApplyLive(); });
+            /* Build -204: pasted line breaks collapse to spaces —
+               a shorthand definition is ONE logical line, however
+               many visual lines it wraps to. The paste is spliced
+               in by hand so the caret lands right after it and the
+               usual live pipeline runs exactly once. */
+            inp.addEventListener('paste', function (ev) {
+              var cd = ev.clipboardData || window.clipboardData;
+              if (!cd || !cd.getData) return;
+              var txt = '';
+              try { txt = cd.getData('text/plain') || ''; } catch (e) { txt = ''; }
+              if (!txt || !/[\r\n]/.test(txt)) return;
+              ev.preventDefault();
+              var clean = txt.replace(/[\r\n]+/g, ' ');
+              var s = typeof inp.selectionStart === 'number' ? inp.selectionStart : inp.value.length;
+              var e2 = typeof inp.selectionEnd === 'number' ? inp.selectionEnd : s;
+              inp.value = inp.value.slice(0, s) + clean + inp.value.slice(e2);
+              var pc = s + clean.length;
+              try { inp.setSelectionRange(pc, pc); } catch (e) {}
+              shDirty = true; shTipsSel = 0; shAutoGrow(); shValidateLive(); shTipsShow(); shCaretFollow(); shApplyLive();
+            });
+            inp.addEventListener('input', function () {
+              /* Build -204: any newline that still reaches the
+                 value (drop, dictation, autofill) collapses the
+                 same way — the field never holds a literal one. */
+              if (/[\r\n]/.test(inp.value)) {
+                var cc = typeof inp.selectionStart === 'number' ? inp.selectionStart : inp.value.length;
+                inp.value = inp.value.replace(/[\r\n]+/g, ' ');
+                try { inp.setSelectionRange(cc, cc); } catch (e) {}
+              }
+              shDirty = true; shTipsSel = 0; shAutoGrow(); shValidateLive(); shTipsShow(); shCaretFollow(); shApplyLive();
+            });
+            window.addEventListener('resize', function () { if (shFocused) shAutoGrow(); });
             inp.addEventListener('click', function () { shTipsShow(); shCaretFollow(); });
             inp.addEventListener('keyup', function (ev) {
-              if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'Home' || ev.key === 'End') { shTipsShow(); shCaretFollow(); }
+              if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight' || ev.key === 'ArrowUp' || ev.key === 'ArrowDown' || ev.key === 'Home' || ev.key === 'End') { shTipsShow(); shCaretFollow(); }
             });
             inp.addEventListener('keydown', function (ev) {
               /* Build -155: Esc dismisses SIGNATURE HELP
@@ -27626,8 +27719,16 @@
           var area = oshArea();
           if (!area) return;
           var v = area.value;
-          area.value = v.slice(0, ctx.from) + it.insert + v.slice(ctx.to);
-          var caret = ctx.from + (it.caret != null ? it.caret : it.insert.length);
+          /* Build -204: an atCaret candidate (picked after a
+             COMPLETE token) inserts at the caret, consuming
+             nothing — the finished word in front survives. */
+          var oFrom = ctx.from, oTo = ctx.to;
+          if (it.atCaret) {
+            var ocp = ctx.caret != null ? ctx.caret : (typeof area.selectionStart === 'number' ? area.selectionStart : ctx.to);
+            oFrom = ocp; oTo = ocp;
+          }
+          area.value = v.slice(0, oFrom) + it.insert + v.slice(oTo);
+          var caret = oFrom + (it.caret != null && !it.atCaret ? it.caret : it.insert.length);
           oshPopHide();
           area.focus();
           try { area.setSelectionRange(caret, caret); } catch (e) {}
@@ -27713,6 +27814,24 @@
             var upto = line.slice(eq + 2, inLine);
             var wm = /([A-Za-z][A-Za-z0-9_]*)$/.exec(upto);
             var word = wm ? wm[1] : '';
+            /* Build -204: a word that exactly names a function,
+               variable or object is a finished token — functions
+               are offered as insert-at-caret candidates and the
+               word survives whichever is picked. */
+            if (word) {
+              var wLow204 = word.toLowerCase();
+              var wComplete204 = Object.keys(SH_FN_SIGS).some(function (fn) { return fn.toLowerCase() === wLow204; })
+                || oshVariableCandidates().some(function (c) { return c.label.toLowerCase() === wLow204; })
+                || oshObjectCandidates().some(function (c) { return c.label.toLowerCase() === wLow204; });
+              if (wComplete204) {
+                var exact204 = [];
+                oshVariableCandidates().forEach(function (c) { if (c.label.toLowerCase() === wLow204) exact204.push({ label: c.label, tag: c.tag, insert: c.label }); });
+                oshObjectCandidates().forEach(function (c) { if (c.label.toLowerCase() === wLow204) exact204.push({ label: c.label, tag: 'Object', insert: c.label }); });
+                Object.keys(SH_FN_SIGS).forEach(function (fn) { exact204.push({ label: fn, tag: SH_FN_SIGS[fn], insert: fn + '(', caret: fn.length + 1, atCaret: fn.toLowerCase() !== wLow204 }); });
+                oshPopShow(exact204, { from: caret - word.length, to: caret, caret: caret });
+                return;
+              }
+            }
             var items = [];
             Object.keys(SH_FN_SIGS).forEach(function (fn) { items.push({ label: fn, tag: SH_FN_SIGS[fn], insert: fn + '(', caret: fn.length + 1 }); });
             oshVariableCandidates().forEach(function (c) { items.push({ label: c.label, tag: c.tag, insert: c.label }); });
@@ -35475,6 +35594,11 @@
             dItems.sort(function (a, b) { return (a.rank - b.rank) || a.label.localeCompare(b.label); });
             var dTo = caret;
             while (dTo < expr.length && /[A-Za-z0-9_]/.test(expr.charAt(dTo))) dTo++;
+            /* Build -204: a partial that IS a complete property
+               name is a finished token, not a query — differing
+               candidates insert at the caret instead of eating it. */
+            var dComplete = dItems.some(function (it) { return it.label.toLowerCase() === partial.toLowerCase(); });
+            if (dComplete) dItems.forEach(function (it) { it.insOnly = it.label.toLowerCase() !== partial.toLowerCase(); });
             return { from: segStart + lastDot + 1, to: dTo, partial: partial, items: dItems.slice(0, 8) };
           }
           var items = [];
@@ -35516,6 +35640,38 @@
           var to = caret;
           while (to < expr.length && /[A-Za-z0-9_ ]/.test(expr.charAt(to))) to++;
           while (to > caret && expr.charAt(to - 1) === ' ') to--;
+          /* Build -204: when the token at the caret is a COMPLETE
+             name (it exactly names a variable, function, object or
+             collection), it is a finished token the user means to
+             keep — not a query. Differing candidates are tagged
+             insOnly (their acceptors insert at the caret, consuming
+             nothing) and every function joins the list as an
+             insert-only candidate, so a function can be picked
+             after a finished variable name or value. A partial
+             token ("SU") is a genuine query and keeps the -186
+             rule: accepting replaces exactly the partial span. */
+          var coreLow = core.toLowerCase();
+          var isComplete = items.some(function (it) { return it.label.toLowerCase() === coreLow; });
+          if (isComplete) {
+            items.forEach(function (it) { it.insOnly = it.label.toLowerCase() !== coreLow; });
+            var haveFn = {};
+            items.forEach(function (it) { haveFn[it.label.toUpperCase()] = true; });
+            FXC_FNAMES.forEach(function (fn) {
+              if (!haveFn[fn]) items.push({ label: fn, insert: fn + '(', badge: 'Function', scopeBadge: '', rank: 2, ord: 1, insOnly: true });
+            });
+            items.sort(function (a, b) {
+              var ea = a.label.toLowerCase() === coreLow ? 0 : 1, eb = b.label.toLowerCase() === coreLow ? 0 : 1;
+              if (ea !== eb) return ea - eb;
+              var fa = (a.insOnly && a.badge === 'Function') ? 0 : 1, fb = (b.insOnly && b.badge === 'Function') ? 0 : 1;
+              if (fa !== fb) return fa - fb;
+              /* Insert-only functions keep the engine's own
+                 name order (SUM first), not alphabetical — the
+                 12-row cap must not cut the canonical picks. */
+              if (a.insOnly && b.insOnly && a.badge === 'Function' && b.badge === 'Function') return FXC_FNAMES.indexOf(a.label) - FXC_FNAMES.indexOf(b.label);
+              return a.label.localeCompare(b.label);
+            });
+            return { from: segStart, to: to, partial: core, items: items.slice(0, 12) };
+          }
           return { from: segStart, to: to, partial: core, items: items.slice(0, 8) };
         }
 
@@ -35548,7 +35704,7 @@
            immediately after a word offers the one-row
            "+ Define <Word> Inline" menu instead (see
            varAtDefineInline). */
-        var varAtState = { active: false, items: [], selected: 0, rect: null, query: '', range: null, fxItems: [], fxSel: 0, fxRange: null, fxKey: null, fxText: null, zone: 'fx' };
+        var varAtState = { active: false, items: [], selected: 0, rect: null, query: '', range: null, fxItems: [], fxSel: 0, fxRange: null, fxKey: null, fxText: null, fxCaretPos: null, zone: 'fx' };
         var varAtDismissed = null;
         /* Build -186: the completion list's Esc dismissal,
            keyed by the token context it was dismissed in —
@@ -35879,9 +36035,20 @@
           var range = varAtState.fxRange;
           if (!item || !range || !editorHandle || !editorHandle.editor) return;
           var ed = editorHandle.editor;
-          var caretPos = range.from + item.insert.length;
+          /* Build -204: an insOnly candidate (picked after a
+             COMPLETE token) inserts at the caret and consumes
+             nothing — the finished word in front survives. */
+          var insFrom = range.from, insTo = range.to;
+          if (item.insOnly) {
+            /* Build -204: land at the caret the completion
+               session was built for, not a tap-moved selection. */
+            var selPos = varAtState.fxCaretPos != null ? varAtState.fxCaretPos
+              : ((ed.state.selection && typeof ed.state.selection.from === 'number') ? ed.state.selection.from : range.to);
+            insFrom = selPos; insTo = selPos;
+          }
+          var caretPos = insFrom + item.insert.length;
           try {
-            var tr = ed.state.tr.insertText(item.insert, range.from, range.to);
+            var tr = ed.state.tr.insertText(item.insert, insFrom, insTo);
             ed.view.dispatch(tr);
             ed.chain().focus().setTextSelection({ from: caretPos, to: caretPos }).run();
           } catch (e) {}
@@ -36023,6 +36190,7 @@
                   if (varAtState.fxKey !== fxKey) { varAtState.fxSel = 0; varAtState.zone = 'fx'; }
                   varAtState.fxItems = fxc.items;
                   varAtState.fxRange = { from: hit.fx.exprFrom + fxc.from, to: hit.fx.exprFrom + fxc.to };
+                  varAtState.fxCaretPos = hit.fx.exprFrom + hit.fx.caret;
                   varAtState.fxText = hit.fx.expr.slice(fxc.from, fxc.to);
                   varAtState.fxKey = fxKey;
                 }
