@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261116-197" />
+    <meta name="folio-build" content="20261116-198" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -8249,7 +8249,7 @@
           <input class="text-input" id="varEditValue" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Variable value" style="width:100%;margin-top:6px" />
         </div>
         <div id="varEditFormulaWrap" hidden>
-          <p class="form-note" style="margin-top:12px">Names reference variables. Operators + − * / % ^, comparisons, &amp; joins text; functions ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER, LOWER, TODAY. Date variables are dates: date + 7 shifts a week, date − date gives the days between, and TODAY() is today. Type @ to insert a variable; tap a name for its value and scope.</p>
+          <p class="form-note" style="margin-top:12px">Names reference variables. Operators + − * / % ^, comparisons, &amp; joins text; functions ROUND, ABS, MIN, MAX, SUM, AVERAGE, IF, CONCAT, LEN, UPPER, LOWER, TODAY, ADDMONTHS, ADDWEEKS, ADDDAYS. Date variables are dates: date + 7 shifts a week, date − date gives the days between, TODAY() is today, ADDMONTHS(date, n) moves n months (clamped at short months), ADDWEEKS(date, n) moves n weeks and ADDDAYS(date, n) moves n days. Type @ to insert a variable; tap a name for its value and scope.</p>
           <div class="fx-field" id="varEditExpr" contenteditable="true" role="textbox" aria-multiline="false" aria-label="Formula expression" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></div>
           <div class="fx-preview" id="varEditPreview" aria-live="polite"></div>
         </div>
@@ -12949,6 +12949,24 @@
           var now = new Date();
           return Math.round(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
         }
+        /* Build -198: ADDMONTHS' month shift on a day serial.
+           The same day-of-month n months later/earlier,
+           CLAMPED to the target month's last day when that
+           month is shorter (Jan 31 + 1 month -> Feb 28, or
+           Feb 29 in a leap year). The clamp does not stick:
+           each call clamps from its own input alone, so
+           ADDMONTHS(ADDMONTHS(Jan 31, 1), 1) is Feb 28 + 1
+           month -> Mar 28 — standard EDATE semantics. All
+           math is UTC, like every other date helper here. */
+        function fxAddMonthsDays(days, n) {
+          var dt = new Date(Math.round(days) * 86400000);
+          var total = dt.getUTCFullYear() * 12 + dt.getUTCMonth() + n;
+          var ny = Math.floor(total / 12);
+          var nm = total - ny * 12;
+          var last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
+          var cd = Math.min(dt.getUTCDate(), last);
+          return Math.round(Date.UTC(ny, nm, cd) / 86400000);
+        }
         /* Build -170: date DISPLAY patterns. A variable may
            carry rec.datePat — absent (Default: the standing
            face, "Nov 19, 2026"), the word 'ISO' (YYYY-MM-DD),
@@ -13515,11 +13533,22 @@
            result renders in the date chips' face under
            General and under the Date format alike, and the
            numeric formats never render a serial — each
-           format family bites only on its own type. */
+           format family bites only on its own type.
+           The ADD* family (build -198) joins the date
+           functions: ADDMONTHS(date, n) moves n whole
+           months, clamped to the target month's last day
+           when it is shorter (the clamp never sticks —
+           each call clamps from its own input);
+           ADDWEEKS(date, n) is exactly 7*n days and
+           ADDDAYS(date, n) exactly n days, deliberate
+           aliases so every unit has one ADD* spelling.
+           All three demand a date first argument and a
+           whole-number count — a fractional count is
+           #VALUE!, never rounded — and answer a date. */
         function varIsFormula(rec) {
           return !!(rec && typeof rec.expr === 'string' && rec.expr);
         }
-        var FX_FNS = { ROUND: 1, ABS: 1, MIN: 1, MAX: 1, SUM: 1, AVERAGE: 1, COUNT: 1, IF: 1, CONCAT: 1, LEN: 1, UPPER: 1, LOWER: 1, TODAY: 1 };
+        var FX_FNS = { ROUND: 1, ABS: 1, MIN: 1, MAX: 1, SUM: 1, AVERAGE: 1, COUNT: 1, IF: 1, CONCAT: 1, LEN: 1, UPPER: 1, LOWER: 1, TODAY: 1, ADDMONTHS: 1, ADDWEEKS: 1, ADDDAYS: 1 };
         var fxGenSess = null;
         function fxInvalidate() { fxGenSess = null; }
         function fxNewSession(overrideRec, overrideCtx) {
@@ -13845,6 +13874,7 @@
               if ((tk.v === 'UPPER' || tk.v === 'LOWER') && args.length !== 1) err(tk.v + ' takes exactly one argument.');
               if (tk.v === 'ROUND' && (args.length < 1 || args.length > 2)) err('ROUND takes one argument, or two: ROUND(value, decimals).');
               if (tk.v === 'TODAY' && args.length !== 0) err('TODAY takes no arguments — write it as TODAY().');
+              if ((tk.v === 'ADDMONTHS' || tk.v === 'ADDWEEKS' || tk.v === 'ADDDAYS') && args.length !== 2) err(tk.v + ' takes exactly two arguments — a date and a whole-number count, like ' + tk.v + '(date, 3).');
               if (FX_FNS[tk.v] && tk.v !== 'TODAY' && args.length < 1) err(tk.v + ' needs at least one argument.');
               return { k: 'fn', name: tk.v, args: args };
             }
@@ -14104,6 +14134,37 @@
                  here at every evaluation and never stored. */
               if (node.name === 'TODAY') {
                 return { ok: true, kind: 'date', days: fxTodayDays() };
+              }
+              /* Build -198: the ADD* date family —
+                 ADDMONTHS(date, months), ADDWEEKS(date,
+                 weeks), ADDDAYS(date, days). All three take
+                 a date and a whole-number count (negative
+                 walks backward; a fractional count is
+                 #VALUE!, never silently rounded, unlike the
+                 bare date +/- number shift) and answer a
+                 DATE in every respect the -168 system
+                 defines. ADDMONTHS clamps at short months
+                 (fxAddMonthsDays); ADDWEEKS is exactly 7*n
+                 days and ADDDAYS exactly n days — deliberate
+                 aliases so every unit has an ADD* spelling.
+                 A non-date first argument or a non-numeric
+                 second argument is #VALUE!. */
+              if (node.name === 'ADDMONTHS' || node.name === 'ADDWEEKS' || node.name === 'ADDDAYS') {
+                if (node.args.length !== 2) return { ok: false, code: '#VALUE!', msg: node.name + ' takes exactly two arguments — a date and a whole-number count' };
+                var adv = fxEvalAst(node.args[0], ctx, sess);
+                if (!adv.ok) return adv;
+                if (adv.kind !== 'date') return { ok: false, code: '#VALUE!', msg: node.name + ' needs a date first — ' + (adv.nm ? '“' + adv.nm + '” is not a date' : 'that is not a date') + '; give it a date variable, TODAY(), or another date result' };
+                var acv = fxEvalAst(node.args[1], ctx, sess);
+                if (!acv.ok) return acv;
+                if (acv.kind === 'date') return { ok: false, code: '#VALUE!', msg: node.name + ' needs a whole-number count second, not a date' };
+                var acn = fxToNum(acv);
+                if (!acn.ok) return { ok: false, code: '#VALUE!', msg: acn.msg || (node.name + ' needs a whole-number count second') };
+                if (!isFinite(acn.num) || Math.trunc(acn.num) !== acn.num) return { ok: false, code: '#VALUE!', msg: node.name + ' needs a whole-number count — ' + fxGeneral(acn.num) + ' is not a whole number of ' + (node.name === 'ADDMONTHS' ? 'months' : (node.name === 'ADDWEEKS' ? 'weeks' : 'days')) };
+                var andays;
+                if (node.name === 'ADDMONTHS') andays = fxAddMonthsDays(adv.days, acn.num);
+                else if (node.name === 'ADDWEEKS') andays = adv.days + 7 * acn.num;
+                else andays = adv.days + acn.num;
+                return { ok: true, kind: 'date', days: andays, nm: adv.nm, dp: adv.dp || null };
               }
               /* IF is lazy: the branch not taken never
                  evaluates, so IF(x != 0, 1 / x, "—") is safe
@@ -14395,7 +14456,7 @@
               if (dvOnly && !varGlobalByName(tk.v)) return { error: '“' + tk.v + '” is a document variable — a global formula can only use global variables. Promote it to global to use it here.', unknown: tk.v };
             }
             var nx = toks[i + 1];
-            if (nx && nx.t === '(') return { error: 'Unknown function “' + tk.v + '” — the functions are ROUND, ABS, MIN, MAX, SUM, AVERAGE, COUNT, IF, CONCAT, LEN, UPPER, LOWER and TODAY.' };
+            if (nx && nx.t === '(') return { error: 'Unknown function “' + tk.v + '” — the functions are ROUND, ABS, MIN, MAX, SUM, AVERAGE, COUNT, IF, CONCAT, LEN, UPPER, LOWER, TODAY, ADDMONTHS, ADDWEEKS and ADDDAYS.' };
             return { error: 'No variable named “' + tk.v + '”.', unknown: tk.v };
           }
           return { tokens: out };
@@ -18671,7 +18732,7 @@
              modal, and the arrows stay the caret's. */
           return !!(shTipsEl && !shTipsEl.hidden && (shTipsItems.length || shSigCtx));
         }
-        var SH_FN_SIGS = { ROUND: 'ROUND(number, digits)', ABS: 'ABS(number)', MIN: 'MIN(a, b, \u2026)', MAX: 'MAX(a, b, \u2026)', SUM: 'SUM(a, b, \u2026)', AVERAGE: 'AVERAGE(a, b, \u2026)', IF: 'IF(condition, then, else)', CONCAT: 'CONCAT(a, b, \u2026)', LEN: 'LEN(text)', UPPER: 'UPPER(text)', LOWER: 'LOWER(text)', TODAY: 'TODAY()' };
+        var SH_FN_SIGS = { ROUND: 'ROUND(number, digits)', ABS: 'ABS(number)', MIN: 'MIN(a, b, \u2026)', MAX: 'MAX(a, b, \u2026)', SUM: 'SUM(a, b, \u2026)', AVERAGE: 'AVERAGE(a, b, \u2026)', IF: 'IF(condition, then, else)', CONCAT: 'CONCAT(a, b, \u2026)', LEN: 'LEN(text)', UPPER: 'UPPER(text)', LOWER: 'LOWER(text)', TODAY: 'TODAY()', ADDMONTHS: 'ADDMONTHS(date, months)', ADDWEEKS: 'ADDWEEKS(date, weeks)', ADDDAYS: 'ADDDAYS(date, days)' };
         /* Build -155: signature help. Each shipped
            function's arguments, named, with a plain-words
            line on what each one is. Variadic functions
@@ -18691,6 +18752,11 @@
           /* Build -168: TODAY takes no arguments — its
              signature line alone is the help. */
           TODAY: [],
+          /* Build -198: the ADD* date family — a date and
+             a whole-number count each. */
+          ADDMONTHS: [['date', 'The date to move from'], ['months', 'Whole months to add \u2014 negative moves backward; the day clamps to the target month\u2019s last day']],
+          ADDWEEKS: [['date', 'The date to move from'], ['weeks', 'Whole weeks to add \u2014 negative moves backward; each week is exactly 7 days']],
+          ADDDAYS: [['date', 'The date to move from'], ['days', 'Whole days to add \u2014 negative moves backward']],
         };
         /* The signature-help state: the call the caret is
            currently inside (rendered by shTipsShow), and
@@ -35195,7 +35261,7 @@
            surface (typed text retokenizes into bound
            segments; its @ menu already completes variables
            and dotted properties), so it keeps its own system. */
-        var FXC_FNAMES = ['SUM', 'COUNT', 'AVERAGE', 'MIN', 'MAX', 'ROUND', 'ABS', 'IF', 'TODAY', 'CONCAT', 'LEN', 'UPPER', 'LOWER'];
+        var FXC_FNAMES = ['SUM', 'COUNT', 'AVERAGE', 'MIN', 'MAX', 'ROUND', 'ABS', 'IF', 'TODAY', 'ADDMONTHS', 'ADDWEEKS', 'ADDDAYS', 'CONCAT', 'LEN', 'UPPER', 'LOWER'];
         function fxcMatchRank(name, partial) {
           var n = String(name).toLowerCase(), p = String(partial || '').toLowerCase();
           if (!p) return 0;
