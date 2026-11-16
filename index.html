@@ -19,7 +19,7 @@
          two hand-maintained copies and every load then detected
          a "newer" build forever, is impossible by construction.
          Bump this one value on every deploy. -->
-    <meta name="folio-build" content="20261116-198" />
+    <meta name="folio-build" content="20261116-199" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -493,6 +493,61 @@
       }
       button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
       svg { display: block; }
+
+      /* ---------------- Text selection policy (build -199) ----------------
+         Selectable text lives in exactly two places: (1) the
+         document editor surface itself — .folio-prose, which
+         covers all document content including card faces, prose
+         chips, and table cell text in documents, in the live
+         editor, the share view, and the print root alike — and
+         (2) genuine text fields anywhere else: every <input>
+         and <textarea> (shorthand areas, search fields, modal
+         value fields, settings inputs, rename fields, the grid's
+         live cell editors, the paste catcher's field) and every
+         contenteditable field outside the prose (the formula
+         expression field). EVERYTHING else — topbar, toolbars,
+         sidebar, tab strip, panels, menus, popovers, every
+         modal's chrome, toasts, the Book, Omnisearch and
+         action-bar rows, Detail's static text, the collection
+         grid's non-editing cell displays — is non-selectable,
+         so stray drags and clicks stop painting highlights
+         across the chrome. The blanket rule sits on body and
+         every descendant so chrome created later (menus,
+         popovers and modals are built by script and appended
+         to <body>) inherits the non-selectable default with no
+         per-surface patch; the carve-outs below re-enable
+         selection on the two sanctioned places. This block is
+         placed EARLY in the sheet on purpose: the chrome
+         islands inside the editor that are already
+         non-selectable on their own (table handle bars, resize
+         knobs, chip controls, definition name pills, fold
+         chevrons) carry equal-or-higher specificity rules
+         later in the sheet, so they keep their none inside the
+         selectable prose. -196's grid header rule is subsumed
+         by the blanket (headers are chrome) and stands
+         unchanged. The -webkit- prefix is for iPadOS Safari,
+         which resolves selection from the prefixed property. */
+      body, body * {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .folio-prose, .folio-prose * {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      body input, body textarea,
+      body [contenteditable="true"], body [contenteditable="true"] * {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      /* The formula field's token chips are non-editable islands
+         inside that contenteditable carve-out and were already
+         non-selectable on their own rule; restated here at the
+         carve-out's specificity, after it, so they stay none. */
+      body .fx-token {
+        -webkit-user-select: none;
+        user-select: none;
+      }
 
       /* The shell is pinned and sized to the *visual* viewport (JS keeps
          top/height in sync with visualViewport below). On iOS the keyboard
