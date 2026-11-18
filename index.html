@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261118-213" />
+    <meta name="folio-build" content="20261118-214" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4696,6 +4696,91 @@
         background: var(--accent-soft); border-color: var(--accent); color: var(--ink);
       }
       #objPanel .obj-panel-jump-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      /* ---------------- Build -214: the single Objects workspace ----------------
+         One full-sheet home for objects: the list on one side,
+         the selected object's editor on the other. The editor
+         pane HOSTS the -191 shorthand editor's panel (moved
+         here while the workspace is open), so its flex-stack
+         rules are mirrored for the hosted home. On phone
+         widths the sheet drills in: list, then editor, with
+         the editor bar's Back returning to the list. */
+      #objWorkspace { overflow: hidden; overscroll-behavior: contain; align-items: center; }
+      #objWorkspace .obj-ws-panel {
+        flex: 0 0 auto;
+        width: min(1180px, calc(100vw - 28px)); max-width: none;
+        height: calc(var(--vvh, 100dvh) * 0.95 - 20px); max-height: calc(var(--vvh, 100dvh) * 0.95 - 20px);
+        margin: auto;
+        display: flex; flex-direction: column; overflow: hidden;
+      }
+      #objWorkspace .panel-head { flex: 0 0 auto; }
+      .obj-ws-body { flex: 1 1 auto; min-height: 0; display: flex; min-width: 0; }
+      .obj-ws-listpane {
+        flex: 0 0 330px; min-width: 0; display: flex; flex-direction: column;
+        border-right: 1px solid var(--line); background: var(--surface);
+      }
+      .obj-ws-listtools { flex: 0 0 auto; padding: 10px 12px 8px; border-bottom: 1px solid var(--line); }
+      .obj-ws-newrow { display: flex; gap: 6px; flex-wrap: wrap; }
+      .obj-ws-newrow .btn-primary, .obj-ws-newrow .btn-ghost { flex: 1 1 auto; white-space: nowrap; }
+      .obj-ws-scoperow { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+      .obj-ws-scoperow .form-note { flex: 0 0 auto; }
+      .obj-ws-scope-seg { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+      .obj-ws-scope-seg button {
+        font: inherit; font-size: 12px; font-weight: 600; padding: 5px 10px;
+        background: var(--surface); color: var(--ink-2); border: none; cursor: pointer;
+      }
+      .obj-ws-scope-seg button.on { background: var(--accent-soft); color: var(--ink); }
+      .obj-ws-list {
+        flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+        scrollbar-gutter: stable; padding: 4px 10px 12px;
+      }
+      .obj-ws-listfoot { flex: 0 0 auto; padding: 8px 12px; border-top: 1px solid var(--line); }
+      .obj-ws-row { cursor: pointer; }
+      .obj-ws-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .obj-ws-row.sel { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+      .obj-ws-coll-pill {
+        flex: 0 0 auto; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        color: var(--ink); background: var(--surface); border: 1.5px solid var(--accent);
+        border-radius: 999px; padding: 2px 7px; white-space: nowrap;
+      }
+      .obj-ws-smart-badge {
+        flex: 0 0 auto; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 2px 7px; white-space: nowrap;
+      }
+      .obj-ws-editorpane { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; background: var(--surface); }
+      .obj-ws-editorbar {
+        flex: 0 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        padding: 8px 12px; border-bottom: 1px solid var(--line);
+      }
+      .obj-ws-back { display: none; }
+      .obj-ws-editortitle { display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: 15px; }
+      .obj-ws-editortitle .obj-ws-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .obj-ws-insertbar { flex: 0 0 auto; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+      .obj-ws-editor-scroll {
+        flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+      }
+      .obj-ws-editor-host .panel {
+        display: flex; flex-direction: column; overflow: visible;
+        width: 100%; max-width: none !important; height: auto; max-height: none;
+        margin: 0; border: none; border-radius: 0; box-shadow: none; background: transparent;
+      }
+      .obj-ws-editor-host .panel > * { flex: 0 0 auto; }
+      .obj-ws-editor-host .modal-scroll { flex: 0 0 auto !important; overflow: visible; }
+      .obj-ws-members { padding: 0 16px 18px; }
+      .obj-ws-members-sec { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 14px; }
+      .obj-ws-members-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .obj-ws-members-head h3 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+      .obj-ws-quickcreate { display: flex; gap: 6px; margin-top: 8px; }
+      .obj-ws-quickcreate .text-input { flex: 1 1 auto; min-width: 0; }
+      .obj-ws-empty {
+        padding: 34px 22px; color: var(--ink-3); font-size: 14px; line-height: 1.55; max-width: 430px;
+      }
+      @media (max-width: 760px) {
+        .obj-ws-listpane { flex: 1 1 auto; border-right: none; }
+        .obj-ws-editorpane { display: none; }
+        .obj-ws-body.obj-ws-show-editor .obj-ws-listpane { display: none; }
+        .obj-ws-body.obj-ws-show-editor .obj-ws-editorpane { display: flex; flex: 1 1 auto; }
+        .obj-ws-back { display: inline-flex; }
+      }
       .var-row {
         display: flex; align-items: center; gap: 8px;
         padding: 7px 8px; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 6px;
@@ -8243,6 +8328,61 @@
       </div>
     </div>
 
+    <!-- Build -214: the single Objects workspace — the ONE
+         management home for objects. The list (left) selects;
+         the editor pane (right) hosts the shorthand editor's
+         panel plus the inline Members / smart-source sections.
+         The old panel, edit modal, Detail view and collection
+         manager retire into this sheet; their doors re-point
+         here. -->
+    <div class="overlay" id="objWorkspace" hidden>
+      <div class="panel obj-ws-panel" role="dialog" aria-modal="true" aria-labelledby="objWsTitle">
+        <div class="panel-head">
+          <h2 id="objWsTitle">Objects</h2>
+          <span class="form-note" id="objWsDocName" style="margin-left:2px"></span>
+          <span style="flex:1"></span>
+          <button class="icon-btn" id="objWsClose" type="button" aria-label="Close objects workspace" data-tip="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="obj-ws-body" id="objWsBody">
+          <aside class="obj-ws-listpane" id="objWsListPane">
+            <div class="obj-ws-listtools">
+              <div class="obj-ws-newrow">
+                <button class="btn-primary" id="objWsNewObj" type="button">+ New object</button>
+                <button class="btn-ghost" id="objWsNewColl" type="button">+ Collection</button>
+                <button class="btn-ghost" id="objWsNewSmart" type="button">+ Smart</button>
+              </div>
+              <div class="obj-ws-scoperow">
+                <span class="form-note">New in:</span>
+                <span class="obj-ws-scope-seg" role="group" aria-label="Scope for new objects">
+                  <button type="button" id="objWsScopeDoc">This document</button>
+                  <button type="button" id="objWsScopeGlobal">Global</button>
+                </span>
+              </div>
+              <input class="text-input var-search-input" id="objWsSearch" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Search objects" placeholder="Search objects…" />
+            </div>
+            <div class="obj-ws-list" id="objWsList"></div>
+            <div class="obj-ws-listfoot">
+              <button class="btn-ghost" id="objWsImport" type="button">Import spreadsheet…</button>
+            </div>
+          </aside>
+          <main class="obj-ws-editorpane" id="objWsEditorPane">
+            <div class="obj-ws-editorbar">
+              <button class="btn-ghost obj-ws-back" id="objWsBack" type="button">← Objects</button>
+              <div class="obj-ws-editortitle" id="objWsEditorTitle"></div>
+              <div class="obj-ws-insertbar" id="objWsInsertBar"></div>
+            </div>
+            <div class="obj-ws-editor-scroll" id="objWsEditorScroll">
+              <div class="obj-ws-empty" id="objWsEmpty">Pick an object from the list to edit it here — its properties, collection members and smart sources all live on this one sheet. Or start a new one with the buttons above the list.</div>
+              <div class="obj-ws-editor-host" id="objWsEditorHost"></div>
+              <div class="obj-ws-members" id="objWsMembers"></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
     <div class="overlay" id="objEditModal" hidden>
       <div class="panel" role="dialog" aria-modal="true" aria-labelledby="objEditTitle" style="max-width:760px">
         <div class="panel-head">
@@ -8330,23 +8470,9 @@
     </div>
 
 
-    <div class="overlay" id="objDetailModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="objDetailTitle" style="max-width:540px">
-        <div class="panel-head">
-          <h2 id="objDetailTitle">Object</h2>
-          <button class="icon-btn" id="objDetailClose" type="button" aria-label="Close detail" data-tip="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div id="objDetailBody"></div>
-        <div class="modal-foot" style="display:flex;gap:8px;justify-content:space-between;margin-top:16px">
-          <button class="btn-danger" id="objDetailDelete" type="button">Delete object</button>
-          <span style="flex:1"></span>
-          <button class="btn-ghost" id="objDetailEdit" type="button">Edit object…</button>
-          <button class="btn-primary" id="objDetailDone" type="button">Done</button>
-        </div>
-      </div>
-    </div>
+    <!-- Build -214: the Detail view is retired — its modal
+         is gone entirely; every "Open details…" door opens
+         the single Objects workspace (see openObjDetail). -->
 
     <!-- Build -180 (WS-2): the object image lightbox. An
          .overlay surface like every other modal, so the overlay
@@ -8370,40 +8496,11 @@
       </figure>
     </div>
 
-    <!-- Build -182: the collection manager — rename, member
-         reorder/remove, and the add-existing search picker. -->
-    <div class="overlay" id="collMgrModal" hidden>
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="collMgrTitle" style="max-width:540px">
-        <div class="panel-head">
-          <h2 id="collMgrTitle">Collection</h2>
-          <button class="icon-btn" id="collMgrClose" type="button" aria-label="Close collection manager" data-tip="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div class="modal-scroll">
-        <section class="var-sec">
-          <h3 class="var-sec-head"><span>Name</span></h3>
-          <label class="form-note" for="collMgrName" style="display:block;margin-top:2px">Starts with a letter; letters, digits, spaces and underscores after — no period: formulas aggregate it as <em>SUM(Name.Pages)</em>.</label>
-          <input class="text-input" id="collMgrName" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Collection name" style="width:100%;margin-top:6px" />
-        </section>
-        <section class="var-sec">
-          <h3 class="var-sec-head"><span>Members</span></h3>
-          <div id="collMgrBody" style="margin-top:10px"></div>
-        </section>
-        <section class="var-sec" id="collMgrAddWrap" hidden>
-          <h3 class="var-sec-head"><span>Add existing objects</span></h3>
-          <input class="text-input var-search-input" id="collMgrSearch" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Search objects to add" placeholder="Search objects…" style="margin-top:8px" />
-          <div id="collMgrResults" style="margin-top:8px"></div>
-        </section>
-        </div>
-        <p class="var-sh-error" id="collMgrError" hidden></p>
-        <div class="modal-foot" style="display:flex;gap:8px;justify-content:space-between;margin-top:16px">
-          <button class="btn-danger" id="collMgrDelete" type="button" hidden>Delete collection</button>
-          <span style="flex:1"></span>
-          <button class="btn-primary" id="collMgrDone" type="button">Done</button>
-        </div>
-      </div>
-    </div>
+    <!-- Build -214: the collection manager is retired — its
+         modal is gone entirely; managing a collection opens
+         the single Objects workspace on its object, whose
+         Members section is the manager now (see
+         openCollManager). -->
 
     <!-- Build -182: one collection insertion's settings —
          its dress, sort and filters (this insertion only). -->
@@ -24963,7 +25060,15 @@
             if (mf) openCollManager(mf.scope, mf.coll);
             else if (detail.coid) {
               var mo = objResolveBound(doc, detail.coid, detail.cos);
-              if (mo) { openObjDetail(mo.scope, mo.rec); return; }
+              /* Build -214: a dress's member door for a
+                 collection PROPERTY opens the workspace on
+                 its owner, scrolled to that property's
+                 Members section. */
+              if (mo) {
+                if (objWsCtx) wsSelectObject(mo.scope, mo.rec.id, detail.cpid || null);
+                else openObjWorkspace(lib.currentId, { scope: mo.scope, id: mo.rec.id, propId: detail.cpid || null });
+                return;
+              }
               openObjPanel(lib.currentId);
             }
             return;
@@ -25156,35 +25261,16 @@
           if (f3) openObjDetail(f3.scope, f3.rec);
         }
         /* ----- the Objects panel ----- */
-        function openObjPanel(docId) {
-          if (tplEditingId) docId = tplVarKey(tplEditingId);
-          var doc = varDocById(docId || lib.currentId);
-          if (!doc) return;
-          objPanelDocId = doc.id;
-          objPanelCaret = null;
-          try {
-            if (varHomeOnStage(doc.id) && editorHandle && editorHandle.editor && editorHandle.editor.state) {
-              var psel = editorHandle.editor.state.selection;
-              if (psel) objPanelCaret = { docId: doc.id, from: psel.from, to: psel.to };
-            }
-          } catch (e) {}
-          if (objEnsureDocRecords(doc)) { objSaveSoon(); persist(true); }
-          renderObjPanel();
-          document.getElementById('objPanel').hidden = false;
-          /* Build -195: re-run the chip spy now the panel is
-             laid out (the render-pass spy ran hidden). */
-          objPanelJumpSpy();
-          setTimeout(function () {
-            var s = document.getElementById('objPanelSearch');
-            if (s && objPanelDocId) s.focus();
-            objPanelJumpSpy();
-          }, 30);
-        }
+        /* Build -214: the Objects panel RETIRES into the
+           single workspace — every door that opened the panel
+           opens the workspace on the same document. */
+        function openObjPanel(docId) { openObjWorkspace(docId); }
         function openObjPanelFor(docId) { openObjPanel(docId || lib.currentId); }
         function closeObjPanel() {
-          document.getElementById('objPanel').hidden = true;
-          objPanelDocId = null;
-          objCloseInsertMenu();
+          var p = document.getElementById('objPanel');
+          if (p) p.hidden = true;
+          if (objWsCtx) closeObjWorkspaceForce();
+          else { objPanelDocId = null; objCloseInsertMenu(); }
         }
         function objCloseInsertMenu() {
           if (objInsertMenuEl && objInsertMenuEl.parentNode) objInsertMenuEl.parentNode.removeChild(objInsertMenuEl);
@@ -25246,6 +25332,7 @@
           objInsertContent(scope, rec, dress, prop, caret && caret.docId === doc.id ? caret : null);
         }
         function renderObjPanel() {
+          if (objWsCtx) { try { renderObjWsList(); } catch (e) {} }
           if (!objPanelDocId) return;
           var doc = varDocById(objPanelDocId);
           if (!doc) return;
@@ -25719,6 +25806,1061 @@
           row.addEventListener('click', function () { openObjDetail(scope, rec); });
           return row;
         }
+        /* ============================================================
+           Build -214: THE SINGLE OBJECTS WORKSPACE.
+           One full-sheet home for objects. The list selects; the
+           editor pane HOSTS the -191 shorthand editor's panel
+           (moved here while the workspace is open, restored when
+           it closes), so the editor's mechanics — shorthand with
+           live apply + completion, live preview, the per-property
+           popup, Save/Cancel staging — are literally the modal's,
+           un-modaled. Below the hosted editor, every collection
+           property carries its Members section IN PLACE (stored
+           members or, for a smart property, the source controls
+           + summary + exclusions checklist), populatable DURING
+           CREATION against the staged draft — closing the gap
+           where the member UI existed only after a first save.
+           The Objects panel, the edit modal as a standalone
+           surface, Detail and the collection manager retire into
+           this sheet: openObjPanel / openObjDetail /
+           openCollManager and every door that called them now
+           land here, focused on the relevant object.
+           ============================================================ */
+        var objWsCtx = null;
+        var objEditPanelHome = null;
+        var objWsMembersSig = '';
+        function objWsPropsOf(rec) { return rec && Array.isArray(rec.props) ? rec.props : []; }
+        function objWsCollProps(props) { return (props || []).filter(function (p) { return p.type === 'coll'; }); }
+        function objWsHasSmart(props) { return objWsCollProps(props).some(function (p) { return p.smart === true; }); }
+        function objWsMemberCount(rec, homeDoc) {
+          var n = 0;
+          objWsCollProps(rec ? rec.props : []).forEach(function (p) {
+            if (p.smart === true) { var md = smartMemberDocs({ smart: true, source: p.source, excluded: p.excluded }); n += md ? md.length : 0; }
+            else n += Array.isArray(p.value) ? p.value.length : 0;
+          });
+          return n;
+        }
+        function wsHostEditorPanel() {
+          var modal = document.getElementById('objEditModal');
+          var host = document.getElementById('objWsEditorHost');
+          if (!modal || !host) return;
+          var panel = modal.querySelector('.panel') || host.querySelector('.panel');
+          if (!panel) return;
+          if (!objEditPanelHome) objEditPanelHome = { parent: panel.parentNode, next: panel.nextSibling };
+          if (panel.parentNode !== host) host.appendChild(panel);
+        }
+        function wsUnhostEditorPanel() {
+          var host = document.getElementById('objWsEditorHost');
+          if (!host || !objEditPanelHome) return;
+          var panel = host.querySelector('.panel');
+          if (!panel) return;
+          if (objEditPanelHome.next && objEditPanelHome.next.parentNode === objEditPanelHome.parent) objEditPanelHome.parent.insertBefore(panel, objEditPanelHome.next);
+          else objEditPanelHome.parent.appendChild(panel);
+        }
+        function wsSnapshot() {
+          if (!objEditCtx) return '';
+          try { oshSyncFromText(); } catch (e) {}
+          var nameEl = document.getElementById('objEditName');
+          var kindEl = document.getElementById('objEditKind');
+          var emEl = document.getElementById('objEditEmoji');
+          var coEl = document.getElementById('objEditColor');
+          return JSON.stringify({
+            n: nameEl ? nameEl.value : '', k: kindEl ? kindEl.value : '',
+            e: emEl ? emEl.value : '', c: coEl ? coEl.value : '',
+            h: objEditCtx.headlineIdx, a: objEditCtx.artIdx,
+            s: objEditCtx.scope, d: objEditCtx.draft,
+          });
+        }
+        function wsIsDirty() {
+          if (!objWsCtx || !objEditCtx) return false;
+          return wsSnapshot() !== objWsCtx.cleanSnap;
+        }
+        /* Switching (or closing) with staged edits: Save, or
+           Discard, or stay — never a silent drop. Two chained
+           confirms, because the house confirm carries exactly
+           two buttons: Save / not-Save, then Discard / stay. */
+        function wsGuardDirty(proceed) {
+          if (!wsIsDirty()) { proceed(); return; }
+          var nm = (document.getElementById('objEditName').value || 'this object').trim() || 'this object';
+          openVarConfirm(
+            'Save changes to “' + nm + '”?',
+            'The editor has unsaved changes. Save them before moving on, or discard them.',
+            'Save',
+            function () { if (objSaveEdit()) proceed(); },
+            function () {
+              openVarConfirm(
+                'Discard the changes?',
+                'The unsaved changes to “' + nm + '” will be lost.',
+                'Discard',
+                function () { proceed(); },
+                function () {}
+              );
+            }
+          );
+        }
+        function openObjWorkspace(docId, focus) {
+          if (typeof tplEditingId !== 'undefined' && tplEditingId) docId = tplVarKey(tplEditingId);
+          var doc = varDocById(docId || lib.currentId);
+          if (!doc) return;
+          var caret = null;
+          try {
+            if (varHomeOnStage(doc.id) && editorHandle && editorHandle.editor && editorHandle.editor.state) {
+              var psel = editorHandle.editor.state.selection;
+              if (psel) caret = { docId: doc.id, from: psel.from, to: psel.to };
+            }
+          } catch (e) {}
+          var hadEditor = !!objEditCtx;
+          objWsCtx = {
+            docId: doc.id, caret: caret, query: '', newScope: 'doc',
+            sel: null, cleanSnap: '', advOpen: {}, exclQuery: {}, focusPropId: focus && focus.propId ? focus.propId : null,
+          };
+          objPanelDocId = doc.id;
+          objPanelCaret = caret;
+          if (objEnsureDocRecords(doc)) { objSaveSoon(); persist(true); }
+          wsHostEditorPanel();
+          var search = document.getElementById('objWsSearch');
+          if (search) search.value = '';
+          document.getElementById('objWsDocName').textContent = 'for “' + (doc.title || 'Untitled') + '”';
+          document.getElementById('objWorkspace').hidden = false;
+          wsPaintScopeSeg();
+          renderObjWsList();
+          if (focus && focus.id) {
+            var f = objFindAny(focus.id);
+            if (f) { wsStartEdit(f.scope, f.rec); return; }
+          }
+          if (hadEditor && objEditCtx) { wsOnEditorOpened(); return; }
+          wsShowEmptyPane();
+        }
+        function closeObjWorkspace() {
+          if (!objWsCtx) return;
+          if (objEditCtx && wsIsDirty()) { wsGuardDirty(function () { closeObjWorkspaceForce(); }); return; }
+          closeObjWorkspaceForce();
+        }
+        function closeObjWorkspaceForce() {
+          try { objMenuSelectClose(false); } catch (e) {}
+          try { oshClosePropPop(); oshPopHide(); oshGrammarHide(); } catch (e) {}
+          objEditCtx = null;
+          collPendingAdd = null;
+          objWsCtx = null;
+          objPanelDocId = null;
+          objPanelCaret = null;
+          wsUnhostEditorPanel();
+          var ws = document.getElementById('objWorkspace');
+          if (ws) ws.hidden = true;
+          var panel = document.getElementById('objPanel');
+          if (panel) panel.hidden = true;
+        }
+        function wsShowEmptyPane() {
+          var body = document.getElementById('objWsBody');
+          if (body) body.classList.remove('obj-ws-show-editor');
+          var empty = document.getElementById('objWsEmpty');
+          if (empty) empty.hidden = false;
+          var host = document.getElementById('objWsEditorHost');
+          if (host) host.style.display = 'none';
+          var mem = document.getElementById('objWsMembers');
+          if (mem) mem.innerHTML = '';
+          var title = document.getElementById('objWsEditorTitle');
+          if (title) title.innerHTML = '';
+          var bar = document.getElementById('objWsInsertBar');
+          if (bar) bar.innerHTML = '';
+          if (objWsCtx) objWsCtx.sel = null;
+        }
+        function wsOnEditorClosed() {
+          if (!objWsCtx) return;
+          wsShowEmptyPane();
+          renderObjWsList();
+        }
+        function wsOnEditorOpened() {
+          if (!objWsCtx || !objEditCtx) return;
+          var empty = document.getElementById('objWsEmpty');
+          if (empty) empty.hidden = true;
+          var host = document.getElementById('objWsEditorHost');
+          if (host) host.style.display = '';
+          var body = document.getElementById('objWsBody');
+          if (body) body.classList.add('obj-ws-show-editor');
+          objWsCtx.sel = objEditCtx.id ? { scope: objEditCtx.scope, id: objEditCtx.id } : { scope: objEditCtx.scope, id: null };
+          objWsCtx.cleanSnap = wsSnapshot();
+          objWsMembersSig = wsMembersSignature();
+          wsPaintEditorHead();
+          wsRenderMembers();
+          renderObjWsList();
+          var sc = document.getElementById('objWsEditorScroll');
+          if (sc) sc.scrollTop = 0;
+          if (objWsCtx.focusPropId) {
+            var pid = objWsCtx.focusPropId;
+            objWsCtx.focusPropId = null;
+            setTimeout(function () {
+              var sec = document.querySelector('#objWsMembers [data-ws-prop="' + pid + '"]');
+              if (sec) sec.scrollIntoView({ block: 'start' });
+            }, 60);
+          }
+          setTimeout(function () {
+            var n = document.getElementById('objEditName');
+            if (n && objEditCtx && objWsCtx) { try { n.focus(); n.select(); } catch (e) {} }
+          }, 30);
+        }
+        function wsAfterSave(rec, scope) {
+          if (!objWsCtx || !rec) return;
+          renderObjWsList();
+          wsStartEdit(scope, rec);
+        }
+        function wsStartEdit(scope, rec, opts) {
+          opts = opts || {};
+          openObjEditImpl(scope, rec);
+          if (!objEditCtx) return;
+          if (opts.kind) {
+            var kb = document.getElementById('objEditKind');
+            if (kb) { kb.value = opts.kind; objEditApplyKind(opts.kind); }
+          }
+          if (opts.smart) {
+            var mp = null;
+            objEditCtx.draft.forEach(function (d) { if (d.type === 'coll' && !mp) mp = d; });
+            if (mp) {
+              mp.smart = true;
+              mp.source = { folderId: '', includeSubfolders: false, tags: [], tagMatch: 'any', combine: 'either', tag: '' };
+              mp.excluded = []; mp.cprops = []; mp.cvals = {}; mp.value = [];
+              try { oshRenderAll(true); } catch (e) {}
+            }
+          }
+          objWsCtx.cleanSnap = wsSnapshot();
+          objWsMembersSig = wsMembersSignature();
+          wsPaintEditorHead();
+          wsRenderMembers();
+        }
+        function wsSelectObject(scope, id, propId) {
+          if (!objWsCtx) return;
+          if (objEditCtx && objEditCtx.id === id) {
+            var body0 = document.getElementById('objWsBody');
+            if (body0) body0.classList.add('obj-ws-show-editor');
+            if (propId) {
+              var sec0 = document.querySelector('#objWsMembers [data-ws-prop="' + propId + '"]');
+              if (sec0) sec0.scrollIntoView({ block: 'start' });
+            }
+            return;
+          }
+          wsGuardDirty(function () {
+            var f = objFindAny(id);
+            if (!f) { renderObjWsList(); return; }
+            if (propId) objWsCtx.focusPropId = propId;
+            wsStartEdit(f.scope, f.rec);
+          });
+        }
+        function wsStartNew(kind, smart) {
+          if (!objWsCtx) return;
+          wsGuardDirty(function () {
+            if (!objWsCtx) return;
+            wsStartEdit(objWsCtx.newScope, null, { kind: kind || null, smart: !!smart });
+          });
+        }
+        function wsPaintScopeSeg() {
+          if (!objWsCtx) return;
+          var d = document.getElementById('objWsScopeDoc');
+          var g = document.getElementById('objWsScopeGlobal');
+          if (d) d.classList.toggle('on', objWsCtx.newScope === 'doc');
+          if (g) g.classList.toggle('on', objWsCtx.newScope === 'global');
+        }
+        function wsMembersSignature() {
+          if (!objEditCtx) return '';
+          return objWsCollProps(objEditCtx.draft).map(function (d) { return (d.name || '') + ':' + (d.smart ? 'smart' : 'stored'); }).join('|');
+        }
+        /* Called from oshRenderAll: keep the Collection pill
+           honest as lines are typed, and rebuild the Members
+           sections only when the SET of collection properties
+           changes (typing inside a member picker must never
+           rebuild the section under the user's hands). */
+        function wsOnDraftPainted() {
+          if (!objWsCtx || !objEditCtx) return;
+          wsPaintPills();
+          var sig = wsMembersSignature();
+          if (sig !== objWsMembersSig) {
+            objWsMembersSig = sig;
+            var mem = document.getElementById('objWsMembers');
+            var ae = document.activeElement;
+            if (!(mem && ae && mem.contains(ae))) wsRenderMembers();
+          }
+        }
+        function wsPaintPills() {
+          var title = document.getElementById('objWsEditorTitle');
+          if (!title || !objEditCtx) return;
+          var pill = title.querySelector('.obj-ws-coll-pill');
+          var has = objWsCollProps(objEditCtx.draft).length > 0;
+          if (has && !pill) {
+            var p = document.createElement('span');
+            p.className = 'obj-ws-coll-pill';
+            p.textContent = 'Collection';
+            title.appendChild(p);
+          } else if (!has && pill) pill.parentNode.removeChild(pill);
+          var sb = title.querySelector('.obj-ws-smart-badge');
+          var smart = objWsHasSmart(objEditCtx.draft);
+          if (smart && !sb) {
+            var s2 = document.createElement('span');
+            s2.className = 'obj-ws-smart-badge';
+            s2.textContent = 'Smart';
+            title.appendChild(s2);
+          } else if (!smart && sb) sb.parentNode.removeChild(sb);
+          var tt = title.querySelector('.obj-ws-title-text');
+          var nameEl = document.getElementById('objEditName');
+          if (tt && nameEl) tt.textContent = nameEl.value.trim() || (objEditCtx.id ? 'Object' : 'New object');
+        }
+        function wsPaintEditorHead() {
+          var title = document.getElementById('objWsEditorTitle');
+          if (!title) return;
+          title.innerHTML = '';
+          if (!objEditCtx) { wsPaintInsertBar(); return; }
+          var tt = document.createElement('span');
+          tt.className = 'obj-ws-title-text';
+          var nameEl = document.getElementById('objEditName');
+          tt.textContent = (nameEl && nameEl.value.trim()) || (objEditCtx.id ? 'Object' : 'New object');
+          title.appendChild(tt);
+          var kindEl = document.getElementById('objEditKind');
+          var kind = kindEl ? kindEl.value : '';
+          if (kind) {
+            var kb2 = document.createElement('span');
+            kb2.className = 'var-badge soft';
+            kb2.textContent = kind;
+            title.appendChild(kb2);
+          }
+          wsPaintPills();
+          wsPaintInsertBar();
+        }
+        function wsPaintInsertBar() {
+          var bar = document.getElementById('objWsInsertBar');
+          if (!bar) return;
+          bar.innerHTML = '';
+          if (!objWsCtx || !objEditCtx) return;
+          if (!objEditCtx.id) {
+            var n0 = document.createElement('span');
+            n0.className = 'form-note';
+            n0.textContent = 'Save this object to insert it.';
+            bar.appendChild(n0);
+            return;
+          }
+          if (wsIsDirty()) {
+            var n1 = document.createElement('span');
+            n1.className = 'form-note';
+            n1.textContent = 'Save to insert the saved version.';
+            bar.appendChild(n1);
+            return;
+          }
+          var f = objFindAny(objEditCtx.id);
+          if (!f) return;
+          var rec = f.rec, scope = f.scope;
+          var card = document.createElement('button');
+          card.type = 'button';
+          card.className = 'btn-ghost';
+          card.textContent = 'Insert card';
+          card.addEventListener('click', function () { wsDoInsert(function (caret) { objInsertContent(scope, rec, 'card', null, caret); }); });
+          bar.appendChild(card);
+          objWsCollProps(rec.props).forEach(function (p) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn-ghost';
+            b.textContent = 'Insert ' + p.name + '…';
+            b.addEventListener('click', function (ev) {
+              ev.stopPropagation();
+              wsCollInsertMenu(b, { oid: rec.id, os: scope === 'global' ? 'g' : 'd', pid: p.id }, rec.name + '.' + p.name);
+            });
+            bar.appendChild(b);
+          });
+        }
+        function wsDoInsert(run) {
+          if (!objWsCtx) return;
+          var caret = objWsCtx.caret;
+          var docId = objWsCtx.docId;
+          closeObjWorkspaceForce();
+          var doc = varDocById(docId || lib.currentId);
+          if (!doc || !varHomeOnStage(doc.id)) return;
+          run(caret && caret.docId === doc.id ? caret : null);
+        }
+        function wsCollInsertMenu(anchorEl, src, label) {
+          if (objInsertMenuEl) { objCloseInsertMenu(); return; }
+          var menu = document.createElement('div');
+          menu.className = 'obj-insert-menu';
+          var head = document.createElement('div');
+          head.className = 'obj-insert-head';
+          head.textContent = 'Insert “' + label + '” as…';
+          menu.appendChild(head);
+          [['gallery', 'Gallery — a grid of cards'], ['stack', 'Stack — overlapping cards'], ['table', 'Table — one row per member'], ['list', 'List — compact rows']].forEach(function (pair) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = pair[1];
+            b.addEventListener('click', function () {
+              objCloseInsertMenu();
+              wsDoInsert(function (caret) { collInsertContent(src, pair[0], caret); });
+            });
+            menu.appendChild(b);
+          });
+          document.body.appendChild(menu);
+          objInsertMenuEl = menu;
+          var r = anchorEl.getBoundingClientRect();
+          menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 240)) + 'px';
+          menu.style.top = Math.min(r.bottom + 4, window.innerHeight - 220) + 'px';
+          setTimeout(function () {
+            document.addEventListener('mousedown', function h(ev) {
+              if (objInsertMenuEl && !objInsertMenuEl.contains(ev.target)) { objCloseInsertMenu(); document.removeEventListener('mousedown', h); }
+            });
+          }, 0);
+        }
+        function renderObjWsList() {
+          if (!objWsCtx) return;
+          var doc = varDocById(objWsCtx.docId);
+          if (!doc) return;
+          var body = document.getElementById('objWsList');
+          if (!body) return;
+          body.innerHTML = '';
+          var q = (objWsCtx.query || '').trim().toLowerCase();
+          function matches(rec) {
+            if (!q) return true;
+            var homeDoc = null;
+            return rec.name.toLowerCase().indexOf(q) !== -1 ||
+              objHeadline(rec, homeDoc).toLowerCase().indexOf(q) !== -1 ||
+              (rec.kind || '').toLowerCase().indexOf(q) !== -1;
+          }
+          function section(scope, list, title) {
+            var head = document.createElement('div');
+            head.className = 'var-section-head';
+            var t = document.createElement('span');
+            t.textContent = title;
+            head.appendChild(t);
+            body.appendChild(head);
+            var shown = list.filter(matches);
+            if (!shown.length) {
+              var e = document.createElement('div');
+              e.className = 'var-empty';
+              e.textContent = q ? 'No objects match “' + objWsCtx.query.trim() + '”.' : (scope === 'doc' ? 'No objects in this document yet.' : 'No global objects yet.');
+              body.appendChild(e);
+              return;
+            }
+            shown.forEach(function (rec) { body.appendChild(objWsRow(scope, rec, doc)); });
+          }
+          section('doc', objDocList(doc.id), doc.__tpl ? 'Template objects' : 'This document');
+          section('global', objStore.globals, 'Global');
+          /* Legacy collection records that never converted
+             (the -213 compatibility path) still list here;
+             their door is the legacy manager, the one surface
+             that still speaks their shape. */
+          var legacy = [];
+          ((objStore.docColls && objStore.docColls[doc.id]) || []).forEach(function (c) { legacy.push({ scope: 'doc', coll: c }); });
+          (objStore.gColls || []).forEach(function (c) { legacy.push({ scope: 'global', coll: c }); });
+          legacy = legacy.filter(function (x) { return !q || x.coll.name.toLowerCase().indexOf(q) !== -1; });
+          if (legacy.length) {
+            var head2 = document.createElement('div');
+            head2.className = 'var-section-head';
+            var t2 = document.createElement('span');
+            t2.textContent = 'Collections (legacy records)';
+            head2.appendChild(t2);
+            body.appendChild(head2);
+            legacy.forEach(function (x) {
+              var row = document.createElement('div');
+              row.className = 'var-row obj-ws-row';
+              var av = document.createElement('span');
+              av.className = 'obj-avatar';
+              av.textContent = '🗂';
+              row.appendChild(av);
+              var main = document.createElement('div');
+              main.className = 'var-row-main';
+              var nm = document.createElement('div');
+              nm.className = 'var-row-name';
+              nm.textContent = x.coll.name;
+              main.appendChild(nm);
+              var val = document.createElement('div');
+              val.className = 'var-row-value';
+              var n = x.coll.smart ? (smartMemberDocs(x.coll) || []).length : (x.coll.members || []).length;
+              val.textContent = n + (n === 1 ? ' member' : ' members') + (x.scope === 'global' ? ' · Global' : '');
+              main.appendChild(val);
+              row.appendChild(main);
+              var kb = document.createElement('span');
+              kb.className = 'var-badge soft';
+              kb.textContent = x.coll.smart ? smartSourceBadge(x.coll) : 'Collection';
+              row.appendChild(kb);
+              row.addEventListener('click', function () { openCollManagerLegacy(x.scope, x.coll); });
+              body.appendChild(row);
+            });
+          }
+        }
+        function objWsRow(scope, rec, doc) {
+          var row = document.createElement('div');
+          row.className = 'var-row obj-ws-row';
+          if (objWsCtx && objWsCtx.sel && objWsCtx.sel.id === rec.id) row.classList.add('sel');
+          var av = document.createElement('span');
+          av.className = 'obj-avatar';
+          if (rec.color) av.style.background = rec.color;
+          av.textContent = rec.emoji || '📄';
+          row.appendChild(av);
+          var main = document.createElement('div');
+          main.className = 'var-row-main';
+          var nm = document.createElement('div');
+          nm.className = 'var-row-name';
+          nm.textContent = objHeadline(rec, scope === 'doc' ? doc : null);
+          main.appendChild(nm);
+          var val = document.createElement('div');
+          val.className = 'var-row-value';
+          var colls = objWsCollProps(rec.props);
+          val.textContent = rec.name + (rec.kind ? ' · ' + rec.kind : '') + ' · ' + rec.props.length + (rec.props.length === 1 ? ' property' : ' properties') +
+            (colls.length ? ' · ' + objWsMemberCount(rec, scope === 'doc' ? doc : null) + ' members' : '');
+          main.appendChild(val);
+          row.appendChild(main);
+          if (rec.kind) {
+            var kb = document.createElement('span');
+            kb.className = 'var-badge soft';
+            kb.textContent = rec.kind;
+            row.appendChild(kb);
+          }
+          if (colls.length) {
+            var pill = document.createElement('span');
+            pill.className = 'obj-ws-coll-pill';
+            pill.textContent = 'Collection';
+            row.appendChild(pill);
+          }
+          if (objWsHasSmart(rec.props)) {
+            var sb = document.createElement('span');
+            sb.className = 'obj-ws-smart-badge';
+            sb.textContent = 'Smart';
+            row.appendChild(sb);
+          }
+          if (scope === 'global' && objDocObjByName(doc.id, rec.name)) {
+            var sh = document.createElement('span');
+            sh.className = 'var-badge warn';
+            sh.textContent = 'Shadowed';
+            row.appendChild(sh);
+          }
+          row.addEventListener('click', function () { wsSelectObject(scope, rec.id); });
+          /* Build -214: the row is the workspace's primary
+             navigation control — it takes focus and answers
+             Enter/Space like the button it behaves as. */
+          row.tabIndex = 0;
+          row.setAttribute('role', 'button');
+          row.setAttribute('aria-label', 'Edit ' + rec.name);
+          row.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); wsSelectObject(scope, rec.id); }
+          });
+          return row;
+        }
+        /* ----- the inline Members sections ----- */
+        function wsRenderMembers() {
+          var host = document.getElementById('objWsMembers');
+          if (!host) return;
+          host.innerHTML = '';
+          if (!objWsCtx || !objEditCtx) return;
+          /* A member mutation (add / remove / reorder /
+             exclusion) repaints the Live preview card too —
+             it renders from the same draft, and without this
+             its member count lags one edit behind. */
+          try { oshRenderPreview(); } catch (e) {}
+          objEditCtx.draft.forEach(function (d, idx) {
+            if (d.type === 'coll') host.appendChild(wsMembersSection(d, idx));
+          });
+          wsRenderDetailExtras(host);
+        }
+        function wsHomeDoc() { return objEditCtx && objEditCtx.docId ? varDocById(objEditCtx.docId) : null; }
+        function wsMembersSection(d, idx) {
+          var sec = document.createElement('section');
+          sec.className = 'obj-ws-members-sec';
+          if (d.id) sec.setAttribute('data-ws-prop', d.id);
+          var homeDoc = wsHomeDoc();
+          var head = document.createElement('div');
+          head.className = 'obj-ws-members-head';
+          var h = document.createElement('h3');
+          h.textContent = 'Members — ' + d.name;
+          head.appendChild(h);
+          if (d.smart === true) {
+            var sb = document.createElement('span');
+            sb.className = 'obj-ws-smart-badge';
+            sb.textContent = 'Smart';
+            head.appendChild(sb);
+          }
+          sec.appendChild(head);
+          if (d.smart === true) wsBuildSmartSection(sec, d, idx, homeDoc);
+          else wsBuildStoredSection(sec, d, idx, homeDoc);
+          return sec;
+        }
+        function wsGridDoor(parent, d) {
+          var row = document.createElement('div');
+          row.style.marginTop = '8px';
+          if (objEditCtx && objEditCtx.id && d.id) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn-ghost';
+            b.textContent = 'Open in grid';
+            b.addEventListener('click', function () { wsOpenGridForProp(d); });
+            row.appendChild(b);
+          } else {
+            var note = document.createElement('span');
+            note.className = 'form-note';
+            note.textContent = 'Save this object to open its grid.';
+            row.appendChild(note);
+          }
+          parent.appendChild(row);
+        }
+        function wsOpenGridForProp(d) {
+          if (!objEditCtx || !objEditCtx.id || !d.id) return;
+          var propName = d.name;
+          if (!objSaveEdit()) return;
+          /* objSaveEdit reopened the editor on the saved
+             record; re-find the property by name. */
+          if (!objEditCtx || !objEditCtx.id) return;
+          var f = objFindAny(objEditCtx.id);
+          if (!f) return;
+          var prop = null;
+          f.rec.props.forEach(function (p) { if (p.name === propName) prop = p; });
+          if (!prop) return;
+          var homeDoc = f.scope === 'doc' ? (varDocById(objHomeKeyOf(f.rec.id)) || varCtxDoc()) : null;
+          var src = (collIsCollObj(f.rec) && collMembersPropOf(f.rec) === prop)
+            ? { cid: f.rec.id, cs: f.scope === 'global' ? 'g' : 'd' }
+            : { oid: f.rec.id, os: f.scope === 'global' ? 'g' : 'd', pid: prop.id };
+          openCollGrid(src, homeDoc);
+        }
+        function wsBuildStoredSection(sec, d, idx, homeDoc) {
+          if (!Array.isArray(d.value)) d.value = [];
+          var count = document.createElement('p');
+          count.className = 'form-note';
+          count.style.marginTop = '6px';
+          count.textContent = d.value.length + (d.value.length === 1 ? ' member' : ' members') + ' — changes stage here and land when you Save the object.';
+          sec.appendChild(count);
+          var list = document.createElement('div');
+          list.style.marginTop = '8px';
+          sec.appendChild(list);
+          var resolved = collMembersResolved(d.value, homeDoc);
+          if (!resolved.length) {
+            var e = document.createElement('div');
+            e.className = 'var-empty';
+            e.textContent = 'No members yet — search below to add objects, or create a new one into this collection.';
+            list.appendChild(e);
+          }
+          resolved.forEach(function (entry, mi) {
+            var row = document.createElement('div');
+            row.className = 'var-row';
+            var av = document.createElement('span');
+            av.className = 'obj-avatar';
+            if (entry.rec.color) av.style.background = entry.rec.color;
+            av.textContent = entry.rec.emoji || '📄';
+            row.appendChild(av);
+            var main = document.createElement('div');
+            main.className = 'var-row-main';
+            var nm = document.createElement('div');
+            nm.className = 'var-row-name';
+            nm.textContent = objHeadline(entry.rec, collMemberHomeDoc(entry, homeDoc));
+            main.appendChild(nm);
+            var val = document.createElement('div');
+            val.className = 'var-row-value';
+            val.textContent = entry.rec.name + (entry.rec.kind ? ' · ' + entry.rec.kind : '') + (entry.scope === 'global' ? ' · Global' : '');
+            main.appendChild(val);
+            row.appendChild(main);
+            var acts = document.createElement('div');
+            acts.className = 'var-row-actions';
+            acts.appendChild(objIconBtn('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m18 15-6-6-6 6"/></svg>', 'Move up', '', function () {
+              if (mi === 0) return;
+              var m = d.value.splice(mi, 1)[0];
+              d.value.splice(mi - 1, 0, m);
+              wsRenderMembers();
+            }));
+            acts.appendChild(objIconBtn('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>', 'Move down', '', function () {
+              if (mi >= d.value.length - 1) return;
+              var m = d.value.splice(mi, 1)[0];
+              d.value.splice(mi + 1, 0, m);
+              wsRenderMembers();
+            }));
+            acts.appendChild(objIconBtn(TRASH_SVG, 'Remove from collection (the object is not deleted)', 'danger', function () {
+              d.value.splice(mi, 1);
+              wsRenderMembers();
+            }));
+            row.appendChild(acts);
+            var open = document.createElement('button');
+            open.type = 'button';
+            open.className = 'btn-ghost';
+            open.textContent = 'Open';
+            open.addEventListener('click', function (ev) { ev.stopPropagation(); wsSelectObject(entry.scope, entry.rec.id); });
+            row.appendChild(open);
+            list.appendChild(row);
+          });
+          /* Search-add an existing object (staged). */
+          var addRow = document.createElement('div');
+          addRow.style.marginTop = '8px';
+          var picker = objBuildRefPicker({
+            addMode: true,
+            placeholder: 'Search objects to add…',
+            ariaLabel: 'Object to add to ' + d.name,
+            candidates: function () {
+              var have = {};
+              d.value.forEach(function (m) { have[m.oid] = true; });
+              var selfId = objEditCtx ? objEditCtx.id : null;
+              var out = [];
+              function cand(s2, r2) {
+                if (r2.id === selfId || have[r2.id]) return;
+                out.push({ v: (s2 === 'global' ? 'g' : 'd') + ':' + r2.id, label: r2.name + ' — ' + objHeadline(r2, s2 === 'doc' ? homeDoc : null), tag: s2 === 'global' ? 'Global' : 'This document' });
+              }
+              if (objEditCtx && objEditCtx.docId) objDocList(objEditCtx.docId).forEach(function (r2) { cand('doc', r2); });
+              objStore.globals.forEach(function (r2) { cand('global', r2); });
+              return out;
+            },
+            onPick: function (v) {
+              d.value.push({ oid: v.slice(2), s: v.charAt(0) === 'g' ? 'g' : 'd' });
+              wsRenderMembers();
+            },
+          });
+          addRow.appendChild(picker);
+          addRow.hidden = !picker._anyCandidates();
+          sec.appendChild(addRow);
+          /* Create a brand-new object straight into this
+             collection — it is created in the owner's scope
+             at once and staged as a member of the draft, so
+             it works DURING creation of the owner itself. */
+          var qc = document.createElement('div');
+          qc.className = 'obj-ws-quickcreate';
+          var qin = document.createElement('input');
+          qin.className = 'text-input';
+          qin.type = 'text';
+          qin.setAttribute('placeholder', 'New member’s name…');
+          qin.setAttribute('aria-label', 'New member name');
+          qin.setAttribute('autocomplete', 'off');
+          qin.setAttribute('autocorrect', 'off');
+          qin.setAttribute('autocapitalize', 'none');
+          qin.setAttribute('spellcheck', 'false');
+          qc.appendChild(qin);
+          var qb = document.createElement('button');
+          qb.type = 'button';
+          qb.className = 'btn-ghost';
+          qb.textContent = 'Create & add';
+          qb.addEventListener('click', function () { wsQuickCreateMember(d, qin.value); });
+          qin.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); wsQuickCreateMember(d, qin.value); } });
+          qc.appendChild(qb);
+          sec.appendChild(qc);
+          /* New member defaults (the -188 door, staged). */
+          var defRow = document.createElement('div');
+          defRow.style.marginTop = '10px';
+          var defBtn = document.createElement('button');
+          defBtn.type = 'button';
+          defBtn.className = 'btn-ghost';
+          defBtn.textContent = 'New member defaults…';
+          var defBody = document.createElement('div');
+          defBody.hidden = true;
+          defBody.style.marginTop = '6px';
+          defBtn.addEventListener('click', function () {
+            if (!defBody.hidden) { defBody.hidden = true; return; }
+            defBody.innerHTML = '';
+            var dnote = document.createElement('p');
+            dnote.className = 'form-note';
+            dnote.textContent = 'Only brand-new objects created into this collection start with these values — existing members are never changed, and adding an existing object applies none of them. These defaults belong to this collection alone, and save with the object.';
+            defBody.appendChild(dnote);
+            var shapes = collMemberPropShapes(d.value, homeDoc);
+            var ded = objDefaultsListEditor(shapes, d.defaults || {}, { ownerAvailable: true, doc: homeDoc });
+            defBody.appendChild(ded);
+            var dsave = document.createElement('button');
+            dsave.type = 'button';
+            dsave.className = 'btn-primary';
+            dsave.textContent = 'Stage defaults';
+            dsave.style.marginTop = '10px';
+            dsave.addEventListener('click', function () {
+              var nm2 = ded._defaultsValue();
+              if (nm2 && Object.keys(nm2).length) d.defaults = nm2; else delete d.defaults;
+              folioToast('New-member defaults staged for “' + d.name + '” — Save the object to keep them.');
+              defBody.hidden = true;
+            });
+            defBody.appendChild(dsave);
+            defBody.hidden = false;
+          });
+          defRow.appendChild(defBtn);
+          defRow.appendChild(defBody);
+          sec.appendChild(defRow);
+          wsGridDoor(sec, d);
+        }
+        function wsQuickCreateMember(d, rawName) {
+          if (!objEditCtx) return;
+          var name = objCleanName(rawName);
+          if (!OBJ_NAME_RE.test(name)) { folioToast('A member name must start with a letter; letters, digits, spaces and underscores after that.'); return; }
+          var scope = objEditCtx.scope;
+          var docId = objEditCtx.docId;
+          var clash = (scope === 'doc' ? objDocList(docId) : objStore.globals).find(function (r) { return r.name.toLowerCase() === name.toLowerCase(); });
+          if (clash) {
+            if (!d.value.some(function (m) { return m.oid === clash.id; })) d.value.push({ oid: clash.id, s: scope === 'global' ? 'g' : 'd' });
+            folioToast('“' + name + '” already exists — added it as a member instead of duplicating it.');
+            wsRenderMembers();
+            return;
+          }
+          var nameP = { id: objNewId('p'), name: 'Name', type: 'text', show: true, value: name };
+          var rec = objNormalizeRec({ id: objNewId('o'), name: name, kind: null, emoji: '', color: '', headline: nameP.id, art: null, props: [nameP] });
+          if (!rec) { folioToast('That member could not be created.'); return; }
+          if (scope === 'doc') {
+            if (!objStore.docObjs[docId]) objStore.docObjs[docId] = [];
+            objStore.docObjs[docId].push(rec);
+          } else objStore.globals.push(rec);
+          objSave();
+          objRefreshEditorRefs();
+          d.value.push({ oid: rec.id, s: scope === 'global' ? 'g' : 'd' });
+          folioToast('“' + name + '” created and added to “' + d.name + '”.');
+          renderObjWsList();
+          wsRenderMembers();
+        }
+        function wsBuildSmartSection(sec, d, idx, homeDoc) {
+          if (!d.source || typeof d.source !== 'object') d.source = { folderId: '', includeSubfolders: false, tags: [], tagMatch: 'any', combine: 'either', tag: '' };
+          if (!Array.isArray(d.excluded)) d.excluded = [];
+          if (!Array.isArray(d.cprops)) d.cprops = [];
+          if (!d.cvals || typeof d.cvals !== 'object') d.cvals = {};
+          var count = document.createElement('p');
+          count.className = 'form-note';
+          count.style.marginTop = '6px';
+          var md = smartMemberDocs({ smart: true, source: d.source, excluded: d.excluded });
+          count.textContent = md
+            ? md.length + (md.length === 1 ? ' document is' : ' documents are') + ' a member by the rule below right now — changes stage here and land when you Save the object.'
+            : 'No usable source yet — pick a folder or at least one tag below.';
+          sec.appendChild(count);
+          function rerender() { wsRenderMembers(); }
+          sec.appendChild(collMgrSmartSourceControls({
+            folderId: d.source.folderId || '', includeSubfolders: d.source.includeSubfolders === true,
+            tags: smartSourceTags(d.source), tagMatch: smartTagMatch(d.source), combine: smartCombine(d.source),
+            advancedOpen: !!(objWsCtx && objWsCtx.advOpen[idx]),
+            onFolder: function (v) { d.source.folderId = v || ''; rerender(); },
+            onSubfolders: function (on) { d.source.includeSubfolders = !!on; rerender(); },
+            onTags: function (list) { d.source.tags = list.slice(); d.source.tag = list.length ? list[0] : ''; rerender(); },
+            onTagMatch: function (m) { d.source.tagMatch = m; rerender(); },
+            onCombine: function (m) { d.source.combine = m; rerender(); },
+            onToggleAdvanced: function () { if (objWsCtx) objWsCtx.advOpen[idx] = !objWsCtx.advOpen[idx]; rerender(); },
+          }));
+          var exclMap = {};
+          d.excluded.forEach(function (id) { exclMap[id] = true; });
+          var docs = smartUnionDocs(d.source);
+          sec.appendChild(collMgrSmartChecklist({
+            docs: docs,
+            origins: smartOriginMap(d.source, docs || []),
+            folderName: d.source.folderId ? (function () { var f = folderById(d.source.folderId); return f ? (f.name || 'Folder') : 'Folder'; })() : 'Folder',
+            tagLabel: smartSourceTags(d.source).length ? smartTagListLabel(smartSourceTags(d.source)) : '#tag',
+            excluded: exclMap,
+            query: (objWsCtx && objWsCtx.exclQuery[idx]) || '',
+            emptyHint: (!d.source.folderId && !smartSourceTags(d.source).length)
+              ? 'Pick a source folder or one or more source tags above — the documents the rule contributes appear here, all included. Uncheck any you want to leave out.'
+              : (smartSourceFolderMissing(d.source)
+                ? 'That folder no longer exists — pick another folder or a tag.'
+                : 'No documents match these sources yet — documents that arrive later are included by default.'),
+            onQuery: function (q) { if (objWsCtx) objWsCtx.exclQuery[idx] = q; },
+            onToggle: function () { d.excluded = Object.keys(exclMap); },
+            onOpen: function (doc) {
+              if (wsIsDirty()) { folioToast('Save or discard this object first, then open the document.'); return; }
+              closeObjWorkspaceForce();
+              openDoc(doc.id, true);
+            },
+          }));
+          var cp = document.createElement('p');
+          cp.className = 'form-note';
+          cp.style.marginTop = '10px';
+          cp.textContent = 'Custom properties for these files (columns like a rating or a status of your own) are added in the grid editor.';
+          sec.appendChild(cp);
+          /* The grid door for a smart property exists only
+             once the owner is a saved Collection-kind object
+             (its grid source is the collection itself). */
+          if (objEditCtx && objEditCtx.id && d.id) {
+            var f = objFindAny(objEditCtx.id);
+            if (f && collIsCollObj(f.rec) && collMembersPropOf(f.rec) && collMembersPropOf(f.rec).id === d.id) wsGridDoor(sec, d);
+          }
+        }
+        /* Detail's remaining doors, in the workspace editor:
+           a pending document title materializes (bind-or-
+           create, then open) — against the SAVED record, so
+           it asks for a Save first while edits are staged. */
+        function wsRenderDetailExtras(host) {
+          if (!objEditCtx || !objEditCtx.id) return;
+          var homeDoc = wsHomeDoc();
+          objEditCtx.draft.forEach(function (d) {
+            if (d.type !== 'doclink') return;
+            var pend = objDoclinkPendingTitle(d.value);
+            if (!pend) return;
+            var row = document.createElement('div');
+            row.className = 'obj-ws-members-sec';
+            var h = document.createElement('div');
+            h.className = 'obj-ws-members-head';
+            var hh = document.createElement('h3');
+            hh.textContent = 'Document link — ' + d.name;
+            h.appendChild(hh);
+            row.appendChild(h);
+            var p = document.createElement('p');
+            p.className = 'form-note';
+            p.style.marginTop = '6px';
+            p.textContent = '“' + pend + '” is a pending title — no document carries it yet.';
+            row.appendChild(p);
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn-ghost';
+            b.style.marginTop = '6px';
+            b.textContent = 'Create & open “' + pend + '”';
+            b.addEventListener('click', function () {
+              if (wsIsDirty()) { folioToast('Save this object first — the link materializes from the saved record.'); return; }
+              var f = objFindAny(objEditCtx.id);
+              if (!f) return;
+              var prop = null;
+              f.rec.props.forEach(function (x) { if (x.name === d.name) prop = x; });
+              if (!prop) return;
+              closeObjWorkspaceForce();
+              objMaterializeDoclink(f.rec, prop, homeDoc);
+            });
+            row.appendChild(b);
+            host.appendChild(row);
+          });
+        }
+        /* ----- the Add-property type menu (build -214) -----
+           "+ Add property line" offers the type FIRST, then
+           inserts a correctly-formed line with the property
+           name pre-selected for typing over. */
+        function oshAddPropLine(typeTok) {
+          if (!objEditCtx) return;
+          var area = oshArea();
+          if (!area) return;
+          oshSyncFromText();
+          var base = 'Property';
+          var n = 1;
+          var names = {};
+          objEditCtx.draft.forEach(function (d) { names[(d.name || '').toLowerCase()] = true; });
+          while (names[(base + (n === 1 ? '' : n)).toLowerCase()]) n++;
+          var pname = base + (n === 1 ? '' : n);
+          var line = pname + '.' + typeTok + ' = ';
+          area.value = area.value.replace(/\s+$/, '') + (area.value.trim() ? '\n' : '') + line;
+          area.focus();
+          try { area.setSelectionRange(area.value.length - line.length, area.value.length - line.length + pname.length); } catch (e) {}
+          oshSyncFromText();
+        }
+        function objWsOpenTypeMenu(anchorEl) {
+          if (objInsertMenuEl) { objCloseInsertMenu(); return; }
+          var menu = document.createElement('div');
+          menu.className = 'obj-insert-menu';
+          var head = document.createElement('div');
+          head.className = 'obj-insert-head';
+          head.textContent = 'Add a property of type…';
+          menu.appendChild(head);
+          [['text', 'Text'], ['number', 'Number'], ['date', 'Date'], ['image', 'Image'], ['document', 'Document link'], ['object', 'Object'], ['collection', 'Collection'], ['live', 'Live']].forEach(function (pair) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = pair[1];
+            b.addEventListener('click', function () { objCloseInsertMenu(); oshAddPropLine(pair[0]); });
+            menu.appendChild(b);
+          });
+          document.body.appendChild(menu);
+          objInsertMenuEl = menu;
+          var r = anchorEl.getBoundingClientRect();
+          menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 220)) + 'px';
+          menu.style.top = Math.min(r.bottom + 4, window.innerHeight - 330) + 'px';
+          setTimeout(function () {
+            document.addEventListener('mousedown', function h(ev) {
+              if (objInsertMenuEl && !objInsertMenuEl.contains(ev.target)) { objCloseInsertMenu(); document.removeEventListener('mousedown', h); }
+            });
+          }, 0);
+        }
+        /* ----- workspace wiring ----- */
+        (function () {
+          var ws = document.getElementById('objWorkspace');
+          if (!ws) return;
+          document.getElementById('objWsClose').addEventListener('click', function () { closeObjWorkspace(); });
+          ws.addEventListener('mousedown', function (ev) { if (ev.target === ev.currentTarget) closeObjWorkspace(); });
+          document.getElementById('objWsBack').addEventListener('click', function () {
+            var body = document.getElementById('objWsBody');
+            if (body) body.classList.remove('obj-ws-show-editor');
+          });
+          document.getElementById('objWsSearch').addEventListener('input', function (ev) {
+            if (!objWsCtx) return;
+            objWsCtx.query = ev.target.value;
+            renderObjWsList();
+          });
+          document.getElementById('objWsScopeDoc').addEventListener('click', function () { if (objWsCtx) { objWsCtx.newScope = 'doc'; wsPaintScopeSeg(); } });
+          document.getElementById('objWsScopeGlobal').addEventListener('click', function () { if (objWsCtx) { objWsCtx.newScope = 'global'; wsPaintScopeSeg(); } });
+          document.getElementById('objWsNewObj').addEventListener('click', function () { wsStartNew(null, false); });
+          document.getElementById('objWsNewColl').addEventListener('click', function () { wsStartNew('Collection', false); });
+          document.getElementById('objWsNewSmart').addEventListener('click', function () { wsStartNew('Collection', true); });
+          document.getElementById('objWsImport').addEventListener('click', function () { if (objWsCtx) openSheetImport(objWsCtx.newScope); });
+          /* Live head repaint while the face fields change. */
+          ['objEditName', 'objEditEmoji', 'objEditColor'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.addEventListener('input', function () { if (objWsCtx && objEditCtx) wsPaintEditorHead(); });
+          });
+          var kindEl2 = document.getElementById('objEditKind');
+          if (kindEl2) kindEl2.addEventListener('change', function () { if (objWsCtx && objEditCtx) { wsPaintEditorHead(); } });
+          /* An open insert menu (the Add-property type menu,
+             the per-object Insert menu) is the topmost layer
+             while it stands: Escape folds it alone, ahead of
+             every other Esc layer — the menu-select
+             discipline. Without this, the workspace layer
+             below read the press as the editor's Cancel and
+             left the menu orphaned over the empty pane
+             (found driving build -214). Capture phase, so it
+             also covers the retired-modal path. */
+          document.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Escape' || ev.defaultPrevented) return;
+            if (objInsertMenuEl) { ev.preventDefault(); ev.stopPropagation(); objCloseInsertMenu(); }
+          }, true);
+          /* Escape: the hosted editor's layer, mirroring the
+             modal's — grammar pop first, then Cancel. */
+          ws.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Escape' || ev.defaultPrevented) return;
+            if (document.querySelector('.obj-mselect-list')) return;
+            if (objInsertMenuEl) return;
+            var gp = document.getElementById('objShGrammarPop');
+            if (gp && !gp.hidden) { ev.preventDefault(); ev.stopPropagation(); oshGrammarHide(); return; }
+            var pm = document.getElementById('objShPropModal');
+            if (pm && !pm.hidden) return;
+            if (!objModalIsTopmost(ws)) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (objEditCtx) closeObjEdit();
+            else closeObjWorkspace();
+          });
+          /* Enter walks the hosted editor's single-line
+             inputs, as it walked the modal's (build -183). */
+          ws.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Enter' || ev.metaKey || ev.ctrlKey || ev.altKey || ev.shiftKey) return;
+            if (ev.defaultPrevented) return;
+            var t = ev.target;
+            if (!t || t.tagName !== 'INPUT') return;
+            if (t.closest && t.closest('.obj-docpick')) return;
+            if (t.closest && !t.closest('#objWsEditorHost')) return;
+            var type = (t.getAttribute('type') || 'text').toLowerCase();
+            if (['text', 'search', 'number', 'date', 'url', 'email', 'tel', ''].indexOf(type) === -1) return;
+            var host = document.getElementById('objWsEditorHost');
+            var inputs = Array.prototype.filter.call(host.querySelectorAll('input'), function (inp) {
+              if (inp.disabled || inp.closest('.obj-docpick')) return false;
+              var ty = (inp.getAttribute('type') || 'text').toLowerCase();
+              if (['text', 'search', 'number', 'date', 'url', 'email', 'tel', ''].indexOf(ty) === -1) return false;
+              return !!(inp.offsetParent || inp.getClientRects().length);
+            });
+            var idx = inputs.indexOf(t);
+            if (idx === -1) return;
+            ev.preventDefault();
+            var next = inputs[idx + 1];
+            if (next) {
+              next.focus();
+              if (next.type === 'text' || next.type === 'search') { try { next.select(); } catch (e) {} }
+            } else {
+              var sv = document.getElementById('objEditSave');
+              if (sv) sv.focus();
+            }
+          });
+          /* The modal's capture-phase arrow walk, hosted:
+             preview rows walk, Down on the shorthand's last
+             line crosses into the preview. */
+          ws.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+            if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.shiftKey) return;
+            var ae = document.activeElement;
+            if (!ae) return;
+            if (ae.classList && ae.classList.contains('osh-pv-row')) {
+              ev.preventDefault();
+              ev.stopPropagation();
+              var ridx = parseInt(ae.getAttribute('data-osh-idx'), 10);
+              oshPreviewKeydown(ev, isNaN(ridx) ? oshFocusIdx : ridx);
+              return;
+            }
+            if (ae !== oshArea() || ev.key !== 'ArrowDown') return;
+            var area = ae;
+            var caret = area.selectionStart;
+            if (caret == null || area.selectionEnd !== caret) return;
+            if (area.value.indexOf('\n', caret) !== -1) return;
+            var pop = document.getElementById('objShPop');
+            if (pop && !pop.hidden && oshPopItems.length) {
+              var q = oshPopCtx ? area.value.slice(oshPopCtx.from, caret).trim() : '';
+              if (q) return;
+              oshPopHide();
+            }
+            ev.preventDefault();
+            ev.stopPropagation();
+            oshFocusPreview();
+          }, true);
+        })();
+
         /* ----- Build -182: the collection manager -----
            One modal manages a named collection: rename,
            member list (reorder by arrows, remove per member),
@@ -25726,27 +26868,38 @@
            adding existing objects. Creating runs through the
            same modal: name + scope first, members after. */
         var collMgrCtx = null;
+        /* Build -214: the collection manager RETIRES into the
+           single workspace — managing a (unified) collection
+           opens the workspace on its object, whose Members
+           section is the manager now. A pre-unification record
+           (none should remain after -213) lands in the
+           workspace too, via the legacy door below. */
         function openCollManager(scope, coll) {
-          var docId = scope === 'doc' ? (coll ? collHomeKeyOf(coll.id) : (objPanelDocId || lib.currentId)) : null;
-          collMgrCtx = { scope: scope, coll: coll || null, docId: docId, query: '' };
-          document.getElementById('collMgrTitle').textContent = coll ? 'Collection' : (scope === 'doc' ? 'New document collection' : 'New global collection');
-          document.getElementById('collMgrName').value = coll ? coll.name : '';
-          document.getElementById('collMgrDelete').hidden = !coll;
-          var err = document.getElementById('collMgrError');
-          err.hidden = true; err.textContent = '';
-          document.getElementById('collMgrSearch').value = '';
-          renderCollManager();
-          /* Build -194 (WS-3): stacked over the panel/grid,
-             the manager's ✕ becomes a ← Back button. */
-          objPaintCloseBtn(document.getElementById('collMgrClose'), objSurfaceStacked(document.getElementById('collMgrModal')), 'Close collection manager');
-          document.getElementById('collMgrModal').hidden = false;
-          setTimeout(function () {
-            var n = document.getElementById('collMgrName');
-            if (n && collMgrCtx) { n.focus(); if (coll) n.select(); }
-          }, 30);
+          if (coll && coll.__rec) {
+            var did2 = scope === 'doc' ? (objHomeKeyOf(coll.__rec.id) || lib.currentId) : lib.currentId;
+            if (objWsCtx) { wsSelectObject(scope, coll.__rec.id); return; }
+            openObjWorkspace(did2, { scope: scope, id: coll.__rec.id });
+            return;
+          }
+          openCollManagerLegacy(scope, coll);
+        }
+        /* Build -214 (final): the legacy manager modal is
+           GONE — this door remains only so a pre-unification
+           record (or a bare create request that reaches it)
+           lands in the workspace instead: an existing legacy
+           record is listed there with its own note, and a
+           create request starts the workspace's Collection
+           flow. (The manager's render/save functions below
+           are unreachable now and kept only as history.) */
+        function openCollManagerLegacy(scope, coll) {
+          collMgrCtx = null;
+          if (!objWsCtx) openObjWorkspace(lib.currentId);
+          if (!coll) { wsStartNew('collection', scope); return; }
+          folioToast('“' + coll.name + '” predates the unified objects — it is listed in the workspace, and its insertions keep rendering in documents.');
         }
         function closeCollManager() {
-          document.getElementById('collMgrModal').hidden = true;
+          var m = document.getElementById('collMgrModal');
+          if (m) m.hidden = true;
           collMgrCtx = null;
         }
         /* Build -207: the smart collection door — the same
@@ -25756,20 +26909,12 @@
            subfolders choice, defaulting OFF (direct children
            only). The pending source rides the manager
            context until Create commits it. */
+        /* Build -214 (final): the smart door opens the
+           workspace's own smart create flow — the manager
+           modal it used to stage in no longer exists. */
         function openSmartCollManager(scope) {
-          openCollManager(scope, null);
-          if (!collMgrCtx) return;
-          collMgrCtx.smartCreate = true;
-          collMgrCtx.newFolderId = '';
-          collMgrCtx.newSubfolders = false;
-          collMgrCtx.newTags = [];
-          collMgrCtx.newTagMatch = 'any';
-          collMgrCtx.newCombine = 'either';
-          collMgrCtx.smartAdvOpen = false;
-          collMgrCtx.newExcluded = {};
-          collMgrCtx.newExclQuery = '';
-          document.getElementById('collMgrTitle').textContent = scope === 'doc' ? 'New smart collection' : 'New global smart collection';
-          renderCollManager();
+          if (!objWsCtx) openObjWorkspace(lib.currentId);
+          wsStartNew('smart', scope);
         }
         function collMgrSmartSourceControls(opts) {
           var wrap = document.createElement('div');
@@ -27587,7 +28732,23 @@
           });
         })();
 
+        /* Build -214: editing an EXISTING object is a
+           workspace act — the card pencil, the ⋯ menu's "Edit
+           object…", the context menu and every other edit door
+           open the single workspace focused on the object.
+           Creating (rec null — the grid/dress + Add flows with
+           their collPendingAdd staging) keeps the modal path
+           below, as does any edit while the workspace is
+           already open (it lands in the pane via the impl). */
         function openObjEdit(scope, rec) {
+          if (rec && !objWsCtx && !collPendingAdd) {
+            var did = scope === 'doc' ? (objHomeKeyOf(rec.id) || lib.currentId) : lib.currentId;
+            openObjWorkspace(did, { scope: scope, id: rec.id });
+            return;
+          }
+          openObjEditImpl(scope, rec);
+        }
+        function openObjEditImpl(scope, rec) {
           try { objCloseInsertMenu(); } catch (e) {}
           var docId = scope === 'doc' ? (rec ? objHomeKeyOf(rec.id) : (objPanelDocId || lib.currentId)) : null;
           objEditCtx = {
@@ -27617,6 +28778,10 @@
              object…" door) or over the grid/panel, this modal
              is stacked — its ✕ becomes a ← Back button. */
           objPaintCloseBtn(document.getElementById('objEditClose'), objSurfaceStacked(document.getElementById('objEditModal')), 'Cancel', 'Cancel');
+          /* Build -214: hosted in the workspace, the editor
+             opens IN THE PANE (the modal shell stays hidden;
+             its panel lives in the workspace host). */
+          if (objWsCtx) { wsOnEditorOpened(); return; }
           document.getElementById('objEditModal').hidden = false;
           setTimeout(function () {
             var n = document.getElementById('objEditName');
@@ -27624,6 +28789,17 @@
           }, 30);
         }
         function closeObjEdit() {
+          /* Build -214: in the workspace, Cancel/close clears
+             the editor back to the list/empty pane — the sheet
+             itself stays open. */
+          if (objWsCtx) {
+            try { objMenuSelectClose(false); } catch (e) {}
+            try { oshClosePropPop(); oshPopHide(); oshGrammarHide(); } catch (e) {}
+            objEditCtx = null;
+            collPendingAdd = null;
+            wsOnEditorClosed();
+            return;
+          }
           document.getElementById('objEditModal').hidden = true;
           try { objMenuSelectClose(false); } catch (e) {}
           try { oshClosePropPop(); oshPopHide(); oshGrammarHide(); } catch (e) {}
@@ -28280,6 +29456,26 @@
              shorthand line blocks the save with the reason
              on the fixed error line, and nothing commits. */
           if (oshErrors.length) { objEditError(oshErrors[0].msg); return false; }
+          /* Build -214: a staged SMART collection property
+             must carry a usable source before it can save —
+             the inline Members section is where it is picked,
+             and a sourceless smart property would normalize
+             back to a plain collection, silently losing the
+             owner's intent. */
+          for (var smi = 0; smi < ctx.draft.length; smi++) {
+            var smd = ctx.draft[smi];
+            if (smd.type === 'coll' && smd.smart === true) {
+              var smsrc = smd.source || {};
+              if (!smsrc.folderId && !smartSourceTags(smsrc).length) {
+                objEditError('“' + smd.name + '” is a smart collection — give it a source folder or at least one tag in its Members section below.');
+                return false;
+              }
+              if (smsrc.folderId && !folderById(smsrc.folderId) && !smartSourceTags(smsrc).length) {
+                objEditError('“' + smd.name + '” — that source folder no longer exists. Pick another folder, or a tag, in its Members section below.');
+                return false;
+              }
+            }
+          }
           ctx.headlineIdx = (function () { var v = document.getElementById('objEditHeadline').value; return v === '' ? null : parseInt(v, 10); })();
           ctx.artIdx = (function () { var v = document.getElementById('objEditArt').value; return v === '' ? null : parseInt(v, 10); })();
           var name = objCleanName(document.getElementById('objEditName').value);
@@ -28364,6 +29560,11 @@
           objRefreshEditorRefs();
           if (objPanelDocId) renderObjPanel();
           if (objDetailCtx && objDetailCtx.rec.id === rec.id) renderObjDetail();
+          /* Build -214: in the workspace a Save lands and the
+             editor REOPENS on the saved record — clean draft,
+             real id — so the Members grid door, the Insert
+             doors and member work continue in place. */
+          if (objWsCtx) { var wsSavedRec = rec, wsSavedScope = ctx.scope; closeObjEdit(); wsAfterSave(wsSavedRec, wsSavedScope); return true; }
           closeObjEdit();
           return true;
         }
@@ -28411,27 +29612,25 @@
           return !objSurfaceStacked(el);
         }
         var objDetailReturnEl = null;
+        /* Build -214: Detail RETIRES into the single
+           workspace — every "Open details…" door opens the
+           workspace focused on the object, where its editor,
+           members, pending-link and promote/delete doors all
+           live. (renderObjDetail / objDetailCtx remain for the
+           legacy surfaces that still read them; nothing opens
+           Detail anymore.) */
         function openObjDetail(scope, rec) {
           if (!rec) return;
-          /* Build -194 (WS-3): the owner-object popup never
-             registered for Escape — Detail had NO Esc handler
-             at all, and it does not take focus on open, so an
-             Esc aimed at it was handled by whatever surface
-             held focus beneath (the panel closed instead, in
-             the owner's report the popup simply stayed). It
-             now records its opener (focus returns there on
-             close), paints ← when stacked, and answers Esc
-             through the document-level layer handler wired
-             with its buttons below. */
-          objDetailReturnEl = document.activeElement || null;
-          var stacked = objSurfaceStacked(document.getElementById('objDetailModal'));
-          objDetailCtx = { scope: scope, rec: rec };
-          renderObjDetail();
-          objPaintCloseBtn(document.getElementById('objDetailClose'), stacked, 'Close detail');
-          document.getElementById('objDetailModal').hidden = false;
+          var did = scope === 'doc' ? (objHomeKeyOf(rec.id) || lib.currentId) : lib.currentId;
+          if (objWsCtx) { objWsCtx.focusPropId = null; wsSelectObject(scope, rec.id); return; }
+          openObjWorkspace(did, { scope: scope, id: rec.id });
         }
         function closeObjDetail() {
-          document.getElementById('objDetailModal').hidden = true;
+          /* Build -214: Detail's modal no longer exists —
+             the close stays as a safe no-op for stale
+             contexts (the Esc layer, delete flows). */
+          var dm = document.getElementById('objDetailModal');
+          if (dm) dm.hidden = true;
           objDetailCtx = null;
           var back = objDetailReturnEl;
           objDetailReturnEl = null;
@@ -29751,7 +30950,7 @@
                    back to delete + create. */
                 var hSegs = oshSplitHeader(raw.slice(0, raw.indexOf('=') === -1 ? raw.length : raw.indexOf('=')));
                 var hTypeTok = hSegs[1] ? (hSegs[1].t || '').trim().toLowerCase() : '';
-                var hType = OSH_TYPE_IN[hTypeTok];
+                var hType = OSH_TYPE_TOKENS[hTypeTok];
                 if (hType && hType === prevDraft[li].type) { prev = prevDraft[li]; prevIx = li; }
               }
             }
@@ -29830,6 +31029,9 @@
           oshRenderErrors();
           objEditSyncFace();
           oshRenderPreview();
+          /* Build -214: the workspace keeps its Collection
+             pill and Members sections in step with the draft. */
+          if (objWsCtx) { try { wsOnDraftPainted(); } catch (e) {} }
         }
 
         /* Create-into-a-collection seeding (point 9): when the
@@ -30807,23 +32009,16 @@
              scrim attempts the save; validation gates it. */
           if (ev.target === ev.currentTarget) objSaveEdit();
         });
-        document.getElementById('objEditAddProp').addEventListener('click', function () {
+        document.getElementById('objEditAddProp').addEventListener('click', function (ev) {
           if (!objEditCtx) return;
-          /* Build -191: a new property is a new shorthand
-             line — appended, focused, ready to rename. */
-          var area = oshArea();
-          if (!area) return;
-          oshSyncFromText();
-          var base = 'Property';
-          var n = 1;
-          var names = {};
-          objEditCtx.draft.forEach(function (d) { names[(d.name || '').toLowerCase()] = true; });
-          while (names[(base + (n === 1 ? '' : n)).toLowerCase()]) n++;
-          var line = base + (n === 1 ? '' : n) + '.text = ';
-          area.value = area.value.replace(/\s+$/, '') + (area.value.trim() ? '\n' : '') + line;
-          area.focus();
-          try { area.setSelectionRange(area.value.length - line.length, area.value.length - line.length + line.indexOf('.')); } catch (e) {}
-          oshSyncFromText();
+          /* Build -214: the type menu FIRST (Text / Number /
+             Date / Image / Document link / Object / Collection
+             / Live), then a correctly-formed line with the
+             property name pre-selected for typing over —
+             oshAddPropLine, in the workspace block. In the
+             retired-modal path (workspace closed) the menu
+             still serves: it is the same button. */
+          objWsOpenTypeMenu(ev.currentTarget);
         });
         /* Build -191: the shorthand text area — live sync on
            every keystroke, segment-aware completion, and the
@@ -31046,30 +32241,9 @@
             function () { objDoDelete(scope, rec); }
           );
         });
-        document.getElementById('collMgrClose').addEventListener('click', closeCollManager);
-        document.getElementById('collMgrDone').addEventListener('click', function () {
-          if (!collMgrCtx) return;
-          if (!collMgrCtx.coll) { if (collMgrSaveName()) { /* stays open in manage mode */ } return; }
-          if (collMgrSaveName()) closeCollManager();
-        });
-        document.getElementById('collMgrModal').addEventListener('mousedown', function (ev) {
-          if (ev.target === ev.currentTarget) { if (!collMgrCtx || !collMgrCtx.coll || collMgrSaveName()) closeCollManager(); }
-        });
-        document.getElementById('collMgrSearch').addEventListener('input', function (ev) {
-          if (!collMgrCtx) return;
-          collMgrCtx.query = ev.target.value;
-          renderCollMgrResults();
-        });
-        document.getElementById('collMgrDelete').addEventListener('click', function () {
-          if (!collMgrCtx || !collMgrCtx.coll) return;
-          var coll = collMgrCtx.coll, scope = collMgrCtx.scope;
-          openVarConfirm(
-            'Delete the collection “' + coll.name + '”?',
-            'Its members are NOT deleted. Insertions of it in documents bake to their current rendering, and formula aggregates over it bake to their last value, in one undoable step per document. This can’t be undone.',
-            'Delete collection',
-            function () { collDoDelete(scope, coll); }
-          );
-        });
+        /* Build -214: the collection manager's wiring is
+           retired with its modal — the elements no longer
+           exist, and openCollManager routes to the workspace. */
         /* ----- Build -212: spreadsheet import wiring ----- */
         document.getElementById('sheetImpClose').addEventListener('click', closeSheetImport);
         document.getElementById('sheetImpBack').addEventListener('click', function () {
@@ -31417,10 +32591,26 @@
           }, 40);
         }
         function closeCollGrid() {
+          /* Build -214: capture the grid's owner before the
+             context clears — on return to the workspace, an
+             editor open (clean) on that same object reloads
+             from the saved record the grid just edited. */
+          var wsGridOwnerId = null;
+          try {
+            if (objWsCtx && collGridCtx && collGridCtx.src) {
+              wsGridOwnerId = collGridCtx.src.cid || collGridCtx.src.oid || null;
+            }
+          } catch (e) {}
           try { chipClosePop(false); } catch (e) {}
           var m = document.getElementById('collGridModal');
           if (m) m.hidden = true;
           collGridCtx = null;
+          if (wsGridOwnerId && objWsCtx && objEditCtx && objEditCtx.id === wsGridOwnerId && !wsIsDirty()) {
+            var wf = objFindAny(wsGridOwnerId);
+            if (wf) wsStartEdit(wf.scope, wf.rec);
+          } else if (objWsCtx) {
+            try { renderObjWsList(); } catch (e) {}
+          }
         }
         function cgDoc() { return collGridCtx ? collGridCtx.doc : null; }
         function cgSource() { return collGridCtx ? collSourceMembers(collGridCtx.src, cgDoc()) : null; }
@@ -33088,8 +34278,9 @@
           });
         })();
 
-        document.getElementById('objDetailClose').addEventListener('click', closeObjDetail);
-        document.getElementById('objDetailDone').addEventListener('click', closeObjDetail);
+        /* Build -214: Detail's own buttons are retired with
+           its modal; the Esc layer below stays (null-safe) as
+           a belt-and-braces close for any stale context. */
         /* Build -194 (WS-3): Detail's Esc layer. Document-
            level, like the lightbox's, because Detail does not
            take focus on open — an Esc's target is usually a
@@ -33131,23 +34322,10 @@
             Array.prototype.forEach.call(document.querySelectorAll('.obj-card'), function (c) { objReflowCardPills(c); });
           }, 120);
         });
-        document.getElementById('objDetailModal').addEventListener('mousedown', function (ev) {
-          if (ev.target === ev.currentTarget) closeObjDetail();
-        });
-        document.getElementById('objDetailEdit').addEventListener('click', function () {
-          if (!objDetailCtx) return;
-          openObjEdit(objDetailCtx.scope, objDetailCtx.rec);
-        });
-        document.getElementById('objDetailDelete').addEventListener('click', function () {
-          if (!objDetailCtx) return;
-          var rec = objDetailCtx.rec, scope = objDetailCtx.scope;
-          openVarConfirm(
-            'Delete “' + rec.name + '”?',
-            'Its cards, chips and formula references everywhere bake to their current text, in one undoable step per document. This can’t be undone.',
-            'Delete',
-            function () { objDoDelete(scope, rec); }
-          );
-        });
+        /* Build -214: Detail's backdrop/Edit/Delete wiring is
+           retired with its modal — Edit and Delete live in
+           the workspace editor (the hosted panel carries
+           both), and openObjDetail routes there. */
         /* ----- generic confirm (promote conflicts, deletes) ----- */
         function openVarConfirm(title, text, okLabel, cb, cancelCb) {
           /* Build -138: a confirm is a modal too — when one
@@ -67428,8 +68606,9 @@
              edited). Field-safe, like ⌥V. */
           { id: 'objects', combo: 'alt+b', hint: '⌥B', group: 'General', label: 'Objects',
             run: function () {
-              if (objPanelDocId) closeObjPanel();
-              else openObjPanel(lib.currentId);
+              /* Build -214: ⌥B toggles the single workspace. */
+              if (objWsCtx) closeObjWorkspace();
+              else openObjWorkspace(lib.currentId);
             } },
           { id: 'settings', combo: 'mod+,', hint: '⌘,', group: 'General', label: 'Settings',
             run: function () { scRunSettings(); } },
