@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261121-231" />
+    <meta name="folio-build" content="20261121-232" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4847,13 +4847,43 @@
          workbench and panels, when in place, fill the main
          area instead of floating as modals. */
       .main { position: relative; }
+      /* Build -232: an in-place pane is a FLEX CHILD of the
+         editor body — it takes the editor scroll's place in
+         the page stack, beside the tab rail, below the Title
+         bar — never an overlay floating over .main. (In -231
+         it was absolutely positioned over the whole main
+         area: it covered the stack's geometry, the tab
+         spines showed through or were buried, and a tab
+         switch could leave it stranded over the wrong
+         record's page.) The stack reserve clears the tab
+         spines exactly as the stage clears them. */
       #objWorkspace.ws-inplace228, #varPanel.ws-inplace228 {
-        position: absolute; inset: 0; z-index: 65; background: var(--tone, var(--surface));
+        position: relative; inset: auto; z-index: auto; flex: 1 1 auto; min-width: 0;
+        background: var(--tone, var(--surface));
         display: flex; align-items: stretch; justify-content: stretch; padding: 0;
-        /* Build -230 (WS1): the rail strip stays docked
-           during a workbench visit — the panels stop at the
-           strip's column instead of covering it. */
-        right: var(--rec230-railw, 0px);
+        padding-left: var(--stack-reserve, 0px);
+      }
+      :root[data-focus="on"] #objWorkspace.ws-inplace228, :root[data-focus="on"] #varPanel.ws-inplace228 { padding-left: 0; }
+      @media (max-width: 640px) { #objWorkspace.ws-inplace228, #varPanel.ws-inplace228 { padding-left: 0; } }
+      /* Build -232: the Members grid is a MODE of the pane.
+         Hosted, it carries no title bar of its own — the
+         universal Title bar above already names the record —
+         no Done (grid edits land live; leaving the grid is
+         switching pane or tab) and no back strip. The member
+         count rides as a small stat beside the grid's tools,
+         never as a title. */
+      .coll-grid-panel.cg-hosted232 #collGridTitle { display: none !important; }
+      .coll-grid-panel.cg-hosted232 #collGridDone { display: none !important; }
+      #objWsGridStrip { display: none !important; }
+      #collGridCount { font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+      /* Build -232: a folder collection's grid hosts in its
+         own stage (the folder tab's Members pane) the same
+         way an object's hosts in the workspace — the stage's
+         other children stand down while the grid mode is up. */
+      .rec-stage228.rec232-grid-hosting > :not(.coll-grid-panel) { display: none !important; }
+      .rec-stage228 > .coll-grid-panel {
+        flex: 1 1 auto; min-height: 0; width: 100%; max-width: none; height: auto; max-height: none;
+        margin: 0; border: 0; border-radius: 0; box-shadow: none;
       }
       #objWorkspace.ws-inplace228 .obj-ws-panel {
         flex: 1 1 auto; width: 100%; max-width: none; height: 100%; max-height: none;
@@ -5074,7 +5104,11 @@
       body.rec231-nonbody #toolbar, body.rec231-nonbody #ctxbar, body.rec231-nonbody #tableBar { display: none !important; }
       .main { position: relative; }
       .main > .rec-rail228 { position: absolute; top: 0; right: 0; bottom: 0; z-index: 55; border-left: 1px solid var(--line); }
-      .main.rec231-rail-on > .topbar, .main.rec231-rail-on > .toolbar, .main.rec231-rail-on > .editor-body, .main.rec231-rail-on > .statusbar { margin-right: var(--rec230-railw, 0px); }
+      /* Build -232: the Title bar runs the full width — the
+         rail now starts BELOW it (its top is set to the Title
+         bar's live height in rec231SyncChrome), so only the
+         rows under the Title bar stop at the rail's column. */
+      .main.rec231-rail-on > .toolbar, .main.rec231-rail-on > .editor-body, .main.rec231-rail-on > .statusbar { margin-right: var(--rec230-railw, 0px); }
       @media (max-width: 640px) {
         .main:has(> .rec-rail228:not(.rec230-collapsed)) > .editor-body { visibility: hidden; }
       }
@@ -9036,7 +9070,12 @@
           </div>
           <button class="btn-ghost" id="collGridAdd" type="button">+ Add</button>
           <button class="btn-ghost" id="collGridMemberKind" type="button">Member kind…</button>
-          <button class="btn-primary" id="collGridDone" type="button">Done</button>
+          <!-- Build -232: no Done. Grid edits land live, in
+               the pane's Grid mode and in the standalone modal
+               alike; leaving is switching pane/tab, or a press
+               outside the modal. The universal Title bar is
+               the only title bar (the h2 above is hidden
+               whenever the grid is hosted in the Members pane). -->
         </div>
         <div class="coll-grid-scroll" id="collGridScroll">
           <table class="coll-grid-table" id="collGridTable"></table>
@@ -13082,9 +13121,13 @@
             closeFolderMenu();
             rec228OpenFolderTab(f.id);
           });
-          item(OBJ_SVG, 'Open in grid', '', function () {
+          /* Build -232 (workbench sweep): no 'Open in grid'
+             destination — the grid is a mode of the
+             collection's own Members pane (its tab). */
+          item(OBJ_SVG, 'Open members…', '', function () {
             closeFolderMenu();
-            openCollGrid({ fcid: f.id }, varDocById(lib.currentId));
+            rec228OpenFolderTab(f.id);
+            setTimeout(function () { try { rec228SetMain('members'); } catch (e) {} }, 40);
           });
           item(PLUS_SVG, 'New note in collection', '', function () {
             closeFolderMenu();
@@ -13280,16 +13323,21 @@
             closeFn();
             tplAddFromDoc(d.id);
           }, 'add-as-template');
-          item(OBJ_SVG, 'Objects…', '', hintFor('objects'), function () {
-            openObjPanelFor(d.id);
-          });
-          /* Build -226 (WS4/WS5): the document's own page in
-             the workspace, and its linked-object door — the
-             label follows whether a linked object exists. */
-          item(OBJ_SVG, 'Open doc properties', '', '', function () {
+          /* Build -232 (workbench sweep): 'Objects…' and
+             'Open doc properties' were doors to the old
+             Objects workbench — a separate place you went to
+             manage a record. That place is gone; the record's
+             properties live in its own tab's Properties pane,
+             so the menu door goes THERE. */
+          item(OBJ_SVG, 'Properties…', '', hintFor('ws-properties'), function () {
             closeFn();
-            openDocProperties(d.id);
-          });
+            rec232OpenDocPropsPane(d.id);
+          }, 'ws-properties');
+          /* Build -226 (WS4/WS5): the linked-object door —
+             the label follows whether a linked object exists.
+             (Create Linked Object survives the sweep in its
+             slimmed -231 form: it makes the object, copies
+             the properties, and sets its Body property.) */
           item(OBJ_SVG, findLinkedObject(d.id) ? 'Open linked object' : 'Create linked object', '', '', function () {
             closeFn();
             var lk = findLinkedObject(d.id) || createLinkedObject(d.id);
@@ -25792,10 +25840,21 @@
           if (detail.kind === 'objcardmenu') {
             chipOpenPop(detail.rect || null, function (el) {
               el.appendChild(chipPopItem('Open document', false, function () { chipClosePop(false); openDoc(d.id, true); }));
-              el.appendChild(chipPopItem('Open doc properties', false, function () { chipClosePop(false); openDocProperties(d.id); }));
-              el.appendChild(chipPopItem('Open in grid…', false, function () {
+              /* Build -232 (workbench sweep): no 'Open doc
+                 properties' door — the document's Properties
+                 pane, inside its own tab, is the surface. */
+              el.appendChild(chipPopItem('Properties…', false, function () { chipClosePop(false); rec232OpenDocPropsPane(d.id); }));
+              /* Build -232: no 'Open in grid' destination —
+                 the grid is a mode of the collection's own
+                 Members pane; the door opens that pane. */
+              el.appendChild(chipPopItem('Open members…', false, function () {
                 chipClosePop(false);
-                openCollGrid({ cid: coll.id, cs: f.scope === 'global' ? 'g' : 'd' }, doc);
+                if (typeof rec228OpenTab === 'function') {
+                  rec228OpenTab({ kind: 'obj', scope: f.scope, id: coll.id, homeDocId: d.id });
+                  setTimeout(function () { try { rec228SetMain('members'); } catch (e) {} }, 40);
+                } else {
+                  openCollGrid({ cid: coll.id, cs: f.scope === 'global' ? 'g' : 'd' }, doc);
+                }
               }));
               el.appendChild(chipPopItem('Collection settings…', false, function () {
                 chipClosePop(false);
@@ -29265,6 +29324,17 @@
         function wsShowTabPanel() {
           if (!objWsCtx) return;
           var t = objWsCtx.tab || 'props';
+          /* Build -232: the Members grid host (#objWsGridHost)
+             is a SIBLING of the tab panels, so tab switches
+             never hid it — leaving the Members pane by any
+             route other than the grid's own close left the
+             grid on screen under the new pane's rail state
+             (probe-driven). Any panel decision that is not
+             Members closes a hosted grid first. */
+          if (t !== 'members' && objWsCtx.gridMode) {
+            try { closeCollGrid(); } catch (e) {}
+            if (objWsCtx.gridMode) { try { wsUnhostGridPanel(); } catch (e) {} }
+          }
           var p = document.getElementById('objWsTabProps');
           var m = document.getElementById('objWsTabMembers');
           var s = document.getElementById('objWsTabSettings');
@@ -29322,7 +29392,12 @@
         function wsDeleteCurrentAsk() {
           if (!objEditCtx) return;
           if (!objEditCtx.id) { closeObjEdit(); return; }
-          if (wsIsDirty()) { folioToast('Save or discard the staged changes first — Delete works on the saved object.'); return; }
+          /* Build -232: edits land live, so a dirty draft is
+             flushed first — the staged-changes refusal remains
+             only for a line that genuinely cannot apply (its
+             error is showing in place). */
+          if (wsIsDirty()) { try { rec231LiveSave(); } catch (e) {} }
+          if (wsIsDirty()) { folioToast('That object has a change that could not be applied yet — fix or clear it before deleting.'); return; }
           var f = wsCurrentSaved();
           if (!f) return;
           var rec = f.rec, scope = f.scope;
@@ -29803,8 +29878,13 @@
               );
             };
             if (objEditCtx && objEditCtx.id === rec.id && wsIsDirty()) {
-              folioToast('Save or discard the staged changes first — Delete works on the saved object.');
-              return;
+              /* Build -232: flush live edits before refusing —
+                 only an un-appliable line keeps the refusal. */
+              try { rec231LiveSave(); } catch (e) {}
+              if (wsIsDirty()) {
+                folioToast('That object has a change that could not be applied yet — fix or clear it before deleting.');
+                return;
+              }
             }
             if (objEditCtx && objEditCtx.id !== rec.id) wsGuardDirty(go);
             else go();
@@ -30577,7 +30657,11 @@
                the primary (gilt) treatment — and the pinned
                toolbar's button now matches it. */
             b.className = 'btn-primary';
-            b.textContent = 'Open in grid';
+            /* Build -232: this door never left the pane — it
+               switches this section to the pane's Grid mode
+               (wsOpenGridForProp hosts the grid in place).
+               The label no longer names a destination. */
+            b.textContent = 'Show as grid';
             b.addEventListener('click', function () { wsOpenGridForProp(d); });
             row.appendChild(b);
           } else {
@@ -30615,7 +30699,7 @@
           var count = document.createElement('p');
           count.className = 'form-note';
           count.style.marginTop = '6px';
-          count.textContent = d.value.length + (d.value.length === 1 ? ' member' : ' members') + ' — changes stage here and land when you Save the object.';
+          count.textContent = d.value.length + (d.value.length === 1 ? ' member' : ' members') + ' — changes apply as you make them.';
           sec.appendChild(count);
           /* Build -217 (WS3): the controls row rides at the
              TOP of the section — Open in grid (primary, as in
@@ -31165,7 +31249,7 @@
           count.style.marginTop = '6px';
           var md = smartMemberDocs({ smart: true, source: d.source, excluded: d.excluded });
           count.textContent = md
-            ? md.length + (md.length === 1 ? ' document is' : ' documents are') + ' a member by the rule below right now — changes stage here and land when you Save the object.'
+            ? md.length + (md.length === 1 ? ' document is' : ' documents are') + ' a member by the rule below right now — changes apply as you make them.'
             : 'No usable source yet — pick a folder or at least one tag below.';
           sec.appendChild(count);
           function rerender() { wsRenderMembers(); wsPaintTabs(); }
@@ -38200,6 +38284,15 @@
           if (!panel || !host) return;
           if (!cgPanelHome) cgPanelHome = { parent: panel.parentNode, next: panel.nextSibling };
           if (panel.parentNode !== host) host.appendChild(panel);
+          /* Build -232: hosted, the grid is a mode of the
+             Members pane — the cg-hosted232 rules strip its
+             modal-era chrome (own title, Done, back strip). */
+          panel.classList.add('cg-hosted232');
+          /* Build -232: hosted, the panel is a pane mode,
+             not a dialog — drop the modal ARIA while it
+             lives here (restored on unhost). */
+          panel.removeAttribute('role');
+          panel.removeAttribute('aria-modal');
           objWsCtx.gridMode = true;
           /* Build -218 (WS4): ONE header bar in grid view —
              the workspace's object toolbar (Insert card /
@@ -38209,6 +38302,14 @@
           var pane218 = document.getElementById('objWsEditorPane');
           if (pane218) pane218.classList.add('grid-hosting');
           host.hidden = false;
+          /* Build -232: the Members pane's List/Grid mode
+             row lives inside the editor scroll the grid is
+             about to hide — move it into the host above the
+             grid so List stays reachable while in Grid mode
+             (the strip that used to carry the exit is gone).
+             Unhost moves it back. */
+          var mr232 = document.querySelector('#objWsMembers .rec231-mode-row');
+          if (mr232) host.insertBefore(mr232, panel);
           var tabs = document.getElementById('objWsTabs');
           if (tabs) tabs.hidden = true;
           var scroll = document.getElementById('objWsEditorScroll');
@@ -38226,6 +38327,11 @@
         }
         function wsUnhostGridPanel() {
           var panel = cgPanelEl();
+          if (panel) {
+            panel.classList.remove('cg-hosted232');
+            panel.setAttribute('role', 'dialog');
+            panel.setAttribute('aria-modal', 'true');
+          }
           if (panel && cgPanelHome && panel.parentNode && panel.parentNode.id === 'objWsGridHost') {
             if (cgPanelHome.next && cgPanelHome.next.parentNode === cgPanelHome.parent) cgPanelHome.parent.insertBefore(panel, cgPanelHome.next);
             else cgPanelHome.parent.appendChild(panel);
@@ -38238,7 +38344,14 @@
           var pane218b = document.getElementById('objWsEditorPane');
           if (pane218b) pane218b.classList.remove('grid-hosting');
           var host = document.getElementById('objWsGridHost');
-          if (host) { host.hidden = true; host.innerHTML = ''; }
+          if (host) {
+            /* Build -232: hand the mode row back to the
+               Members pane before the host is emptied. */
+            var mr232b = host.querySelector('.rec231-mode-row');
+            var mh232 = document.getElementById('objWsMembers');
+            if (mr232b && mh232) mh232.insertBefore(mr232b, mh232.firstChild);
+            host.hidden = true; host.innerHTML = '';
+          }
           var scroll = document.getElementById('objWsEditorScroll');
           if (scroll) scroll.style.display = '';
           var pane = document.getElementById('objWsListPane');
@@ -40575,10 +40688,13 @@
                 chipClosePop(false);
                 openDoc(entry.docId, true);
               }));
-              el.appendChild(chipPopItem('Open doc properties', false, function () {
+              /* Build -232 (workbench sweep): the doc
+                 properties door is the document's own
+                 Properties pane now. */
+              el.appendChild(chipPopItem('Properties…', false, function () {
                 chipClosePop(false);
                 if (objWsCtx && objWsCtx.gridMode) closeCollGrid();
-                openDocProperties(entry.docId);
+                rec232OpenDocPropsPane(entry.docId);
               }));
               var s = cgSmart();
               var defs = s ? (s.coll.cprops || []) : [];
@@ -40783,7 +40899,11 @@
           });
         }
         /* ----- grid wiring ----- */
-        document.getElementById('collGridDone').addEventListener('click', closeCollGrid);
+        /* Build -232: the Done button is gone (grid edits
+           land live; leaving = pane/tab switch or an outside
+           press on the modal, wired just below). */
+        var cgDone232 = document.getElementById('collGridDone');
+        if (cgDone232) cgDone232.addEventListener('click', closeCollGrid);
         document.getElementById('collGridModal').addEventListener('mousedown', function (ev) {
           if (ev.target === ev.currentTarget) closeCollGrid();
         });
@@ -61185,9 +61305,12 @@
             icon: VAR_SVG, label: 'Variables…', hint: hintFor('variables'), dataSc: 'variables',
             run: function () { openVarPanel(lib.currentId); }
           }));
+          /* Build -232 (workbench sweep): 'Objects…' opened
+             the old objects panel; a document's objects and
+             properties live in its own Properties pane now. */
           el.appendChild(edMenuItem({
-            icon: OBJ_SVG, label: 'Objects…', hint: hintFor('objects'), dataSc: 'objects',
-            run: function () { openObjPanel(lib.currentId); }
+            icon: OBJ_SVG, label: 'Properties…', hint: hintFor('ws-properties'), dataSc: 'ws-properties',
+            run: function () { rec232OpenDocPropsPane(lib.currentId); }
           }));
         }
         /* What a right-click landed on, resolved in the
@@ -75862,6 +75985,16 @@
             run: function () { rec228Hotkey('members'); } },
           { id: 'ws-memberships', combo: 'alt+,', hint: '⌥,', group: 'General', label: 'Memberships workspace',
             run: function () { rec228Hotkey('memberships'); } },
+          /* Build -232: the rail's own toggle — the hamburger's
+             chord. ⌥R (Option+R; ® in the Option-char table)
+             was unbound. Field-safe like the other workspace
+             chords: it types nothing anywhere. */
+          { id: 'rail-toggle', combo: 'alt+r', hint: '⌥R', group: 'General', label: 'Expand / collapse rail',
+            run: function () {
+              rec228RailOpen = !rec228RailOpen;
+              try { window.localStorage.setItem('folio.rail.expanded', rec228RailOpen ? '1' : '0'); } catch (e) {}
+              rec228PaintRail();
+            } },
           /* The library-level workbench door. Build -230
              (WS8 sweep): it DOES own its chord — ⌥⇧B, kept
              deliberately as the second door beside the
@@ -76687,7 +76820,7 @@
            typed into a field as text, so letting it fire from
            the title field (the natural place the caret sits
            after naming a doc) costs the typing guard nothing. */
-        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-close': true, 'tab-recent': true, 'tab-book': true, 'tab-ws-cycle': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'view-templates': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true, 'variables': true, 'grid-prop-settings': true, 'ws-body': true, 'ws-properties': true, 'ws-settings': true, 'ws-members': true, 'ws-memberships': true };
+        var SC_SAFE_IN_FIELD = { 'tab-next': true, 'tab-prev': true, 'tab-close': true, 'tab-recent': true, 'tab-book': true, 'tab-ws-cycle': true, 'tab-new': true, 'view-documents': true, 'view-favorites': true, 'view-templates': true, 'print': true, 'save-now': true, 'focus-mode': true, 'outline-toggle': true, 'action-search': true, 'omnisearch': true, 'toggle-documents-section': true, 'toggle-current-folder': true, 'collapse-all-folders': true, 'expand-all-folders': true, 'variables': true, 'grid-prop-settings': true, 'ws-body': true, 'ws-properties': true, 'ws-settings': true, 'ws-members': true, 'ws-memberships': true, 'rail-toggle': true };
         /* ---------------- menu keyboard navigation -------------
            While any .menu is open, ↑/↓ move a visible focus
            through its items (Enter and Space then choose
@@ -78695,12 +78828,22 @@
            Tag / create rows keep no menu: they are not
            records. */
         function omniMenuIsOpen() {
-          return !!(omniMenuEl && omniMenuEl.classList.contains('open'));
+          /* Build -232: the row menu is one of the standard
+             menus now (doc / folder / object) — it counts as
+             open while any of them is shown for an entry. */
+          if (omniMenuEl && omniMenuEl.classList.contains('open')) return true;
+          return !!omniMenuEntry && !!document.querySelector('.menu.open');
         }
         function closeOmniMenu() {
-          if (!omniMenuEl) return;
-          omniMenuEl.className = 'menu';
-          omniMenuEl.innerHTML = '';
+          if (omniMenuEl) {
+            omniMenuEl.className = 'menu';
+            omniMenuEl.innerHTML = '';
+          }
+          /* Build -232: closing the row menu closes whichever
+             standard menu is standing in for it. */
+          try { closeDocMenu(); } catch (e) {}
+          try { closeFolderMenu(); } catch (e) {}
+          try { rec228CloseMenu(); } catch (e) {}
           omniMenuEntry = null;
         }
         function openOmniMenu(e, x, y, rowEl) {
@@ -78713,11 +78856,18 @@
           var px = (typeof x === 'number') ? x : (rect ? Math.round(rect.right - 10) : 8);
           var py = (typeof y === 'number') ? y : (rect ? Math.round(rect.top) : 8);
           omniMenuEntry = e;
-          closeOmni(false);
+          /* Build -232: the palette STAYS OPEN under its row
+             menu. (In -230/-231 the palette was dismissed
+             first and the menu opened alone over the page —
+             the "disembodied right-click menu in the middle
+             of the page" the owner photographed.) The outside-
+             press guards below know a row menu is up: the
+             first press away folds the menu only, the next
+             folds the palette. */
           if (e.kind === 'doc') { openDocMenu(e.docId, anchor, px, py); return; }
           if (e.kind === 'folder') { openFolderMenu(e.folderId, anchor, px, py); return; }
           var f = objFindAny(e.objId);
-          if (f && anchor) rec228ObjMenu(anchor, f.rec);
+          if (f && anchor) rec228ObjMenu(anchor, f.rec, px, py);
         }
         /* The row doors, on the sidebar rows' exact pattern:
            a 550ms press timer for touch / pen (a mouse hold is
@@ -78932,17 +79082,29 @@
           if (omniBarEl.contains(ev.target)) return;
           /* Build -128: a press on the result-row menu is a
              press on Omnisearch's own surface, not an outside
-             tap — the palette stays up under its menu. */
+             tap — the palette stays up under its menu.
+             Build -232: the row menu is a standard menu now
+             (doc / folder / object), so the exemption checks
+             any open menu, not the retired bespoke element. */
           if (omniMenuEl && omniMenuEl.contains(ev.target)) return;
+          if (ev.target && ev.target.closest && ev.target.closest('.menu.open')) return;
+          /* Build -232: with a row menu up, the first press
+             away folds ONLY the menu — the palette stays, so
+             the menu never reads as disembodied and one stray
+             tap doesn't lose the search. The next press away
+             folds the palette. */
+          if (omniMenuEntry) { closeOmniMenu(); return; }
           closeOmni(true);
         }, true);
         /* Build -128: the row menu folds on any press outside
            itself — on the palette (the press then does its own
            work: typing, another row's doors), or anywhere else
-           (the palette's own outside-tap fold above runs too). */
+           (the palette's own outside-tap fold above runs too).
+           Build -232: "itself" is any open standard menu. */
         document.addEventListener('pointerdown', function (ev) {
           if (!omniMenuIsOpen()) return;
-          if (omniMenuEl.contains(ev.target)) return;
+          if (omniMenuEl && omniMenuEl.contains(ev.target)) return;
+          if (ev.target && ev.target.closest && ev.target.closest('.menu.open')) return;
           closeOmniMenu();
         }, true);
 
@@ -79463,13 +79625,30 @@
         function rec228MainEl() { return document.querySelector('.main'); }
         function rec228InplaceAttach(el) {
           if (!el || el.dataset.inplace228) return;
+          /* Build -232: the pane mounts INTO the editor body
+             — the page stack itself — as a flex child in the
+             editor scroll's place, so the tab rail beside it
+             stays painted and clickable and the Title bar
+             above stays the only title bar. (In -231 it was
+             appended to .main and absolutely positioned over
+             it: panes never entered the stack, the spines
+             overlapped pane content, and closing a tab could
+             leave the pane stranded over another record.)
+             The scroll, the stage and the reference pane
+             stand down while a pane is hosted; detach restores
+             them through rec230StageVisible. */
           var main = rec228MainEl();
-          if (!main) return;
+          var eb = document.querySelector('.editor-body') || main;
+          if (!eb) return;
           rec228InplaceHomes[el.id] = { parent: el.parentNode, next: el.nextSibling };
-          main.appendChild(el);
+          eb.appendChild(el);
           el.classList.add('ws-inplace228');
           el.dataset.inplace228 = '1';
           if (el.id === 'objWorkspace') objWsInplace228 = true;
+          ['editorScroll', 'recStage228', 'refPane'].forEach(function (sid) {
+            var s = document.getElementById(sid);
+            if (s) s.style.display = 'none';
+          });
           /* Build -230 (WS1): the rail strip does NOT stand
              down for a workbench visit — it is docked, not
              floating, and the panel stops at its column (the
@@ -79483,6 +79662,22 @@
           delete el.dataset.inplace228;
           el.classList.remove('ws-inplace228');
           if (el.id === 'objWorkspace') objWsInplace228 = false;
+          /* Build -232: when the LAST in-place pane leaves
+             the stack, the scroll / stage / reference pane it
+             stood down come back — the stage visibility rule
+             decides which of scroll and stage shows. */
+          var wsEl = document.getElementById('objWorkspace');
+          var vpEl = document.getElementById('varPanel');
+          if (!((wsEl && wsEl.dataset.inplace228) || (vpEl && vpEl.dataset.inplace228))) {
+            ['recStage228', 'refPane'].forEach(function (sid) {
+              var s = document.getElementById(sid);
+              if (s) s.style.display = '';
+            });
+            try { rec230StageVisible(!!(rec228StageEl && !rec228StageEl.hidden)); } catch (e) {
+              var es = document.getElementById('editorScroll');
+              if (es) es.style.display = '';
+            }
+          }
           var host = (window.FolioOverlayHost && window.FolioOverlayHost.host) || document.body;
           if (home && home.parent && home.parent !== el.parentNode) {
             if (home.next && home.next.parentNode === home.parent) home.parent.insertBefore(el, home.next);
@@ -79502,10 +79697,17 @@
         function rec228MenuOutside(ev) {
           if (rec228MenuEl && !rec228MenuEl.contains(ev.target)) rec228CloseMenu();
         }
-        function rec228ShowMenu(anchor, items) {
+        function rec228ShowMenu(anchor, items, x, y) {
           rec228CloseMenu();
           var el = document.createElement('div');
-          el.className = 'menu';
+          /* Build -232: the class MUST include 'open' — .menu
+             is display:none until .open, and this builder never
+             added it, so every menu it made (sidebar object
+             rows, membership places, the + New menu, the glance
+             menus) was built invisibly: "right-click doesn't
+             work in the sidebar." The doc/folder menus worked
+             because their builders set 'menu open'. */
+          el.className = 'menu open';
           el.setAttribute('role', 'menu');
           el.style.position = 'fixed';
           el.style.zIndex = '240';
@@ -79528,9 +79730,19 @@
             el.appendChild(b);
           });
           document.body.appendChild(el);
-          var rect = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 40, bottom: 40 };
-          el.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 250)) + 'px';
-          el.style.top = Math.min(rect.bottom + 4, window.innerHeight - 60) + 'px';
+          /* Build -232: a context menu opens AT THE POINTER
+             when the caller has coordinates (right-click /
+             long-press); anchored callers (⋮ buttons) keep
+             the anchor placement. */
+          if (typeof x === 'number' && typeof y === 'number') {
+            var mw = el.offsetWidth || 224, mh = el.offsetHeight || 200;
+            el.style.left = Math.max(6, Math.min(x, window.innerWidth - mw - 6)) + 'px';
+            el.style.top = Math.max(6, Math.min(y, window.innerHeight - mh - 6)) + 'px';
+          } else {
+            var rect = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 40, bottom: 40 };
+            el.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 250)) + 'px';
+            el.style.top = Math.min(rect.bottom + 4, window.innerHeight - 60) + 'px';
+          }
           rec228MenuEl = el;
           document.addEventListener('pointerdown', rec228MenuOutside, true);
         }
@@ -79809,7 +80021,7 @@
           });
           btn.addEventListener('contextmenu', function (ev) {
             ev.preventDefault();
-            rec228ObjMenu(btn, rec);
+            rec228ObjMenu(btn, rec, ev.clientX, ev.clientY);
           });
           /* Build -229 (WS1): object rows drag exactly like
              document rows — the shared pointer pipeline files
@@ -79840,7 +80052,7 @@
           }
           return wrap;
         }
-        function rec228ObjMenu(anchor, rec) {
+        function rec228ObjMenu(anchor, rec, x, y) {
           var f = objFindAny(rec.id);
           if (!f) return;
           rec = f.rec;
@@ -79879,7 +80091,7 @@
               function () { objDoDelete(f.scope, rec); renderDocList(); }
             );
           } });
-          rec228ShowMenu(anchor, items);
+          rec228ShowMenu(anchor, items, x, y);
         }
 
         /* ----- the record stage + rail (WS1/WS3) ----- */
@@ -80157,7 +80369,10 @@
               gb.type = 'button';
               gb.className = 'btn-primary';
               gb.style.margin = '0 8px';
-              gb.textContent = 'Open in grid';
+              /* Build -232: the grid is a mode of this
+                 collection's Members pane — openCollGrid
+                 hosts it in the stage (see the -232 block). */
+              gb.textContent = 'Members grid…';
               gb.addEventListener('click', function () { openCollGrid({ fcid: f.id }, varDocById(lib.currentId)); });
               el.appendChild(gb);
               return;
@@ -80234,7 +80449,12 @@
           outline: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h7"/><path d="M4 6h.01M4 12h.01M4 18h.01" stroke-width="2.6"/></svg>',
           memberships: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="12" r="2.6"/><path d="M8.6 12h6.8"/></svg>',
           body: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5h14M5 10h14M5 15h9"/></svg>',
-          props: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="6" cy="18" r="1.4" fill="currentColor" stroke="none"/><path d="M10.5 6H19M10.5 12H19M10.5 18H19"/></svg>',
+          /* Build -232: Properties was a dot-and-lines list a
+             hair away from Outline's own dot-and-lines list —
+             at 19px they read as the same glyph. Properties is
+             now a TAG (the attribute label), which no other
+             workspace icon resembles. */
+          props: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4" fill="currentColor" stroke="none"/></svg>',
           members: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
           settings: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 7h5M16 7h3M5 17h3M14 17h5"/><circle cx="13" cy="7" r="2.2"/><circle cx="11" cy="17" r="2.2"/></svg>',
         };
@@ -80923,7 +81143,7 @@
           note.className = 'form-note';
           note.style.marginTop = '6px';
           note.textContent = hyb
-            ? hyb228Summary(hyb) + ' Rule members appear alongside the stored list, badged “by rule”. Changes stage here and land when you Save the object.'
+            ? hyb228Summary(hyb) + ' Rule members appear alongside the stored list, badged “by rule”. Changes apply as you make them.'
             : 'This stored collection can also pull members in by rule — a collection, tags, and/or property rules. Stored members are never removed by rules; rule members join them, badged “by rule”.';
           wrap.appendChild(note);
           if (hyb) {
@@ -81605,16 +81825,19 @@
           globals.forEach(function (v) { rec228PropRow(pane, v.name, typeof v.value === 'string' ? v.value : '', null, { readOnly: true }); });
         }
         function rec231SyncChrome() {
-          /* The panes sit BELOW the universal Title bar: the
-             in-place panels fill .main, so their top is offset
-             by the title bar's live height. */
+          /* Build -232: the panes sit below the universal
+             Title bar by construction now (they are flex
+             children of the editor body, in the page stack),
+             so no top offset is needed. What still needs the
+             Title bar's live height is the RAIL: it only goes
+             up TO the Title bar — its top edge is the Title
+             bar's bottom edge, never above it, and the Title
+             bar itself runs the full width again. */
           try {
             var tb231 = document.querySelector('.main .topbar');
             var th231 = tb231 ? tb231.offsetHeight : 0;
-            ['objWorkspace', 'varPanel'].forEach(function (id) {
-              var p231 = document.getElementById(id);
-              if (p231 && p231.classList.contains('ws-inplace228')) p231.style.top = th231 + 'px';
-            });
+            var railEl232 = document.querySelector('.main > .rec-rail228');
+            if (railEl232) railEl232.style.top = th231 + 'px';
           } catch (e) {}
           try {
             var main = rec228MainEl();
@@ -81642,6 +81865,23 @@
             }
             var rn = document.getElementById('recRailName228');
             if (rn && rn.textContent !== rec228CtxName(ctx)) rec228PaintRail();
+            /* Build -232: the universal Title bar is part of
+               the agreement. It was only ever written by
+               openDoc, so switching to an object or folder
+               tab (sidebar click, tab switch, tab close)
+               left the previous document's name up — the
+               "opened Books Library, title still said
+               Rebuttals" defect. Object/folder titles are
+               display-only here (the field stays parked for
+               them); documents keep their own writer. */
+            if (ctx.kind !== 'doc') {
+              var ti232 = document.getElementById('titleInput');
+              var want232 = rec228CtxName(ctx);
+              if (ti232 && ti232.value !== want232) {
+                ti232.value = want232;
+                try { if (typeof fitTitleHeight === 'function') fitTitleHeight(); } catch (e) {}
+              }
+            }
           } catch (e) {}
         }
         var origRec228SetMain231 = rec228SetMain;
@@ -81944,6 +82184,10 @@
           var host = document.getElementById('objWsMembers');
           if (!host || !objEditCtx || objEditCtx.scope === 'docpage') return;
           if (host.querySelector('.rec231-mode-row')) return;
+          /* Build -232: the row may be parked in the grid
+             host while Grid mode is up — that still counts. */
+          var gh232 = document.getElementById('objWsGridHost');
+          if (gh232 && gh232.querySelector('.rec231-mode-row')) return;
           var recId = objEditCtx.id;
           var mode = (recId && rec231MemMode[recId]) || 'list';
           var row = document.createElement('div');
@@ -81979,7 +82223,25 @@
           row.appendChild(mv);
           host.insertBefore(row, host.firstChild);
           if (mode === 'grid' && !(objWsCtx && objWsCtx.gridMode)) {
-            setTimeout(function () { rec231OpenMembersGrid(); }, 30);
+            /* Build -232: re-check at fire time. The save
+               inside the grid open re-renders the Members
+               pane, which used to queue another open; when
+               that open's own save unhosted the grid, the
+               cycle repeated every 30 ms and wedged the
+               page (probe-driven on the -232 build). An
+               already-hosted grid needs no open. */
+            setTimeout(function () {
+              if (!objWsCtx || objWsCtx.gridMode) return;
+              /* Build -232: and only while the Members pane
+                 is the one on show. Leaving for another pane
+                 re-renders Members on the way out (the grid's
+                 own close reloads the editor), and the
+                 remembered Grid mode must not resurrect the
+                 grid over the pane the user switched TO —
+                 it reopens when they come back to Members. */
+              if (objWsCtx.tab !== 'members') return;
+              rec231OpenMembersGrid();
+            }, 30);
           }
         }
         function rec231MoveAllHere(ref) {
@@ -82370,6 +82632,233 @@
           rec231AfterListRender();
           rec231SyncChrome();
         }
+
+        /* ============================================================
+           Build -232: the -231 repair pass + the workbench-
+           concept sweep.
+           - Panes mount in the page stack (the attach/CSS
+             changes above); this block carries the seams that
+             needed wrappers rather than rewrites:
+             · the universal Title bar follows object/folder
+               tabs (it was only ever written by openDoc);
+             · Members-pane edits land live — every member
+               mutation funnels through wsRenderMembers, so a
+               save is scheduled after each render;
+             · leaving a hosted grid is switching pane/tab —
+               wsSetTab away from Members closes the grid;
+             · a folder collection's grid hosts in its own
+               stage (its Members pane), never as a modal
+               destination of its own;
+             · the rail burger advertises its new ⌥R chord;
+             · an Omnisearch row-menu pick closes the palette
+               with the menu (the menu itself now opens over
+               the palette — see openOmniMenu).
+           ============================================================ */
+        function rec232SyncTitle(ref) {
+          if (!ref) return;
+          var ti = document.getElementById('titleInput');
+          if (!ti) return;
+          var nm = null;
+          try { nm = rec228CtxName(ref); } catch (e) {}
+          if (nm && ti.value !== nm) {
+            ti.value = nm;
+            try { if (typeof fitTitleHeight === 'function') fitTitleHeight(); } catch (e) {}
+          }
+        }
+        /* The pane door that replaces the workbench-era menu
+           items ('Objects…', 'Open doc properties'): open the
+           document (its tab if it has one) and switch its
+           page to the Properties pane. */
+        function rec232OpenDocPropsPane(docId) {
+          if (!docId) return;
+          try {
+            if (typeof tabIndexOf === 'function' && tabIndexOf(docId) !== -1) activateTab(docId);
+            else openDoc(docId);
+          } catch (e) { try { openDoc(docId); } catch (e2) {} }
+          setTimeout(function () { try { rec228SetMain('props'); } catch (e) {} }, 40);
+        }
+        /* While an in-place pane is hosted in the stack, the
+           stage-visibility rule must not resurrect the editor
+           scroll beside it: rec228ToWsTab calls
+           rec230StageVisible(false) on every pane switch, and
+           on the second switch (the pane already attached) the
+           scroll came back as a squeezed flex sibling — the
+           document page showing one letter per line beside
+           the pane (probe drive, build -232). The hosted pane
+           owns the stack slot until it detaches. */
+        try {
+          if (typeof rec230StageVisible === 'function' && !rec230StageVisible.__rec232Wrapped) {
+            var origStageVisible232 = rec230StageVisible;
+            var wrappedStageVisible232 = function (on) {
+              var r = origStageVisible232.apply(null, arguments);
+              try {
+                var wsH = document.getElementById('objWorkspace');
+                var vpH = document.getElementById('varPanel');
+                if ((wsH && wsH.dataset.inplace228) || (vpH && vpH.dataset.inplace228)) {
+                  var esH = document.getElementById('editorScroll');
+                  if (esH) esH.style.display = 'none';
+                  var stH = document.getElementById('recStage228');
+                  if (stH) stH.style.display = 'none';
+                }
+              } catch (e) {}
+              return r;
+            };
+            wrappedStageVisible232.__rec232Wrapped = true;
+            rec230StageVisible = wrappedStageVisible232;
+          }
+        } catch (e) {}
+        try {
+          if (typeof rec228ShowRecord === 'function' && !rec228ShowRecord.__rec232Wrapped) {
+            var origShowRecord232 = rec228ShowRecord;
+            var wrappedShowRecord232 = function (ref) {
+              var r = origShowRecord232.apply(null, arguments);
+              try { rec232SyncTitle(ref); } catch (e) {}
+              return r;
+            };
+            wrappedShowRecord232.__rec232Wrapped = true;
+            rec228ShowRecord = wrappedShowRecord232;
+          }
+        } catch (e) {}
+        var rec232SaveTimer = 0;
+        function rec232ScheduleLiveSave() {
+          if (rec232SaveTimer) return;
+          rec232SaveTimer = setTimeout(function () {
+            rec232SaveTimer = 0;
+            try { if (typeof rec231LiveSave === 'function') rec231LiveSave(); } catch (e) {}
+          }, 80);
+        }
+        try {
+          if (typeof wsRenderMembers === 'function' && !wsRenderMembers.__rec232Wrapped) {
+            var origRenderMembers232 = wsRenderMembers;
+            var wrappedRenderMembers232 = function () {
+              var r = origRenderMembers232.apply(null, arguments);
+              rec232ScheduleLiveSave();
+              return r;
+            };
+            wrappedRenderMembers232.__rec232Wrapped = true;
+            wsRenderMembers = wrappedRenderMembers232;
+          }
+        } catch (e) {}
+        try {
+          if (typeof wsSetTab === 'function' && !wsSetTab.__rec232Wrapped) {
+            var origWsSetTab232 = wsSetTab;
+            var wrappedWsSetTab232 = function (tab) {
+              try {
+                if (tab !== 'members' && typeof objWsCtx !== 'undefined' && objWsCtx && objWsCtx.gridMode && typeof closeCollGrid === 'function') closeCollGrid();
+              } catch (e) {}
+              return origWsSetTab232.apply(null, arguments);
+            };
+            wrappedWsSetTab232.__rec232Wrapped = true;
+            wsSetTab = wrappedWsSetTab232;
+          }
+        } catch (e) {}
+        /* ----- folder grids host in the folder's own stage ----- */
+        var rec232GridStage = false;
+        var rec232GridHome = null;
+        function rec232UnhostStageGrid() {
+          var panel = document.querySelector('.coll-grid-panel');
+          var gm = document.getElementById('collGridModal');
+          if (panel) {
+            panel.classList.remove('cg-hosted232');
+            panel.setAttribute('role', 'dialog');
+            panel.setAttribute('aria-modal', 'true');
+            if (rec232GridHome && rec232GridHome.parent) {
+              if (rec232GridHome.next && rec232GridHome.next.parentNode === rec232GridHome.parent) rec232GridHome.parent.insertBefore(panel, rec232GridHome.next);
+              else rec232GridHome.parent.appendChild(panel);
+            } else if (gm) gm.appendChild(panel);
+          }
+          var st = document.getElementById('recStage228');
+          if (st) st.classList.remove('rec232-grid-hosting');
+          rec232GridStage = false;
+          rec232GridHome = null;
+        }
+        try {
+          if (typeof openCollGrid === 'function' && !openCollGrid.__rec232Wrapped) {
+            var origOpenCollGrid232 = openCollGrid;
+            var wrappedOpenCollGrid232 = function (src, doc) {
+              var r = origOpenCollGrid232.apply(null, arguments);
+              try {
+                if (src && src.fcid && typeof rec228StageRef !== 'undefined' && rec228StageRef &&
+                    rec228StageRef.kind === 'folder' && rec228StageRef.id === src.fcid &&
+                    (typeof objWsCtx === 'undefined' || !objWsCtx)) {
+                  var panel = document.querySelector('.coll-grid-panel');
+                  var gm = document.getElementById('collGridModal');
+                  var st = document.getElementById('recStage228');
+                  if (panel && gm && st && panel.parentNode !== st) {
+                    if (!rec232GridHome) rec232GridHome = { parent: panel.parentNode, next: panel.nextSibling };
+                    st.appendChild(panel);
+                    panel.classList.add('cg-hosted232');
+                    panel.removeAttribute('role');
+                    panel.removeAttribute('aria-modal');
+                    st.classList.add('rec232-grid-hosting');
+                    gm.hidden = true;
+                    rec232GridStage = true;
+                  }
+                }
+              } catch (e) {}
+              return r;
+            };
+            wrappedOpenCollGrid232.__rec232Wrapped = true;
+            openCollGrid = wrappedOpenCollGrid232;
+          }
+          if (typeof closeCollGrid === 'function' && !closeCollGrid.__rec232Wrapped) {
+            var origCloseCollGrid232 = closeCollGrid;
+            var wrappedCloseCollGrid232 = function () {
+              try { if (rec232GridStage) rec232UnhostStageGrid(); } catch (e) {}
+              return origCloseCollGrid232.apply(null, arguments);
+            };
+            wrappedCloseCollGrid232.__rec232Wrapped = true;
+            closeCollGrid = wrappedCloseCollGrid232;
+          }
+          if (typeof rec228ShowStage === 'function' && !rec228ShowStage.__rec232Wrapped) {
+            var origShowStage232 = rec228ShowStage;
+            var wrappedShowStage232 = function () {
+              /* A stage re-render would wipe a hosted grid
+                 panel out of the DOM (innerHTML) — close the
+                 grid first; its panel goes home intact. */
+              try { if (rec232GridStage && typeof closeCollGrid === 'function') closeCollGrid(); } catch (e) {}
+              return origShowStage232.apply(null, arguments);
+            };
+            wrappedShowStage232.__rec232Wrapped = true;
+            rec228ShowStage = wrappedShowStage232;
+          }
+        } catch (e) {}
+        try {
+          if (typeof rec228PaintRail === 'function' && !rec228PaintRail.__rec232Wrapped) {
+            var origPaintRail232 = rec228PaintRail;
+            var wrappedPaintRail232 = function () {
+              var r = origPaintRail232.apply(null, arguments);
+              try {
+                var bg = document.getElementById('recRailBurger228');
+                if (bg) {
+                  var hint = (typeof hintFor === 'function' && hintFor('rail-toggle')) || '⌥R';
+                  var base = bg.getAttribute('data-tip') || '';
+                  if (base && base.indexOf(hint) === -1) bg.setAttribute('data-tip', base + ' · ' + hint);
+                }
+              } catch (e) {}
+              return r;
+            };
+            wrappedPaintRail232.__rec232Wrapped = true;
+            rec228PaintRail = wrappedPaintRail232;
+          }
+        } catch (e) {}
+        /* An Omnisearch row-menu pick dismisses the palette
+           with its menu (the action has been taken; the
+           search's work is done) — except a door that opens a
+           follow-on menu ('Move to collection'), where the
+           palette stays up under the follow-on. */
+        document.addEventListener('click', function (ev) {
+          try {
+            if (typeof omniMenuEntry === 'undefined' || !omniMenuEntry) return;
+            if (typeof omniOpen === 'undefined' || !omniOpen) return;
+            var it = ev.target && ev.target.closest ? ev.target.closest('.menu-item') : null;
+            if (!it) return;
+            if ((it.textContent || '').trim().indexOf('Move to collection') === 0) return;
+            setTimeout(function () {
+              try { if (typeof omniOpen !== 'undefined' && omniOpen && typeof closeOmni === 'function') closeOmni(false); } catch (e) {}
+            }, 0);
+          } catch (e) {}
+        }, true);
 
 
         /* ---------------- init ----------------
