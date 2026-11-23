@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-247" />
+    <meta name="folio-build" content="20261123-248" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5135,8 +5135,30 @@
       }
       .ctx-hl228 { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
       .folio-tab-obj-band {
-        flex: 0 0 auto; align-self: stretch; display: flex; align-items: center; justify-content: center;
-        background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 2px 1px;
+        /* Build -248 (WS3): the kind band takes the TEMPLATE
+           band's geometry (build -121) instead of its old
+           in-flow flex seat. As a flex child it held its full
+           content width inside the tab at every compression
+           level, so the narrower the spine got — deep ranks,
+           the slim rail, a hosted pane — the more of the tab
+           the band ate and the less was left for the NAME,
+           which clipped to nothing while the band stayed
+           whole (the owner's "the badge is really using up a
+           lot of space the tab can't spare"). Now the band is
+           a fixed narrow strip on the tab's left edge
+           (--obj-band-w, reserved by the tab's padding-left
+           below), the name gets everything else, and under
+           28px of tab width tabLayout stands the band down
+           (.obj-band-bare) exactly as it does the template
+           band — the tab keeps its gilt accent spine
+           (tabRender's --tab-lc) as its kind register there. */
+        position: absolute; left: 0; top: 0; bottom: 0;
+        width: var(--obj-band-w, 14px);
+        display: flex; align-items: center; justify-content: center;
+        background: var(--accent); color: var(--accent-ink); border-radius: 7px 0 0 7px;
+        overflow: hidden; pointer-events: none;
+      }
+      .folio-tab-obj-band-txt {
         /* Build -230 (WS2): the stack's one spine register —
            vertical-rl under a 180° flip, reading bottom-to-top
            like .folio-tab-name and the template band. The
@@ -5145,7 +5167,23 @@
            label on the stack. */
         writing-mode: vertical-rl; transform: rotate(180deg);
         font-size: 8.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+        white-space: nowrap; max-height: calc(100% - 10px); overflow: hidden;
       }
+      .folio-tab.is-object228 { --obj-band-w: 14px; padding-left: var(--obj-band-w); }
+      .tab-rail.slim .folio-tab.is-object228 { --obj-band-w: 12px; }
+      .tab-rail.slim .folio-tab-obj-band-txt { font-size: 8px; letter-spacing: 0.06em; }
+      .folio-tab.sliver .folio-tab-obj-band-txt { display: none; }
+      .folio-tab.is-object228.obj-band-bare { padding-left: 0; }
+      .folio-tab.is-object228.obj-band-bare .folio-tab-obj-band { display: none; }
+      /* The hover × / ⋯ sit right of the band, as a template
+         tab's do (build -121); bare tabs take the ordinary
+         insets back. */
+      .tab-rail .folio-tab.is-object228 .folio-tab-x,
+      .tab-rail .folio-tab.is-object228 .folio-tab-menu { left: calc(var(--obj-band-w, 14px) + 3px); }
+      .tab-rail .folio-tab.is-object228.obj-band-bare .folio-tab-x,
+      .tab-rail .folio-tab.is-object228.obj-band-bare .folio-tab-menu { left: 4px; }
+      .tab-rail.slim .folio-tab.is-object228.obj-band-bare .folio-tab-x,
+      .tab-rail.slim .folio-tab.is-object228.obj-band-bare .folio-tab-menu { left: 3px; }
       .rec228-hyb-sec { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 10px; }
       .rec228-rule-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
       .rec228-rule-row select { flex: 1 1 120px; min-width: 0; }
@@ -17082,6 +17120,26 @@
             try { editorHandle.editor.view.focus(); } catch (e) {}
           }
         }
+        /* Build -248 (WS2): the popover placement math, factored
+           out of chipOpenPop so it can be driven directly (the
+           audit probe feeds it cell rects in all four quadrants
+           and reads the placed position back — the sandbox
+           cannot issue real right-clicks at coordinates).
+           Viewport-aware: prefer below-right of the anchor,
+           shift left at the right edge, flip above at the
+           bottom edge, and clamp inside the viewport on both
+           axes as a final guarantee. */
+        function chipPopPlace248(rect, w, h, vw, vh) {
+          var left = rect ? rect.left : 16;
+          var top = rect ? rect.bottom + 6 : 16;
+          if (left + w > vw - 8) left = Math.max(8, vw - w - 8);
+          if (left < 8) left = 8;
+          if (top + h > vh - 8 && rect) top = Math.max(8, rect.top - h - 6);
+          if (top < 8) top = 8;
+          if (top + h > vh - 8) top = Math.max(8, vh - h - 8);
+          return { left: left, top: top };
+        }
+        try { window.__folioChipPlace248 = chipPopPlace248; } catch (e) {}
         function chipOpenPop(rect, build, ownerKey) {
           if (ownerKey && chipPopEl && chipPopOwnerKey === ownerKey &&
               Date.now() - chipPopOpenedAt < CHIP_POP_ECHO_MS) {
@@ -17095,12 +17153,9 @@
           build(el);
           var w = el.offsetWidth, h = el.offsetHeight;
           var vw = window.innerWidth || 360, vh = window.innerHeight || 640;
-          var left = rect ? rect.left : 16;
-          var top = rect ? rect.bottom + 6 : 16;
-          if (left + w > vw - 8) left = Math.max(8, vw - w - 8);
-          if (top + h > vh - 8 && rect) top = Math.max(8, rect.top - h - 6);
-          el.style.left = left + 'px';
-          el.style.top = top + 'px';
+          var placed248 = chipPopPlace248(rect, w, h, vw, vh);
+          el.style.left = placed248.left + 'px';
+          el.style.top = placed248.top + 'px';
           chipPopEl = el;
           chipPopOwnerKey = ownerKey || null;
           /* Build -167: the popover opens on a chip button's
@@ -24487,7 +24542,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-247', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-248', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -24865,8 +24920,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-247', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-247', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-248', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-248', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -24883,7 +24938,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-247', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-248', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -24929,7 +24984,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-247', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-248', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25032,7 +25087,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-247', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-248', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25112,7 +25167,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-247'; } catch (e) { return '20261123-247'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-248'; } catch (e) { return '20261123-248'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -25438,6 +25493,12 @@
           try { renderTagsSection(); } catch (e) {}
           try { if (lib && Array.isArray(lib.docs) && lib.docs.length) openDoc(lib.currentId); } catch (e) {}
           try { var tEl = document.getElementById('titleInput'); var cd = (typeof currentDoc === 'function') ? currentDoc() : null; if (tEl && cd) tEl.value = cd.title || ''; } catch (e) {}
+          /* Build -248 (WS1): `lib` is the real library now —
+             run the open-set restore tabInit deferred, so the
+             full saved tab set (identities, order, active tab,
+             remembered panes) lands instead of the single
+             document the settle render just opened. */
+          try { if (typeof tabRestoreAfterIDB248 === 'function') tabRestoreAfterIDB248(); } catch (e) {}
         }
         /* Boot: decide the authoritative store before anything
            renders from IndexedDB-held data. Marker present →
@@ -25490,6 +25551,14 @@
                 try { document.documentElement.removeAttribute('data-idb-boot'); } catch (e) {}
                 try { console.error('[FolioDocs idb -242] IndexedDB hydration failed:', err); } catch (e) {}
                 folioStateBanner241('The IndexedDB record store could not be read on this device. Nothing was changed. Restore your latest backup file (Settings \u2192 Backup & restore) to bring your records back.', 'Retry');
+                /* Build -248 (WS1): even on this path the tabs
+                   must not stay stood down — run the deferred
+                   restore against whatever library is in memory
+                   (it degrades to the current document, exactly
+                   the pre-248 landing). The saved payload itself
+                   was never overwritten, so a backup restore +
+                   reload still brings the full set back. */
+                try { if (typeof tabRestoreAfterIDB248 === 'function') tabRestoreAfterIDB248(); } catch (e) {}
                 return false;
               });
             }
@@ -25518,6 +25587,11 @@
                same single banner surface. */
             try { folioRunMigration237(false); } catch (e) {}
             try { folioRetireLegacy239(); } catch (e) {}
+            /* Build -248 (WS1): release the deferred tab
+               restore on this fallback route too — the legacy
+               library is in memory here, so the saved set
+               applies against real records. */
+            try { if (typeof tabRestoreAfterIDB248 === 'function') tabRestoreAfterIDB248(); } catch (e) {}
             return false;
           });
           return folioIDBBootPromise242;
@@ -42761,12 +42835,33 @@
              place and the menu never opens over an
              unselected cell. */
           cgSelectCellForMenu(entry, col);
+          /* Build -248 (WS2): the menu anchors to the CELL,
+             read AFTER the selection above has had its chance
+             to scroll the cell into view and focus it — both
+             doors (right-click, long-press) captured their rect
+             BEFORE that selection ran, so anchoring to the
+             caller's rect placed the menu wherever the cell
+             used to be: after any scroll the grid made to
+             reveal the cell, the menu floated detached from it
+             (the owner's screenshot: menu at the top of the
+             screen, the selected cell mid-grid). The cell's
+             fresh on-screen rect is the anchor now; the
+             caller's rect survives only as the fallback for a
+             cell that is not rendered. -223's selection-first
+             behavior is unchanged — the highlight still moves
+             before the menu opens; the anchor is simply read
+             after it. */
+          var anchorRect248 = rect;
+          try {
+            var td248 = document.querySelector('#collGridTable td[data-col="' + col.key + '"][data-oid="' + entry.rec.id + '"]');
+            if (td248) anchorRect248 = td248.getBoundingClientRect();
+          } catch (e) {}
           /* Build -207: a smart member's cell menu — derived
              cells offer only the door into the document;
              custom cells offer their edit + settings doors.
              No Remove anywhere: membership is the folder's. */
           if (entry.smart) {
-            chipOpenPop(rect, function (el) {
+            chipOpenPop(anchorRect248, function (el) {
               el.appendChild(chipPopItem('Open record', false, function () {
                 chipClosePop(false);
                 openDoc(entry.docId, true);
@@ -42789,7 +42884,7 @@
             }, 'cgcell:' + entry.rec.id + ':' + col.key);
             return;
           }
-          chipOpenPop(rect, function (el) {
+          chipOpenPop(anchorRect248, function (el) {
             el.appendChild(chipPopItem('Edit value…', false, function () {
               chipClosePop(false);
               cgEditValue(entry, col);
@@ -53984,6 +54079,14 @@
         var WS_SYNC_KEY = 'folio.workspaces.v1';
         var CLIP_KEY = 'folio-clip-history';
         var folioTabsReady = false;
+        /* Build -248 (WS1): true while the open-set restore is
+           DEFERRED until IndexedDB hydration settles (tabInit
+           found folioIDBPending242 set). While it stands,
+           tabPersist is stood down (the placeholder library's
+           single tab must never overwrite the saved set) and
+           folioIDBSettleRender242 owes a tabRestoreAfterIDB248()
+           call the moment the real library is in memory. */
+        var folioTabsRestoreOwed248 = false;
         var folioTabNavInternal = false;
         var omniNewTab = false;
         var tabRecords = [];       // [{ docId, group:null, nav:{stack,idx} }]
@@ -54612,6 +54715,18 @@
               Object.keys(data.collapsed).forEach(function (gid) { if (data.collapsed[gid] && wsGroupById(gid)) tabCollapsed[gid] = true; });
             }
             tabActiveId = data.active && tabIndexOf(data.active) !== -1 ? data.active : null;
+            /* Build -248 (WS1): the saved per-record pane
+               memory merges back into its single owner
+               (rec234MainMem) here, so every route that applies
+               a set (boot, workspace switch) restores it. The
+               payload's true active tab (activeTab) is NOT
+               applied here — this function's consumers stage
+               tabActiveId as a document (switchWorkspace calls
+               openDoc on it); the boot restore reads activeTab
+               itself (tabRestoreAfterIDB248). */
+            if (data.mains && typeof data.mains === 'object' && typeof rec234MainMem !== 'undefined' && rec234MainMem) {
+              Object.keys(data.mains).forEach(function (mk248) { if (typeof data.mains[mk248] === 'string') rec234MainMem[mk248] = data.mains[mk248]; });
+            }
           }
         }
         function switchWorkspace(id, seedDocId) {
@@ -54759,6 +54874,15 @@
               };
             }),
             active: (tabIsTplId(tabActiveId) || (typeof tabIsObjId228 === 'function' && tabIsObjId228(tabActiveId))) ? tabSerializeDocActive() : tabActiveId,
+            /* Build -248 (WS1): the TRUE active tab rides the
+               payload too (an object tab included — `active`
+               above keeps naming a document for the older
+               readers), and so does the per-record remembered-
+               pane map (rec234MainMem, build -234), so a
+               restored tab lands on the pane it was left on,
+               across a reload as well as within the session. */
+            activeTab: tabActiveId || null,
+            mains: (typeof rec234MainMem !== 'undefined' && rec234MainMem) ? Object.assign({}, rec234MainMem) : {},
             closed: tabClosedStack.slice(0, 25),
             /* Phase 3: the active workspace's collapse states
                ride its per-device open set. */
@@ -54766,6 +54890,13 @@
           };
         }
         function tabPersist() {
+          /* Build -248 (WS1): while the open-set restore is
+             deferred for IndexedDB hydration, NOTHING persists
+             — the live records describe the placeholder
+             library, and writing them would replace the saved
+             open set with its single seed tab (the mechanism
+             that reduced every reload to the last tab). */
+          if (folioTabsRestoreOwed248) return;
           tabSaveNav();
           try {
             var payload = tabSerializeSet();
@@ -56342,7 +56473,14 @@
               var oband = document.createElement('span');
               oband.className = 'folio-tab-obj-band';
               oband.setAttribute('aria-hidden', 'true');
-              oband.textContent = oref228b && oref228b.kind === 'folder' ? 'Collection' : (rec228KindOf(oref228b) || 'Record');
+              /* Build -248 (WS3): the kind text rides an inner
+                 span, the template band's shape, so the band
+                 strip can clip it (slivers hide the lettering)
+                 without clipping the strip itself. */
+              var obandTxt248 = document.createElement('span');
+              obandTxt248.className = 'folio-tab-obj-band-txt';
+              obandTxt248.textContent = oref228b && oref228b.kind === 'folder' ? 'Collection' : (rec228KindOf(oref228b) || 'Record');
+              oband.appendChild(obandTxt248);
               el.appendChild(oband);
               el.style.setProperty('--tab-lc', 'var(--accent)');
             }
@@ -56628,6 +56766,11 @@
                gilt spine alone. Recomputed every layout, so a
                tab that re-ranks shallower regains its band. */
             if (c.rec && tabRecIsTpl(c.rec)) c.el.classList.toggle('tpl-band-bare', tabW < 28);
+            /* Build -248 (WS3): the same stand-down for an
+               object tab's kind band — under 28px the band
+               yields the whole tab width to the name and the
+               gilt accent spine carries the kind register. */
+            if (c.rec && typeof tabRecIsObj228 === 'function' && tabRecIsObj228(c.rec)) c.el.classList.toggle('obj-band-bare', tabW < 28);
             /* Build -93: the tab's sheet, in the scroll
                content behind the paper — offset left by the
                same per-rank step its tab's right edge takes
@@ -56916,7 +57059,29 @@
              geometry the panes inset by; the 78/58 constants
              remain only as the pre-anchor fallback. */
           var liveReserve244 = parseFloat(getComputedStyle(editorBodyEl).getPropertyValue('--stack-reserve'));
-          var pageW = editorScroll.clientWidth - (liveReserve244 > 0 ? liveReserve244 : (isSlim ? 58 : 78));
+          /* Build -248 (WS3): while a pane is hosted
+             (.stack-pane-on), the Body route's scroller is
+             stood down — display:none on the stage route — so
+             its clientWidth reads 0 and the slim decision
+             collapsed the rail to its 44px slim form for the
+             whole pane visit: tab widths fell to 16–30px and
+             tab names were crushed beside their kind bands
+             (the owner's "when other panes are open the tabs
+             become very small, the name obscured"). That was
+             the two-routes-two-geometries defect in concrete
+             form: the pane route's layout math was reading the
+             Body route's hidden paper geometry. Both routes
+             now feed the ONE decision from the width actually
+             on screen: in pane mode, the hosted pane's own
+             width (the editor body minus the spine column
+             beside it); in Body mode, the page width exactly
+             as before. */
+          var pageW;
+          if (editorBodyEl && editorBodyEl.classList.contains('stack-pane-on')) {
+            pageW = editorBodyEl.clientWidth - (tabRailEl.clientWidth || 0);
+          } else {
+            pageW = editorScroll.clientWidth - (liveReserve244 > 0 ? liveReserve244 : (isSlim ? 58 : 78));
+          }
           var slim = isSlim ? pageW < 740 : pageW < 700;
           if (slim !== isSlim) {
             tabRailEl.classList.toggle('slim', slim);
@@ -58156,10 +58321,33 @@
              Nothing from the pre-Phase-3 open set is lost. */
           wsDefsLoad();
           wsStateLoad();
+          /* Build -248 (WS1): when IndexedDB hydration is owed
+             (the -242 marker was present at boot), `lib` at this
+             synchronous moment is still the PLACEHOLDER library
+             — the legacy keys were cleared at the move's commit,
+             so it holds only seed records. Applying the saved
+             set here filters every saved tab out (its record
+             reads as missing), and the tabPersist below then
+             OVERWRITES the saved set with the placeholder's
+             single current tab — the exact mechanism behind
+             "on load, the app only remembers the last open tab".
+             So on this route the restore DEFERS: the definitions
+             and per-workspace sets above are pure localStorage
+             reads and stand; the apply/persist steps below are
+             skipped behind folioTabsRestoreOwed248, and
+             tabRestoreAfterIDB248() — called from
+             folioIDBSettleRender242 the moment hydration has
+             replaced `lib` with the real library — applies the
+             same payload against records that exist. The
+             no-marker routes keep the immediate restore: there
+             `lib` is already the real library. */
+          var deferTabs248 = (typeof folioIDBPending242 !== 'undefined' && folioIDBPending242 && !folioIDBSettled242);
+          if (deferTabs248) folioTabsRestoreOwed248 = true;
           var saved = wsSets[wsActiveId] || null;
           if (!saved) {
             try { saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null'); } catch (e) {}
           }
+          if (!deferTabs248) {
           wsApplySetData(saved);
           if (lib.currentId && tabIndexOf(lib.currentId) === -1) {
             tabRecords.push({ docId: lib.currentId, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
@@ -58172,11 +58360,86 @@
           if (activeRec && activeRec.nav && activeRec.nav.stack.length) tabLoadNav(activeRec);
           tabMru = tabActiveId ? [tabActiveId] : [];
           folioTabsReady = true;
+          }
           } catch (e) { folioBootError('tabs: restore open set', e); }
-          try { tabPersist(); } catch (e) { folioBootError('tabs: persist open set', e); }
+          try { if (!folioTabsRestoreOwed248) tabPersist(); } catch (e) { folioBootError('tabs: persist open set', e); }
           try { tabRender(); } catch (e) { folioBootError('tabs: first render', e); }
           setTimeout(function () { try { tabSyncSlim(); tabLayout(); } catch (e) {} }, 60);
         })();
+
+        /* ----- build -248 (WS1): the deferred open-set restore -----
+           Runs from folioIDBSettleRender242 (and from the IDB
+           failure paths) once `lib` is the real library again.
+           It performs exactly the restore tabInit performs on
+           the no-marker routes — same payload source, same
+           wsApplySetData door, same fallbacks — with one
+           addition the synchronous boot could never make: the
+           payload's TRUE active tab (activeTab, which may name
+           an object tab) is staged for real, via activateTab,
+           now that every module it needs is live. The owed flag
+           clears BEFORE the first persist so the restored set
+           can be written back (upgraded in place, activeTab and
+           mains included) instead of being stood down by the
+           tabPersist guard. Idempotent: a second call with the
+           flag cleared is a no-op, so the Retry path re-running
+           the settle render can never restore twice. */
+        function tabRestoreAfterIDB248() {
+          if (!folioTabsRestoreOwed248) return;
+          folioTabsRestoreOwed248 = false;
+          try {
+            var saved = wsSets[wsActiveId] || null;
+            if (!saved) {
+              try { saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null'); } catch (e) {}
+            }
+            wsApplySetData(saved);
+            if (lib.currentId && tabIndexOf(lib.currentId) === -1) {
+              tabRecords.push({ docId: lib.currentId, group: null, nav: { stack: navStack.slice(), idx: navIdx } });
+            }
+            if (!tabRecords.length && lib.docs.length) {
+              tabRecords.push({ docId: lib.docs[0].id, group: null, nav: { stack: [lib.docs[0].id], idx: 0 } });
+            }
+            /* The stage: the saved true active tab when it
+               names a restored tab; else the tabInit fallback
+               (the library's current document, else the first
+               tab). An object stage goes through activateTab —
+               the one door that stages a record coherently —
+               while a document stage only needs its nav loaded:
+               the settle render has just opened lib.currentId,
+               and when the stage IS that document nothing else
+               moves; when it is another document, activateTab
+               performs the swap. */
+            var stage248 = null;
+            if (saved && saved.activeTab && tabIndexOf(saved.activeTab) !== -1) stage248 = saved.activeTab;
+            if (!stage248) {
+              stage248 = lib.currentId && tabIndexOf(lib.currentId) !== -1 ? lib.currentId
+                : (typeof tabFirstDocId228 === 'function' ? tabFirstDocId228() : (tabRecords.length ? tabRecords[0].docId : lib.currentId));
+            }
+            tabActiveId = stage248;
+            var srec248 = tabRecord(stage248);
+            if (srec248 && srec248.nav && srec248.nav.stack && srec248.nav.stack.length && !tabRecIsObj248(stage248)) tabLoadNav(srec248);
+            tabMru = stage248 ? [stage248] : [];
+            folioTabsReady = true;
+            tabPersist();
+            tabRender();
+            if (stage248 && (tabRecIsObj248(stage248) || stage248 !== lib.currentId)) {
+              try { activateTab(stage248, false); } catch (e) {}
+            }
+            setTimeout(function () { try { tabSyncSlim(); tabLayout(); } catch (e) {} }, 60);
+          } catch (e) {
+            /* Degrade to the pre-248 landing rather than a
+               tab-less boot: the current document as sole tab. */
+            try {
+              folioTabsReady = true;
+              if (lib.currentId && tabIndexOf(lib.currentId) === -1) tabRecords.push({ docId: lib.currentId, group: null, nav: { stack: [lib.currentId], idx: 0 } });
+              tabActiveId = lib.currentId;
+              tabRender();
+            } catch (e2) {}
+            try { folioBootError('tabs: deferred restore after IndexedDB hydration', e); } catch (e3) {}
+          }
+        }
+        function tabRecIsObj248(id) {
+          return typeof tabIsObjId228 === 'function' && tabIsObjId228(id);
+        }
 
         /* ----- leave-and-return scroll guard (build -117) -----
            The other half of the scroll-to-top-on-return defect.
@@ -69116,7 +69379,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-247', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-248', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -69769,7 +70032,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-247', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-248', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -86650,7 +86913,13 @@
             try { eb.style.setProperty('--stack-reserve', (rail.offsetWidth + 14) + 'px'); } catch (e) {}
           }
           if (typeof tabAnchor === 'function') { try { tabAnchor(); } catch (e) {} }
-          if (on !== was && typeof tabLayout === 'function') { try { tabLayout(); } catch (e) {} }
+          /* Build -248 (WS3): a pane-mode flip changes which
+             width feeds the slim decision (tabSyncSlim), so the
+             flip re-runs that decision, not just the layout —
+             the rail must not keep the width the other route's
+             geometry chose for it. */
+          if (on !== was && typeof tabSyncSlim === 'function') { try { tabSyncSlim(); } catch (e) {} }
+          else if (on !== was && typeof tabLayout === 'function') { try { tabLayout(); } catch (e) {} }
         }
         try {
           if (typeof rec228InplaceAttach === 'function' && !rec228InplaceAttach.__stack244Wrapped) {
