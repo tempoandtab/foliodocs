@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-244" />
+    <meta name="folio-build" content="20261123-245" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4673,6 +4673,20 @@
       :root[data-focus="on"] .editor-body.stack-pane-on .rec-stage228,
       :root[data-focus="on"] .editor-body.stack-pane-on #objWorkspace.ws-inplace228,
       :root[data-focus="on"] .editor-body.stack-pane-on #varPanel.ws-inplace228 { padding-left: 0; }
+      /* Build -245: the grid host is a COLUMN — the Members
+         List/Grid mode row (moved into the host above the panel
+         by the -232 hosting) stacks over the panel at the pane's
+         full width. As a row it sat BESIDE the panel as a
+         180px-ish left column and squeezed the grid into what
+         was left — the device-reported "gutter with the buttons
+         sitting in it". And the Members pane's own content loses
+         the modal-era 16px inner padding (.obj-ws-members) so
+         list mode, grid mode and the other panes share ONE left
+         content edge: the pane's own box, nothing beyond it. */
+      .obj-ws-gridhost { flex-direction: column; }
+      .obj-ws-gridhost > .rec231-mode-row { flex: 0 0 auto; }
+      .obj-ws-gridhost > .coll-grid-panel { min-height: 0; }
+      #objWsMembers.obj-ws-members { padding: 0 0 18px; }
       .editor-body .editor-scroll {
         flex: 1; min-width: 0;
         padding-left: var(--stack-reserve);
@@ -24473,7 +24487,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-244', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-245', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -24851,8 +24865,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-244', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-244', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-245', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-245', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -24869,7 +24883,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-244', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-245', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -24915,7 +24929,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-244', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-245', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25018,7 +25032,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-244', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-245', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25098,7 +25112,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-244'; } catch (e) { return '20261123-244'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-245'; } catch (e) { return '20261123-245'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -32400,7 +32414,16 @@
         function wsOpenGridForProp(d) {
           if (!objEditCtx || !objEditCtx.id || !d.id) return;
           var propName = d.name;
-          if (!objSaveEdit()) return;
+          /* Build -245: the save below exists to commit staged
+             edits before the grid reads the saved record — but
+             it ran on EVERY grid open, and a save is a full
+             validate + persist + editor reopen (which repaints
+             the Members list and the sidebar), the largest single
+             block in the grid-open delay on a big collection.
+             When nothing is staged the saved record already IS
+             the draft, so the save is skipped and the property
+             is re-found on the saved record exactly as before. */
+          if (wsIsDirty() && !objSaveEdit()) return;
           /* objSaveEdit reopened the editor on the saved
              record; re-find the property by name. */
           if (!objEditCtx || !objEditCtx.id) return;
@@ -32762,7 +32785,30 @@
               list.appendChild(mNote);
             }
           }
-          paintMemberRows();
+          /* Build -245: when this record's remembered mode is
+             Grid, the reopen is already scheduled — painting the
+             member rows now builds a hundred-row list only for
+             the grid to replace it a tick later, the other half
+             of the grid-open delay on a large collection. The
+             paint is deferred, not dropped: flipping to List
+             re-renders the pane (the mode row's own handler),
+             and the self-heal below paints the rows if the grid
+             never lands. Small lists paint immediately, as
+             before. */
+          var deferRows245 = !!(objWsCtx && objEditCtx && objEditCtx.id && d.value.length > 20 &&
+            typeof rec231MemMode !== 'undefined' && rec231MemMode[objEditCtx.id] === 'grid' && !objWsCtx.gridMode);
+          if (deferRows245) {
+            list.setAttribute('data-rows-deferred245', '1');
+            setTimeout(function () {
+              if (!list.isConnected) return;
+              if (!list.hasAttribute('data-rows-deferred245')) return;
+              if (objWsCtx && objWsCtx.gridMode) return;
+              list.removeAttribute('data-rows-deferred245');
+              paintMemberRows();
+            }, 1200);
+          } else {
+            paintMemberRows();
+          }
           /* Search-add an existing object (staged). */
           var addRow = document.createElement('div');
           addRow.style.marginTop = '8px';
@@ -68792,7 +68838,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-244', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-245', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -69421,7 +69467,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-244', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-245', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -79356,6 +79402,15 @@
             var kc = ev.keyCode || ev.which;
             if (kc >= 65 && kc <= 90) key = String.fromCharCode(kc + 32);
             else if (kc >= 48 && kc <= 57) key = String.fromCharCode(kc);
+            /* Build -245: the spacebar recovers too — a WebKit
+               shape that arrives as 'Dead' / 'Unidentified' with
+               an empty code otherwise names no key at all, and
+               ⌥Space from a pane field (a plain input, where the
+               press is not the editor's) minted no combo and
+               Omnisearch never fired, though it fired from the
+               Body pane. keyCode 32 is the spacebar in every
+               layout that produces this shape. */
+            else if (kc === 32) key = 'space';
           }
           /* An Option-layer glyph in ev.key is itself proof
              Option was physically held — the glyph cannot be
@@ -86359,6 +86414,69 @@
             var wrappedAfter244 = function () { var r = origAfter244.apply(null, arguments); try { stack244SwapSettle(); } catch (e) {} try { stack244Sync(); } catch (e) {} return r; };
             wrappedAfter244.__stack244Wrapped = true;
             rec228AfterWsClosed = wrappedAfter244;
+          }
+        } catch (e) {}
+
+        /* ============================================================
+           Build -245: the -244 device round — three repairs.
+           (1) RAIL HOTKEYS OPEN THE PANE (owner's ruling). The ⌥
+           pane hotkeys (⌥B Body, ⌥V Variables, ⌥; Properties,
+           ⌥. Settings, ⌥M Members, ⌥, Memberships) used to run
+           rec228Hotkey's -228 summon-to-glance: they expanded
+           the rail's glance section and left the main area on
+           whatever it already showed. The ruling supersedes
+           that: a pane hotkey performs the SWAP — it opens the
+           pane in the main area, through rec228SetMain, the same
+           fully wrapped path (base + -231 + -233 + -244) the
+           rail ⇄ buttons, strip buttons and tab clicks land on,
+           so every entry route now agrees. ⌥R (rail
+           expand/collapse) is a separate registry entry and is
+           untouched, and the rail sections' own click behavior
+           is unchanged. With no record context there is no pane
+           to open: the hotkey returns false, which for ⌥V keeps
+           the registry's standing fallback — the Variables panel
+           toggle — exactly as it behaved before -228.
+           (2) GRID DELAY — the two structural cuts are at their
+           sites (wsOpenGridForProp's save now runs only when
+           the draft is dirty; the Members list's row paint is
+           deferred when the remembered mode is Grid and the
+           reopen is already scheduled). Measured on a populated
+           fixture (202 members, multi-tab stack): the open was
+           one ~265 ms timer task holding a full save + editor
+           reopen + a hundred-row list paint, ahead of the grid
+           render itself.
+           (3) OMNISEARCH ABOVE THE PANE — openOmni is wrapped
+           below so every open re-raises the palette to the end
+           of the overlay host (the host's DOM order is its paint
+           order): the palette opens above whichever pane hosts
+           the moment, structurally, not by host-manager timing.
+           The ⌥Space firing hole itself — a WebKit key shape
+           ('Dead' / 'Unidentified', empty code) whose keyCode
+           fallback recovered letters and digits but not the
+           spacebar — is fixed in scComboOf.
+           ============================================================ */
+        rec228Hotkey = function (ws) {
+          var ctx = rec228Ctx();
+          if (!ctx) return false;
+          var wss = rec228Workspaces(ctx);
+          if (!wss.some(function (w) { return w.id === ws; })) return false;
+          rec228SetMain(ws);
+          return true;
+        };
+        try {
+          if (typeof openOmni === 'function' && !openOmni.__rec245Wrapped) {
+            var origOpenOmni245 = openOmni;
+            var wrappedOpenOmni245 = function () {
+              var r = origOpenOmni245.apply(null, arguments);
+              try {
+                var host245 = document.getElementById('overlayHost');
+                var bar245 = document.getElementById('omniBar');
+                if (host245 && bar245 && bar245.parentNode === host245) host245.appendChild(bar245);
+              } catch (e) {}
+              return r;
+            };
+            wrappedOpenOmni245.__rec245Wrapped = true;
+            openOmni = wrappedOpenOmni245;
           }
         } catch (e) {}
 
