@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-246" />
+    <meta name="folio-build" content="20261123-247" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24487,7 +24487,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-246', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-247', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -24865,8 +24865,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-246', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-246', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-247', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-247', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -24883,7 +24883,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-246', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-247', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -24929,7 +24929,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-246', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-247', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25032,7 +25032,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-246', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-247', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25112,7 +25112,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-246'; } catch (e) { return '20261123-246'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-247'; } catch (e) { return '20261123-247'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -26897,9 +26897,53 @@
           }
           return { members: mem228, name: rr.rec.name + '.' + prop.name, dname: objHeadline(rr.rec, rr.scope === 'doc' ? doc : null) + '.' + prop.name, rec: rr.rec, prop: prop, scope: rr.scope };
         }
+        /* ----- Build -247: the resolution sweep -----
+           One paint of a large collection used to re-derive the
+           same facts once per member — and, for file members,
+           once per member per collection scan: the collection
+           lookup, the smart/rule member-doc sets, the holder
+           checks inside smartEntryForOid, and the home-document
+           lookup inside collMemberHomeDoc are all pure functions
+           of the stores for the duration of a synchronous paint,
+           so a sweep memoizes them per collection / per record
+           and every resolver in the sweep shares the result.
+           objPropDisplay results ride the same memo (see its
+           head): within a sweep no store mutates, so a formula's
+           display text cannot change mid-paint — the grid used
+           to re-evaluate the same formula up to four times per
+           row (filter text, sort key, headline autofit, cell).
+           The memo lives only for the sweep (a depth counter, so
+           nested sweeps — a grid render inside a members paint —
+           share the outer one) and is dropped at sweep end: no
+           value outlives the paint that derived it, so an edit,
+           a sync merge, or a hydration between paints is always
+           seen fresh. This is the intrinsic-cost half of the
+           early-session grid/list lag: the passes below now run
+           once per paint instead of once per member. */
+        var folioSweep247 = null;
+        var folioSweepDepth247 = 0;
+        function folioSweepBegin247() {
+          if (!folioSweep247) folioSweep247 = { home: {}, disp: {}, smartColl: {}, smartDocs: {}, hybDocs: {}, holds: {}, src: {}, docIdx: null };
+          folioSweepDepth247++;
+          return folioSweep247;
+        }
+        function folioSweepEnd247() {
+          folioSweepDepth247--;
+          if (folioSweepDepth247 <= 0) { folioSweepDepth247 = 0; folioSweep247 = null; }
+        }
+        function folioDocById247(id) {
+          if (!folioSweep247) return lib.docs.find(function (x) { return x.id === id; }) || null;
+          if (!folioSweep247.docIdx) {
+            folioSweep247.docIdx = {};
+            lib.docs.forEach(function (x) { folioSweep247.docIdx[x.id] = x; });
+          }
+          return folioSweep247.docIdx[id] || null;
+        }
         /* Resolve a member list to live records, in order,
            dropping members whose object is gone. */
         function collMembersResolved(members, doc) {
+          folioSweepBegin247();
+          try {
           var out = [];
           (members || []).forEach(function (m) {
             /* Build -207: a smart member reference ({s:'s'},
@@ -26925,8 +26969,21 @@
             if (f) out.push({ oid: f.rec.id, oscope: f.scope === 'doc' ? 'd' : 'g', rec: f.rec, scope: f.scope });
           });
           return out;
+          } finally { folioSweepEnd247(); }
         }
         function collMemberHomeDoc(entry, doc) {
+          /* Build -247: inside a sweep the home document of a
+             record is derived once and shared — this lookup
+             walks every document list (objHomeKeyOf) and used
+             to run once per grid CELL. The fallback argument is
+             constant within any one paint, so the memo is exact. */
+          if (folioSweep247 && entry && entry.rec && entry.rec.id) {
+            var k247 = entry.rec.id;
+            if (k247 in folioSweep247.home) return folioSweep247.home[k247];
+            var r247 = entry.scope === 'doc' ? (varDocById(objHomeKeyOf(entry.rec.id)) || doc) : null;
+            folioSweep247.home[k247] = r247;
+            return r247;
+          }
           return entry.scope === 'doc' ? (varDocById(objHomeKeyOf(entry.rec.id)) || doc) : null;
         }
         /* ----- Build -207: smart collections -----
@@ -27456,7 +27513,10 @@
         function smartEntryForOid(oid) {
           var p = smartParseOid(oid);
           if (!p) return null;
-          var d = lib.docs.find(function (x) { return x.id === p.docId; });
+          /* Build -247: inside a resolution sweep the document
+             index is shared (folioDocById247) — this find used
+             to scan the whole library once per member. */
+          var d = folioDocById247(p.docId);
           if (!d) return null;
           /* Build -228 (WS2): a folder collection's document
              member — resolves only while the document is
@@ -27478,17 +27538,44 @@
             if (!hf228) return null;
             var hp228 = objPropById(hf228.rec, hk228.propId);
             if (!hp228 || !hp228.hyb) return null;
-            var hdocs228 = hyb228Docs(hp228.hyb);
-            if (!hdocs228 || !hdocs228.some(function (x) { return x.id === d.id; })) return null;
+            /* Build -247: the rule-doc set is derived once per
+               collection per sweep and shared by every member —
+               hyb228Docs re-scans and re-sorts the whole library,
+               and this check used to pay it once per member. The
+               checked-not-assumed rule is unchanged: membership
+               is still verified, against the shared set. */
+            var hSet247 = folioSweep247 ? folioSweep247.hybDocs[p.collId] : null;
+            if (!hSet247) {
+              var hdocs228 = hyb228Docs(hp228.hyb);
+              if (!hdocs228) return null;
+              hSet247 = {};
+              hdocs228.forEach(function (x) { hSet247[x.id] = true; });
+              if (folioSweep247) folioSweep247.hybDocs[p.collId] = hSet247;
+            }
+            if (!hSet247[d.id]) return null;
             return smartEntryDirect227({ id: hk228.recId }, hf228.scope, d);
           }
-          var f = collFindAny(p.collId);
+          /* Build -247: the collection lookup is shared per
+             sweep — collFindAny scans every document list, and
+             every file member of one collection used to pay it. */
+          var f;
+          if (folioSweep247 && (p.collId in folioSweep247.smartColl)) f = folioSweep247.smartColl[p.collId];
+          else { f = collFindAny(p.collId); if (folioSweep247) folioSweep247.smartColl[p.collId] = f; }
           if (f && f.coll.smart) {
             /* Membership is checked, not assumed: a document
                that has left the folder is not a member, however
-               the reference was arrived at. */
-            var docs = smartMemberDocs(f.coll);
-            if (!docs || !docs.some(function (x) { return x.id === d.id; })) return null;
+               the reference was arrived at. Build -247: the
+               member-doc set is derived once per sweep (as
+               above), the check itself is unchanged. */
+            var dSet247 = folioSweep247 ? folioSweep247.smartDocs[p.collId] : null;
+            if (!dSet247) {
+              var docs = smartMemberDocs(f.coll);
+              if (!docs) return null;
+              dSet247 = {};
+              docs.forEach(function (x) { dSet247[x.id] = true; });
+              if (folioSweep247) folioSweep247.smartDocs[p.collId] = dSet247;
+            }
+            if (!dSet247[d.id]) return null;
             return smartEntryFor(f.coll, f.scope, d);
           }
           /* Build -227 (WS2): a DIRECT file member — the
@@ -27499,15 +27586,30 @@
              holds this reference — the same checked-not-
              assumed rule as the smart path above. */
           if (f && !f.coll.smart) {
-            var holds227 = (f.coll.members || []).some(function (m) { return m && m.s === 's' && m.oid === oid; });
-            if (holds227) return smartEntryDirect227(f.coll, f.scope, d);
+            /* Build -247: the holder's file-member id set is
+               built once per sweep; the holds check itself —
+               the reference must actually be held — is unchanged. */
+            var hKey247 = 'c|' + p.collId;
+            var holdsSet247 = folioSweep247 ? folioSweep247.holds[hKey247] : null;
+            if (!holdsSet247) {
+              holdsSet247 = {};
+              (f.coll.members || []).forEach(function (m) { if (m && m.s === 's') holdsSet247[m.oid] = true; });
+              if (folioSweep247) folioSweep247.holds[hKey247] = holdsSet247;
+            }
+            if (holdsSet247[oid]) return smartEntryDirect227(f.coll, f.scope, d);
           }
           var of227 = objFindAny(p.collId);
           if (of227) {
-            var holds227b = (of227.rec.props || []).some(function (pp) {
-              return pp.type === 'coll' && Array.isArray(pp.value) && pp.value.some(function (m) { return m && m.s === 's' && m.oid === oid; });
-            });
-            if (holds227b) return smartEntryDirect227({ id: p.collId }, of227.scope, d);
+            var oKey247 = 'o|' + p.collId;
+            var holdsSet247b = folioSweep247 ? folioSweep247.holds[oKey247] : null;
+            if (!holdsSet247b) {
+              holdsSet247b = {};
+              (of227.rec.props || []).forEach(function (pp) {
+                if (pp.type === 'coll' && Array.isArray(pp.value)) pp.value.forEach(function (m) { if (m && m.s === 's') holdsSet247b[m.oid] = true; });
+              });
+              if (folioSweep247) folioSweep247.holds[oKey247] = holdsSet247b;
+            }
+            if (holdsSet247b[oid]) return smartEntryDirect227({ id: p.collId }, of227.scope, d);
           }
           return null;
         }
@@ -27874,7 +27976,28 @@
             bd: 'hsla(' + H + ', ' + S + '%, ' + textL + '%, 0.55)',
           };
         }
+        /* Build -247: inside a resolution sweep (see
+           folioSweepBegin247), a property's display text is
+           derived once per (record, property) and shared by
+           every pass of the paint — the grid alone used to
+           evaluate the same formula for the filter text, the
+           sort key, the headline autofit, and the cell. The
+           -191 rule stands outside sweeps and within them:
+           every NEW paint re-evaluates fresh, because the memo
+           is dropped at sweep end and no store mutates during
+           a synchronous paint. */
         function objPropDisplay(rec, prop, homeDoc) {
+          if (!rec || !prop) return '';
+          if (folioSweep247 && rec.id && prop.id) {
+            var dk247 = rec.id + '|' + prop.id;
+            if (dk247 in folioSweep247.disp) return folioSweep247.disp[dk247];
+            var dv247 = objPropDisplayRaw247(rec, prop, homeDoc);
+            folioSweep247.disp[dk247] = dv247;
+            return dv247;
+          }
+          return objPropDisplayRaw247(rec, prop, homeDoc);
+        }
+        function objPropDisplayRaw247(rec, prop, homeDoc) {
           if (!rec || !prop) return '';
           /* Build -191: a computed property — its formula
              evaluates fresh on every read (a new session, so
@@ -32118,7 +32241,16 @@
            defaults and smart sources are NOT here anymore) and
            the Settings tab (scope, member defaults, smart
            sources, convert, danger zone). */
+        /* Build -247: a Members paint is one resolution sweep —
+           the shorthand re-serialize, the live preview, the
+           member sections, the property-filter shapes, and the
+           Settings pass below each used to re-resolve the same
+           member list from scratch (see folioSweepBegin247). */
         function wsRenderMembers() {
+          folioSweepBegin247();
+          try { wsRenderMembersSweep247(); } finally { folioSweepEnd247(); }
+        }
+        function wsRenderMembersSweep247() {
           var host = document.getElementById('objWsMembers');
           if (!host) return;
           host.innerHTML = '';
@@ -32739,8 +32871,20 @@
             list.innerHTML = '';
             var q = (objWsCtx && d.id && objWsCtx.memFilter[d.id] || '').trim().toLowerCase();
             var items = [];
+            /* Build -247: resolve the whole member list in ONE
+               sweep and index it by member identity — this used
+               to resolve each member in its own sweep, so a
+               200-member list paid the per-collection scans
+               (collection lookup, rule-doc sets, holder checks,
+               home lookups) once per member per paint, on top of
+               the same resolutions the section's shape passes
+               had already run. An unresolvable member is absent
+               from the index and renders as Missing, exactly as
+               the per-member resolution rendered it. */
+            var batch247 = {};
+            collMembersResolved(d.value, homeDoc).forEach(function (e) { if (e && e.oid && !(e.oid in batch247)) batch247[e.oid] = e; });
             d.value.forEach(function (m, vi) {
-              var entry = collMembersResolved([m], homeDoc)[0] || null;
+              var entry = (m && m.oid && batch247[m.oid]) || null;
               var label = entry ? objHeadline(entry.rec, collMemberHomeDoc(entry, homeDoc)) : 'Missing record';
               var sub = entry ? objNameKindLabel(entry.rec) : '';
               if (entry && entry.folderColl229) sub = 'Collection';
@@ -32768,7 +32912,38 @@
                one endless river of rows. */
             var showAll = !!(objWsCtx && d.id && objWsCtx.memShowAll[d.id]);
             var vis = (showAll || q || pfActive227()) ? items : items.slice(0, WS_MEMBERS_PAGE);
-            vis.forEach(function (it) { list.appendChild(memberRow(it)); });
+            /* Build -247: rows append in chunks, first chunk
+               synchronously — the grid body does the same
+               (cgRenderBody), and for the same reason: a
+               100-row page (or a Show-all river) built in one
+               task is what made grid→list feel as heavy as
+               list→grid. The "Showing" line lands with the
+               last chunk, after the rows it counts. A repaint
+               (filter keystroke, mutation) bumps the serial on
+               the list element and supersedes pending chunks. */
+            var serial247 = list._paint247 = (list._paint247 || 0) + 1;
+            var at247 = 0;
+            function chunk247() {
+              /* No isConnected gate: this paint runs while the
+                 section is still detached (it is attached once
+                 the whole pane is built), so connection cannot
+                 distinguish a live paint from a discarded one —
+                 the serial does that. Appending to a detached
+                 list is what the single-pass build always did. */
+              if (list._paint247 !== serial247) return;
+              folioSweepBegin247();
+              try {
+                var end247 = Math.min(vis.length, at247 + 45);
+                for (; at247 < end247; at247++) list.appendChild(memberRow(vis[at247]));
+              } finally { folioSweepEnd247(); }
+              if (at247 < vis.length) {
+                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(chunk247);
+                else setTimeout(chunk247, 0);
+                return;
+              }
+              tail247();
+            }
+            function tail247() {
             if (items.length > vis.length) {
               var showing = document.createElement('div');
               showing.className = 'obj-ws-showing';
@@ -32796,6 +32971,8 @@
               mNote.appendChild(mSpan);
               list.appendChild(mNote);
             }
+            }
+            chunk247();
           }
           /* Build -245: when this record's remembered mode is
              Grid, the reopen is already scheduled — painting the
@@ -40350,7 +40527,23 @@
           }
         }
         function cgDoc() { return collGridCtx ? collGridCtx.doc : null; }
-        function cgSource() { return collGridCtx ? collSourceMembers(collGridCtx.src, cgDoc()) : null; }
+        function cgSource() {
+          if (!collGridCtx) return null;
+          /* Build -247: inside a sweep the source resolution is
+             shared — collSourceMembers re-derives the member
+             list (and, for a hybrid collection, its rule refs)
+             on every call, and one grid render calls it through
+             cgEntries, cgColumns, cgSmart, the ghost row, and
+             the body, each time for the same (src, doc). */
+          if (folioSweep247) {
+            var sk247 = (collGridCtx.src.cid || collGridCtx.src.oid || '') + '|' + (collGridCtx.src.pid || '') + '|' + (cgDoc() ? cgDoc().id : '');
+            if (sk247 in folioSweep247.src) return folioSweep247.src[sk247];
+            var sv247 = collSourceMembers(collGridCtx.src, cgDoc());
+            folioSweep247.src[sk247] = sv247;
+            return sv247;
+          }
+          return collSourceMembers(collGridCtx.src, cgDoc());
+        }
         function cgEntries() {
           var s = cgSource();
           if (!s) return [];
@@ -40439,6 +40632,11 @@
         }
         var cgSavedTimer = null;
         var cgFilterTimer = null;
+        /* Build -247: grid body chunking state — see
+           cgRenderBody. The serial supersedes pending chunks
+           whenever a newer body render starts. */
+        var cgBodySerial247 = 0;
+        var CG_CHUNK247 = 90;
         function cgMarkSaved() {
           var el = document.getElementById('collGridSaved');
           if (!el) return;
@@ -40644,6 +40842,13 @@
         /* ----- rendering ----- */
         function cgRender() {
           if (!collGridCtx) return;
+          /* Build -247: the whole render is one resolution
+             sweep — entries, columns, filter/sort keys, the
+             headline autofit, the cells, and the footer share
+             their resolutions and display values instead of
+             each re-deriving them (see folioSweepBegin247). */
+          folioSweepBegin247();
+          try {
           var s = cgSource();
           var entries = cgEntries();
           var cols = cgColumns(entries);
@@ -40659,6 +40864,7 @@
           if (mkb) mkb.style.display = cgSmart() ? 'none' : '';
           cgRenderBody(cgSortedVis(vis, cols), cols, entries.length);
           cgRenderFoot(entries, cols);
+          } finally { folioSweepEnd247(); }
         }
         function cgRenderBody(vis, cols, totalCount) {
           var tbl = document.getElementById('collGridTable');
@@ -40720,10 +40926,45 @@
             er.appendChild(etd);
             tbody.appendChild(er);
           }
-          vis.forEach(function (e) { tbody.appendChild(cgRow(e, cols)); });
-          tbody.appendChild(cgGhostRow(cols));
           tbl.appendChild(tbody);
-          cgRestoreFocus();
+          /* Build -247: rows append in chunks — the first
+             CG_CHUNK247 synchronously, the rest one animation
+             frame at a time — so a 200-row grid's first paint
+             pays for one chunk, not the whole body, and
+             background work still running early in a session
+             (a sync merge repaint, an IndexedDB write-through
+             verify) interleaves between chunks instead of
+             queueing behind one long task; symmetrically, the
+             switch no longer starves that work for the full
+             body build. Each chunk is its own resolution sweep
+             (the render's sweep never spans frames, so a store
+             change between chunks is seen fresh by the next
+             one). The serial + context + connection guards
+             supersede pending chunks on any newer render, a
+             close, or a source switch. The ghost row and the
+             focus restore land with the last chunk, exactly
+             where the single-pass build put them; a body of
+             one chunk or less is built in this same call,
+             indistinguishable from before. */
+          var serial247 = ++cgBodySerial247;
+          var ctx247 = collGridCtx;
+          var at247 = 0;
+          function chunk247() {
+            if (serial247 !== cgBodySerial247 || collGridCtx !== ctx247 || !tbody.isConnected) return;
+            folioSweepBegin247();
+            try {
+              var end247 = Math.min(vis.length, at247 + CG_CHUNK247);
+              for (; at247 < end247; at247++) tbody.appendChild(cgRow(vis[at247], cols));
+            } finally { folioSweepEnd247(); }
+            if (at247 < vis.length) {
+              if (typeof requestAnimationFrame === 'function') requestAnimationFrame(chunk247);
+              else setTimeout(chunk247, 0);
+              return;
+            }
+            tbody.appendChild(cgGhostRow(cols));
+            cgRestoreFocus();
+          }
+          chunk247();
         }
         function cgHeaderCell(col) {
           var th = document.createElement('th');
@@ -40986,6 +41227,16 @@
               var im = document.createElement('img');
               im.className = 'coll-grid-thumb';
               im.alt = '';
+              /* Build -247: cover thumbnails decode off the
+                 switch's critical path — a large collection's
+                 first grid paint used to wait on ~200 cover
+                 fetches/decodes landing in the same task; the
+                 browser cache made later switches cheap, which
+                 is part of why the lag faded minutes into a
+                 session. Lazy + async keeps the first paint
+                 to the grid's own cost. */
+              im.decoding = 'async';
+              im.loading = 'lazy';
               im.src = url;
               im.addEventListener('error', function () {
                 btn.textContent = entry.rec.emoji || '📄';
@@ -68865,7 +69116,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-246', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-247', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -68938,8 +69189,32 @@
           }
           if (migDone) {
             /* Keep the registry fresh from the live stores,
-               then push unified. */
-            try { folioRunMigration237(true); } catch (e3) {}
+               then push unified. Build -247: the forced refresh
+               used to rebuild the whole registry AND re-persist
+               the whole library (on an IndexedDB device, a full
+               chunked write + read-back verify) after EVERY
+               completed cycle — including the many cycles in
+               which nothing had changed — and that full-library
+               pass is precisely the background work an
+               early-session grid/list switch queued behind (the
+               first cycles land in the session's first minutes;
+               once they stop finding work, the lag the owner
+               reported goes with them). The registry's records
+               hold live references to the stores' own property
+               arrays, so when the source checksum — record
+               names + property shapes, the migration's own
+               verification formula — still matches the
+               registry's, the existing registry already IS
+               fresh and the refresh is skipped; any add,
+               remove, rename, or membership change moves the
+               checksum and the refresh runs exactly as before. */
+            var skip247 = false;
+            try {
+              if (typeof folioRegistry !== 'undefined' && folioRegistry && folioRegistry.checksum) {
+                skip247 = recSourceTotals237().checksum === folioRegistry.checksum;
+              }
+            } catch (e247) {}
+            if (!skip247) { try { folioRunMigration237(true); } catch (e3) {} }
             uniPush237().then(function (pushed) {
               uniLastCheck237 = pushed ? 'Unified push completed at ' + new Date().toLocaleTimeString() : 'Unified push failed at ' + new Date().toLocaleTimeString() + ' — the tables did not accept the push';
               /* Build -240: retirement gets a second chance on
@@ -69494,7 +69769,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-246', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-247', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
