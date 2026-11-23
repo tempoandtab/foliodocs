@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-250" />
+    <meta name="folio-build" content="20261123-251" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5298,6 +5298,43 @@
          take the plain page margins. */
       .editor-body.stack-pane-on .editor-scroll { padding-left: 0; }
       #editorScroll.rec250-pane-scroll { overflow: hidden; display: flex; flex-direction: column; }
+      /* ---------------- Build -251: the pile's room, in pane mode ----------------
+         The -250 seating put the pane inside the real .paper, so
+         the .paper-sheets pile (a child of the wrap, inset 0)
+         spans the pane sheet exactly as it spans the Body page —
+         but the pile's visible steps live OUTSIDE the paper's
+         box: tabLayout offsets each sheet left by 4px per rank
+         (24px at the capped rank 6) and down by 3px per rank.
+         In Body mode those slivers have somewhere to paint: the
+         scroller carries padding-left var(--stack-reserve) and
+         the wrap sits inside it, so the sheets extend left of
+         the paper into open scroll content. In pane mode the
+         -244/-250 rules took that room away — .stack-pane-on
+         zeroes the scroller's padding-left (the rail is a flex
+         child now) and the pane wrap's margin-left is 0 — so the
+         paper's left edge sits exactly on the scroller's content
+         edge and the scroller's overflow:hidden clips every
+         left sliver off at the padding box. What survived was
+         the paper's own border and the bottom steps (the bottom
+         margin leaves room): a plain panel beside a separate
+         spine column, which is what the owner photographed.
+         The repair restores the Body geometry exactly: the pane
+         scroller's border box reaches 24px left over the rail's
+         right strip (negative margin), and its padding-left
+         gives that 24px back, so the wrap — and the paper's
+         left edge — stays exactly on the rail's right edge,
+         where tabAnchor and tabLayout already put every tab's
+         right edge and gilt strip (railW − off). The sheets now
+         extend into the scroller's own padding zone, inside its
+         clip edge, painting under the rail (z-index 20, as in
+         Body mode) with the tabs' faces continuous with their
+         sheets. Nothing is redrawn: the pile is the Body page's
+         own layer, given the same room it has there. Phone
+         widths stand the pile down entirely, so the overlap
+         stands down with it. */
+      @media (min-width: 641px) {
+        #editorScroll.rec250-pane-scroll { margin-left: -24px; padding-left: 24px; }
+      }
       #editorScroll #paperWrap.rec250-pane-wrap { flex: 1 1 auto; min-height: 0; max-width: none; margin: 26px 26px 40px 0; }
       #editorScroll #paperWrap.rec250-pane-wrap.rec250-pane-grow { margin: 14px 12px 20px 0; }
       #editorScroll .paper.rec250-paper-pane {
@@ -24615,7 +24652,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-250', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-251', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -24993,8 +25030,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-250', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-250', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-251', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-251', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25011,7 +25048,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-250', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-251', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25057,7 +25094,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-250', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-251', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25160,7 +25197,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-250', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-251', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25240,7 +25277,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-250'; } catch (e) { return '20261123-250'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-251'; } catch (e) { return '20261123-251'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -25373,12 +25410,29 @@
             if (!sample || s.length > sample.len) sample = { id: d.id, str: s, len: s.length };
           });
           var oldCache = folioIDBCache242;
+          /* Build -251: track exactly what this attempt writes —
+             the rollback below restores only these keys, never
+             the whole cache. */
+          var written251 = [];
+          var manifestWritten251 = false;
           var ops = folioIDBPut242(IDB_JOURNAL242, { stage: 'writing', checksum: base.checksum, counts: base.counts, at: Date.now() });
+          /* Build -251: with no in-session cache (a cold boot
+             whose hydration read was bypassed), snapshot the
+             on-disk copy BEFORE overwriting it — it is the
+             rollback source, and its absence must never turn a
+             failed write into a store clear (see the catch). */
+          ops = ops.then(function () {
+            if (oldCache) return null;
+            return folioIDBReadRaw242().then(function (raw) {
+              if (raw && raw.manifest) oldCache = { manifest: raw.manifest, chunks: raw.chunks };
+              return null;
+            }).catch(function () { return null; });
+          });
           set.chunks.forEach(function (c) {
             if (oldCache && oldCache.chunks[c.key] === c.value) return;
-            ops = ops.then(function () { return folioIDBPut242(c.key, c.value); });
+            ops = ops.then(function () { written251.push(c.key); return folioIDBPut242(c.key, c.value); });
           });
-          ops = ops.then(function () { return folioIDBPut242(IDB_MANIFEST242, set.manifest); });
+          ops = ops.then(function () { manifestWritten251 = true; return folioIDBPut242(IDB_MANIFEST242, set.manifest); });
           ops = ops.then(function () {
             return folioIDBReadRaw242().then(function (raw) {
               if (!raw.manifest) throw new Error('the written IndexedDB store could not be read back');
@@ -25414,14 +25468,35 @@
           return ops.then(function () {
             return { manifest: set.manifest, totals: { total: base.counts.total, members: base.counts.members, checksum: base.checksum } };
           }).catch(function (err) {
+            /* Build -251: roll back ONLY what this attempt
+               actually wrote. The old rollback rewrote every
+               cached chunk — under the pressure/quota conditions
+               that cause failures, the rollback was the largest
+               write in the system and could itself fail halfway.
+               And the no-cache fallback CLEARED the whole store:
+               a transient abort on a session's first write could
+               destroy the last whole copy it was meant to
+               protect. Now: keys this attempt overwrote get
+               their previous values back (keys it created are
+               deleted), the manifest is restored if it was
+               replaced, and with no rollback source the store is
+               left exactly as it stands — the previous manifest
+               still points at its own chunk set, and any chunks
+               this attempt orphaned are unreferenced and
+               harmless. */
             if (oldCache) {
               var rops = Promise.resolve();
-              Object.keys(oldCache.chunks).forEach(function (k) { rops = rops.then(function () { return folioIDBPut242(k, oldCache.chunks[k]); }); });
-              rops = rops.then(function () { return folioIDBPut242(IDB_MANIFEST242, oldCache.manifest); });
+              written251.forEach(function (k) {
+                rops = rops.then(function () {
+                  if (oldCache.chunks && Object.prototype.hasOwnProperty.call(oldCache.chunks, k)) return folioIDBPut242(k, oldCache.chunks[k]);
+                  return folioIDBDel242(k);
+                });
+              });
+              if (manifestWritten251) rops = rops.then(function () { return folioIDBPut242(IDB_MANIFEST242, oldCache.manifest); });
               rops = rops.then(function () { return folioIDBPut242(IDB_JOURNAL242, { stage: 'committed', checksum: oldCache.manifest.checksum || '', counts: oldCache.manifest.counts || null, at: Date.now() }); });
               return rops.then(function () { throw err; }, function () { throw err; });
             }
-            return folioIDBClear242().then(function () { throw err; });
+            throw err;
           });
         }
         function folioIDBMessage242() {
@@ -25521,8 +25596,40 @@
           folioIDBDirty242 = false;
           try { var el0 = document.getElementById('saveState'); if (el0) el0.textContent = 'Saving…'; } catch (e) {}
           folioIDBQueue242 = folioIDBQueue242.then(function () {
-            return folioIDBWriteStores242(lib, objStore).then(function (res) {
+            /* Build -251: a failed write RETRIES inside this
+               same pass — up to three attempts, short backoff —
+               and every attempt rebuilds its chunk set from the
+               live lib/objStore as they stand when the attempt
+               runs, so edits that land during a backoff ride
+               along. The device failure this answers stranded
+               the save at "Not saved" after a single refused
+               write (WebKit aborts IndexedDB transactions under
+               memory pressure and around app suspension — the
+               owner hit it mid tab-switching, screen recording
+               running) with recovery left to the next edit or a
+               manual Retry tap. Now a transient abort heals on
+               its own; only a failure that survives every
+               attempt earns the banner, and it names the real
+               error (also recorded for Sync details — see
+               folioIDBNoteError251 in the -251 block). The dirty
+               flag stays set after a final failure, so the next
+               edit cycle, the -251 retry timer, and a return to
+               the foreground each take another pass without the
+               user doing anything. */
+            var attempt251 = 0;
+            var tryWrite251 = function () {
+              return folioIDBWriteStores242(lib, objStore).catch(function (err) {
+                attempt251++;
+                try { folioIDBNoteError251(err, attempt251); } catch (e) {}
+                if (attempt251 >= 3) throw err;
+                return new Promise(function (res251) { setTimeout(res251, 350 * attempt251); }).then(tryWrite251);
+              });
+            };
+            return tryWrite251().then(function (res) {
+              var hadBanner251 = folioIDBPersistBannerShown242;
               folioIDBPersistBannerShown242 = false;
+              try { folioIDBClearError251(); } catch (e) {}
+              if (hadBanner251) { try { folioClearStateBanner241(); } catch (e) {} }
               try {
                 var built2 = recBuildRegistry237();
                 folioRegistry = { version: 4, build: folioStamp242(), migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: built2.records, counts: res.manifest.counts, checksum: res.totals.checksum, stores: { library: lib, objects: objStore } };
@@ -25532,11 +25639,13 @@
               try { var el2 = document.getElementById('saveState'); if (el2) el2.textContent = 'Saved'; } catch (e) {}
             }).catch(function (err) {
               folioIDBPersistInFlight242 = false;
+              folioIDBDirty242 = true;
+              try { folioIDBScheduleRetry251(); } catch (e) {}
               try { var el3 = document.getElementById('saveState'); if (el3) el3.textContent = 'Not saved'; } catch (e) {}
               try { console.error('[FolioDocs idb -242] save did not commit:', err); } catch (e) {}
               if (!folioIDBPersistBannerShown242) {
                 folioIDBPersistBannerShown242 = true;
-                folioStateBanner241('A save could not be written to IndexedDB storage on this device. Your records are still in memory and in the last saved IndexedDB copy. Keep your latest backup file safe, then tap Retry.', 'Retry');
+                folioStateBanner241('A save could not be written to IndexedDB storage on this device (' + ((err && err.name) || 'Error') + (err && err.message ? ': ' + err.message : '') + '). Your records are still in memory and in the last saved IndexedDB copy. The app will keep retrying on its own; keep your latest backup file safe, then tap Retry.', 'Retry');
               }
             });
           });
@@ -69452,7 +69561,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-250', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-251', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -69699,6 +69808,18 @@
           } else {
             idbLine242.textContent = 'IndexedDB usage: this browser does not report storage estimates.';
           }
+          /* Build -251: the last IndexedDB save failure, with
+             the browser's own error name and message — a save
+             failure is diagnosable here, not just announced by
+             the generic banner. The record survives reloads in
+             one small localStorage key and clears on the next
+             successful save. */
+          try {
+            var lastErr251 = (typeof folioIDBLastError251 !== 'undefined' && folioIDBLastError251) ? folioIDBLastError251 : null;
+            if (!lastErr251) { try { lastErr251 = JSON.parse(localStorage.getItem('folio.idb.lasterror') || 'null'); } catch (e) {} }
+            if (lastErr251) row('Last IndexedDB save error', (lastErr251.name || 'Error') + ' — ' + (lastErr251.message || '') + ' · ' + sdFmtTime(lastErr251.at) + ' · attempt ' + (lastErr251.attempt || 1));
+            else row('Last IndexedDB save error', 'None recorded');
+          } catch (e) {}
           listHead('Unified sync setup (one paste)');
           listLine('Run this SQL once in the Supabase dashboard (SQL Editor), then upload this build, open it on the iPad first, and on the phone second:');
           var sqlPre = document.createElement('pre');
@@ -70105,7 +70226,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-250', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-251', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -87487,7 +87608,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261123-250', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261123-251', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -87996,6 +88117,222 @@
              store. */
           try { rec250MigrateBodies(); } catch (e) {}
         }
+
+        /* ============================================================
+           Build -251: the -250 device round — three repairs.
+
+           P1 — STALE PANE ON TAB SWITCH (the headline). The
+           owner's sequence: Red Rising Saga's Members GRID on
+           screen → switch to the Books Library tab → title,
+           star and spines switch, the grid still shows the
+           Saga's 7 members; the real 204 painted only when he
+           clicked List/Grid inside the pane. From the source:
+           a hosted grid's content binds to collGridCtx, a
+           global the grid open sets — and NOTHING on the tab
+           switch path ever re-pointed it. rec228ToWsTab selects
+           the incoming record in the workbench (the Members
+           LIST repaints from the new draft), but the hosted
+           grid panel sits in #objWsGridHost, outside the list's
+           DOM; wsShowTabPanel closes a hosted grid only when
+           the incoming tab is NOT Members (both records were
+           remembered ON Members); rec231MembersPaneChrome
+           stands down because the List/Grid mode row is parked
+           in the grid host; and rec233MaybeReopenGrid — the one
+           reopen door — returns at every tick because
+           objWsCtx.gridMode is still true (the STALE grid is
+           hosted, so the check reads as "grid already up").
+           The -233 close veto completes the trap: closing the
+           stale grid needs rec233AllowGridClose, which the
+           members-to-members switch never grants. The List
+           click worked because it grants the veto itself; the
+           Grid click worked because it re-opens the grid for
+           the current record. Per-pane audit of the same switch:
+           Body (record) — keyed per-record sessions, rebinds
+           synchronously in rec250ShowBody; Properties — paints
+           from the editor draft the select lands; Settings —
+           rendered inside the Members sweep from the same
+           draft; Memberships (record) — staged from the
+           incoming ctx in the -231 SetMain branch; Variables —
+           the panel is per home document, the global note is
+           staged per ctx; Members LIST — repaints with the
+           select. The grid was the one surface bound to a
+           global nobody re-pointed, plus one timing defect
+           shared by all workspace panes: rec228ToWsTab's
+           wsSetTab rides a 30 ms timeout, so even a correct
+           pane landed a beat after the switch's first paint.
+           The fix is one reconciliation at the funnel every
+           record-tab activation passes through
+           (rec228ShowRecord, wrapped below): after the switch
+           chain returns — still inside the activation task, so
+           before the first painted frame — the seated pane is
+           bound to the ACTIVE record: the workbench editor is
+           serving the active record (selected synchronously if
+           the deferred select has not landed), the workspace
+           tab is the record's remembered pane (set
+           synchronously, not at +30 ms), and a hosted grid is
+           re-pointed — closed under an explicit veto grant and
+           reopened for the active record when its remembered
+           mode is Grid, closed to the list when it is not.
+           Body, Memberships and Variables re-drive their own
+           painters when their shown identity mismatches the
+           active record. -250's probe missed this because it
+           toured panes within ONE record and never switched
+           tabs between two records' panes; the -251 probe
+           fixture is two collections open as tabs, both
+           remembered on Members grid, driven in both
+           directions.
+
+           P0 — INDEXEDDB SAVE FAILURE. The queue now retries
+           (see folioQueueIDBPersist242), the write rolls back
+           only what it wrote and never clears the store (see
+           folioIDBWriteStores242), and the real error is
+           recorded here and shown in Sync details. The failure
+           floor is unchanged and now self-healing: in-memory
+           state + last committed IndexedDB copy + banner, and
+           a failed save retries on the next edit cycle, on a
+           timer, and on return to the foreground — no user
+           action required.
+
+           P2 — PAGE STACK OUTSIDE BODY. The pile was inside the
+           real paper all along (-250); what the pane
+           configuration lacked was the pile's ROOM — the
+           scroller geometry that lets the sheets' left slivers
+           paint. Fixed in the -251 CSS at .rec250-pane-scroll:
+           the pane scroller takes the Body page's geometry
+           (border box reaching over the rail's right strip,
+           padding restoring the paper's edge), so the shared
+           .paper-sheets layer renders identically in every
+           pane, Binding Dark included — measured against the
+           Body page as reference.
+           ============================================================ */
+        var folioIDBLastError251 = null;
+        var folioIDBRetryTimer251 = 0;
+        try { folioIDBLastError251 = JSON.parse(localStorage.getItem('folio.idb.lasterror') || 'null'); } catch (e) { folioIDBLastError251 = null; }
+        function folioIDBNoteError251(err, attempt) {
+          var rec251e = {
+            name: (err && err.name) || 'Error',
+            message: String((err && err.message) || err || 'unknown error').slice(0, 300),
+            at: Date.now(), attempt: attempt || 1,
+          };
+          folioIDBLastError251 = rec251e;
+          try { localStorage.setItem('folio.idb.lasterror', JSON.stringify(rec251e)); } catch (e) {}
+          return rec251e;
+        }
+        function folioIDBClearError251() {
+          folioIDBLastError251 = null;
+          try { localStorage.removeItem('folio.idb.lasterror'); } catch (e) {}
+          if (folioIDBRetryTimer251) { clearTimeout(folioIDBRetryTimer251); folioIDBRetryTimer251 = 0; }
+        }
+        function folioIDBScheduleRetry251() {
+          if (folioIDBRetryTimer251) return;
+          folioIDBRetryTimer251 = setTimeout(function () {
+            folioIDBRetryTimer251 = 0;
+            try { if (folioIDBActive242 && folioIDBDirty242 && !folioIDBPersistInFlight242) folioQueueIDBPersist242(); } catch (e) {}
+          }, 5000);
+        }
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState !== 'visible') return;
+          try { if (folioIDBActive242 && folioIDBDirty242 && !folioIDBPersistInFlight242) folioQueueIDBPersist242(); } catch (e) {}
+        });
+
+        /* ----- P1: bind the seated pane to the active record ----- */
+        function rec251GridOwnerId() {
+          try {
+            if (typeof collGridCtx === 'undefined' || !collGridCtx || !collGridCtx.src) return null;
+            return collGridCtx.src.cid || collGridCtx.src.oid || null;
+          } catch (e) { return null; }
+        }
+        function rec251RebindPane(ref) {
+          try {
+            if (!ref || ref.kind !== 'obj') return;
+            var main = (typeof rec228Main !== 'undefined') ? rec228Main : null;
+            if (main === 'body') {
+              if (typeof rec250BodyShown !== 'undefined') {
+                var recB251 = rec228Resolve(ref);
+                if (recB251) {
+                  var effB251 = null;
+                  try { effB251 = rec250EffectiveBody(recB251); } catch (e) {}
+                  var wantB251 = effB251 ? rec250BodyKey(effB251) : null;
+                  if (wantB251 && (!rec250BodyShown || rec250BodyShown.key !== wantB251)) {
+                    try { rec228ShowStage(ref); } catch (e) {}
+                  }
+                }
+              }
+              return;
+            }
+            if (main === 'memberships') {
+              try { rec231ShowMemberships(ref); } catch (e) {}
+              return;
+            }
+            if (main === 'vars') {
+              if (ref.scope === 'global') { try { rec231ShowVarsNote(ref); } catch (e) {} return; }
+              var wantDocV251 = ref.homeDocId || null;
+              if (wantDocV251 && typeof varPanelDocId !== 'undefined' && varPanelDocId && varPanelDocId !== wantDocV251) {
+                try { closeVarPanel(); openVarPanel(wantDocV251); rec228InplaceAttach(document.getElementById('varPanel')); } catch (e) {}
+              }
+              return;
+            }
+            if (main !== 'props' && main !== 'members' && main !== 'settings') return;
+            if (typeof objWsCtx === 'undefined' || !objWsCtx) return;
+            var targetId251 = ref.id;
+            /* (1) The workbench editor must be serving the
+               ACTIVE record — selected synchronously when the
+               switch's deferred select has not landed yet. */
+            if (!objEditCtx || objEditCtx.id !== targetId251) {
+              var f251 = null;
+              try { f251 = objFindAny(targetId251); } catch (e) {}
+              if (f251) { try { wsStartEdit(f251.scope, f251.rec); } catch (e) {} }
+            }
+            if (!objWsCtx || !objEditCtx || objEditCtx.id !== targetId251) return;
+            if (main === 'members') {
+              var mode251 = (typeof rec231MemMode !== 'undefined' && rec231MemMode[targetId251]) || 'list';
+              /* (2) A hosted grid bound to another record is
+                 closed under an explicit veto grant — the
+                 members-to-members switch never grants one on
+                 its own, which is what stranded it. */
+              if (objWsCtx.gridMode && rec251GridOwnerId() !== targetId251) {
+                try { rec233AllowGridClose(); } catch (e) {}
+                try { closeCollGrid(); } catch (e) {}
+              }
+              /* (3) The pane's tab, synchronously — not at the
+                 +30 ms the deferred select used to ride. */
+              if (objWsCtx && objWsCtx.tab !== 'members') { try { wsSetTab('members'); } catch (e) {} }
+              if (!objWsCtx) return;
+              /* (4) The grid itself, for THIS record, in THIS
+                 frame: reopened when the record's remembered
+                 mode is Grid; stood down to the list when the
+                 remembered mode is List but a grid for this
+                 record is somehow still hosted. */
+              if (mode251 === 'grid' && !objWsCtx.gridMode) {
+                try { rec231OpenMembersGrid(); } catch (e) {}
+                if (objWsCtx && !objWsCtx.gridMode) { try { rec233ForceOpenGrid(); } catch (e) {} }
+              } else if (mode251 !== 'grid' && objWsCtx.gridMode) {
+                try { rec233AllowGridClose(); } catch (e) {}
+                try { closeCollGrid(); } catch (e) {}
+                try { wsRenderMembers(); } catch (e) {}
+              }
+            } else {
+              if (objWsCtx.gridMode) {
+                try { rec233AllowGridClose(); } catch (e) {}
+                try { closeCollGrid(); } catch (e) {}
+              }
+              if (objWsCtx && objWsCtx.tab !== main) { try { wsSetTab(main); } catch (e) {} }
+            }
+            try { rec246PaintModeRow(); } catch (e) {}
+          } catch (e) {}
+        }
+        try {
+          if (typeof rec228ShowRecord === 'function' && !rec228ShowRecord.__rec251Wrapped) {
+            var origShowRecord251 = rec228ShowRecord;
+            var wrappedShowRecord251 = function (ref) {
+              var r251 = origShowRecord251.apply(null, arguments);
+              rec251RebindPane(ref);
+              return r251;
+            };
+            wrappedShowRecord251.__rec251Wrapped = true;
+            rec228ShowRecord = wrappedShowRecord251;
+          }
+        } catch (e) {}
 
         /* ---------------- init ----------------
            Build -185: every step is its own failure domain.
