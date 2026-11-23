@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-245" />
+    <meta name="folio-build" content="20261123-246" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24487,7 +24487,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-245', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-246', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -24865,8 +24865,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-245', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-245', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-246', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-246', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -24883,7 +24883,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-245', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-246', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -24929,7 +24929,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-245', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-246', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25032,7 +25032,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-245', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-246', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25112,7 +25112,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-245'; } catch (e) { return '20261123-245'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-246'; } catch (e) { return '20261123-246'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -31052,10 +31052,22 @@
           if (!objWsCtx || !objEditCtx) { tabs.hidden = true; tabs.innerHTML = ''; return; }
           var isDP226 = objEditCtx.scope === 'docpage';
           var hasColl = isDP226 || objWsCollProps(objEditCtx.draft).length > 0;
-          if (!hasColl && objWsCtx.tab === 'members') objWsCtx.tab = 'props';
+          /* Build -246: ONE pane identity — a paint pass
+             never rewrites the tab it is painting. This
+             function used to flip objWsCtx.tab from
+             'members' to 'props' whenever the draft
+             momentarily held no collection property (a
+             shorthand edit deleting the line mid-draft did
+             it), so the pane on screen and the state that
+             named it parted company until some later pass
+             happened to agree again. The tab is what
+             wsSetTab set; a Members tab with no collection
+             property shows its empty state (wsRenderMembers
+             renders exactly that note), and its tab button
+             stays present below so strip and panel agree. */
           tabs.hidden = false;
           tabs.innerHTML = '';
-          [['props', 'Properties'], ['members', isDP226 ? 'Memberships' : (hasColl ? 'Members · ' + wsDraftMemberCount() : null)], ['settings', 'Settings']].forEach(function (pair) {
+          [['props', 'Properties'], ['members', isDP226 ? 'Memberships' : (hasColl ? 'Members · ' + wsDraftMemberCount() : (objWsCtx.tab === 'members' ? 'Members' : null))], ['settings', 'Settings']].forEach(function (pair) {
             if (!pair[1]) return;
             var b = document.createElement('button');
             b.type = 'button';
@@ -47785,7 +47797,22 @@
           var btn = document.createElement('button');
           btn.type = 'button';
           var isSel = !!selectedDocs[d.id];
-          btn.className = 'doc-item' + (d.id === lib.currentId ? ' current' : '') + (isSel ? ' selected' : '');
+          /* Build -246: ONE current-record identity. The
+             sidebar's open-record highlight belongs to the
+             ACTIVE TAB (rec230SyncSidebarCurrent's rule:
+             the active tab when there is one, lib.currentId
+             only as the no-tab fallback) — painting doc rows
+             from lib.currentId here while the object rows
+             and the end-of-render sync painted from the
+             active tab made the first frame of every list
+             render disagree with the pass that followed it:
+             the wrong record highlighted, then fixed itself
+             a beat later. The row builders and the sync now
+             read the same source, so the first paint is the
+             settled paint. */
+          var at246 = null;
+          try { at246 = (typeof tabActiveId !== 'undefined') ? tabActiveId : null; } catch (e) {}
+          btn.className = 'doc-item' + ((at246 ? at246 === d.id : d.id === lib.currentId) ? ' current' : '') + (isSel ? ' selected' : '');
           btn.setAttribute('data-doc-id', d.id);
           btn.setAttribute('data-tip', d.title || 'Untitled');
           if (selectMode) {
@@ -68838,7 +68865,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-245', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-246', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -69467,7 +69494,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-245', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-246', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -83215,7 +83242,23 @@
         function rec228SyncFromWs() {
           if (objWsCtx && objWsInplace228) {
             if (objWsCtx.docPageId || objEditCtx) {
-              rec228Main = objWsCtx.tab || 'props';
+              /* Build -246: ONE pane identity. A doc page's
+                 workspace tab 'members' IS its Memberships
+                 pane — the tab strip itself labels it
+                 "Memberships" (wsPaintTabs) and its renderer
+                 is wsRenderDocMemberships226. The rail name
+                 for that pane is 'memberships', so the sync
+                 translates here, at the single point where
+                 the workspace tab becomes the rail main.
+                 Copying the raw tab through used to overwrite
+                 the -231 swap's 'memberships' with 'members'
+                 a beat after the pane landed (this sync runs
+                 on setTimeout(0) out of wsSetTab and
+                 wsSelectObject): the Memberships pane showed
+                 with the rail highlighting Members. */
+              var t246 = objWsCtx.tab || 'props';
+              if (t246 === 'members' && objEditCtx && objEditCtx.scope === 'docpage') t246 = 'memberships';
+              rec228Main = t246;
               /* Build -234: a workspace tab the user picked
                  is an explicit pane switch — it is also the
                  record's remembered pane. */
@@ -83401,6 +83444,26 @@
           } else {
             rec230RailKey = null;
           }
+          /* Build -246: the rail lights what is actually
+             SHOWING. The per-record memory can name a pane
+             (Properties, say) after the workspace that hosted
+             it has closed and a fresh open has put the plain
+             Body editor back in the main area — painting the
+             memory lit a pane that was nowhere on screen.
+             When a hosted-only pane is remembered but nothing
+             is hosted (no workspace, no visible stage, no
+             variable panel), the pane in the main area is the
+             Body, and the rail says so. Hosting is synchronous
+             inside every setMain path, so this never fires
+             mid-swap; it only corrects settled frames. The
+             memory itself is untouched — routes that re-host
+             the remembered pane still find it. */
+          var mainEff246 = rec228Main;
+          if (ctx && (mainEff246 === 'props' || mainEff246 === 'members' || mainEff246 === 'settings' || mainEff246 === 'memberships' || mainEff246 === 'vars')) {
+            var hosted246 = !!objWsCtx || !!varPanelDocId ||
+              !!(rec228StageEl && !rec228StageEl.hidden);
+            if (!hosted246) mainEff246 = 'body';
+          }
           /* The strip exists whenever a record context does —
              switching tabs, documents, or into the workbench
              repaints it, it never unmounts. Only a contextless
@@ -83432,7 +83495,7 @@
             rec228Workspaces(ctx).forEach(function (w) {
               var b = document.createElement('button');
               b.type = 'button';
-              b.className = 'rec230-strip-btn' + (rec228Main === w.id ? ' is-main' : '');
+              b.className = 'rec230-strip-btn' + (mainEff246 === w.id ? ' is-main' : '');
               b.setAttribute('aria-label', w.label + ' workspace');
               b.setAttribute('data-tip', w.label + (w.hk ? ' · ' + w.hk : ''));
               b.appendChild(rec230WsIcon(w));
@@ -83447,7 +83510,7 @@
           if (gl1) gl1.style.display = '';
           rec228Workspaces(ctx).forEach(function (w) {
             var entry = document.createElement('div');
-            entry.className = 'rec-rail228-entry' + (rec228Main === w.id ? ' is-main' : '') + (rec228Glance === w.id ? ' is-glance' : '');
+            entry.className = 'rec-rail228-entry' + (mainEff246 === w.id ? ' is-main' : '') + (rec228Glance === w.id ? ' is-glance' : '');
             var nameBtn = document.createElement('button');
             nameBtn.type = 'button';
             nameBtn.className = 'rec-rail228-ws';
@@ -84810,6 +84873,18 @@
               rec228Main = 'memberships';
               rec234RememberMain(ctx, 'memberships');
               rec228Glance = null;
+              /* Build -246: ONE current-record identity. A
+                 staged pane must REGISTER its record as the
+                 current one — this branch staged the pane
+                 but left rec228StageRef pointing wherever it
+                 last pointed, so once the workspace closed,
+                 rec228Ctx() fell through to the active tab
+                 and the rail (name, workspaces, the next
+                 door's target) silently reverted to the host
+                 document while the object's Memberships pane
+                 was still on screen: the next click landed on
+                 a different record than the one showing. */
+              rec228StageRef = ctx;
               rec231ShowMemberships(ctx);
               rec228PaintRail();
               rec231SyncChrome();
@@ -84835,6 +84910,11 @@
             rec228Main = 'vars';
             rec234RememberMain(ctx, 'vars');
             rec228Glance = null;
+            /* Build -246: register the staged record as the
+               current one, same as the Memberships branch
+               above — the rail must keep naming the record
+               whose pane is showing. */
+            rec228StageRef = ctx;
             rec231ShowVarsNote(ctx);
             rec228PaintRail();
             rec231SyncChrome();
@@ -86477,6 +86557,83 @@
             };
             wrappedOpenOmni245.__rec245Wrapped = true;
             openOmni = wrappedOpenOmni245;
+          }
+        } catch (e) {}
+
+        /* ============================================================
+           Build -246: ACTIVE-STATE COHERENCE — one owner per
+           identity. The -245 device round: the highlights
+           "pretty much everywhere are definitely wonky" — the
+           sidebar lit the wrong record and then fixed itself,
+           the Memberships pane showed with Members highlighted
+           in the rail (or blinked and jumped), and switching
+           List/Grid kept the other mode's highlight. One
+           family: pane identity, mode identity and
+           current-record identity were each computed in more
+           than one place, and the copies disagreed —
+           transiently (a deferred second pass repainting over
+           the first paint) or persistently (a surface nobody
+           repainted at all). The rule from here: each identity
+           has ONE state, and every highlight surface reads it
+           in the same pass that paints the content it
+           describes — no corrective pass a beat later.
+           · Pane: rec228Main, written by rec228SetMain and by
+             rec228SyncFromWs, which now translates a doc
+             page's workspace 'members' tab to the rail's
+             'memberships' at that single point (see its site).
+             An empty Memberships pane is a legitimate pane:
+             it opens, shows its empty state, and keeps the
+             Memberships rail highlight; nothing redirects it
+             to Members. wsPaintTabs no longer rewrites the
+             tab at paint time either (see its site).
+           · Current record: the active tab, read by the row
+             builders and by rec230SyncSidebarCurrent alike
+             (see docItemEl).
+           · Members mode: rec231MemMode as landed by
+             objWsCtx.gridMode — the state was always written
+             at the transitions; what was missing is a painter.
+             The mode ROW is a DOM element that MOVES (the
+             grid host borrows it while Grid is up, wsUnhost
+             hands it back), and neither the moves nor the
+             mode-row chrome (which stands down when a row
+             already exists) ever repainted its 'on' classes —
+             the row kept the highlight of the mode it was
+             built in, in both directions. The wraps below
+             repaint the row from the one mode state after
+             every host move and every chrome pass, so the
+             highlight showing is the mode the pane is in.
+           ============================================================ */
+        function rec246PaintModeRow() {
+          try {
+            var row = document.querySelector('#objWsMembers .rec231-mode-row') || document.querySelector('#objWsGridHost .rec231-mode-row');
+            if (!row) return;
+            var mode = (typeof objWsCtx !== 'undefined' && objWsCtx && objWsCtx.gridMode) ? 'grid'
+              : ((typeof objEditCtx !== 'undefined' && objEditCtx && objEditCtx.id && typeof rec231MemMode !== 'undefined' && rec231MemMode[objEditCtx.id]) || 'list');
+            row.querySelectorAll('button').forEach(function (b) {
+              var t = (b.textContent || '').trim();
+              if (t === 'List') b.classList.toggle('on', mode === 'list');
+              else if (t === 'Grid') b.classList.toggle('on', mode === 'grid');
+            });
+          } catch (e) {}
+        }
+        try {
+          if (typeof wsHostGridPanel === 'function' && !wsHostGridPanel.__rec246Wrapped) {
+            var origHost246 = wsHostGridPanel;
+            var wrappedHost246 = function () { var r = origHost246.apply(null, arguments); rec246PaintModeRow(); return r; };
+            wrappedHost246.__rec246Wrapped = true;
+            wsHostGridPanel = wrappedHost246;
+          }
+          if (typeof wsUnhostGridPanel === 'function' && !wsUnhostGridPanel.__rec246Wrapped) {
+            var origUnhost246 = wsUnhostGridPanel;
+            var wrappedUnhost246 = function () { var r = origUnhost246.apply(null, arguments); rec246PaintModeRow(); return r; };
+            wrappedUnhost246.__rec246Wrapped = true;
+            wsUnhostGridPanel = wrappedUnhost246;
+          }
+          if (typeof rec231MembersPaneChrome === 'function' && !rec231MembersPaneChrome.__rec246Wrapped) {
+            var origChrome246 = rec231MembersPaneChrome;
+            var wrappedChrome246 = function () { var r = origChrome246.apply(null, arguments); rec246PaintModeRow(); return r; };
+            wrappedChrome246.__rec246Wrapped = true;
+            rec231MembersPaneChrome = wrappedChrome246;
           }
         } catch (e) {}
 
