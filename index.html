@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-249" />
+    <meta name="folio-build" content="20261123-250" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5267,85 +5267,77 @@
       .rec231-outline-item { display: block; width: 100%; text-align: left; padding: 5px 6px; border: none; background: none; border-radius: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
       .rec231-outline-item:hover { background: var(--hover); color: var(--ink); }
 
-      /* ---------------- Build -249: ONE page-stack frame for every pane ----------------
-         The owner's ruling: the Body pane was still treated
-         differently from the other panes — a record WITH body
-         content rendered as an inset page sheet (stepped stack
-         edges, gutters, spines attached along the sheet's left
-         edge) while every other pane rendered full-bleed with
-         the spines in a separate column, and a body-less
-         record's Body rendered as a void. Now every pane that
-         occupies the work area renders in the SAME frame: the
-         pane host becomes the desk (var(--bg)) and the pane's
-         own sheet — the record stage itself, the workbench
-         panel, the Variables panel — becomes the page: surface
-         face, 1px line-soft border with the gilt stack-edge
-         left border, the page's own 6px radius, and the pile
-         drawn as stepped hard shadows in the -93/-98 geometry
-         (4px left sliver + 3px bottom step per rank, gilt
-         column at each sheet's left edge, face deepening 6%
-         per rank toward black, the front page's own soft cast
-         and var(--paper-shadow) over all) — the same visible
-         slivers, steps and corner arcs the real .paper-sheet
-         layers show, following the sheet's box by construction
-         at any size, with no per-scroll positioning and no
-         extra paint inside the pane's own scroll. The sheet's
-         left edge sits exactly on the spine column's right
-         edge (margin-left 0 in pane mode), so a tab's right
-         edge lands on its sheet's gilt column exactly as it
-         does on the paper (tabPaperGeom learns the pane sheet
-         in the -249 script block, so the tab zone and the gilt
-         gaps anchor to the sheet too). Gutters: 26px top /
-         right, 40px bottom — the paper's own top gutter and a
-         desk margin at the right and foot. Expansion is
-         PAGE-level: a pane whose content needs room (the
-         Members grid, in the stage or hosted in the
-         workbench) grows the SHEET — its gutters tighten to
-         14/12/20 — and the pile follows the sheet; the pane
-         never breaks out to full-bleed. Empty states render
-         ON the page: every pane's content, including a
-         body-less record's live Body editor (see the -249 fix
-         in rec228ShowStage), paints inside this sheet.
-         Stand-downs mirror the paper's: focus mode and phone
-         widths drop the pile to the plain paper shadow (the
-         .paper-sheets rules do the same) and the sheet takes
-         ordinary page margins, since the spine column is not
-         on screen there. Outline is the one pane with no
-         work-area surface to frame — by the -231 design it
-         expands the rail glance rather than swapping the main
-         pane — so it is the frame's only non-applicability,
-         stated here rather than silently exempted. */
-      .editor-body.stack-pane-on #objWorkspace.ws-inplace228,
-      .editor-body.stack-pane-on #varPanel.ws-inplace228 { background: var(--bg); padding-left: 0; }
-      .editor-body.stack-pane-on .rec-stage228 {
-        margin: 26px 26px 40px 0; padding-left: 0;
-        border: 1px solid var(--line-soft); border-left: 1px solid var(--stack-edge);
-        border-radius: 6px;
-        box-shadow: -4px 2px 10px rgba(0, 0, 0, 0.09), -1px 0 3px rgba(0, 0, 0, 0.06), -3px 3px 0 0 color-mix(in srgb, var(--surface) 94%, black), -4px 3px 0 0 var(--stack-edge), -7px 6px 0 0 color-mix(in srgb, var(--surface) 88%, black), -8px 6px 0 0 var(--stack-edge), var(--paper-shadow);
+      /* ---------------- Build -250: the panes live INSIDE the document page ----------------
+         Build -249 framed the panes with a parallel imitation:
+         the pane hosts stayed flex siblings of a stood-down
+         editor scroller and their panels wore the page's
+         border, gilt edge and stepped pile as box-shadow
+         paint. On the owner's device the Members grid never
+         took the frame at all — its panel kept its full-height
+         rule inside an overflow-hidden workspace, so the
+         imitation's margins squeezed the sheet's bottom step
+         past the clip edge (the mechanism is written out in
+         the -250 script block). Build -250 retires the
+         imitation wholesale: the pane hosts (record stage,
+         workbench, Variables panel) are seated INSIDE the real
+         .paper element — the same sheet the document view
+         renders, gilt border, .paper-sheets pile and all — the
+         scroller stays on screen carrying the page's own
+         gutters, and the editor mount stands down while a pane
+         occupies the page. The rules below only adapt the
+         page's box to host content: the wrap takes the desk
+         margins the paper-wrap always had, the paper becomes
+         the flex column the pane fills, and the pane's own
+         sheet chrome stands down because the paper IS the
+         sheet. The frame itself is not re-drawn here — it is
+         the document page's own rendering, by construction.
+         Expansion stays page-level: with the Members grid up,
+         the wrap's gutters tighten (.rec250-pane-grow) and the
+         sheet — pile included — grows with it. Stand-downs
+         mirror the paper's own: focus mode and phone widths
+         take the plain page margins. */
+      .editor-body.stack-pane-on .editor-scroll { padding-left: 0; }
+      #editorScroll.rec250-pane-scroll { overflow: hidden; display: flex; flex-direction: column; }
+      #editorScroll #paperWrap.rec250-pane-wrap { flex: 1 1 auto; min-height: 0; max-width: none; margin: 26px 26px 40px 0; }
+      #editorScroll #paperWrap.rec250-pane-wrap.rec250-pane-grow { margin: 14px 12px 20px 0; }
+      #editorScroll .paper.rec250-paper-pane {
+        max-width: none; margin: 0; height: 100%; min-height: 0;
+        padding: 0; display: flex; flex-direction: column;
       }
-      .editor-body.stack-pane-on .rec-stage228 > * { min-height: 0; }
-      .editor-body.stack-pane-on #objWorkspace.ws-inplace228 .obj-ws-panel,
-      .editor-body.stack-pane-on #varPanel.ws-inplace228 .panel {
-        margin: 26px 26px 40px 0;
-        border: 1px solid var(--line-soft); border-left: 1px solid var(--stack-edge);
-        border-radius: 6px;
-        box-shadow: -4px 2px 10px rgba(0, 0, 0, 0.09), -1px 0 3px rgba(0, 0, 0, 0.06), -3px 3px 0 0 color-mix(in srgb, var(--surface) 94%, black), -4px 3px 0 0 var(--stack-edge), -7px 6px 0 0 color-mix(in srgb, var(--surface) 88%, black), -8px 6px 0 0 var(--stack-edge), var(--paper-shadow);
+      .paper.rec250-paper-pane > #editorMount { display: none; }
+      .paper.rec250-paper-pane > #objWorkspace.ws-inplace228,
+      .paper.rec250-paper-pane > #varPanel.ws-inplace228 {
+        flex: 1 1 auto; min-height: 0; height: auto; padding-left: 0; background: transparent;
       }
-      /* Page-level expansion for the grid modes: the sheet
-         grows, the frame follows it. */
-      .editor-body.stack-pane-on .rec-stage228.rec232-grid-hosting,
-      .editor-body.stack-pane-on #objWorkspace.ws-inplace228 .obj-ws-panel:has(.obj-ws-gridhost:not([hidden])) { margin: 14px 12px 20px 0; }
-      :root[data-focus="on"] .editor-body.stack-pane-on .rec-stage228,
-      :root[data-focus="on"] .editor-body.stack-pane-on #objWorkspace.ws-inplace228 .obj-ws-panel,
-      :root[data-focus="on"] .editor-body.stack-pane-on #varPanel.ws-inplace228 .panel {
-        margin-left: 26px; box-shadow: var(--paper-shadow);
+      .paper.rec250-paper-pane > .rec-stage228 {
+        flex: 1 1 auto; min-height: 0; padding-left: 0; background: transparent;
       }
+      .paper.rec250-paper-pane #objWorkspace.ws-inplace228 .obj-ws-panel,
+      .paper.rec250-paper-pane #varPanel.ws-inplace228 .panel {
+        margin: 0; border: 0; border-radius: 0; box-shadow: none;
+      }
+      /* The -231 Body-source line, seated at the head of the
+         page while a record's unified Body editor is up. */
+      .rec250-body-src {
+        flex: 0 0 auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+        padding: 10px 14px; border-bottom: 1px solid var(--line-soft);
+        font-size: 12.5px; color: var(--ink-2);
+      }
+      .rec250-body-src[hidden] { display: none; }
+      @media print { .rec250-body-src { display: none !important; } }
+      .folio-body-banner250 {
+        position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 4000;
+        max-width: min(560px, calc(100vw - 32px));
+        background: var(--surface); color: var(--ink);
+        border: 1px solid var(--line); border-radius: 10px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+        padding: 12px 14px; font-size: 13px; line-height: 1.45;
+        display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      }
+      :root[data-focus="on"] #editorScroll #paperWrap.rec250-pane-wrap { margin-left: 26px; }
       @media (max-width: 640px) {
-        .editor-body.stack-pane-on .rec-stage228,
-        .editor-body.stack-pane-on #objWorkspace.ws-inplace228 .obj-ws-panel,
-        .editor-body.stack-pane-on #varPanel.ws-inplace228 .panel {
-          margin: 12px 8px 24px; box-shadow: var(--paper-shadow);
-        }
+        #editorScroll #paperWrap.rec250-pane-wrap { margin: 12px 8px 24px; }
+        #editorScroll #paperWrap.rec250-pane-wrap.rec250-pane-grow { margin: 10px 6px 16px; }
       }
 
       /* ---------------- Build -217: the tabbed workspace ----------------
@@ -24623,7 +24615,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-249', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-250', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25001,8 +24993,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-249', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-249', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-250', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-250', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25019,7 +25011,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-249', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-250', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25065,7 +25057,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-249', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-250', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25168,7 +25160,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-249', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-250', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25248,7 +25240,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-249'; } catch (e) { return '20261123-249'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-250'; } catch (e) { return '20261123-250'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -69460,7 +69452,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-249', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-250', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -70113,7 +70105,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-249', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-250', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -86820,12 +86812,17 @@
         } catch (e) {}
         /* ----- S5: every activation route ends with its
            pane seated inside the page stack ----- */
+        /* Build -250 amendment: "seated in the stack" now
+           includes seated inside the real .paper (the -250
+           seating), so the parentage tests below read
+           rec250SeatedInStack — a pane inside the page is home,
+           and this watchdog must not tear it out of the sheet. */
         function rec233EnsureInStack() {
           try {
             var eb234 = document.querySelector('.editor-body');
             if (!eb234) return;
             var stage234 = document.getElementById('recStage228');
-            if (stage234 && stage234.parentNode !== eb234) eb234.appendChild(stage234);
+            if (stage234 && !rec250SeatedInStack(stage234)) eb234.appendChild(stage234);
             /* Build -234: trust the DOM, not the flag. A pane
                can carry the in-place flag while its element
                sits back in the overlay host (other paths move
@@ -86838,17 +86835,17 @@
                plain move. */
             ['objWorkspace', 'varPanel'].forEach(function (id) {
               var el = document.getElementById(id);
-              if (!el || !el.dataset || !el.dataset.inplace228 || el.parentNode === eb234) return;
+              if (!el || !el.dataset || !el.dataset.inplace228 || rec250SeatedInStack(el)) return;
               delete el.dataset.inplace228;
               el.classList.remove('ws-inplace228');
               if (id === 'objWorkspace') { try { objWsInplace228 = false; } catch (e) {} }
               try { rec228InplaceAttach(el); } catch (e) {}
-              if (el.parentNode !== eb234) eb234.appendChild(el);
+              if (!rec250SeatedInStack(el)) eb234.appendChild(el);
             });
             /* An open workspace found hidden inside the body
                is unhidden — the editor is open by definition. */
             var ws234 = document.getElementById('objWorkspace');
-            if (typeof objWsCtx !== 'undefined' && objWsCtx && ws234 && ws234.hidden && ws234.parentNode === eb234) ws234.hidden = false;
+            if (typeof objWsCtx !== 'undefined' && objWsCtx && ws234 && ws234.hidden && rec250SeatedInStack(ws234)) ws234.hidden = false;
             /* Build -234: an interrupted record switch can
                leave the stage record's main naming a
                workspace pane (Properties / Members /
@@ -87330,6 +87327,676 @@
           }
         } catch (e) {}
 
+        /* ============================================================
+           Build -250: ONE BODY, ONE PAGE — the unification the
+           owner ordered. Two systems had survived the merger:
+           documents (the original species) carried ProseMirror
+           JSON in lib.docs and edited through parked per-doc
+           sessions on the real page; records carried a plain-
+           text `body` string edited through a textarea stage
+           with the formatting toolbars stood down (the owner's
+           video: "Why are the editor toolbars still grayed
+           out?", typed into the Saga's body), and the panes
+           were framed by -249's box-shadow imitation of the
+           page rather than the page itself. The ruling: "The
+           bodies of objects are the document assigned to that
+           object." So:
+           (1) Every record gains `bodyDoc` — ProseMirror JSON
+               in exactly the document shape. `body` remains as
+               the derived plain-text mirror (every existing
+               text consumer — the -231 effective-body text, the
+               rail outline glance, search, HasBody — reads it
+               unchanged), recomputed from bodyDoc on every
+               edit. A boot migration converts existing text
+               bodies losslessly, verified per record: the new
+               document must project back to the original text
+               exactly, paragraph structure included — blank
+               lines become empty paragraphs, single newlines
+               become hard breaks, and nothing is reinterpreted
+               (a leading '#' stays text; -231's DocSetText
+               heading reading is deliberately NOT used here).
+               A record whose body fails verification keeps its
+               text body untouched and authoritative, and one
+               banner says so. The read path also re-derives
+               bodyDoc whenever mirror and document disagree,
+               so every legacy wholesale writer of `body` (the
+               -231 clear-source snapshot, the collision winner
+               write, snapshot-on-delete) still lands.
+           (2) The Body pane IS a document editor: a parked
+               per-record session in #editorMount, created and
+               staged exactly as a document's session is (and as
+               the template stage's is), with the full
+               folioEditorOpts — live toolbars, variables,
+               chips, tables, images. A -231 Body property still
+               reassigns the effective body: the pane then shows
+               the ASSIGNED body — a document target through its
+               own tab session, a record target through the
+               terminal record's body session, chains and cycle
+               rules untouched (rec231BodyTarget remains the one
+               resolver) — and edits write the assigned body,
+               which is what "the document assigned to this
+               object" means. The Body-source line rides at the
+               head of the page, as it rode the stage.
+           (3) The frame is the document page's own chrome: the
+               pane hosts (record stage, workbench, Variables
+               panel) are seated INSIDE the real .paper — the
+               sheet the document view renders, .paper-sheets
+               pile and gilt edge included — the scroller stays
+               up carrying the page's own gutters, and
+               tabPaperGeom measures the real paper again (the
+               -249 pane branch is superseded below: there is no
+               second sheet left to measure). The grid grows
+               the sheet — the wrap's gutters tighten — as the
+               owner approved.
+           Why -249's frame never took on the grid, from the
+           source: the grid is hosted by wsHostGridPanel into
+           #objWsGridHost inside .obj-ws-panel, inside
+           #objWorkspace — and in pane mode the REAL pile lives
+           inside #editorScroll, which rec228InplaceAttach set
+           to display:none, so the only "frame" the grid could
+           ever wear was the imitation painted on .obj-ws-panel.
+           That panel also kept its -232 height:100% rule, which
+           -249 never touched: the panel's box was the full
+           workspace height PLUS the imitation's new 26px top /
+           40px bottom margins, inside an overflow:hidden
+           workspace, so the sheet's bottom step and gutter were
+           squeezed to — and past — the clipped edge; and the
+           grid panel itself is frameless by rule
+           (.obj-ws-gridhost .coll-grid-panel strips margin,
+           border and shadow). On the owner's dark iPad the
+           table therefore read full-bleed. None of that
+           geometry survives here: the panel sits inside the
+           paper, whose box IS the frame.
+           ============================================================ */
+
+        /* ----- (1) text <-> document conversion, verified ----- */
+        function rec250InlineText(node) {
+          if (!node) return '';
+          if (node.type === 'text') return node.text || '';
+          if (node.type === 'hardBreak') return '\n';
+          var out = '';
+          (node.content || []).forEach(function (c) { out += rec250InlineText(c); });
+          return out;
+        }
+        function rec250BlockText(node) {
+          if (!node) return '';
+          var kids = node.content || [];
+          var hasBlocks = false;
+          for (var i = 0; i < kids.length; i++) {
+            var t = kids[i] && kids[i].type;
+            if (t === 'paragraph' || t === 'heading' || t === 'listItem' || t === 'tableRow' || t === 'tableCell' || t === 'blockquote' || t === 'bulletList' || t === 'orderedList' || t === 'taskItem') { hasBlocks = true; break; }
+          }
+          if (hasBlocks) return kids.map(rec250BlockText).join('\n');
+          var s = rec250InlineText(node);
+          if (node.type === 'heading') s = new Array((((node.attrs || {}).level) || 1) + 1).join('#') + ' ' + s;
+          return s;
+        }
+        function rec250TextOfJson(json) {
+          if (!json || !Array.isArray(json.content)) return '';
+          return json.content.map(rec250BlockText).join('\n');
+        }
+        function rec250TextToJson(text) {
+          var norm = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+          var lines = norm.split('\n');
+          var blocks = [];
+          var cur = null;
+          function flush250() { if (cur) { blocks.push({ type: 'paragraph', content: cur }); cur = null; } }
+          lines.forEach(function (line) {
+            if (line === '') { flush250(); blocks.push({ type: 'paragraph' }); return; }
+            if (!cur) cur = [];
+            else cur.push({ type: 'hardBreak' });
+            cur.push({ type: 'text', text: line });
+          });
+          flush250();
+          if (!blocks.length) blocks.push({ type: 'paragraph' });
+          return { type: 'doc', content: blocks };
+        }
+        /* Convert one record's text body into bodyDoc — only
+           when the conversion is provably lossless: the new
+           document must project back to the original text
+           exactly. With force, an existing bodyDoc is replaced
+           (the read path's re-derivation after a legacy writer
+           rewrote the mirror wholesale). */
+        function rec250ConvertRecord(rec, force) {
+          if (!rec) return false;
+          if (rec.bodyDoc && !force) return true;
+          var orig = typeof rec.body === 'string' ? rec.body : '';
+          var json = rec250TextToJson(orig);
+          if (rec250TextOfJson(json) !== orig.replace(/\r\n?/g, '\n')) return false;
+          rec.bodyDoc = json;
+          return true;
+        }
+
+        /* ----- the migration: boot-guarded, idempotent ----- */
+        var rec250MigState = { runs: 0, converted: 0, failed: 0 };
+        function rec250MigrateBodies() {
+          var converted = 0, failed = [];
+          function scan250(list) {
+            (list || []).forEach(function (rec) {
+              if (!rec || typeof rec !== 'object' || rec.bodyDoc) return;
+              if (rec250ConvertRecord(rec)) converted++;
+              else failed.push(rec.id || '?');
+            });
+          }
+          try {
+            scan250(objStore.globals);
+            Object.keys(objStore.docObjs || {}).forEach(function (k) { scan250(objStore.docObjs[k]); });
+          } catch (e) {}
+          rec250MigState.runs++;
+          rec250MigState.converted += converted;
+          rec250MigState.failed = failed.length;
+          if (converted) { try { objSave(); } catch (e) {} }
+          try {
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261123-250', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+          } catch (e) {}
+          if (failed.length) rec250ShowBodyBanner(failed.length);
+          else rec250HideBodyBanner();
+          return rec250MigState;
+        }
+        function rec250ShowBodyBanner(n) {
+          if (document.getElementById('folioBodyBanner250')) return;
+          var b = document.createElement('div');
+          b.id = 'folioBodyBanner250';
+          b.className = 'folio-body-banner250';
+          var msg = document.createElement('span');
+          msg.textContent = n + (n === 1 ? ' record body' : ' record bodies') + ' could not be converted to the unified document format — ' + (n === 1 ? 'it keeps' : 'they keep') + ' the original text body, unchanged.';
+          b.appendChild(msg);
+          var retry = document.createElement('button');
+          retry.type = 'button'; retry.className = 'btn-ghost'; retry.textContent = 'Retry';
+          retry.addEventListener('click', function () { rec250MigrateBodies(); });
+          b.appendChild(retry);
+          var dis = document.createElement('button');
+          dis.type = 'button'; dis.className = 'btn-ghost'; dis.textContent = 'Dismiss';
+          dis.addEventListener('click', function () { rec250HideBodyBanner(); });
+          b.appendChild(dis);
+          document.body.appendChild(b);
+        }
+        function rec250HideBodyBanner() {
+          var b = document.getElementById('folioBodyBanner250');
+          if (b && b.parentNode) b.parentNode.removeChild(b);
+        }
+
+        /* ----- (2) body sessions: the record's document, on the page ----- */
+        var rec250BodySessions = {};
+        var rec250BodyShown = null;
+        function rec250BodyKey(eff) {
+          return eff.kind === 'doc' ? 'doc:' + eff.doc.id
+            : 'rec:' + (eff.scope || 'global') + ':' + (eff.homeDocId || '') + ':' + eff.rec.id;
+        }
+        function rec250EffectiveBody(rec) {
+          if (!rec) return null;
+          var t = null;
+          try { t = rec231BodyTarget(rec); } catch (e) {}
+          if (t) {
+            if (t.kind === 'doc' && t.doc) return { kind: 'doc', doc: t.doc };
+            if (t.kind === 'obj' && t.rec) {
+              var home = null;
+              try { home = objHomeKeyOf(t.rec.id); } catch (e) {}
+              return { kind: 'rec', rec: t.rec, scope: t.scope || 'global', homeDocId: home };
+            }
+          }
+          var ctx = null;
+          try { ctx = rec228Ctx(); } catch (e) {}
+          return { kind: 'rec', rec: rec, scope: ctx ? ctx.scope : 'global', homeDocId: ctx ? ctx.homeDocId : null };
+        }
+        /* The effective body's document, made current: a record
+           target's bodyDoc is (re)derived whenever it is missing
+           or its text projection disagrees with the mirror. The
+           mirror is written by every legacy text path, so a
+           disagreement always means the text was rewritten
+           wholesale — and the document follows the text. */
+        function rec250EnsureBodyDoc(eff) {
+          var owner = eff.rec;
+          if (!owner.bodyDoc) return rec250ConvertRecord(owner);
+          var proj = null;
+          try { proj = rec250TextOfJson(owner.bodyDoc); } catch (e) {}
+          var mirror = typeof owner.body === 'string' ? owner.body.replace(/\r\n?/g, '\n') : '';
+          if (proj !== null && proj !== mirror) return rec250ConvertRecord(owner, true);
+          return true;
+        }
+        function rec250BodySessionFor(eff, create) {
+          var key = rec250BodyKey(eff);
+          var s = rec250BodySessions[key];
+          if (s || !create) return s || null;
+          var owner = eff.rec;
+          var mount = document.createElement('div');
+          mount.className = 'doc-session rec250-body-session';
+          mount.setAttribute('data-body-for', owner.id);
+          mount.style.display = 'none';
+          document.getElementById('editorMount').appendChild(mount);
+          var handle = folioCreateEditorSafe(Object.assign({}, folioEditorOpts, {
+            element: mount,
+            content: owner.bodyDoc,
+            placeholder: 'Write this record’s body…',
+            /* A body session writes its OWN record — never
+               currentDoc() — and keeps the text mirror in step,
+               so every plain-text consumer keeps reading the
+               body it always read. The variable/object editor
+               syncs are NOT replicated: they resolve anchors
+               against the current document, which a body
+               session is not; chips inside a body still render
+               and act through the shared descriptor doors. */
+            onUpdate: function (json) {
+              var f = null;
+              try { f = objFindAny(owner.id); } catch (e) {}
+              var rec = f ? f.rec : owner;
+              if (!rec) return;
+              rec.bodyDoc = json;
+              try { rec.body = rec250TextOfJson(json); } catch (e) {}
+              objSaveSoon();
+              if (rec250BodyShown && rec250BodyShown.key === key) {
+                scheduleSpellScan();
+                try { renderOutline(json); } catch (e) {}
+                try { wordCount(json); } catch (e) {}
+              }
+            },
+          }), null);
+          if (!handle) {
+            if (mount.parentElement) mount.parentElement.removeChild(mount);
+            return null;
+          }
+          try { handle.editor.view.dom.setAttribute('spellcheck', 'false'); } catch (e) {}
+          try { handle.editor.view.dom.setAttribute('autocomplete', 'off'); } catch (e) {}
+          try { attachCodeCopy(mount, handle.editor); } catch (e) {}
+          s = rec250BodySessions[key] = { mount: mount, handle: handle, scroll: 0 };
+          return s;
+        }
+        function rec250HideAllSessions() {
+          try { Object.keys(tabSessions).forEach(function (k) { tabSessions[k].mount.style.display = 'none'; }); } catch (e) {}
+          try { if (typeof tplSessions !== 'undefined') Object.keys(tplSessions).forEach(function (k) { tplSessions[k].mount.style.display = 'none'; }); } catch (e) {}
+          Object.keys(rec250BodySessions).forEach(function (k) { rec250BodySessions[k].mount.style.display = 'none'; });
+        }
+        function rec250ParkBodyStage(saveScroll) {
+          if (!rec250BodyShown) return;
+          var s = rec250BodySessions[rec250BodyShown.key];
+          if (s) {
+            if (saveScroll) { try { s.scroll = editorScroll.scrollTop; } catch (e) {} }
+            s.mount.style.display = 'none';
+          }
+          rec250BodyShown = null;
+          rec250HideBodySrc();
+        }
+        function rec250ShowBody(ctx, rec) {
+          var eff = rec250EffectiveBody(rec);
+          if (!eff) return false;
+          var session = null, json = null, key = rec250BodyKey(eff);
+          if (eff.kind === 'doc') {
+            session = tabSessionFor(eff.doc, true);
+            if (!session) return false;
+            json = eff.doc.content;
+          } else {
+            if (!rec250EnsureBodyDoc(eff)) return false;
+            session = rec250BodySessionFor(eff, true);
+            if (!session) return false;
+            json = eff.rec.bodyDoc;
+            /* A parked body session is a snapshot: if the
+               record's document moved on without it (a sync
+               adoption, a -231 wholesale text write that
+               re-derived the document above), reload it — the
+               same guard tabSwapEditorTo keeps for documents. */
+            try {
+              if (session.handle && typeof session.handle.getJSON === 'function' && typeof session.handle.setContent === 'function') {
+                if (docTextSignature(session.handle.getJSON()) !== docTextSignature(json)) session.handle.setContent(json);
+              }
+            } catch (e) {}
+          }
+          if (rec250BodyShown && rec250BodyShown.key === key && session.mount.style.display !== 'none') {
+            rec250PaintBodySrc(ctx, rec);
+            return true;
+          }
+          /* The container's scroll still belongs to the view
+             being left: park it with its owner before the swap
+             (when a body session is being left, its own park
+             below does it). */
+          if (!rec250BodyShown) {
+            try { if (tabDisplayedId && tabSessions[tabDisplayedId]) tabSessions[tabDisplayedId].scroll = editorScroll.scrollTop; } catch (e) {}
+          }
+          rec250ParkBodyStage(true);
+          try { rec230StageVisible(false); } catch (e) {}
+          rec250HideAllSessions();
+          session.mount.style.display = '';
+          editorHandle = session.handle;
+          try { editorScroll.scrollTop = session.scroll || 0; } catch (e) {}
+          rec250BodyShown = { key: key };
+          rec250PaintBodySrc(ctx, rec);
+          try { folioFocusPreservingSelection(session.handle); } catch (e) {}
+          try { refreshToolbar(); } catch (e) {}
+          try { renderOutline(json); } catch (e) {}
+          try { wordCount(json); } catch (e) {}
+          try { if (typeof spellFlagged !== 'undefined') spellFlagged = false; if (typeof spellRender === 'function') spellRender(); } catch (e) {}
+          try { scheduleSpellScan(); } catch (e) {}
+          return true;
+        }
+
+        /* ----- the -231 Body-source line, at the head of the page ----- */
+        function rec250BodySrcHost() {
+          var paper = null;
+          try { paper = tabPaper(); } catch (e) {}
+          if (!paper) return null;
+          var h = document.getElementById('rec250BodySrc');
+          if (!h) {
+            h = document.createElement('div');
+            h.id = 'rec250BodySrc';
+            h.className = 'rec250-body-src';
+            h.hidden = true;
+            var mount = document.getElementById('editorMount');
+            if (mount && mount.parentNode === paper) paper.insertBefore(h, mount);
+            else paper.appendChild(h);
+          }
+          return h;
+        }
+        function rec250HideBodySrc() {
+          var h = document.getElementById('rec250BodySrc');
+          if (h) { h.hidden = true; h.innerHTML = ''; }
+        }
+        function rec250PaintBodySrc(ctx, rec) {
+          var h = rec250BodySrcHost();
+          if (!h) return;
+          var bp = null, tgt = null;
+          try { bp = rec231BodyProp(rec); if (bp && bp.value) tgt = rec231BodyTarget(rec); } catch (e) {}
+          if (!bp || !tgt) { h.hidden = true; h.innerHTML = ''; return; }
+          h.innerHTML = '';
+          var label = document.createElement('span');
+          label.textContent = 'Body source: ' + (tgt.name || 'another record') + (tgt.kind === 'doc' ? ' (document)' : '') + ' — you are editing the assigned body.';
+          h.appendChild(label);
+          var open = document.createElement('button');
+          open.type = 'button'; open.className = 'btn-ghost'; open.textContent = 'Open source';
+          open.addEventListener('click', function () { try { tgt.open(); } catch (e) {} });
+          h.appendChild(open);
+          var clear = document.createElement('button');
+          clear.type = 'button'; clear.className = 'btn-ghost'; clear.textContent = 'Use own body';
+          clear.addEventListener('click', function () {
+            try { rec231SetBodySource(rec, bp, null, clear); } catch (e) {}
+          });
+          h.appendChild(clear);
+          h.hidden = false;
+        }
+
+        /* ----- (3) the frame: panes seated inside the real page ----- */
+        function rec250SeatedInStack(el) {
+          if (!el) return false;
+          var eb = document.querySelector('.editor-body');
+          if (eb && el.parentNode === eb) return true;
+          var paper = null;
+          try { paper = tabPaper(); } catch (e) {}
+          return !!(paper && paper.contains(el));
+        }
+        function rec250PaperPaneActive() {
+          var paper = null;
+          try { paper = tabPaper(); } catch (e) {}
+          return !!(paper && paper.classList.contains('rec250-paper-pane'));
+        }
+        function rec250PaneClasses(on) {
+          var paper = null, wrap = document.getElementById('paperWrap'), scroll = document.getElementById('editorScroll');
+          try { paper = tabPaper(); } catch (e) {}
+          if (paper) paper.classList.toggle('rec250-paper-pane', !!on);
+          if (wrap) { wrap.classList.toggle('rec250-pane-wrap', !!on); if (!on) wrap.classList.remove('rec250-pane-grow'); }
+          if (scroll) scroll.classList.toggle('rec250-pane-scroll', !!on);
+        }
+        function rec250AnyPaneInPaper() {
+          var paper = null;
+          try { paper = tabPaper(); } catch (e) {}
+          if (!paper) return false;
+          var ws = document.getElementById('objWorkspace');
+          var vp = document.getElementById('varPanel');
+          var st = document.getElementById('recStage228');
+          if (ws && paper.contains(ws) && !ws.hidden) return true;
+          if (vp && paper.contains(vp) && !vp.hidden) return true;
+          if (st && paper.contains(st) && !st.hidden) return true;
+          return false;
+        }
+        function rec250SyncPaneGrow() {
+          var wrap = document.getElementById('paperWrap');
+          if (!wrap || !wrap.classList.contains('rec250-pane-wrap')) return;
+          var paper = null;
+          try { paper = tabPaper(); } catch (e) {}
+          var grid = paper ? paper.querySelector('.coll-grid-panel') : null;
+          var on = !!(grid && grid.offsetParent !== null);
+          wrap.classList.toggle('rec250-pane-grow', on);
+        }
+        function rec250SeatInPaper(el) {
+          var paper = null;
+          try { paper = tabPaper(); } catch (e) {}
+          if (!paper || !el || el.dataset.inplace228) return false;
+          rec228InplaceHomes[el.id] = { parent: el.parentNode, next: el.nextSibling };
+          paper.appendChild(el);
+          el.classList.add('ws-inplace228');
+          el.dataset.inplace228 = '1';
+          if (el.id === 'objWorkspace') objWsInplace228 = true;
+          rec250PaneClasses(true);
+          rec250HideBodySrc();
+          var scroll = document.getElementById('editorScroll');
+          if (scroll) scroll.style.display = '';
+          var st = document.getElementById('recStage228');
+          if (st) st.style.display = 'none';
+          var rp = document.getElementById('refPane');
+          if (rp) rp.style.display = 'none';
+          return true;
+        }
+        var rec250StageHome = null;
+        function rec250SeatStageInPaper() {
+          var st = document.getElementById('recStage228');
+          var paper = null;
+          try { paper = tabPaper(); } catch (e) {}
+          if (!st || !paper) return;
+          if (!rec250StageHome) rec250StageHome = { parent: st.parentNode, next: st.nextSibling };
+          if (st.parentNode !== paper) paper.appendChild(st);
+          st.style.display = '';
+          rec250PaneClasses(true);
+          rec250HideBodySrc();
+          var scroll = document.getElementById('editorScroll');
+          if (scroll) scroll.style.display = '';
+          var rp = document.getElementById('refPane');
+          if (rp) rp.style.display = 'none';
+        }
+        function rec250UnseatStage() {
+          var st = document.getElementById('recStage228');
+          if (st && rec250StageHome && rec250StageHome.parent && st.parentNode !== rec250StageHome.parent) {
+            if (rec250StageHome.next && rec250StageHome.next.parentNode === rec250StageHome.parent) rec250StageHome.parent.insertBefore(st, rec250StageHome.next);
+            else rec250StageHome.parent.appendChild(st);
+          }
+          if (!rec250AnyPaneInPaper()) {
+            rec250PaneClasses(false);
+            try { stack244Sync(); } catch (e) {}
+          }
+        }
+        try {
+          if (typeof rec228InplaceAttach === 'function' && !rec228InplaceAttach.__rec250Wrapped) {
+            var origAttach250 = rec228InplaceAttach;
+            var wrappedAttach250 = function (el) {
+              if (el && rec250SeatInPaper(el)) {
+                try { stack244Sync(); } catch (e) {}
+                return;
+              }
+              return origAttach250.apply(null, arguments);
+            };
+            wrappedAttach250.__rec250Wrapped = true;
+            rec228InplaceAttach = wrappedAttach250;
+          }
+          if (typeof rec228InplaceDetach === 'function' && !rec228InplaceDetach.__rec250Wrapped) {
+            var origDetach250 = rec228InplaceDetach;
+            var wrappedDetach250 = function (el) {
+              var r = origDetach250.apply(null, arguments);
+              try {
+                if (!rec250AnyPaneInPaper()) {
+                  rec250PaneClasses(false);
+                  try { stack244Sync(); } catch (e) {}
+                }
+              } catch (e) {}
+              return r;
+            };
+            wrappedDetach250.__rec250Wrapped = true;
+            rec228InplaceDetach = wrappedDetach250;
+          }
+          if (typeof rec230StageVisible === 'function' && !rec230StageVisible.__rec250Wrapped) {
+            var origStageVis250 = rec230StageVisible;
+            var wrappedStageVis250 = function (v) {
+              if (v) {
+                rec250ParkBodyStage(true);
+                var r = origStageVis250.apply(null, arguments);
+                rec250SeatStageInPaper();
+                try { stack244Sync(); } catch (e) {}
+                return r;
+              }
+              var r2 = origStageVis250.apply(null, arguments);
+              rec250UnseatStage();
+              /* Build -250 (amendment, probe-driven): the
+                 -232 wrap inside this chain re-hides
+                 #editorScroll whenever a pane carries the
+                 in-place flag — its squeezed-sibling guard
+                 from the overlay era, when the hosted pane
+                 sat BESIDE the scroll as a flex sibling.
+                 Under -250 the pane lives INSIDE the scroll
+                 (in the page), so the guard hides the very
+                 page the pane is framed in: the first pane
+                 switch after a fresh open worked (the flag
+                 was not yet set when the call landed), and
+                 every later switch blanked the work area
+                 while the rail kept tracking the pane —
+                 diag state [none,P,-,F] after wsSetTab.
+                 When a pane is seated in the page, the
+                 scroll stays up. */
+              if (rec250AnyPaneInPaper()) {
+                var sc250 = document.getElementById('editorScroll');
+                if (sc250) sc250.style.display = '';
+              }
+              return r2;
+            };
+            wrappedStageVis250.__rec250Wrapped = true;
+            rec230StageVisible = wrappedStageVis250;
+          }
+        } catch (e) {}
+
+        /* ----- the doors into and out of the Body editor ----- */
+        try {
+          if (typeof rec228ShowStage === 'function' && !rec228ShowStage.__rec250Wrapped) {
+            var origShowStage250 = rec228ShowStage;
+            var wrappedShowStage250 = function (ctx) {
+              try {
+                if (ctx && ctx.kind === 'obj' && typeof rec228Main !== 'undefined' && rec228Main === 'body') {
+                  var rec = rec228Resolve(ctx);
+                  if (rec && rec250ShowBody(ctx, rec)) {
+                    try { rec231SyncChrome(); } catch (e) {}
+                    return;
+                  }
+                }
+              } catch (e) {}
+              return origShowStage250.apply(null, arguments);
+            };
+            wrappedShowStage250.__rec250Wrapped = true;
+            rec228ShowStage = wrappedShowStage250;
+          }
+          if (typeof rec228HideStage === 'function' && !rec228HideStage.__rec250Wrapped) {
+            var origHideStage250 = rec228HideStage;
+            var wrappedHideStage250 = function () {
+              if (rec250BodyShown) { rec250ParkBodyStage(true); try { folioTplJustLeft = true; } catch (e) {} }
+              return origHideStage250.apply(null, arguments);
+            };
+            wrappedHideStage250.__rec250Wrapped = true;
+            rec228HideStage = wrappedHideStage250;
+          }
+          if (typeof tabSwapEditorTo === 'function' && !tabSwapEditorTo.__rec250Wrapped) {
+            var origSwap250 = tabSwapEditorTo;
+            var wrappedSwap250 = function () {
+              if (rec250BodyShown) { rec250ParkBodyStage(true); try { folioTplJustLeft = true; } catch (e) {} }
+              return origSwap250.apply(null, arguments);
+            };
+            wrappedSwap250.__rec250Wrapped = true;
+            tabSwapEditorTo = wrappedSwap250;
+          }
+          if (typeof tplShowStage === 'function' && !tplShowStage.__rec250Wrapped) {
+            var origTplShow250 = tplShowStage;
+            var wrappedTplShow250 = function () {
+              if (rec250BodyShown) { rec250ParkBodyStage(true); try { folioTplJustLeft = true; } catch (e) {} }
+              return origTplShow250.apply(null, arguments);
+            };
+            wrappedTplShow250.__rec250Wrapped = true;
+            tplShowStage = wrappedTplShow250;
+          }
+        } catch (e) {}
+
+        /* ----- geometry & stack state read the real page ----- */
+        try {
+          if (typeof stack244PaneHosted === 'function' && !stack244PaneHosted.__rec250Wrapped) {
+            var origPaneHosted250 = stack244PaneHosted;
+            var wrappedPaneHosted250 = function () {
+              return origPaneHosted250.apply(null, arguments) || rec250PaperPaneActive();
+            };
+            wrappedPaneHosted250.__rec250Wrapped = true;
+            stack244PaneHosted = wrappedPaneHosted250;
+          }
+          if (typeof tabPaperGeom === 'function' && !tabPaperGeom.__rec250Wrapped) {
+            var origGeom250 = tabPaperGeom;
+            var wrappedGeom250 = function () {
+              try {
+                var paper = tabPaper();
+                if (paper && paper.classList.contains('rec250-paper-pane') && editorBodyEl && editorScroll) {
+                  var br = editorBodyEl.getBoundingClientRect();
+                  var sr = editorScroll.getBoundingClientRect();
+                  var pr = paper.getBoundingClientRect();
+                  if (pr.height) {
+                    var top = (sr.top - br.top) + (pr.top - sr.top) + (editorScroll.scrollTop || 0);
+                    return { top: top, bottom: top + pr.height, height: pr.height };
+                  }
+                }
+              } catch (e) {}
+              return origGeom250.apply(null, arguments);
+            };
+            wrappedGeom250.__rec250Wrapped = true;
+            tabPaperGeom = wrappedGeom250;
+          }
+          if (typeof wsHostGridPanel === 'function' && !wsHostGridPanel.__rec250Wrapped) {
+            var origHost250 = wsHostGridPanel;
+            var wrappedHost250 = function () { var r = origHost250.apply(null, arguments); rec250SyncPaneGrow(); return r; };
+            wrappedHost250.__rec250Wrapped = true;
+            wsHostGridPanel = wrappedHost250;
+          }
+          if (typeof wsUnhostGridPanel === 'function' && !wsUnhostGridPanel.__rec250Wrapped) {
+            var origUnhost250 = wsUnhostGridPanel;
+            var wrappedUnhost250 = function () { var r = origUnhost250.apply(null, arguments); rec250SyncPaneGrow(); return r; };
+            wrappedUnhost250.__rec250Wrapped = true;
+            wsUnhostGridPanel = wrappedUnhost250;
+          }
+          if (typeof openCollGrid === 'function' && !openCollGrid.__rec250Wrapped) {
+            var origGrid250 = openCollGrid;
+            var wrappedGrid250 = function () { var r = origGrid250.apply(null, arguments); rec250SyncPaneGrow(); return r; };
+            wrappedGrid250.__rec250Wrapped = true;
+            openCollGrid = wrappedGrid250;
+          }
+          if (typeof closeCollGrid === 'function' && !closeCollGrid.__rec250Wrapped) {
+            var origCloseGrid250 = closeCollGrid;
+            var wrappedCloseGrid250 = function () { var r = origCloseGrid250.apply(null, arguments); rec250SyncPaneGrow(); return r; };
+            wrappedCloseGrid250.__rec250Wrapped = true;
+            closeCollGrid = wrappedCloseGrid250;
+          }
+        } catch (e) {}
+
+        /* ----- hydration re-run + init ----- */
+        try {
+          if (typeof folioIDBSettleRender242 === 'function' && !folioIDBSettleRender242.__rec250Wrapped) {
+            var origSettle250 = folioIDBSettleRender242;
+            var wrappedSettle250 = function () {
+              var r = origSettle250.apply(null, arguments);
+              /* Hydration replaced the stores wholesale: any
+                 record that arrived without a bodyDoc (a copy
+                 written before -250) converts now, under the
+                 same verification. Idempotent — records already
+                 carrying bodyDoc are skipped. */
+              try { rec250MigrateBodies(); } catch (e) {}
+              return r;
+            };
+            wrappedSettle250.__rec250Wrapped = true;
+            folioIDBSettleRender242 = wrappedSettle250;
+          }
+        } catch (e) {}
+        function rec250Init() {
+          /* Runs against whatever store boot already produced;
+             when IndexedDB hydration is still in flight, the
+             settle wrap above re-runs it against the hydrated
+             store. */
+          try { rec250MigrateBodies(); } catch (e) {}
+        }
+
         /* ---------------- init ----------------
            Build -185: every step is its own failure domain.
            Before this, one throw anywhere above init (or in
@@ -87342,6 +88009,7 @@
         try { renderDocList(); } catch (e) { folioBootError('init: library render', e); }
         try { rec228Init(); } catch (e) { folioBootError('init: merger rail & stage (-228)', e); }
         try { rec231Init(); } catch (e) { folioBootError('init: consolidation (-231)', e); }
+        try { rec250Init(); } catch (e) { folioBootError('init: unified bodies & page frame (-250)', e); }
         try { renderTagsSection(); } catch (e) { folioBootError('init: tags section', e); }
         try { renderOutline(first.content); } catch (e) { folioBootError('init: outline', e); }
         try { renderBacklinks(); } catch (e) { folioBootError('init: backlinks', e); }
