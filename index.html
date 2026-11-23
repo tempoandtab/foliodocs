@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-243" />
+    <meta name="folio-build" content="20261123-244" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4639,6 +4639,40 @@
         --stack-reserve: 78px;
       }
       .editor-body.stack-slim { --stack-reserve: 58px; }
+      /* Build -244 (stack visuals): while a pane is hosted in
+         the stack — the record stage or an in-place workbench /
+         Variables pane — .editor-body carries .stack-pane-on
+         (kept by stack244Sync in the -244 block) and the tab
+         rail leaves its page-anchored absolute perch to become
+         a REAL flex child of the editor body: the spine column
+         itself, at the body's left edge. Every pane is a flex
+         sibling beside it, so pane content is inset beside the
+         spines BY CONSTRUCTION — at any rail width (slim,
+         group bars) and any tab count — instead of by a fixed
+         padding that the rail's stale paper anchor could drift
+         away from (the -234/-235 defect: the paper hidden, the
+         anchor frozen, the spines floating over the pane).
+         tabAnchor stands down in this mode (its inline left is
+         cleared); leaving the mode re-anchors the rail to the
+         paper exactly as before. The rail's stand-down states
+         (focus, phone, print) are display rules and still win. */
+      .editor-body.stack-pane-on .tab-rail { position: relative; left: auto; flex: 0 0 auto; }
+      /* Build -244: in pane mode the rail column itself IS the
+         inset, so the panes' reserve padding — sized for the
+         old overlay geometry, where the rail floated over the
+         body's left edge — stands down to a 14px breathing
+         gap: pane content starts beside the spine column,
+         not a second reserve-width beyond it. Focus mode
+         keeps its zero inset (the stack stands down there
+         and the panes run full-bleed, as before). */
+      @media (min-width: 641px) {
+        .editor-body.stack-pane-on .rec-stage228,
+        .editor-body.stack-pane-on #objWorkspace.ws-inplace228,
+        .editor-body.stack-pane-on #varPanel.ws-inplace228 { padding-left: 14px; }
+      }
+      :root[data-focus="on"] .editor-body.stack-pane-on .rec-stage228,
+      :root[data-focus="on"] .editor-body.stack-pane-on #objWorkspace.ws-inplace228,
+      :root[data-focus="on"] .editor-body.stack-pane-on #varPanel.ws-inplace228 { padding-left: 0; }
       .editor-body .editor-scroll {
         flex: 1; min-width: 0;
         padding-left: var(--stack-reserve);
@@ -24439,7 +24473,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-243', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-244', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -24817,8 +24851,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-243', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-243', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-244', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-244', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -24835,7 +24869,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-243', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-244', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -24881,7 +24915,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-243', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-244', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -24984,7 +25018,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-243', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-244', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25064,7 +25098,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-243'; } catch (e) { return '20261123-243'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-244'; } catch (e) { return '20261123-244'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -56493,6 +56527,23 @@
         function tabAnchor() {
           if (!tabRailEl || !editorBodyEl) return;
           if (!tabRailEl.offsetWidth) return;
+          /* Build -244: the stack reserve IS the rail's rendered
+             width + 14px, re-measured on every anchor — slim,
+             group bars, every rendered state — so the editor
+             scroll, the record stage and every in-place pane
+             inset beside the spine column's ACTUAL width (the
+             -244 brief: the inset tracks the spine strip's
+             rendered width as spines accumulate), never the
+             fixed 78/58 guess that group bars (98/78px rails)
+             silently outgrew. */
+          try { editorBodyEl.style.setProperty('--stack-reserve', (tabRailEl.offsetWidth + 14) + 'px'); } catch (e) {}
+          /* Build -244: while a pane is hosted the rail is a
+             flex child forming the pane's left edge itself
+             (see .stack-pane-on) — there is no paper to anchor
+             to (it is stood down) and no inline left to keep:
+             the frozen paper anchor was the orphaned-spines
+             defect. Clearing it lets the flex slot rule. */
+          if (editorBodyEl.classList.contains('stack-pane-on')) { tabRailEl.style.left = ''; return; }
           var paper = tabPaper();
           if (!paper) return;
           var pr = paper.getBoundingClientRect();
@@ -56535,7 +56586,13 @@
              small hysteresis band so the reserve change that
              slimming itself causes cannot flap the state. */
           var isSlim = tabRailEl.classList.contains('slim');
-          var pageW = editorScroll.clientWidth - (isSlim ? 58 : 78);
+          /* Build -244: the reserve subtracted here is the LIVE
+             one (tabAnchor maintains it as the rail's rendered
+             width + 14), so the slim decision reads the same
+             geometry the panes inset by; the 78/58 constants
+             remain only as the pre-anchor fallback. */
+          var liveReserve244 = parseFloat(getComputedStyle(editorBodyEl).getPropertyValue('--stack-reserve'));
+          var pageW = editorScroll.clientWidth - (liveReserve244 > 0 ? liveReserve244 : (isSlim ? 58 : 78));
           var slim = isSlim ? pageW < 740 : pageW < 700;
           if (slim !== isSlim) {
             tabRailEl.classList.toggle('slim', slim);
@@ -68735,7 +68792,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-243', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-244', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -69364,7 +69421,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-243', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-244', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -86081,6 +86138,11 @@
           if (rec234EnsureBusy) return;
           rec234EnsureBusy = true;
           try { rec233EnsureInStack(); } catch (e) {}
+          /* Build -244: every activation route ends here (tab
+             click, tab-close fallback, sidebar / Omnisearch
+             opens — the -233 wrap set), so the stack's pane
+             mode and spine inset settle here too. */
+          try { stack244Sync(); } catch (e) {}
           rec234EnsureBusy = false;
         }
         function rec234EnsureInStackSoon() {
@@ -86111,6 +86173,194 @@
           }
         } catch (e) {}
 
+
+        /* ============================================================
+           Build -244: STACK VISUALS — layout & compositing only.
+           The -234 video / -235 screenshot defects, and their
+           common root: a hosted pane stood the paper down
+           (display:none), so tabAnchor — which positions the
+           spine rail from the PAPER's rect — froze at the Body
+           page's last anchor and never moved again, while the
+           pane inset itself from a fixed 78/58px reserve that
+           the rail's rendered width (98px with group bars,
+           78px slim-with-bars) had already outgrown. The
+           spines therefore floated over the pane, clipping its
+           headings, controls and rows, and floated orphaned
+           again whenever the width changed mid-visit.
+           The fix makes the geometry structural:
+           (1) INSET — tabAnchor now maintains --stack-reserve
+           as the rail's ACTUAL rendered width + 14px (see the
+           tabs module), and while a pane is hosted,
+           stack244Sync puts .stack-pane-on on the editor body:
+           the rail becomes a flex child — the spine column
+           itself — and every pane (record stage, in-place
+           workbench, Variables) lays out beside it by
+           construction. Its own padding-left (the same
+           --stack-reserve) is then pure breathing room inside
+           the page. No spine can overlap pane content at any
+           tab count, because the column and the content box
+           are siblings in one flex row.
+           (2) FLOATING CONTROLS — the Members List/Grid row
+           and "Move all members here" live inside the pane
+           hosts (the workspace's Members section, the grid
+           host, the stage) — never in the rail zone — so the
+           inset in (1) carries them too; nothing pane-level
+           is positioned over the reserve anymore.
+           (3) SWAPS — a rail ⇄ promotion used to repaint the
+           glance with the outgoing main IMMEDIATELY, while
+           the incoming main was still landing through its
+           async doors (the dirty-guard close, the deferred
+           object select): the incoming pane existed twice —
+           glance copy + main copy — for the whole gap. The
+           wrap below holds the glance EMPTY (its DOM cleared,
+           its repaints held) until the incoming main has
+           verifiably landed, then restores the outgoing pane
+           to the glance in one paint. Exactly one copy of the
+           incoming pane exists at every moment.
+           ============================================================ */
+        function stack244PaneHosted() {
+          var eb = document.querySelector('.editor-body');
+          if (!eb) return false;
+          var ws = document.getElementById('objWorkspace');
+          if (ws && !ws.hidden && ws.parentNode === eb && ws.dataset.inplace228) return true;
+          var vp = document.getElementById('varPanel');
+          if (vp && !vp.hidden && vp.parentNode === eb && vp.dataset.inplace228) return true;
+          var st = document.getElementById('recStage228');
+          if (st && !st.hidden && st.parentNode === eb) return true;
+          return false;
+        }
+        function stack244Sync() {
+          var eb = document.querySelector('.editor-body');
+          if (!eb) return;
+          var on = stack244PaneHosted();
+          var was = eb.classList.contains('stack-pane-on');
+          eb.classList.toggle('stack-pane-on', on);
+          var rail = document.getElementById('tabRail');
+          if (rail && rail.offsetWidth) {
+            try { eb.style.setProperty('--stack-reserve', (rail.offsetWidth + 14) + 'px'); } catch (e) {}
+          }
+          if (typeof tabAnchor === 'function') { try { tabAnchor(); } catch (e) {} }
+          if (on !== was && typeof tabLayout === 'function') { try { tabLayout(); } catch (e) {} }
+        }
+        try {
+          if (typeof rec228InplaceAttach === 'function' && !rec228InplaceAttach.__stack244Wrapped) {
+            var origAttach244 = rec228InplaceAttach;
+            var wrappedAttach244 = function () { var r = origAttach244.apply(null, arguments); try { stack244Sync(); } catch (e) {} return r; };
+            wrappedAttach244.__stack244Wrapped = true;
+            rec228InplaceAttach = wrappedAttach244;
+          }
+          if (typeof rec228InplaceDetach === 'function' && !rec228InplaceDetach.__stack244Wrapped) {
+            var origDetach244 = rec228InplaceDetach;
+            var wrappedDetach244 = function () { var r = origDetach244.apply(null, arguments); try { stack244Sync(); } catch (e) {} return r; };
+            wrappedDetach244.__stack244Wrapped = true;
+            rec228InplaceDetach = wrappedDetach244;
+          }
+          if (typeof rec230StageVisible === 'function' && !rec230StageVisible.__stack244Wrapped) {
+            var origStageVis244 = rec230StageVisible;
+            var wrappedStageVis244 = function () { var r = origStageVis244.apply(null, arguments); try { stack244Sync(); } catch (e) {} return r; };
+            wrappedStageVis244.__stack244Wrapped = true;
+            rec230StageVisible = wrappedStageVis244;
+          }
+        } catch (e) {}
+        window.addEventListener('resize', function () { try { stack244Sync(); } catch (e) {} });
+        /* ----- swaps: exactly one copy of the incoming pane ----- */
+        var stack244SwapHold = null;
+        var stack244SwapTimers = [];
+        function stack244MainLanded(ws) {
+          try {
+            var eb = document.querySelector('.editor-body');
+            if (!eb) return false;
+            var wsEl = document.getElementById('objWorkspace');
+            var vpEl = document.getElementById('varPanel');
+            var stEl = document.getElementById('recStage228');
+            var esEl = document.getElementById('editorScroll');
+            var wsHosted = !!(wsEl && !wsEl.hidden && wsEl.parentNode === eb && wsEl.dataset.inplace228);
+            var vpHosted = !!(vpEl && !vpEl.hidden && vpEl.parentNode === eb && vpEl.dataset.inplace228);
+            if (ws === 'vars') return vpHosted;
+            if (ws === 'body') {
+              if (wsHosted || vpHosted) return false;
+              var ctxB = (typeof rec228Ctx === 'function') ? rec228Ctx() : null;
+              if (ctxB && ctxB.kind !== 'doc') return !!(stEl && !stEl.hidden);
+              return !!(esEl && esEl.style.display !== 'none');
+            }
+            if (ws === 'memberships') {
+              if (vpHosted) return false;
+              if (wsHosted) return typeof objWsCtx !== 'undefined' && !!objWsCtx && objWsCtx.tab === 'members';
+              return !!(stEl && !stEl.hidden);
+            }
+            var ctxS = (typeof rec228Ctx === 'function') ? rec228Ctx() : null;
+            if (ctxS && ctxS.kind === 'folder') return !!(stEl && !stEl.hidden);
+            if (typeof objWsCtx === 'undefined' || !objWsCtx || !wsHosted) return false;
+            if (ws === 'members') return objWsCtx.tab === 'members' || !!objWsCtx.gridMode;
+            return objWsCtx.tab === ws;
+          } catch (e) { return false; }
+        }
+        function stack244SwapSettle() {
+          if (!stack244SwapHold) return;
+          if (!stack244MainLanded(stack244SwapHold.target)) return;
+          var g = stack244SwapHold.glance;
+          stack244SwapHold = null;
+          stack244SwapTimers.forEach(function (t) { clearTimeout(t); });
+          stack244SwapTimers = [];
+          rec228Glance = g;
+          try { rec228PaintRail(); } catch (e) {}
+        }
+        function stack244SwapArm() {
+          stack244SwapTimers.forEach(function (t) { clearTimeout(t); });
+          stack244SwapTimers = [0, 60, 180, 420, 900].map(function (ms) { return setTimeout(stack244SwapSettle, ms); });
+          /* Fail-open: a landing this check cannot see must
+             never strand the glance empty — restore the
+             outgoing pane on the old timing rather than
+             leave a hole in the rail. */
+          stack244SwapTimers.push(setTimeout(function () {
+            if (!stack244SwapHold) return;
+            var g = stack244SwapHold.glance;
+            stack244SwapHold = null;
+            rec228Glance = g;
+            try { rec228PaintRail(); } catch (e) {}
+          }, 1600));
+        }
+        try {
+          if (typeof rec228PaintGlance === 'function' && !rec228PaintGlance.__stack244Wrapped) {
+            var origGlance244 = rec228PaintGlance;
+            var wrappedGlance244 = function () {
+              if (stack244SwapHold) return;
+              return origGlance244.apply(null, arguments);
+            };
+            wrappedGlance244.__stack244Wrapped = true;
+            rec228PaintGlance = wrappedGlance244;
+          }
+          if (typeof rec228SetMain === 'function' && !rec228SetMain.__stack244Wrapped) {
+            var origSetMain244 = rec228SetMain;
+            var wrappedSetMain244 = function (ws) {
+              var isSwap = false, swapGlance = null;
+              try {
+                if (ws !== 'outline' && typeof rec228Glance !== 'undefined' && rec228Glance && rec228Glance === ws && ws !== rec228Main) {
+                  isSwap = true;
+                  swapGlance = (rec228Main && rec228Main !== ws) ? rec228Main : null;
+                }
+              } catch (e) {}
+              if (isSwap) {
+                stack244SwapHold = { target: ws, glance: swapGlance };
+                try { rec228Glance = null; } catch (e) {}
+                var gh244 = document.getElementById('recRailGlance228');
+                if (gh244) gh244.innerHTML = '';
+              }
+              var r = origSetMain244.apply(null, arguments);
+              if (isSwap) { stack244SwapArm(); stack244SwapSettle(); }
+              try { stack244Sync(); } catch (e) {}
+              return r;
+            };
+            wrappedSetMain244.__stack244Wrapped = true;
+            rec228SetMain = wrappedSetMain244;
+          }
+          if (typeof rec228AfterWsClosed === 'function' && !rec228AfterWsClosed.__stack244Wrapped) {
+            var origAfter244 = rec228AfterWsClosed;
+            var wrappedAfter244 = function () { var r = origAfter244.apply(null, arguments); try { stack244SwapSettle(); } catch (e) {} try { stack244Sync(); } catch (e) {} return r; };
+            wrappedAfter244.__stack244Wrapped = true;
+            rec228AfterWsClosed = wrappedAfter244;
+          }
+        } catch (e) {}
 
         /* ---------------- init ----------------
            Build -185: every step is its own failure domain.
