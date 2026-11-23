@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-248" />
+    <meta name="folio-build" content="20261123-249" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -5266,6 +5266,87 @@
       .rec231-mode-row .btn-ghost.on { background: var(--hover); box-shadow: inset 0 0 0 1px var(--accent); }
       .rec231-outline-item { display: block; width: 100%; text-align: left; padding: 5px 6px; border: none; background: none; border-radius: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
       .rec231-outline-item:hover { background: var(--hover); color: var(--ink); }
+
+      /* ---------------- Build -249: ONE page-stack frame for every pane ----------------
+         The owner's ruling: the Body pane was still treated
+         differently from the other panes — a record WITH body
+         content rendered as an inset page sheet (stepped stack
+         edges, gutters, spines attached along the sheet's left
+         edge) while every other pane rendered full-bleed with
+         the spines in a separate column, and a body-less
+         record's Body rendered as a void. Now every pane that
+         occupies the work area renders in the SAME frame: the
+         pane host becomes the desk (var(--bg)) and the pane's
+         own sheet — the record stage itself, the workbench
+         panel, the Variables panel — becomes the page: surface
+         face, 1px line-soft border with the gilt stack-edge
+         left border, the page's own 6px radius, and the pile
+         drawn as stepped hard shadows in the -93/-98 geometry
+         (4px left sliver + 3px bottom step per rank, gilt
+         column at each sheet's left edge, face deepening 6%
+         per rank toward black, the front page's own soft cast
+         and var(--paper-shadow) over all) — the same visible
+         slivers, steps and corner arcs the real .paper-sheet
+         layers show, following the sheet's box by construction
+         at any size, with no per-scroll positioning and no
+         extra paint inside the pane's own scroll. The sheet's
+         left edge sits exactly on the spine column's right
+         edge (margin-left 0 in pane mode), so a tab's right
+         edge lands on its sheet's gilt column exactly as it
+         does on the paper (tabPaperGeom learns the pane sheet
+         in the -249 script block, so the tab zone and the gilt
+         gaps anchor to the sheet too). Gutters: 26px top /
+         right, 40px bottom — the paper's own top gutter and a
+         desk margin at the right and foot. Expansion is
+         PAGE-level: a pane whose content needs room (the
+         Members grid, in the stage or hosted in the
+         workbench) grows the SHEET — its gutters tighten to
+         14/12/20 — and the pile follows the sheet; the pane
+         never breaks out to full-bleed. Empty states render
+         ON the page: every pane's content, including a
+         body-less record's live Body editor (see the -249 fix
+         in rec228ShowStage), paints inside this sheet.
+         Stand-downs mirror the paper's: focus mode and phone
+         widths drop the pile to the plain paper shadow (the
+         .paper-sheets rules do the same) and the sheet takes
+         ordinary page margins, since the spine column is not
+         on screen there. Outline is the one pane with no
+         work-area surface to frame — by the -231 design it
+         expands the rail glance rather than swapping the main
+         pane — so it is the frame's only non-applicability,
+         stated here rather than silently exempted. */
+      .editor-body.stack-pane-on #objWorkspace.ws-inplace228,
+      .editor-body.stack-pane-on #varPanel.ws-inplace228 { background: var(--bg); padding-left: 0; }
+      .editor-body.stack-pane-on .rec-stage228 {
+        margin: 26px 26px 40px 0; padding-left: 0;
+        border: 1px solid var(--line-soft); border-left: 1px solid var(--stack-edge);
+        border-radius: 6px;
+        box-shadow: -4px 2px 10px rgba(0, 0, 0, 0.09), -1px 0 3px rgba(0, 0, 0, 0.06), -3px 3px 0 0 color-mix(in srgb, var(--surface) 94%, black), -4px 3px 0 0 var(--stack-edge), -7px 6px 0 0 color-mix(in srgb, var(--surface) 88%, black), -8px 6px 0 0 var(--stack-edge), var(--paper-shadow);
+      }
+      .editor-body.stack-pane-on .rec-stage228 > * { min-height: 0; }
+      .editor-body.stack-pane-on #objWorkspace.ws-inplace228 .obj-ws-panel,
+      .editor-body.stack-pane-on #varPanel.ws-inplace228 .panel {
+        margin: 26px 26px 40px 0;
+        border: 1px solid var(--line-soft); border-left: 1px solid var(--stack-edge);
+        border-radius: 6px;
+        box-shadow: -4px 2px 10px rgba(0, 0, 0, 0.09), -1px 0 3px rgba(0, 0, 0, 0.06), -3px 3px 0 0 color-mix(in srgb, var(--surface) 94%, black), -4px 3px 0 0 var(--stack-edge), -7px 6px 0 0 color-mix(in srgb, var(--surface) 88%, black), -8px 6px 0 0 var(--stack-edge), var(--paper-shadow);
+      }
+      /* Page-level expansion for the grid modes: the sheet
+         grows, the frame follows it. */
+      .editor-body.stack-pane-on .rec-stage228.rec232-grid-hosting,
+      .editor-body.stack-pane-on #objWorkspace.ws-inplace228 .obj-ws-panel:has(.obj-ws-gridhost:not([hidden])) { margin: 14px 12px 20px 0; }
+      :root[data-focus="on"] .editor-body.stack-pane-on .rec-stage228,
+      :root[data-focus="on"] .editor-body.stack-pane-on #objWorkspace.ws-inplace228 .obj-ws-panel,
+      :root[data-focus="on"] .editor-body.stack-pane-on #varPanel.ws-inplace228 .panel {
+        margin-left: 26px; box-shadow: var(--paper-shadow);
+      }
+      @media (max-width: 640px) {
+        .editor-body.stack-pane-on .rec-stage228,
+        .editor-body.stack-pane-on #objWorkspace.ws-inplace228 .obj-ws-panel,
+        .editor-body.stack-pane-on #varPanel.ws-inplace228 .panel {
+          margin: 12px 8px 24px; box-shadow: var(--paper-shadow);
+        }
+      }
 
       /* ---------------- Build -217: the tabbed workspace ----------------
          The editor pane is a pinned toolbar, a tab bar, and one
@@ -24542,7 +24623,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-248', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-249', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -24920,8 +25001,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-248', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-248', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-249', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-249', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -24938,7 +25019,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-248', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-249', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -24984,7 +25065,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-248', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-249', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25087,7 +25168,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-248', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-249', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25167,7 +25248,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-248'; } catch (e) { return '20261123-248'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-249'; } catch (e) { return '20261123-249'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -69379,7 +69460,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-248', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-249', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -70032,7 +70113,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-248', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-249', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -83880,10 +83961,24 @@
              first saved text on, Body is its default face. */
           var rec = rec228Resolve(ctx);
           if (!rec) { rec230StageVisible(false); return; }
-          var hint = document.createElement('span');
-          hint.className = 'form-note';
-          hint.textContent = rec.body ? 'Body — this record’s own text.' : 'No body yet — start typing and this record has one.';
-          head.appendChild(hint);
+          /* Build -249: the -235 removal of the in-pane record
+             header left a dangling reference behind — this
+             branch built its hint span and appended it to the
+             retired head element, which no longer exists, so
+             EVERY object Body render threw here, after the
+             stage had been cleared and shown and before the
+             editor below was ever created: the pane read as a
+             blank full-bleed void and a body-less record (Red
+             Rising) offered nothing to type into at all. The
+             hint is retired with the header it rode on. What
+             remains is the pane itself: a LIVE editor on the
+             page — the record's own body text area, empty when
+             the record has no body yet, taking the caret and
+             typing immediately on first open with no activation
+             step, saving through the ordinary body path
+             (rec.body + objSaveSoon, the same store and sync
+             as any existing body) so the record gains a body
+             like any other. */
           var ta = document.createElement('textarea');
           ta.className = 'rec-stage228-body';
           ta.value = rec.body || '';
@@ -87038,6 +87133,60 @@
             var wrappedAfter244 = function () { var r = origAfter244.apply(null, arguments); try { stack244SwapSettle(); } catch (e) {} try { stack244Sync(); } catch (e) {} return r; };
             wrappedAfter244.__stack244Wrapped = true;
             rec228AfterWsClosed = wrappedAfter244;
+          }
+        } catch (e) {}
+        /* ============================================================
+           Build -249: the tab stack anchors to the PANE sheet.
+           tabPaperGeom is the one geometry every stack consumer
+           reads — tabLayout zones the spines to its span and
+           paints each sheet's gilt gap from it — but it only
+           ever measured the Body route's paper, so in pane mode
+           it returned null: the spines zoned to the full column
+           height and the gilt gaps never painted, one more way
+           the panes stood outside the page stack. While a pane
+           is hosted (.stack-pane-on) the visible pane sheet —
+           the record stage, the workbench panel, the Variables
+           panel, each now wearing the shared -249 frame — IS
+           the page for geometry purposes: its span, measured
+           live in editor-body coordinates exactly as the
+           paper's is, feeds the same consumers, so the spines
+           run along the sheet's left edge and the tab zone
+           starts and ends with the sheet, identically in every
+           pane. The sheet does not ride an outer scroller (its
+           content scrolls inside it), so no scroll term enters
+           the span. Anything unmeasurable falls through to the
+           original paper geometry untouched, and the Body route
+           never enters this branch at all.
+           ============================================================ */
+        try {
+          if (typeof tabPaperGeom === 'function' && !tabPaperGeom.__stack249Wrapped) {
+            var origPaperGeom249 = tabPaperGeom;
+            var wrappedPaperGeom249 = function () {
+              try {
+                var eb249 = document.querySelector('.editor-body');
+                if (eb249 && eb249.classList.contains('stack-pane-on')) {
+                  var sheet249 = null;
+                  var st249 = document.getElementById('recStage228');
+                  if (st249 && !st249.hidden && st249.parentNode === eb249) sheet249 = st249;
+                  if (!sheet249) {
+                    var ws249 = document.getElementById('objWorkspace');
+                    if (ws249 && !ws249.hidden && ws249.dataset.inplace228) sheet249 = ws249.querySelector('.obj-ws-panel');
+                  }
+                  if (!sheet249) {
+                    var vp249 = document.getElementById('varPanel');
+                    if (vp249 && !vp249.hidden && vp249.dataset.inplace228) sheet249 = vp249.querySelector('.panel');
+                  }
+                  if (sheet249) {
+                    var br249 = eb249.getBoundingClientRect();
+                    var sr249 = sheet249.getBoundingClientRect();
+                    if (sr249.height) return { top: sr249.top - br249.top, bottom: sr249.bottom - br249.top, height: sr249.height };
+                  }
+                }
+              } catch (e) {}
+              return origPaperGeom249.apply(null, arguments);
+            };
+            wrappedPaperGeom249.__stack249Wrapped = true;
+            tabPaperGeom = wrappedPaperGeom249;
           }
         } catch (e) {}
 
