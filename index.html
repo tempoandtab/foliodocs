@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-251" />
+    <meta name="folio-build" content="20261123-252" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24652,7 +24652,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-251', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261123-252', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25030,8 +25030,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-251', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-251', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-252', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-252', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25048,7 +25048,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-251', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261123-252', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25094,7 +25094,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-251', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261123-252', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25197,7 +25197,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-251', chunked: true, recordsSlim: true,
+            version: 3, build: '20261123-252', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25277,7 +25277,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-251'; } catch (e) { return '20261123-251'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-252'; } catch (e) { return '20261123-252'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -69561,7 +69561,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-251', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-252', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -70226,7 +70226,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-251', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261123-252', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -87608,7 +87608,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261123-251', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261123-252', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -88334,6 +88334,704 @@
           }
         } catch (e) {}
 
+        /* ============================================================
+           Build -252: EX-FOLDER COLLECTIONS ARE FULL RECORDS, and
+           the editor's line grip stays in the Body pane.
+
+           PART 1 — THE AUDIT (every folder-origin difference found
+           in the -251 source; F = fixed here, I = intentional):
+           1. Panes: rec228Workspaces gave a folder ctx only
+              Members + Settings; records get all seven. F
+           2. Default face: rec228DefaultMain folder → 'members';
+              rec228HasBody folder → false (no Body exists). F
+           3. Stage: a folder's stage was a bespoke contents list
+              (subfolders + filed documents + homed records) and
+              its Settings a note with two buttons; a record's
+              stage is its Body editor / workbench panes. F
+           4. Workbench routing: rec228ToWsTab returned early for
+              folders — Properties, Variables, Memberships and
+              Settings could never host for a folder. F
+           5. Rail glances: Members glance was read-only (no
+              remove), Settings glance a note (no name / emoji /
+              color editing). F
+           6. Hotkeys: the ⌥ pane family is gated by
+              rec228Workspaces, so ⌥B / ⌥V / ⌥; were dead for
+              folders. F
+           7. Remembered pane lived in a separate 'folder:' key
+              space (rec234MainMem). F — unified to the record's
+              'obj:' space; a folder's remembered pane resets
+              once, to its default, on first open after -252.
+           8. Tabs: folder tabs were a distinct id ('obj:f:')
+              with their own title / restorability branches. F —
+              one canonical record tab ('obj:g:'); saved folder
+              tabs convert at activation and at migration.
+           9. Opening routes: sidebar head click, member rows,
+              Omnisearch and Memberships rows all routed folders
+              to rec228OpenFolderTab (the folder stage), never
+              the record workspace. F
+           10. Sidebar highlight: the folder head's 'current'
+              keyed on 'obj:f:'. F (sync wrap maps it to the
+              canonical tab).
+           11. Menus: the sidebar ⋮ menu for a folder is the
+              TREE node's menu (New note inside, Import into,
+              New collection inside, Select records, sibling
+              reorder, Collection template) — filing operations
+              a record row does not have; the record's own row
+              menu is the object menu. I — the tree menu stays
+              (it manages the filing tree), but its Open doors
+              now land on the record workspace like every route.
+           12. Icon / color: folders edited through the folder
+              popover's palette; records through the rail
+              Settings glance and the workbench. F — both doors
+              now edit one synced name / icon / color (the
+              reconcile below), so neither surface can drift.
+           13. Rename: sidebar rename input vs the record's name
+              doors. F — same reconcile.
+           14. Body: folders carried no body at all (registry
+              hasBody false, props []) — nothing to type into.
+              F — the materialized record is born with the
+              ordinary empty document body (-250 sessions serve
+              it; typing persists through objSave).
+           15. Properties / Variables: folders stored no props,
+              so no Properties or Variables pane, and formula /
+              member machinery met a folder only as the {s:'f'}
+              synthetic member. F — a real record with real
+              props; the {s:'f'} member form still resolves and
+              its row now opens the record's tab.
+           16. Memberships: rec231MembershipsOf had no folder
+              branch (a folder-collection showed no memberships
+              of its own). F — the record ctx answers fully.
+           17. Members / grid: a folder's grid hung off
+              openCollGrid({fcid}) from its Settings note — a
+              derived source (filed documents + homed records),
+              not a mode of a Members pane. F — the record's
+              grid is the ordinary Members-pane grid over its
+              collection property (stored members ∪ the folder's
+              documents, which ride the property's hybrid rule
+              source — the same mechanism Books Library uses).
+           18. Drag & drop: records file ONTO folders (home);
+              folder rows nest / reorder in the tree
+              (nestFolder). I — tree structure stays; -252 adds
+              the sync glue so nesting keeps the records right.
+           19. Settings: no Scope, no Member defaults, no
+              Convert, no Danger Zone; deletion lived only in
+              the sidebar menu. F — full record Settings; the
+              two delete doors (Danger Zone, sidebar menu)
+              cross-retire record and folder together.
+           20. Smart conversion: impossible for a folder (no
+              collection property to convert). F — native.
+           21. Templates: a folder's folderTemplate is the
+              default template for new DOCUMENTS filed in it —
+              a document-creation setting, not a record
+              behavior. I — it stays on the folder; the record
+              side gains the ordinary object-template system.
+           22. Favorites: the registry marked folders
+              favorite:false and no surface could favorite one.
+              F — the record favorites like any record.
+           23. Member enumeration: rec230MembersOf's folder
+              branch excluded subcollections ('structural');
+              a record's members include them. F — child
+              collections are members of the parent record.
+           24. Counts: the sidebar tree count (documents +
+              homed records) is the tree's own bookkeeping. I —
+              unchanged; the workspace counts are the record's.
+
+           PART 2 — THE UNIFICATION. Rather than teaching the
+           workspace a second species, each folder is
+           MATERIALIZED as an ordinary global Collection record
+           carrying the folder's own id (ids preserved): a Name
+           property (its headline) and a Members collection
+           property whose stored list is seeded from the
+           folder's homed records and child collections, and
+           whose hybrid rule source names the folder itself, so
+           the documents filed in it ride as rule members
+           exactly as they did in the folder's derived source.
+           Nothing pre-existing is rewritten: every stored
+           membership in the library survives byte-for-byte
+           (verified below), no record's home value changes, no
+           document moves. The folder remains as the filing
+           tree's node (documents file into it; the sidebar
+           tree is built from it), and the workspace layer
+           never sees it again: every folder route — sidebar
+           head, member row, Omnisearch, Memberships row, saved
+           tab — resolves to the record's tab, and the record
+           answers with the same seven panes, rail, menus,
+           Body editor, grid and Settings as a born collection.
+           The only origin-aware code left is data-layer glue
+           (below): filing doors keep the record's stored
+           member list in step with homes, the two delete
+           doors retire both halves, and a reconcile keeps
+           name / icon / color single-sourced across the tree
+           popover and the record's own editors.
+
+           MIGRATION DISCIPLINE (the standing rule): boot-
+           guarded, idempotent (folio.migration.v252 names the
+           materialized set), verified before it is believed —
+           global count grows by exactly the number of records
+           created, the stored-membership total over every
+           pre-existing record is unchanged, and each folder's
+           effective membership (documents + homed records +
+           child collections) is set-identical before and
+           after. On ANY mismatch the created records are
+           removed, the old representation stays authoritative,
+           and one banner says so.
+
+           PART 3 — THE LINE GRIP. The editor's context rail
+           (the six-dot grip and its line buttons, -211) is
+           painted from the parked editor session's last caret
+           and nothing stood it down when a pane took the page
+           in -250's frame — so it sat on the sheet's top-left
+           corner, over the Variables pane's own heading. The
+           rail now answers only while the Body is the surface
+           in front: updateContextRail stands down whenever a
+           pane is seated in the page, and switching to any
+           non-Body pane hides it in the same task. In the Body
+           pane every -211 behavior is untouched.
+           ============================================================ */
+
+        /* ----- -252 state ----- */
+        var folio252Status = 'pending'; /* 'done' | 'failed' */
+        var folio252Set = {};
+        var folio252Snap = {};
+        try {
+          var m252 = JSON.parse(localStorage.getItem('folio.migration.v252') || 'null');
+          if (m252 && m252.done && Array.isArray(m252.folders)) {
+            m252.folders.forEach(function (id) { folio252Set[id] = true; });
+            folio252Status = 'done';
+          }
+        } catch (e) {}
+        try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
+        function folio252SaveMarker() {
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261123-252', folders: Object.keys(folio252Set) })); } catch (e) {}
+        }
+        function folio252SaveSnap() {
+          try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
+        }
+        function folio252RecRaw(id) {
+          return (objStore.globals || []).find(function (r) { return r.id === id; }) || null;
+        }
+        function folio252FolderRec(id) {
+          if (!id || !folio252Set[id]) return null;
+          return folio252RecRaw(id);
+        }
+        function folio252CollProp(rec) {
+          if (!rec) return null;
+          var ps = objWsCollProps(rec.props || []);
+          return ps.length ? ps[0] : null;
+        }
+        function folio252AddStoredRef(folderId, oid) {
+          var rec = folio252FolderRec(folderId);
+          var p = folio252CollProp(rec);
+          if (!p) return false;
+          if (!Array.isArray(p.value)) p.value = [];
+          if (p.value.some(function (m) { return m && m.oid === oid; })) return false;
+          p.value.push({ oid: oid, s: 'g' });
+          return true;
+        }
+        function folio252RemoveStoredRef(folderId, oid) {
+          var rec = folio252FolderRec(folderId);
+          var p = folio252CollProp(rec);
+          if (!p || !Array.isArray(p.value)) return false;
+          var i = p.value.findIndex(function (m) { return m && m.oid === oid; });
+          if (i === -1) return false;
+          p.value.splice(i, 1);
+          return true;
+        }
+
+        /* ----- materialization ----- */
+        function folio252Depth(f) {
+          var d = 0, seen = {}, cur = f;
+          while (cur && cur.parentId && !seen[cur.id]) { seen[cur.id] = true; d++; cur = folderById(cur.parentId); }
+          return d;
+        }
+        /* Create (or adopt) the record for one folder.
+           Returns 'created', 'adopted', or false (identity
+           collision — a non-collection record holds the id). */
+        function folio252MaterializeOne(f) {
+          if (!f || folio252Set[f.id]) return false;
+          var existing = folio252RecRaw(f.id);
+          if (existing) {
+            if (existing.kind === 'Collection' && objWsCollProps(existing.props || []).length) {
+              folio252Set[f.id] = true;
+              if (!folio252Snap[f.id]) folio252Snap[f.id] = folio252TripleF(f);
+              return 'adopted';
+            }
+            return false;
+          }
+          var nameP = { id: objNewId('p'), name: 'Name', type: 'text', show: true, value: f.name || 'Collection' };
+          var memP = {
+            id: objNewId('p'), name: 'Members', type: 'coll', show: true, value: [],
+            hyb: { source: { folderId: f.id, includeSubfolders: false, tags: [], tagMatch: 'any', combine: 'either' }, propRules: [], excluded: [] },
+          };
+          var rec = {
+            id: f.id, name: f.name || 'Collection', kind: 'Collection',
+            emoji: f.icon || '📁', color: f.color || '',
+            headline: nameP.id, art: null, props: [nameP, memP],
+          };
+          if (f.parentId) rec.home = 'obj:' + f.parentId;
+          objStore.globals.push(rec);
+          folio252Set[f.id] = true;
+          folio252Snap[f.id] = folio252TripleF(f);
+          if (f.parentId && folio252Set[f.parentId]) folio252AddStoredRef(f.parentId, f.id);
+          return 'created';
+        }
+        /* Seed a freshly created record's stored member list
+           from the folder's filing: homed records first (their
+           sidebar order), then child collections. */
+        function folio252SeedRecord(f) {
+          var rec = folio252FolderRec(f.id);
+          var p = folio252CollProp(rec);
+          if (!rec || !p) return;
+          var val = [];
+          rec228FolderObjects(f.id).forEach(function (r) { val.push({ oid: r.id, s: 'g' }); });
+          childFolders(f.id).forEach(function (cf) { if (folio252Set[cf.id]) val.push({ oid: cf.id, s: 'g' }); });
+          p.value = val;
+        }
+
+        /* ----- verification helpers ----- */
+        function folio252StoredTotal(preIds) {
+          var n = 0;
+          function scan(list) {
+            (list || []).forEach(function (r) {
+              if (!r) return;
+              if (preIds && !preIds[r.id]) return;
+              n += recMembersCount237(r);
+            });
+          }
+          scan(objStore.globals);
+          Object.keys(objStore.docObjs || {}).forEach(function (k) { scan(objStore.docObjs[k]); });
+          return n;
+        }
+        function folio252EffKeysBefore(fid) {
+          var s = {};
+          (lib.docs || []).forEach(function (d) { if (d.folderId === fid) s['d:' + d.id] = true; });
+          (objStore.globals || []).forEach(function (r) { if (r.home === fid) s['o:' + r.id] = true; });
+          childFolders(fid).forEach(function (cf) { s['o:' + cf.id] = true; });
+          return s;
+        }
+        function folio252EffKeysAfter(f, rec) {
+          var s = {};
+          var p = folio252CollProp(rec);
+          if (p) {
+            (Array.isArray(p.value) ? p.value : []).forEach(function (m) {
+              if (!m || !m.oid) return;
+              if (m.s === 's') { var pr = null; try { pr = smartParseOid(m.oid); } catch (e) {} if (pr) s['d:' + pr.docId] = true; }
+              else s['o:' + m.oid] = true;
+            });
+            if (p.hyb) {
+              var docs = [];
+              try { docs = hyb228Docs(p.hyb) || []; } catch (e) {}
+              docs.forEach(function (d) { s['d:' + d.id] = true; });
+            }
+          }
+          (objStore.globals || []).forEach(function (r) {
+            if (r.home === f.id || r.home === 'obj:' + f.id) s['o:' + r.id] = true;
+          });
+          return s;
+        }
+        function folio252SetEq(a, b) {
+          var ka = Object.keys(a), kb = Object.keys(b);
+          if (ka.length !== kb.length) return false;
+          return ka.every(function (k) { return !!b[k]; });
+        }
+        function folio252ShowBanner(msg) {
+          if (document.getElementById('folio252Banner')) return;
+          var b = document.createElement('div');
+          b.id = 'folio252Banner';
+          b.setAttribute('role', 'alert');
+          b.style.cssText = 'position:fixed;z-index:400;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;transform:translateX(-50%);max-width:min(94vw,620px);background:#7a1f16;color:#fff;border-radius:12px;padding:14px 18px;font-size:14.5px;line-height:1.5;box-shadow:0 12px 40px rgba(0,0,0,.35)';
+          var t = document.createElement('div');
+          t.textContent = msg;
+          b.appendChild(t);
+          var row = document.createElement('div');
+          row.style.marginTop = '10px';
+          var retry = document.createElement('button');
+          retry.type = 'button'; retry.textContent = 'Retry';
+          retry.style.cssText = 'background:#fff;color:#7a1f16;font-weight:700;border:0;border-radius:8px;padding:8px 14px;min-height:38px;cursor:pointer;margin-right:8px';
+          retry.addEventListener('click', function () { b.remove(); folio252Status = 'pending'; folio252Migrate(); });
+          row.appendChild(retry);
+          var dis = document.createElement('button');
+          dis.type = 'button'; dis.textContent = 'Dismiss';
+          dis.style.cssText = 'background:transparent;color:#fff;font-weight:600;border:1px solid rgba(255,255,255,.6);border-radius:8px;padding:8px 14px;min-height:38px;cursor:pointer';
+          dis.addEventListener('click', function () { b.remove(); });
+          row.appendChild(dis);
+          b.appendChild(row);
+          document.body.appendChild(b);
+        }
+
+        /* ----- the migration ----- */
+        function folio252Migrate() {
+          if (folio252Status === 'done') return true;
+          var folders = (lib.folders || []).slice();
+          /* Identity pre-check: a folder whose id is held by
+             a record that is not a collection refuses the
+             whole run — nothing is changed. */
+          for (var i = 0; i < folders.length; i++) {
+            var f0 = folders[i];
+            if (folio252Set[f0.id]) continue;
+            var ex = folio252RecRaw(f0.id);
+            if (ex && !(ex.kind === 'Collection' && objWsCollProps(ex.props || []).length)) {
+              folio252Status = 'failed';
+              folio252ShowBanner('Collection unification did NOT run: an existing record already uses the identity of the collection “' + (f0.name || 'Collection') + '”. Nothing was changed — every collection keeps its previous behavior and all of your records are exactly as before.');
+              try { console.error('[FolioDocs -252] refused: identity collision on folder', f0.id); } catch (e) {}
+              return false;
+            }
+          }
+          var preIds = {};
+          (objStore.globals || []).forEach(function (r) { preIds[r.id] = true; });
+          Object.keys(objStore.docObjs || {}).forEach(function (k) { (objStore.docObjs[k] || []).forEach(function (r) { preIds[r.id] = true; }); });
+          var globalsBefore = (objStore.globals || []).length;
+          var storedBefore = folio252StoredTotal(preIds);
+          var effBefore = {};
+          folders.forEach(function (f) { effBefore[f.id] = folio252EffKeysBefore(f.id); });
+          var ordered = folders.slice().sort(function (a, b) { return folio252Depth(a) - folio252Depth(b); });
+          var created = [];
+          ordered.forEach(function (f) {
+            var was = !!folio252RecRaw(f.id);
+            var how = folio252MaterializeOne(f);
+            if (how === 'created' && !was) created.push(f.id);
+          });
+          created.forEach(function (fid) {
+            var f = folderById(fid);
+            if (f) folio252SeedRecord(f);
+          });
+          /* Verify before the registry of record stands. */
+          var problems = [];
+          if ((objStore.globals || []).length !== globalsBefore + created.length) problems.push('record count');
+          if (folio252StoredTotal(preIds) !== storedBefore) problems.push('stored memberships changed');
+          folders.forEach(function (f) {
+            var rec = folio252FolderRec(f.id);
+            if (!rec) { problems.push('no record for “' + (f.name || 'Collection') + '”'); return; }
+            if (!folio252SetEq(effBefore[f.id], folio252EffKeysAfter(f, rec))) problems.push('member mismatch for “' + (f.name || 'Collection') + '”');
+          });
+          if (problems.length) {
+            objStore.globals = (objStore.globals || []).filter(function (r) { return created.indexOf(r.id) === -1; });
+            created.forEach(function (fid) { delete folio252Set[fid]; delete folio252Snap[fid]; });
+            folio252Status = 'failed';
+            folio252ShowBanner('Collection unification did NOT complete (' + problems.join('; ') + '). Nothing was changed: the new records were removed, your collections keep their previous behavior, and every membership is exactly as before. Tap Retry after the next update, and keep your latest backup file safe.');
+            try { console.error('[FolioDocs -252] refused:', problems); } catch (e) {}
+            return false;
+          }
+          folio252Status = 'done';
+          folio252SaveMarker();
+          folio252SaveSnap();
+          objSave();
+          try { renderDocList(); } catch (e) {}
+          try { renderObjWsList(); } catch (e) {}
+          folio252ConvertTabs();
+          return true;
+        }
+        /* Saved 'obj:f:' tabs become the record's tab — one
+           canonical tab per collection, as for born records. */
+        function folio252ConvertTabs() {
+          var changed = false;
+          for (var i = tabRecords.length - 1; i >= 0; i--) {
+            var r = tabRecords[i];
+            if (!r || typeof r.docId !== 'string' || r.docId.indexOf('obj:f:') !== 0) continue;
+            var fid = r.docId.slice(6);
+            if (!folio252FolderRec(fid)) continue;
+            var gid = 'obj:g:' + fid;
+            if (tabIndexOf(gid) === -1) {
+              r.docId = gid;
+              if (r.nav) r.nav.stack = [gid];
+            } else {
+              tabRecords.splice(i, 1);
+            }
+            changed = true;
+          }
+          var stageObj = false;
+          if (typeof tabActiveId === 'string' && tabActiveId.indexOf('obj:f:') === 0) {
+            var afid = tabActiveId.slice(6);
+            if (folio252FolderRec(afid)) { tabActiveId = 'obj:g:' + afid; changed = true; stageObj = true; }
+          }
+          if (changed) {
+            try { tabPersist(); } catch (e) {}
+            try { tabRender(); } catch (e) {}
+            if (stageObj) {
+              try { rec228ShowRecord({ kind: 'obj', scope: 'global', id: afid, homeDocId: null }); } catch (e) {}
+            }
+          }
+        }
+
+        /* ----- name / icon / color: one source, two doors ----- */
+        function folio252TripleF(f) { return { n: f.name || 'Collection', i: f.icon || null, c: f.color || null }; }
+        function folio252TripleR(rec) {
+          var hp = rec.headline ? objPropById(rec, rec.headline) : null;
+          var hn = (hp && hp.type === 'text' && typeof hp.value === 'string' && hp.value) ? hp.value : null;
+          return {
+            n: hn || rec.name || 'Collection',
+            i: (rec.emoji && rec.emoji !== '📁') ? rec.emoji : null,
+            c: rec.color || null,
+          };
+        }
+        function folio252ApplyToRec(rec, t) {
+          rec.name = t.n;
+          var hp = rec.headline ? objPropById(rec, rec.headline) : null;
+          if (hp && hp.type === 'text') hp.value = t.n;
+          rec.emoji = t.i || '📁';
+          rec.color = t.c || '';
+        }
+        function folio252ApplyToFolder(f, t) { f.name = t.n; f.icon = t.i; f.color = t.c; }
+        function folio252Reconcile() {
+          if (folio252Status !== 'done') return;
+          (lib.folders || []).forEach(function (f) {
+            if (!folio252Set[f.id] && !folio252RecRaw(f.id)) {
+              /* A folder that arrived by sync since the
+                 migration: materialize it like the others. */
+              if (folio252MaterializeOne(f) === 'created') {
+                folio252SeedRecord(f);
+                folio252SaveMarker();
+                try { objSave(); } catch (e) {}
+              }
+            }
+          });
+          var dirtyF = false, dirtyR = false;
+          (lib.folders || []).forEach(function (f) {
+            var rec = folio252FolderRec(f.id);
+            if (!rec) return;
+            var tf = folio252TripleF(f), tr = folio252TripleR(rec), snap = folio252Snap[f.id];
+            if (!snap) { folio252Snap[f.id] = tf; return; }
+            var fChanged = tf.n !== snap.n || tf.i !== snap.i || tf.c !== snap.c;
+            var rChanged = tr.n !== snap.n || tr.i !== snap.i || tr.c !== snap.c;
+            if (fChanged && !rChanged) { folio252ApplyToRec(rec, tf); folio252Snap[f.id] = tf; dirtyR = true; }
+            else if (rChanged && !fChanged) { folio252ApplyToFolder(f, tr); folio252Snap[f.id] = tr; dirtyF = true; }
+            else if (fChanged && rChanged) { folio252ApplyToRec(rec, tf); folio252Snap[f.id] = tf; dirtyR = true; }
+          });
+          /* Nesting is structural: a materialized child
+             collection always holds a stored ref in its
+             parent's member list (the same ref the Members
+             editor writes for a born collection's
+             subcollection). Repair it here, additively and
+             idempotently, so a stale editor save that dropped
+             the ref can never un-nest a subcollection from
+             its parent's Members. */
+          (lib.folders || []).forEach(function (f) {
+            if (!f.parentId || !folio252Set[f.id] || !folio252Set[f.parentId]) return;
+            if (folio252AddStoredRef(f.parentId, f.id)) dirtyR = true;
+          });
+          folio252SaveSnap();
+          if (dirtyR) { try { objSave(); } catch (e) {} }
+          if (dirtyF) { try { persist(false); } catch (e) {} }
+        }
+
+        /* ----- route unification: every folder door lands on
+           the record ----- */
+        var origOpenFolderTab252 = rec228OpenFolderTab;
+        rec228OpenFolderTab = function (folderId) {
+          var rec = folio252FolderRec(folderId);
+          if (rec) { rec228OpenTab('global', rec); return; }
+          return origOpenFolderTab252.apply(null, arguments);
+        };
+        var origActivateTab252 = activateTab;
+        activateTab = function (id, focus) {
+          if (typeof id === 'string' && id.indexOf('obj:f:') === 0) {
+            var fid = id.slice(6);
+            var rec = folio252FolderRec(fid);
+            if (rec) {
+              var gid = 'obj:g:' + fid;
+              if (tabIndexOf(gid) === -1) {
+                var old = null;
+                try { old = tabRecord(id); } catch (e) {}
+                tabRecords.push({ docId: gid, group: old ? old.group : null, nav: (old && old.nav) || { stack: [gid], idx: 0 } });
+              }
+              var ix = tabIndexOf(id);
+              if (ix !== -1) tabRecords.splice(ix, 1);
+              return origActivateTab252(gid, focus);
+            }
+          }
+          return origActivateTab252.apply(null, arguments);
+        };
+        var origShowRecord252 = rec228ShowRecord;
+        var wrappedShowRecord252 = function (ref) {
+          if (ref && ref.kind === 'folder') {
+            var rec = folio252FolderRec(ref.id);
+            if (rec) return origShowRecord252({ kind: 'obj', scope: 'global', id: ref.id, homeDocId: null });
+          }
+          var r252 = origShowRecord252.apply(null, arguments);
+          /* Grip gate (Part 3): a record switch that lands on
+             a non-Body pane hides the rail inside rec228SetMain;
+             one that lands on a Body restores it a beat later,
+             once the pane swap has settled — the wrapped
+             updateContextRail below makes the final call. */
+          setTimeout(function () { try { updateContextRail(); } catch (e) {} }, 80);
+          return r252;
+        };
+        wrappedShowRecord252.__rec252Wrapped = true;
+        rec228ShowRecord = wrappedShowRecord252;
+
+        /* ----- membership glue (data layer only): filing
+           doors keep the record's stored list in step ----- */
+        var origMembersOf252 = rec230MembersOf;
+        rec230MembersOf = function (ref) {
+          var out = origMembersOf252.apply(null, arguments);
+          if (ref && ref.kind === 'obj') {
+            var seen = {};
+            out.forEach(function (m) { if (m.t === 'obj' && m.rec) seen[m.rec.id] = true; });
+            (objStore.globals || []).forEach(function (r) {
+              if (r.home === ref.id && !seen[r.id]) { seen[r.id] = true; out.push({ t: 'obj', rec: r, scope: 'global' }); }
+            });
+          }
+          return out;
+        };
+        var origSetHome252 = rec228SetHome;
+        rec228SetHome = function (rec, folderId) {
+          var oldHome = rec ? rec.home : null;
+          origSetHome252.apply(null, arguments);
+          if (!rec) return;
+          var changed = false;
+          if (oldHome && oldHome !== folderId && folio252FolderRec(oldHome)) changed = folio252RemoveStoredRef(oldHome, rec.id) || changed;
+          if (folderId && folio252FolderRec(folderId)) changed = folio252AddStoredRef(folderId, rec.id) || changed;
+          if (changed) { try { objSave(); } catch (e) {} }
+        };
+        var origNestFolder252 = nestFolder;
+        nestFolder = function (folderId, parentId) {
+          var f = folderById(folderId);
+          var oldParent = f ? (f.parentId || null) : null;
+          origNestFolder252.apply(null, arguments);
+          var R = folio252FolderRec(folderId);
+          if (!R) return;
+          var np = parentId || null;
+          if (oldParent === np) return;
+          if (oldParent) folio252RemoveStoredRef(oldParent, folderId);
+          if (np) { R.home = 'obj:' + np; folio252AddStoredRef(np, folderId); }
+          else delete R.home;
+          try { objSave(); } catch (e) {}
+        };
+        var origCreateFolder252 = createFolder;
+        createFolder = function (parentId) {
+          var before = {};
+          (lib.folders || []).forEach(function (f) { before[f.id] = true; });
+          var r = origCreateFolder252.apply(null, arguments);
+          if (folio252Status === 'done') {
+            var nf = (lib.folders || []).find(function (f) { return !before[f.id]; });
+            if (nf && folio252MaterializeOne(nf) === 'created') {
+              folio252SeedRecord(nf);
+              folio252SaveMarker();
+              folio252SaveSnap();
+              try { objSave(); } catch (e) {}
+            }
+          }
+          return r;
+        };
+        var origDeleteFolder252 = deleteFolder;
+        deleteFolder = function (id) {
+          var R = folio252FolderRec(id);
+          var f = folderById(id);
+          var parentId = f ? (f.parentId || null) : null;
+          var homed = R ? (objStore.globals || []).filter(function (r) { return r.home === id; }) : [];
+          var childRecs = R ? childFolders(id).map(function (cf) { return folio252FolderRec(cf.id); }).filter(Boolean) : [];
+          origDeleteFolder252.apply(null, arguments);
+          if (!R) return;
+          /* The folder is retired: its record retires with
+             it, and the members the folder door lifted to the
+             parent collection join the parent's stored list,
+             as its own filing now says they live there. */
+          objStore.globals = (objStore.globals || []).filter(function (r) { return r.id !== id; });
+          delete folio252Set[id];
+          delete folio252Snap[id];
+          folio252SaveMarker();
+          folio252SaveSnap();
+          childRecs.forEach(function (cr) {
+            if (parentId) cr.home = 'obj:' + parentId; else delete cr.home;
+          });
+          if (parentId && folio252FolderRec(parentId)) {
+            homed.forEach(function (r) { folio252AddStoredRef(parentId, r.id); });
+            childRecs.forEach(function (cr) { folio252AddStoredRef(parentId, cr.id); });
+          }
+          try { objSave(); } catch (e) {}
+          try { renderObjWsList(); } catch (e) {}
+        };
+        var origObjDoDelete252 = objDoDelete;
+        objDoDelete = function (scope, rec) {
+          var fid = (scope === 'global' && rec && folio252Set[rec.id] && folderById(rec.id)) ? rec.id : null;
+          var r = origObjDoDelete252.apply(null, arguments);
+          /* Deleting the record from its Danger Zone retires
+             the collection's tree node with it — the wrapped
+             deleteFolder above finds no record left and only
+             lifts the members, exactly as its own door does. */
+          if (fid && folderById(fid)) { try { deleteFolder(fid); } catch (e) {} }
+          return r;
+        };
+
+        /* ----- presentation: the tree keeps its node; the
+           record does not ALSO stand in the root list ----- */
+        var origRootObjects252 = rec228RootObjects;
+        rec228RootObjects = function () {
+          return origRootObjects252().filter(function (r) { return !folio252Set[r.id]; });
+        };
+        var origOmniFolderEntry252 = omniFolderEntry;
+        omniFolderEntry = function (f) {
+          var e = origOmniFolderEntry252.apply(null, arguments);
+          var rec = f && folio252FolderRec(f.id);
+          if (rec) e.run = function () { rec228OpenTab('global', rec); };
+          return e;
+        };
+        var origSyncCurrent252 = rec230SyncSidebarCurrent;
+        rec230SyncSidebarCurrent = function () {
+          origSyncCurrent252.apply(null, arguments);
+          try {
+            var at = rec230ActiveTabId();
+            if (!at || !docListEl) return;
+            docListEl.querySelectorAll('[data-rec-tab]').forEach(function (el) {
+              var t = el.getAttribute('data-rec-tab');
+              if (t && t.indexOf('obj:f:') === 0 && at === 'obj:g:' + t.slice(6)) el.classList.add('current');
+            });
+            docListEl.querySelectorAll('.folder').forEach(function (w) {
+              var head = w.querySelector(':scope > .folder-head');
+              if (head && at === 'obj:g:' + w.getAttribute('data-folder-id')) head.classList.add('current');
+            });
+          } catch (e) {}
+        };
+        var origRenderDocList252 = renderDocList;
+        renderDocList = function () {
+          var r = origRenderDocList252.apply(null, arguments);
+          try { folio252Reconcile(); } catch (e) {}
+          return r;
+        };
+
+        /* ----- Part 3: the line grip answers only in Body -- */
+        function folio252PaneInFront() {
+          try { if (typeof rec250AnyPaneInPaper === 'function' && rec250AnyPaneInPaper()) return true; } catch (e) {}
+          try {
+            var ws = document.getElementById('objWorkspace');
+            if (ws && !ws.hidden && ws.offsetParent !== null) return true;
+            var vp = document.getElementById('varPanel');
+            if (vp && !vp.hidden && vp.offsetParent !== null) return true;
+            var st = document.getElementById('recStage228');
+            if (st && !st.hidden) return true;
+          } catch (e) {}
+          return false;
+        }
+        var origUpdateContextRail252 = updateContextRail;
+        updateContextRail = function () {
+          if (folio252PaneInFront()) { if (railEl) railEl.hidden = true; return; }
+          return origUpdateContextRail252.apply(null, arguments);
+        };
+        var origSetMain252 = rec228SetMain;
+        rec228SetMain = function (ws) {
+          var r = origSetMain252.apply(null, arguments);
+          try {
+            if (ws !== 'body') { if (railEl) railEl.hidden = true; }
+            else setTimeout(function () { try { updateContextRail(); } catch (e) {} }, 80);
+          } catch (e) {}
+          return r;
+        };
+
+        /* ----- init: run the migration once IndexedDB has
+           settled (the -242 discipline: while hydration is
+           owed, the migration stands down and retries). ----- */
+        function rec252Init() { folio252TryMigrate(0); }
+        function folio252TryMigrate(n) {
+          var ready = true;
+          try {
+            if (typeof folioIDBSettled242 !== 'undefined') ready = !!(folioIDBSettled242 || folioIDBUnavailable242);
+          } catch (e) { ready = true; }
+          if (!ready && n < 50) { setTimeout(function () { folio252TryMigrate(n + 1); }, 300); return; }
+          if (!ready) return;
+          try { folio252Migrate(); } catch (e) { try { console.error('[FolioDocs -252] migration error', e); } catch (e2) {} }
+          try { folio252Reconcile(); } catch (e) {}
+        }
+
         /* ---------------- init ----------------
            Build -185: every step is its own failure domain.
            Before this, one throw anywhere above init (or in
@@ -88347,6 +89045,7 @@
         try { rec228Init(); } catch (e) { folioBootError('init: merger rail & stage (-228)', e); }
         try { rec231Init(); } catch (e) { folioBootError('init: consolidation (-231)', e); }
         try { rec250Init(); } catch (e) { folioBootError('init: unified bodies & page frame (-250)', e); }
+        try { rec252Init(); } catch (e) { folioBootError('init: ex-folder unification & grip gate (-252)', e); }
         try { renderTagsSection(); } catch (e) { folioBootError('init: tags section', e); }
         try { renderOutline(first.content); } catch (e) { folioBootError('init: outline', e); }
         try { renderBacklinks(); } catch (e) { folioBootError('init: backlinks', e); }
