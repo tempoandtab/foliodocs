@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261124-257" />
+    <meta name="folio-build" content="20261124-258" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24707,7 +24707,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261124-257', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261124-258', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25096,8 +25096,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-257', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-257', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-258', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-258', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25114,7 +25114,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261124-257', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261124-258', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25164,7 +25164,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261124-257', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261124-258', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25270,7 +25270,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261124-257', chunked: true, recordsSlim: true,
+            version: 3, build: '20261124-258', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25365,7 +25365,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-257'; } catch (e) { return '20261124-257'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-258'; } catch (e) { return '20261124-258'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -70269,7 +70269,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-257', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-258', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -70434,7 +70434,130 @@
               to whichever inflated stamp is largest — either
               way the stable two-way divergence ends.
            ============================================================ */
-        var uniBodyDiag257 = { pullAt: 0, pullRows: 0, pullAdopted: 0, pullDeferred: 0, pushAt: 0, pushRows: 0, pushResult: '', lastError: '' };
+        /* ============================================================
+           Build -258: WHY -257 STILL DID NOT CONVERGE, AND THE
+           REPAIR. Device evidence (phone, -257, 11:16 AM):
+           Body pull 359 rows received · 0 adopted; Body push
+           288 rows sent · ok; no body error. Transport, schema
+           and invocation are therefore all proven — the
+           adoption comparison rejected every row.
+
+           EVERY bodyMs WRITER, ENUMERATED (source audit):
+           (1) the -250 editor session's onUpdate — a genuine
+               user edit. KEEP.
+           (2) uniPull adoption (bodyMs := the remote stamp) —
+               a sync writer, legitimate. KEEP.
+           (3) rec250EnsureBodyDoc's FORCE branch — fired on
+               OPEN whenever the text mirror disagrees with an
+               existing bodyDoc. The mirror's own writers (the
+               -228 stage textarea, the borrowed-body textarea,
+               rec231 body-source writes and borrower
+               snapshots) stamp NOTHING at write time, so this
+               branch was where their version got minted — at
+               the next VIEW, on whichever device viewed first.
+               A view-time mint. CLOSE: the text writers now
+               stamp at write time (they are genuine wholesale
+               edits), and the force branch only repairs the
+               document cache, stamping nothing.
+           (4) folioBodyRows256's fallback FREEZE — any record
+               body reaching a push without a bodyMs had one
+               minted from its fallback provenance, whose last
+               resort is objStore.updated: a STORE-level clock
+               bumped by every save of anything. A push-time
+               mint from an unrelated save. CLOSE: the push
+               never writes bodyMs; an unstamped body is pushed
+               with stamp 0 (epoch), which can create the row
+               but can never outrank anything.
+           (5) rec250EnsureBodyDoc's missing-bodyDoc branch —
+               already stamp-free since -257. rec250Migrate /
+               rec250ConvertRecord, the -252 heal, restore and
+               objNormalizeRec mint nothing (normalize only
+               preserves). No other writers exist.
+           And the poison already on the devices: -257's
+           preserve-fix made -256's inflated stamps DURABLE.
+           The phone's stored stamp for its stale Parenting
+           body (minted by -256-era opens, and renewable by
+           (3)/(4) under -257) stood later than the iPad's
+           genuine -257 edit, so the strictly-newer pull test
+           rejected the iPad's row, and the phone's push then
+           re-enshrined its stale body in the cloud under that
+           stamp — self-reinforcing, exactly as observed
+           (0 adopted of 359, push ok).
+
+           THE COMPARISON, EXACTLY (pre--258): remote
+           Date.parse(folio_bodies.updated_at) — which is
+           whatever the last pushing device froze into the row
+           from its local bodyMs / fallback — had to be
+           STRICTLY greater than the local cmp (bodyMs, else
+           rec.updated [never present on normalized records],
+           else 0). For Parenting: iPad's push wrote its
+           genuine edit stamp; the phone's local cmp was its
+           own later, non-edit stamp. Newer lost to later.
+
+           THE -258 RULES (stamp trust is unrecoverable for
+           pre--258 bodies, so it is not asked to decide):
+           - FLOOR258 = 1795537200000 (2026-11-24 16:20 UTC,
+             after every -257 device event, before any -258
+             edit can exist). A stamp at/after the floor can
+             only have been minted by -258 code, whose only
+             minters are genuine edits and adoptions: TRUSTED.
+             Anything older is UNTRUSTED — possibly genuine,
+             possibly view/push-minted; the rules below never
+             let an untrusted stamp beat a trusted one, and
+             never compare two untrusted stamps by time.
+           - trusted remote vs untrusted local: adopt.
+             untrusted remote vs trusted local: reject
+             (not-newer). trusted vs trusted: strictly newer
+             wins (ordinary LWW on real edit times).
+             untrusted vs untrusted, contents differ: a
+             deterministic content tie-break — the body whose
+             content signature hashes LARGER wins, on both
+             devices identically, so the pair converges with
+             no edit at all once the winner's row reaches the
+             cloud; either device's next genuine (trusted)
+             edit then overrides the tie-break winner
+             everywhere. Same content: no adoption needed.
+           - A local owner with NO body always adopts a
+             remote body (nothing to lose).
+           - Busy (under the caret) still defers before any
+             adoption, and the push still skips deferred ids.
+           OBSERVABILITY: the pull now counts rejection
+           reasons — not-newer / tie-lost / orphan-row /
+           same-content — surfaced in the Body pull row, so
+           one screenshot classifies the next failure. The
+           359-vs-288 gap is orphan cloud rows: folio_bodies
+           rows whose record_id has no living local owner
+           (bodies of records/documents since deleted or
+           emptied, accumulated across every build that ever
+           pushed). Chosen behavior: orphans are IGNORED for
+           adoption (a body row alone never resurrects a
+           record — the -256 rule, kept) and REPORTED in the
+           pull row's count; they are NOT pruned, because a
+           row that is an orphan on this device may be a
+           live body on the other, and deleting rows from a
+           pull is how sync systems eat data.
+           ============================================================ */
+        var FLOOR258 = 1795537200000;
+        function folioBodyHash258(s) {
+          var h1 = 0xdeadbeef, h2 = 0x41c6ce57, str = String(s == null ? '' : s);
+          for (var i = 0; i < str.length; i++) {
+            var ch = str.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+          }
+          h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+          h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+          return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+        }
+        function folioBodySig258(body) {
+          if (!body) return '';
+          var text = '';
+          try { text = rec250TextOfJson(body); } catch (e) {}
+          var json = '';
+          try { json = JSON.stringify(body); } catch (e) {}
+          return folioBodyHash258(text) + '/' + folioBodyHash258(json);
+        }
+        var uniBodyDiag257 = { pullAt: 0, pullRows: 0, pullAdopted: 0, pullDeferred: 0, pullNotNewer: 0, pullTieLost: 0, pullOrphan: 0, pullSame: 0, pushAt: 0, pushRows: 0, pushResult: '', lastError: '' };
         var uniBodyPullState257 = ''; /* '' = not run yet this session · 'ok' · 'error' */
         var uniBodyDeferred256 = {};
         function folioBodyOwners256() {
@@ -70442,23 +70565,30 @@
           (lib.docs || []).forEach(function (d) {
             if (!d || !d.id || seen[d.id]) return;
             seen[d.id] = true;
-            out.push({ id: d.id, kind: 'doc', doc: d, body: d.content || null, stamp: d.updated || 0, cmp: d.updated || 0 });
+            out.push({ id: d.id, kind: 'doc', doc: d, body: d.content || null, stamp: d.updated || 0, cmp: d.updated || 0, sig: folioBodySig258(d.content || null), trusted: (d.updated || 0) >= FLOOR258 });
           });
           function scan256(rec) {
             if (!rec || !rec.id || seen[rec.id]) return;
             seen[rec.id] = true;
             var body = rec.bodyDoc || null;
             if (!body && typeof rec.body === 'string' && rec.body !== '') { try { body = rec250TextToJson(rec.body); } catch (e) {} }
-            /* stamp: what the push claims for this body —
-               its own bodyMs, else its record's updated, else
-               (transition only) the store's last save.
-               cmp: what the pull compares — only REAL body
-               provenance (bodyMs / rec.updated); a body with
-               neither compares as 0, so fallback age can
-               never outrank a genuinely stamped edit. */
-            var stamp = rec.bodyMs || rec.updated || (body ? (objStore.updated || 0) : 0);
-            var cmp = rec.bodyMs || rec.updated || 0;
-            out.push({ id: rec.id, kind: 'rec', rec: rec, body: body, stamp: stamp, cmp: cmp });
+            /* Build -258: stamp/cmp are the body's OWN
+               version only — bodyMs, set exclusively by a
+               genuine edit or an adoption (see the -258
+               block above). The -256/-257 fallback chain
+               (rec.updated, then the store's objStore.updated)
+               is gone: it let a store-level clock, bumped by
+               every save of anything, pose as a body version,
+               and the push then froze it into bodyMs. An
+               unstamped body has stamp 0: its pushed row is
+               created at the epoch and can outrank nothing.
+               sig/trusted feed the -258 merge: trusted means
+               the stamp could only have been minted by -258
+               code (at/after FLOOR258). Documents keep their
+               established version, d.updated, classified the
+               same way. */
+            var stamp = rec.bodyMs || 0;
+            out.push({ id: rec.id, kind: 'rec', rec: rec, body: body, stamp: stamp, cmp: stamp, sig: folioBodySig258(body), trusted: stamp >= FLOOR258 });
           }
           (objStore.globals || []).forEach(scan256);
           (objStore.gColls || []).forEach(scan256);
@@ -70467,37 +70597,75 @@
           return out;
         }
         function folioBodyRows256() {
-          var rows = [], froze = false;
+          /* Build -258: the push NEVER writes bodyMs. The
+             -256/-257 fallback freeze minted a version for
+             any unstamped body out of fallback provenance
+             (ultimately objStore.updated — a store-level
+             clock any save could bump), and that minted
+             stamp then outranked genuine edits on the other
+             device. Now a row carries the body's own stamp
+             or, for a body that has never been genuinely
+             edited or adopted, the epoch: the row is created
+             (so the content exists in the cloud for the
+             merge's tie-break and for empty-local adoption)
+             but its stamp can outrank nothing, trusted or
+             untrusted, on any device. */
+          var rows = [];
           folioBodyOwners256().forEach(function (o) {
             if (!o.body) return;
             if (uniBodyDeferred256[o.id]) return;
-            var stamp = o.stamp || Date.now();
-            if (o.kind === 'rec' && !o.rec.bodyMs) { o.rec.bodyMs = stamp; froze = true; }
-            rows.push({ record_id: o.id, owner: sbUser.id, body: o.body, updated_at: new Date(stamp).toISOString() });
+            rows.push({ record_id: o.id, owner: sbUser.id, body: o.body, updated_at: new Date(o.stamp || 0).toISOString() });
           });
-          if (froze) { try { objSaveSoon(); } catch (e) {} }
           return rows;
         }
         /* The merge itself, pure: local owners against remote
            rows; isBusy(id) reports a body under the caret on
-           THIS device. A strictly newer remote version wins;
-           a busy body defers (and is reported so the push can
-           skip it); a row with no local owner is ignored. */
+           THIS device. Build -258 replaces the strictly-newer
+           test with the trust rules in the -258 block above:
+           trusted (stamp at/after FLOOR258 — mintable only by
+           a genuine -258 edit or an adoption) beats untrusted
+           regardless of the clock; trusted-vs-trusted is
+           ordinary strictly-newer LWW; untrusted-vs-untrusted
+           with differing content is settled by the
+           deterministic content-signature tie-break (larger
+           signature wins, identically on both devices); a
+           local owner with no body always adopts. Every
+           non-adoption is counted by reason — notNewer /
+           tieLost / orphan / same — so Sync details can
+           classify a failure from one screenshot. A busy
+           body defers before any adoption (and is reported
+           so the push can skip it). */
         function folioBodyMerge256(owners, remoteRows, isBusy) {
           var byId = {};
           (owners || []).forEach(function (o) { if (o && o.id && !byId[o.id]) byId[o.id] = o; });
           var adopt = [], deferred = {};
+          var reasons = { notNewer: 0, tieLost: 0, orphan: 0, same: 0 };
           (remoteRows || []).forEach(function (r) {
-            if (!r || !r.record_id || !r.body) return;
+            if (!r || !r.record_id || !r.body) { reasons.orphan++; return; }
             var o = byId[r.record_id];
-            if (!o) return;
+            if (!o) { reasons.orphan++; return; }
             var remoteMs = Date.parse(r.updated_at) || 0;
-            var localCmp = (typeof o.cmp === 'number') ? o.cmp : (o.stamp || 0);
-            if (!(remoteMs > localCmp)) return;
+            var remoteSig = folioBodySig258(r.body);
+            if (o.body && remoteSig === o.sig) { reasons.same++; return; }
+            var win = false;
+            if (!o.body) win = true;
+            else if (remoteMs >= FLOOR258 && !(o.trusted)) win = true;
+            else if (remoteMs >= FLOOR258 && o.trusted) win = remoteMs > (o.cmp || 0);
+            else if (remoteMs < FLOOR258 && o.trusted) win = false;
+            else win = remoteSig > o.sig; /* both untrusted: deterministic content tie-break */
+            if (!win) {
+              /* trusted-vs-trusted LWW loss and an untrusted
+                 remote refused by a trusted local are both
+                 "not newer"; the only other losing case is
+                 the untrusted content tie-break. */
+              if (remoteMs >= FLOOR258 || o.trusted) reasons.notNewer++;
+              else reasons.tieLost++;
+              return;
+            }
             if (isBusy && isBusy(r.record_id)) { deferred[r.record_id] = true; return; }
             adopt.push({ id: r.record_id, body: r.body, stamp: remoteMs });
           });
-          return { adopt: adopt, deferred: deferred };
+          return { adopt: adopt, deferred: deferred, reasons: reasons };
         }
         function folioBodyBusy256(id) {
           try {
@@ -70565,6 +70733,13 @@
             uniBodyDiag257.pullRows = r.data.length;
             uniBodyDiag257.pullAdopted = plan.adopt.length;
             uniBodyDiag257.pullDeferred = Object.keys(plan.deferred).length;
+            /* Build -258: rejection reasons, so one Sync
+               details screenshot classifies the next failure
+               (see the -258 block at folioBodyMerge256). */
+            uniBodyDiag257.pullNotNewer = plan.reasons ? plan.reasons.notNewer : 0;
+            uniBodyDiag257.pullTieLost = plan.reasons ? plan.reasons.tieLost : 0;
+            uniBodyDiag257.pullOrphan = plan.reasons ? plan.reasons.orphan : 0;
+            uniBodyDiag257.pullSame = plan.reasons ? plan.reasons.same : 0;
             var changedDoc = false, changedObj = false;
             plan.adopt.forEach(function (a) {
               var o = byId[a.id];
@@ -70857,7 +71032,7 @@
              row above is the LEGACY documents pull only: on
              a retired device it never advances, by design. */
           if (sbUser) {
-            row('Body pull (unified)', uniBodyDiag257.pullAt ? (sdFmtTime(uniBodyDiag257.pullAt) + ' · ' + uniBodyDiag257.pullRows + ' rows received · ' + uniBodyDiag257.pullAdopted + ' adopted' + (uniBodyDiag257.pullDeferred ? ' · ' + uniBodyDiag257.pullDeferred + ' deferred (being edited here)' : '')) : (uniBodyPullState257 === 'error' ? 'Failed — see Body sync error below' : 'Not run yet this session'));
+            row('Body pull (unified)', uniBodyDiag257.pullAt ? (sdFmtTime(uniBodyDiag257.pullAt) + ' · ' + uniBodyDiag257.pullRows + ' rows received · ' + uniBodyDiag257.pullAdopted + ' adopted' + (uniBodyDiag257.pullDeferred ? ' · ' + uniBodyDiag257.pullDeferred + ' deferred (being edited here)' : '') + ' · rejected: ' + (uniBodyDiag257.pullNotNewer || 0) + ' not-newer, ' + (uniBodyDiag257.pullTieLost || 0) + ' tie-lost, ' + (uniBodyDiag257.pullOrphan || 0) + ' orphan-row, ' + (uniBodyDiag257.pullSame || 0) + ' same-content') : (uniBodyPullState257 === 'error' ? 'Failed — see Body sync error below' : 'Not run yet this session'));
             row('Body push (unified)', uniBodyDiag257.pushAt ? (sdFmtTime(uniBodyDiag257.pushAt) + ' · ' + uniBodyDiag257.pushRows + ' rows sent · ' + (uniBodyDiag257.pushResult || 'ok')) : (uniBodyDiag257.pushResult || 'Not run yet this session'));
             if (uniBodyDiag257.lastError) row('Body sync error', uniBodyDiag257.lastError);
           }
@@ -71319,7 +71494,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261124-257', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261124-258', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -85192,6 +85367,12 @@
           ta.placeholder = 'Write this record’s body…';
           ta.addEventListener('input', function () {
             rec.body = ta.value;
+            /* Build -258: a text-path body edit stamps the
+               body's version at WRITE time — this handler is
+               a genuine wholesale body writer, and -258
+               closed the view-time mint that used to stamp
+               for it later (see rec250EnsureBodyDoc). */
+            rec.bodyMs = Date.now();
             objSaveSoon();
           });
           ta.addEventListener('change', function () { try { rec228PaintRail(); } catch (e) {} });
@@ -86350,6 +86531,7 @@
           var ownText = rec231EffectiveBodyText(ownerRec);
           if (!target) {
             ownerRec.body = ownText;
+            ownerRec.bodyMs = Date.now(); /* Build -258: wholesale body write — stamp at write time */
             prop.value = '';
             objSave();
             folioToast('Body source cleared — “' + objHeadline(ownerRec, null) + '” keeps its own copy of the text.');
@@ -86372,7 +86554,7 @@
           }
           function writeWinner(text) {
             if (target.doc) rec231DocSetText(target.doc, text);
-            else target.rec.body = text;
+            else { target.rec.body = text; target.rec.bodyMs = Date.now(); /* Build -258: wholesale body write — stamp at write time */ }
           }
           function applySet() {
             prop.value = target.doc ? target.doc.id : { oid: target.rec.id, s: target.scope === 'doc' ? 'd' : 'g' };
@@ -86416,7 +86598,7 @@
               var hit = false;
               if (goneDocId && bp.value === goneDocId) hit = true;
               if (goneRec && typeof bp.value === 'object' && bp.value.oid === goneRec.id) hit = true;
-              if (hit) { r.body = rec231EffectiveBodyText(r); bp.value = ''; }
+              if (hit) { r.body = rec231EffectiveBodyText(r); r.bodyMs = Date.now(); bp.value = ''; }
             });
           }
           scan(objStore.globals);
@@ -86954,7 +87136,7 @@
               var nta = ta.cloneNode(false);
               nta.value = trec.body || '';
               nta.setAttribute('aria-label', ta.getAttribute('aria-label') || 'Body');
-              nta.addEventListener('input', function () { trec.body = nta.value; objSaveSoon(); });
+              nta.addEventListener('input', function () { trec.body = nta.value; trec.bodyMs = Date.now(); objSaveSoon(); });
               ta.parentNode.replaceChild(nta, ta);
             } else if (tgt.kind === 'doc') {
               var note = document.createElement('div');
@@ -88701,7 +88883,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-257', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-258', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -88788,9 +88970,23 @@
           try { proj = rec250TextOfJson(owner.bodyDoc); } catch (e) {}
           var mirror = typeof owner.body === 'string' ? owner.body.replace(/\r\n?/g, '\n') : '';
           if (proj !== null && proj !== mirror) {
-            var okB256 = rec250ConvertRecord(owner, true);
-            if (okB256) owner.bodyMs = Math.max(owner.bodyMs || 0, Date.now());
-            return okB256;
+            /* Build -258: re-deriving the document from a
+               rewritten mirror is a CACHE REPAIR and stamps
+               nothing. -256/-257 stamped bodyMs = now here,
+               reasoning that a mirror disagreement is a
+               wholesale body event — but the disagreement is
+               only DETECTED here, at view time, while the
+               rewrite itself happened earlier through a text
+               path; stamping at detection let merely OPENING
+               a body mint a version later than a genuine edit
+               on the other device (a remaining view-time
+               minter under -257). The text paths themselves
+               now stamp at write time (the -228 textareas and
+               the rec231 body-source writes), so a genuine
+               wholesale rewrite already carries its true edit
+               time before this branch ever runs. */
+            var okB258 = rec250ConvertRecord(owner, true);
+            return okB258;
           }
           return true;
         }
@@ -89627,7 +89823,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-257', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-258', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
