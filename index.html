@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261124-256" />
+    <meta name="folio-build" content="20261124-257" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -23971,6 +23971,22 @@
              home (their document hosts them). */
           if (typeof r.home === 'string' && r.home) out.home = r.home;
           if (typeof r.body === 'string' && r.body) out.body = r.body;
+          /* Build -257: a record's body DOCUMENT (-250) and
+             its body version stamp (-256, rec.bodyMs) ride the
+             record exactly like body itself — present only
+             when set, so an untouched store still normalizes
+             byte-identically. Before -257 the normalizer
+             dropped both: every load (all paths run through
+             objNormalize) lost bodyDoc, so the first Body open
+             of the session re-derived it from the text mirror,
+             and -256's re-derivation stamp then claimed the
+             unedited body had been edited at open time — the
+             root of the -256 body-sync non-convergence on the
+             owner's devices (see the -257 block at uniPull257).
+             bodyDoc is cloned so the normalized record never
+             aliases the parsed store it came from. */
+          if (r.bodyDoc && typeof r.bodyDoc === 'object' && Array.isArray(r.bodyDoc.content)) { try { out.bodyDoc = objClone(r.bodyDoc); } catch (e) {} }
+          if (typeof r.bodyMs === 'number' && r.bodyMs > 0) out.bodyMs = r.bodyMs;
           if (Array.isArray(r.props)) r.props.forEach(function (p) { var n = objNormalizeProp(p); if (n) out.props.push(n); });
           if (out.headline && !out.props.some(function (p) { return p.id === out.headline; })) out.headline = null;
           if (out.art && !out.props.some(function (p) { return p.id === out.art && p.type === 'image'; })) out.art = null;
@@ -24691,7 +24707,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261124-256', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261124-257', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25080,8 +25096,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-256', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-256', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-257', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-257', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25098,7 +25114,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261124-256', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261124-257', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25148,7 +25164,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261124-256', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261124-257', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25254,7 +25270,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261124-256', chunked: true, recordsSlim: true,
+            version: 3, build: '20261124-257', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25349,7 +25365,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-256'; } catch (e) { return '20261124-256'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-257'; } catch (e) { return '20261124-257'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -58954,7 +58970,14 @@
                filed ones included (spec §5: filed ≠ closed,
                and the Book still lists them). */
             tabRecords.forEach(function (r) {
-              if (!tabRecIsTpl(r) && !tabDoc(r.docId)) return;
+              /* Build -257: an OBJECT tab ('obj:…', -228) has
+                 no document behind it, so the old doc-only
+                 guard dropped every record tab from the Book —
+                 the owner's phone showed Parenting open in the
+                 workspace yet missing from the tab manager.
+                 The tab itself was always registered; only
+                 this listing refused it. */
+              if (!tabRecIsTpl(r) && !(typeof tabRecIsObj228 === 'function' && tabRecIsObj228(r)) && !tabDoc(r.docId)) return;
               if (q && tabDisplayTitle(r).toLowerCase().indexOf(q) === -1) return;
               shown++;
               bookListEl.appendChild(bookMakeRow(r));
@@ -58967,7 +58990,10 @@
             var headedGroups = {};
             tabRecords.forEach(function (r) {
               var d = tabDoc(r.docId);
-              if (!tabRecIsTpl(r) && !d) return;
+              /* Build -257: object tabs list like any other
+                 tab (see the search branch above); bookMakeRow
+                 and tabDisplayTitle already speak 'obj:'. */
+              if (!tabRecIsTpl(r) && !d && !(typeof tabRecIsObj228 === 'function' && tabRecIsObj228(r))) return;
               var g = r.group && wsGroupById(r.group) ? wsGroupById(r.group) : null;
               if (g && !headedGroups[g.id]) {
                 headedGroups[g.id] = 1;
@@ -70243,7 +70269,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-256', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-257', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -70340,6 +70366,76 @@
            records needed no special case once bodies had
            versions and a reader.
            ============================================================ */
+        /* ============================================================
+           Build -257: WHY -256 DID NOT CONVERGE ON THE REAL
+           DEVICES, AND THE REPAIR. Established on the owner's
+           devices (both verified running -256, cycles reporting
+           Completed): the phone kept its 3-word Parenting body,
+           the iPad kept its 9-word one, indefinitely.
+
+           SCHEMA TRUTH (checked first, per the brief): -256's
+           body push and pull use ONLY the columns the -237
+           one-paste SQL created — folio_bodies(record_id,
+           owner, body, updated_at) — in the select list, the
+           upsert rows and the conflict target. bodyMs is a
+           LOCAL field only; it is carried to the backend
+           inside the row's updated_at, never as a column. No
+           schema mismatch exists and no new SQL is owed.
+
+           THE ACTUAL DEFECT is the version stamp's survival.
+           objNormalizeRec — through which EVERY store load
+           passes (legacy key, unified boot payload, IndexedDB
+           hydration, scavenge merge) — carried body and props
+           but dropped bodyDoc and bodyMs. So after any
+           relaunch (and iOS relaunches home-screen webviews
+           routinely) every record body arrived with cmp = 0
+           and no bodyDoc — and -256's rec250EnsureBodyDoc
+           treated the re-derivation of bodyDoc from the text
+           mirror as a wholesale body rewrite, stamping
+           bodyMs = Date.now(). Merely OPENING a record's Body
+           claimed it had been edited at that moment. Each
+           device therefore held a "just-edited" claim for its
+           own stale body: the pull comparison (remote stamp
+           must BEAT local cmp) failed on both sides, and the
+           push — an unconditional upsert stamped with that
+           inflated bodyMs — kept overwriting the remote row
+           with whichever device had opened the body most
+           recently. The -256 harness never modeled a load
+           (normalization) or an open-before-pull, so it passed
+           a sequence the devices never run.
+
+           THE REPAIR, three parts:
+           1. objNormalizeRec preserves bodyDoc and bodyMs
+              (present-only-when-set, like body itself), so a
+              body's version and its document survive a
+              relaunch exactly as its text always did.
+           2. rec250EnsureBodyDoc's re-derivation branch no
+              longer stamps: deriving a document from an
+              unchanged mirror is not an edit. The force
+              branch (mirror provably rewritten under an
+              existing bodyDoc) still stamps — that one IS a
+              wholesale body event.
+           3. OBSERVABILITY + A BLIND-PUSH GUARD. The body
+              pull and push record their outcome in
+              uniBodyDiag257 (times, row counts, adoptions,
+              deferrals, and the last error NAMED from the
+              backend response), surfaced as rows in Sync
+              details; a body pull that ERRORED sets
+              uniBodyPullState257 = 'error' and the following
+              push SKIPS its bodies leg rather than
+              overwriting rows it could not read, and the
+              unified check line in Sync details names the
+              body error instead of reading as an unqualified
+              success. A pre-existing divergence whose stamps
+              were inflated by -256 resolves by last-writer-
+              wins on the first genuine edit under -257 (a
+              real keystroke stamps the true edit time, which
+              beats every inflated claim), or, with no edit,
+              to whichever inflated stamp is largest — either
+              way the stable two-way divergence ends.
+           ============================================================ */
+        var uniBodyDiag257 = { pullAt: 0, pullRows: 0, pullAdopted: 0, pullDeferred: 0, pushAt: 0, pushRows: 0, pushResult: '', lastError: '' };
+        var uniBodyPullState257 = ''; /* '' = not run yet this session · 'ok' · 'error' */
         var uniBodyDeferred256 = {};
         function folioBodyOwners256() {
           var out = [], seen = {};
@@ -70447,12 +70543,28 @@
           if (!sb || !sbUser) return Promise.resolve(false);
           uniBodyDeferred256 = {};
           return Promise.resolve(sb.from('folio_bodies').select('record_id, body, updated_at')).then(function (r) {
-            if (!r || r.error || !Array.isArray(r.data)) return false;
+            /* Build -257: a failed body pull is NAMED in
+               uniBodyDiag257 and remembered in
+               uniBodyPullState257, so the push that follows
+               skips its bodies leg instead of overwriting
+               rows this device could not read, and Sync
+               details can show the failure instead of an
+               unqualified Completed. */
+            if (!r || r.error || !Array.isArray(r.data)) {
+              uniBodyPullState257 = 'error';
+              uniBodyDiag257.lastError = 'Body pull failed: ' + ((r && r.error && (r.error.message || r.error.code)) || 'no response from the backend');
+              return false;
+            }
+            uniBodyPullState257 = 'ok';
             var owners = folioBodyOwners256();
             var byId = {};
             owners.forEach(function (o) { byId[o.id] = o; });
             var plan = folioBodyMerge256(owners, r.data, folioBodyBusy256);
             uniBodyDeferred256 = plan.deferred;
+            uniBodyDiag257.pullAt = Date.now();
+            uniBodyDiag257.pullRows = r.data.length;
+            uniBodyDiag257.pullAdopted = plan.adopt.length;
+            uniBodyDiag257.pullDeferred = Object.keys(plan.deferred).length;
             var changedDoc = false, changedObj = false;
             plan.adopt.forEach(function (a) {
               var o = byId[a.id];
@@ -70472,7 +70584,11 @@
             if (changedDoc) { try { persist(false); } catch (e) {} }
             if (changedObj) { try { objSaveSoon(); } catch (e) {} }
             return true;
-          }).catch(function () { return false; });
+          }).catch(function (e) {
+            uniBodyPullState257 = 'error';
+            uniBodyDiag257.lastError = 'Body pull failed: ' + ((e && e.message) || 'request rejected');
+            return false;
+          });
         }
         function uniPush237() {
           /* Build -253: degraded read-only boot — unified
@@ -70499,22 +70615,45 @@
              folioBodyRows256 above). The -237 original mapped
              lib.docs only and stamped push time, which is why
              record bodies never synced at all. */
-          var bodies = folioBodyRows256();
-          function upChunks(table, list, conflict) {
+          /* Build -257: when this cycle's body pull ERRORED,
+             the bodies leg is skipped entirely — a device
+             that could not read the remote bodies must not
+             overwrite them blind (the records leg still
+             runs; it carries no body content). The skip and
+             every body upsert outcome land in uniBodyDiag257
+             with the backend's error NAMED, so Sync details
+             shows the body leg's real verdict. */
+          var bodiesSkipped257 = uniBodyPullState257 === 'error';
+          var bodies = bodiesSkipped257 ? [] : folioBodyRows256();
+          if (bodiesSkipped257) uniBodyDiag257.pushResult = 'skipped — the body pull failed, so no bodies were sent';
+          function upChunks(table, list, conflict, errSink) {
             var chain = Promise.resolve(true);
             for (var i = 0; i < list.length; i += 100) {
               (function (chunk) {
                 chain = chain.then(function (ok) {
                   if (!ok) return false;
-                  return Promise.resolve(sb.from(table).upsert(chunk, { onConflict: conflict })).then(function (r) { return !(r && r.error); });
+                  return Promise.resolve(sb.from(table).upsert(chunk, { onConflict: conflict })).then(function (r) {
+                    if (r && r.error) { if (errSink && !errSink.msg) errSink.msg = (r.error.message || r.error.code || 'backend error'); return false; }
+                    return true;
+                  });
                 });
               })(list.slice(i, i + 100));
             }
             return chain;
           }
-          return upChunks('folio_records', rows, 'owner,id').then(function (ok) {
+          return upChunks('folio_records', rows, 'owner,id', null).then(function (ok) {
             if (!ok) { uniTablesOk237 = false; try { saveSyncMeta({ uniTablesOk: false }); } catch (e) {} return false; }
-            return upChunks('folio_bodies', bodies, 'owner,record_id').then(function (ok2) {
+            if (bodiesSkipped257) {
+              uniBodyDiag257.pushAt = Date.now();
+              uniBodyDiag257.pushRows = 0;
+              return true;
+            }
+            var bodyErr257 = { msg: '' };
+            return upChunks('folio_bodies', bodies, 'owner,record_id', bodyErr257).then(function (ok2) {
+              uniBodyDiag257.pushAt = Date.now();
+              uniBodyDiag257.pushRows = bodies.length;
+              uniBodyDiag257.pushResult = ok2 ? 'ok' : 'failed';
+              if (!ok2) uniBodyDiag257.lastError = 'Body push failed: ' + (bodyErr257.msg || 'the backend rejected a bodies upsert');
               uniTablesOk237 = !!ok2;
               try { saveSyncMeta({ uniTablesOk: !!ok2 }); } catch (e) {}
               if (ok2) uniWriteMarker237();
@@ -70582,7 +70721,14 @@
                directions. A failed pull never blocks the push:
                uniPull256 resolves false and the chain runs on. */
             uniPull256().then(function () { return uniPush237(); }).then(function (pushed) {
-              uniLastCheck237 = pushed ? 'Unified push completed at ' + new Date().toLocaleTimeString() : 'Unified push failed at ' + new Date().toLocaleTimeString() + ' — the tables did not accept the push';
+              /* Build -257: a cycle whose BODY leg failed or
+                 was skipped names that in the check line — the
+                 unified verdict is never an unqualified
+                 success over a failed body sync. */
+              var bodyNote257 = (uniBodyPullState257 === 'error' || uniBodyDiag257.pushResult === 'failed')
+                ? ' — BODY SYNC FAILED: ' + (uniBodyDiag257.lastError || 'see Sync details')
+                : '';
+              uniLastCheck237 = (pushed ? 'Unified push completed at ' + new Date().toLocaleTimeString() : 'Unified push failed at ' + new Date().toLocaleTimeString() + ' — the tables did not accept the push') + bodyNote257;
               /* Build -240: retirement gets a second chance on
                  every completed cycle, not only at boot — a boot
                  pass that found the registry mid-refresh (or a
@@ -70607,7 +70753,7 @@
             }
           }).catch(function () { uniLastCheck237 = 'Unified check could not read the cloud marker'; });
         }
-        try { window.__folioUnifiedSync = { tablesOk: function () { return uniTablesOk237; }, markerSeen: function () { return uniMarkerSeen237; }, lastCheck: function () { return uniLastCheck237; }, sql: function () { return UNI_SQL_237; }, push: uniPush237, pull: uniPull256, bodyOwners: folioBodyOwners256, bodyRows: folioBodyRows256, bodyMerge: folioBodyMerge256 }; } catch (e) {}
+        try { window.__folioUnifiedSync = { tablesOk: function () { return uniTablesOk237; }, markerSeen: function () { return uniMarkerSeen237; }, lastCheck: function () { return uniLastCheck237; }, sql: function () { return UNI_SQL_237; }, push: uniPush237, pull: uniPull256, bodyOwners: folioBodyOwners256, bodyRows: folioBodyRows256, bodyMerge: folioBodyMerge256, bodyDiag: function () { return uniBodyDiag257; }, bodyPullState: function () { return uniBodyPullState257; } }; } catch (e) {}
 
         function syncNow() {
           if (!sb || !sbUser) {
@@ -70701,6 +70847,20 @@
             : uniTablesOk237 === true ? 'Syncing (folio_records + folio_bodies)'
             : uniTablesOk237 === false ? (folioRetired239 ? 'Unified tables unreachable — records are local-only in the unified store until the one-paste SQL runs' : 'Waiting for the one-paste SQL — legacy sync carries records meanwhile')
             : (meta.uniTablesOk ? 'Syncing (folio_records + folio_bodies)' : ((folioRetired239 ? 'Not checked yet this session — records live in the unified store' : 'Not checked yet this session — legacy sync carries records meanwhile') + (uniLastCheck237 ? ' · Last check: ' + uniLastCheck237 : ''))));
+          /* Build -257: the BODY leg of unified sync, stated
+             separately — when it last pulled (rows received,
+             bodies adopted, bodies deferred because they were
+             being edited), when it last pushed (rows sent and
+             the result), and the last body-sync error NAMED.
+             A body failure can no longer hide inside an
+             unqualified "Completed" cycle. The 'Last pull'
+             row above is the LEGACY documents pull only: on
+             a retired device it never advances, by design. */
+          if (sbUser) {
+            row('Body pull (unified)', uniBodyDiag257.pullAt ? (sdFmtTime(uniBodyDiag257.pullAt) + ' · ' + uniBodyDiag257.pullRows + ' rows received · ' + uniBodyDiag257.pullAdopted + ' adopted' + (uniBodyDiag257.pullDeferred ? ' · ' + uniBodyDiag257.pullDeferred + ' deferred (being edited here)' : '')) : (uniBodyPullState257 === 'error' ? 'Failed — see Body sync error below' : 'Not run yet this session'));
+            row('Body push (unified)', uniBodyDiag257.pushAt ? (sdFmtTime(uniBodyDiag257.pushAt) + ' · ' + uniBodyDiag257.pushRows + ' rows sent · ' + (uniBodyDiag257.pushResult || 'ok')) : (uniBodyDiag257.pushResult || 'Not run yet this session'));
+            if (uniBodyDiag257.lastError) row('Body sync error', uniBodyDiag257.lastError);
+          }
           /* Build -241: measured local storage — the numbers
              behind the unify sequence's arithmetic, straight
              from this device's keys (UTF-16 bytes). */
@@ -71159,7 +71319,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261124-256', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261124-257', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -88541,7 +88701,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-256', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-257', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -88603,15 +88763,25 @@
           var owner = eff.rec;
           if (!owner.bodyDoc) {
             var okA256 = rec250ConvertRecord(owner);
-            /* Build -256: a derivation from a text mirror that
-               carries text is a body-version event — a text
-               path rewrote the body wholesale — so the body
-               takes a current stamp (rec.bodyMs, the version
-               unified body sync compares). An empty derivation
-               (first open of a body-less record) stamps
-               nothing: an empty body must never outrank a real
-               body held by another device. */
-            if (okA256 && typeof owner.body === 'string' && owner.body !== '') owner.bodyMs = Math.max(owner.bodyMs || 0, Date.now());
+            /* Build -257: re-deriving the document from the
+               text mirror is NOT a body-version event and
+               stamps nothing. -256 stamped bodyMs = now here,
+               reasoning that a missing bodyDoc meant a text
+               path had rewritten the body wholesale — but
+               until -257 the normalizer dropped bodyDoc on
+               every load, so this branch fired on the first
+               Body open after EVERY relaunch, and merely
+               opening a record claimed its stale body had
+               just been edited: the claim beat the genuinely
+               newer remote body in the pull comparison and
+               the push then overwrote the remote row with
+               it, on both devices, forever (the -256
+               non-convergence). A body that arrives as text
+               only keeps whatever provenance it already had
+               (bodyMs, else none); the wholesale-rewrite
+               case is the force branch below, where the
+               mirror provably disagrees with a bodyDoc that
+               exists — that one still stamps. */
             return okA256;
           }
           var proj = null;
@@ -89457,7 +89627,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-256', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-257', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
