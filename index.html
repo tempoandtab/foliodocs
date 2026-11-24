@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261124-254" />
+    <meta name="folio-build" content="20261124-255" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24691,7 +24691,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261124-254', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261124-255', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25080,8 +25080,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-254', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-254', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-255', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-255', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25098,7 +25098,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261124-254', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261124-255', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25148,7 +25148,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261124-254', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261124-255', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25254,7 +25254,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261124-254', chunked: true, recordsSlim: true,
+            version: 3, build: '20261124-255', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25349,7 +25349,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-254'; } catch (e) { return '20261124-254'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-255'; } catch (e) { return '20261124-255'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -25636,8 +25636,21 @@
             if (v === null || v === undefined) diag.missing.push(d.k);
             else if (typeof v !== 'string' || v.length !== d.n || folioHashPrelude241(v) !== d.s) diag.bad.push(d.k);
           });
+          /* Build -255: name each failed chunk's CONTENT class
+             from its manifest descriptor (kind, plus host for
+             per-document chunks) — chunk keys are positional in
+             the builder's fixed order (library documents, then
+             global records, then per-document records and
+             collections, global collections, per-document
+             properties, library meta, object meta), so the
+             kind is what makes a torn chunk identifiable as
+             "the one that held the collection records" rather
+             than a bare key. */
+          var kindOf255 = {};
+          (use.chunks || []).forEach(function (d) { kindOf255[d.k] = d.t + (d.h ? ' of ' + d.h : ''); });
+          var nameChunk255 = function (k) { return kindOf255[k] ? k + ' [' + kindOf255[k] + ']' : k; };
           diag.cls = 'assembly-failed';
-          diag.label = 'the IndexedDB manifest names ' + diag.manifestChunks + ' chunks: ' + diag.missing.length + ' missing' + (diag.missing.length ? ' (' + diag.missing.slice(0, 4).join(', ') + (diag.missing.length > 4 ? ', …' : '') + ')' : '') + ', ' + diag.bad.length + ' failing their integrity check' + (diag.bad.length ? ' (' + diag.bad.slice(0, 4).join(', ') + (diag.bad.length > 4 ? ', …' : '') + ')' : '') + ', and no byte-identical copy of the failed chunks survives elsewhere in the store';
+          diag.label = 'the IndexedDB manifest names ' + diag.manifestChunks + ' chunks: ' + diag.missing.length + ' missing' + (diag.missing.length ? ' (' + diag.missing.slice(0, 4).map(nameChunk255).join(', ') + (diag.missing.length > 4 ? ', …' : '') + ')' : '') + ', ' + diag.bad.length + ' failing their integrity check' + (diag.bad.length ? ' (' + diag.bad.slice(0, 4).map(nameChunk255).join(', ') + (diag.bad.length > 4 ? ', …' : '') + ')' : '') + ', and no byte-identical copy of the failed chunks survives elsewhere in the store';
           return diag;
         }
         /* Tolerant assembly: like folioAssemblePrelude241, but a
@@ -25685,11 +25698,34 @@
           objMeta.docProps = docProps;
           return { stores: { library: libMeta, objects: objMeta }, recovered: recovered, failed: failed, libdocChunks: libdocChunks, docs: libDocs };
         }
-        function folioIDBMergeOverLegacy254(scavStores, base) {
+        function folioIDBMergeOverLegacy254(scavStores, base, authority255) {
+          /* Build -255: authority255, when the caller supplies
+             it, is the scavenged manifest's own slim records
+             inventory — the unified store's list of every
+             record id that existed at its last write. A legacy
+             item whose id is absent from that inventory was
+             deleted from the unified library before the torn
+             write (on the -254 device: the seed records
+             'seed-welcome' and 'seed-ideas', deleted long
+             before, whose legacy-snapshot copies the -254
+             merge resurrected). Such an item is NOT merged
+             back: absence from a torn chunk is ambiguous, but
+             absence from the manifest's inventory is not —
+             the store itself says the record was already gone.
+             Items the inventory names keep their legacy
+             fallback exactly as -254 built it, and when no
+             inventory is available the merge is -254's,
+             unchanged. Nothing already in a live library is
+             deleted by this; it only declines a resurrection
+             at recovery time. */
           function dedupMerge(chunkArr, storedArr) {
             var seen = {};
             (chunkArr || []).forEach(function (r) { if (r && r.id) seen[r.id] = true; });
-            return (chunkArr || []).concat((storedArr || []).filter(function (r) { return !(r && seen[r.id]); }));
+            return (chunkArr || []).concat((storedArr || []).filter(function (r) {
+              if (r && r.id && seen[r.id]) return false;
+              if (authority255 && r && r.id && !authority255[r.id]) return false;
+              return true;
+            }));
           }
           var mLib = JSON.parse(JSON.stringify(base.library));
           var sLib = scavStores.library || {};
@@ -25716,7 +25752,14 @@
           Object.keys(hostsC).forEach(function (h) { mc[h] = dedupMerge((sObj.docColls || {})[h], (base.objects.docColls || {})[h]); });
           mObj.docColls = mc;
           var dp = {};
-          Object.keys(base.objects.docProps || {}).forEach(function (id) { dp[id] = base.objects.docProps[id]; });
+          Object.keys(base.objects.docProps || {}).forEach(function (id) {
+            /* Build -255: same authority as dedupMerge — a
+               deleted document's legacy property set is not
+               resurrected either (a scavenged entry for the
+               same id, applied below, always wins). */
+            if (authority255 && !authority255[id] && !(sObj.docProps || {})[id]) return;
+            dp[id] = base.objects.docProps[id];
+          });
           Object.keys(sObj.docProps || {}).forEach(function (id) { dp[id] = sObj.docProps[id]; });
           mObj.docProps = dp;
           return { library: mLib, objects: mObj };
@@ -25809,7 +25852,17 @@
                   if (JSON.stringify(scav.stores.objects.docProps || {}) !== basePropsJson) novel = true;
                 }
                 if (!novel) continue;
-                var merged = folioIDBMergeOverLegacy254(scav.stores, base);
+                /* Build -255: the manifest that scavenged is
+                   also the authority on what the unified
+                   library contained (see the merge). Only when
+                   it actually carries its records inventory —
+                   otherwise the merge runs exactly as -254. */
+                var authority255 = null;
+                if (mans[mi] && Array.isArray(mans[mi].records) && mans[mi].records.length) {
+                  authority255 = {};
+                  mans[mi].records.forEach(function (r) { if (r && r.id) authority255[r.id] = true; });
+                }
+                var merged = folioIDBMergeOverLegacy254(scav.stores, base, authority255);
                 if (folioIDBAdoptRecovered254(merged, mi === 0 ? 'idb-scavenge' : 'idb-scavenge-prev', diag)) {
                   return { ok: true, via: folioIDBRecoveredVia254, diag: diag };
                 }
@@ -70190,7 +70243,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-254', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-255', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -70870,7 +70923,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261124-254', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261124-255', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -88252,7 +88305,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-254', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-255', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -89146,7 +89199,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-254', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-255', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
@@ -89155,8 +89208,38 @@
           return (objStore.globals || []).find(function (r) { return r.id === id; }) || null;
         }
         function folio252FolderRec(id) {
-          if (!id || !folio252Set[id]) return null;
-          return folio252RecRaw(id);
+          if (!id) return null;
+          var rec255 = folio252RecRaw(id);
+          if (!rec255) return null;
+          if (!folio252Set[id]) {
+            /* Build -255: STATE-DRIVEN materialization. The
+               v252 marker set is a record of what a past run
+               created, never a veto: a healthy collection
+               record carrying the folder's id IS the folder's
+               record whether or not the marker remembers it,
+               so adopt it into the set on sight. (The -254
+               device failure was the mirror image: the marker
+               survived while the records were lost with the
+               torn chunks, and every marker-gated check then
+               certified a state that no longer existed.) */
+            if (rec255.kind === 'Collection' && objWsCollProps(rec255.props || []).length) {
+              folio252Set[id] = true;
+              var f255 = null;
+              try { f255 = folderById(id); } catch (e) {}
+              if (f255 && !folio252Snap[id]) { try { folio252Snap[id] = folio252TripleF(f255); } catch (e) {} }
+            } else return null;
+          }
+          return rec255;
+        }
+        /* Build -255: a folder's materialization is HEALTHY
+           only when the record itself is present and whole —
+           a Collection with a collection property (the seven
+           panes and the Body all ride on that record). The
+           marker is never consulted here. */
+        function folio252Healthy255(id) {
+          if (!id) return false;
+          var rec = folio252RecRaw(id);
+          return !!(rec && rec.kind === 'Collection' && objWsCollProps(rec.props || []).length);
         }
         function folio252CollProp(rec) {
           if (!rec) return null;
@@ -89192,10 +89275,18 @@
            Returns 'created', 'adopted', or false (identity
            collision — a non-collection record holds the id). */
         function folio252MaterializeOne(f) {
-          if (!f || folio252Set[f.id]) return false;
+          if (!f) return false;
+          /* Build -255: no marker veto. A folder whose record
+             is absent is (re)created even when the marker set
+             still names it — that is exactly the post-scavenge
+             state this build heals. A healthy record already
+             present is adopted (or, if the set already names
+             it, left alone); a non-collection record holding
+             the id remains an identity collision. */
           var existing = folio252RecRaw(f.id);
           if (existing) {
             if (existing.kind === 'Collection' && objWsCollProps(existing.props || []).length) {
+              if (folio252Set[f.id]) return false;
               folio252Set[f.id] = true;
               if (!folio252Snap[f.id]) folio252Snap[f.id] = folio252TripleF(f);
               return 'adopted';
@@ -89305,14 +89396,34 @@
 
         /* ----- the migration ----- */
         function folio252Migrate() {
-          if (folio252Status === 'done') return true;
           var folders = (lib.folders || []).slice();
+          /* Build -255: STATE-DRIVEN, SELF-HEALING. The v252
+             marker may record completion but must never veto
+             a state check: audit the records THEMSELVES, and
+             if any folder lacks a healthy materialized record
+             (the -254 scavenge state — marker intact, records
+             lost with the torn chunks), clear those ids from
+             the marker set and run the materialization for
+             them here, whatever the marker says. Folders whose
+             records are already healthy are left untouched and
+             are exempt from the membership re-verification
+             below, so unrelated drift in a surviving record
+             can never roll back a heal. */
+          var preHealthy255 = {};
+          folders.forEach(function (f) { if (folio252Healthy255(f.id)) preHealthy255[f.id] = true; });
+          if (folio252Status === 'done') {
+            var missing255 = folders.filter(function (f) { return !preHealthy255[f.id]; });
+            if (!missing255.length) return true;
+            missing255.forEach(function (f) { delete folio252Set[f.id]; });
+            folio252Status = 'pending';
+            try { console.warn('[FolioDocs -255] the v252 marker claims the folder unification is done, but ' + missing255.length + ' folder(s) have no materialized record (' + missing255.map(function (f) { return f.name || f.id; }).join(', ') + ') — re-materializing from state, not from the marker.'); } catch (e) {}
+          }
           /* Identity pre-check: a folder whose id is held by
              a record that is not a collection refuses the
              whole run — nothing is changed. */
           for (var i = 0; i < folders.length; i++) {
             var f0 = folders[i];
-            if (folio252Set[f0.id]) continue;
+            if (preHealthy255[f0.id]) continue;
             var ex = folio252RecRaw(f0.id);
             if (ex && !(ex.kind === 'Collection' && objWsCollProps(ex.props || []).length)) {
               folio252Status = 'failed';
@@ -89325,7 +89436,17 @@
           (objStore.globals || []).forEach(function (r) { preIds[r.id] = true; });
           Object.keys(objStore.docObjs || {}).forEach(function (k) { (objStore.docObjs[k] || []).forEach(function (r) { preIds[r.id] = true; }); });
           var globalsBefore = (objStore.globals || []).length;
-          var storedBefore = folio252StoredTotal(preIds);
+          /* Build -255: the stored-membership invariant guards
+             PRE-EXISTING BORN records. Healthy folder records
+             are exempt from it on a heal run: (re)materializing
+             a child folder legitimately adds its ref to the
+             parent record's member list, and counting that as
+             tampering would roll back every heal that restores
+             a subcollection. On a first run no folder record is
+             healthy yet, so the invariant is exactly -252's. */
+          var storedIds255 = {};
+          Object.keys(preIds).forEach(function (id) { if (!preHealthy255[id]) storedIds255[id] = true; });
+          var storedBefore = folio252StoredTotal(storedIds255);
           var effBefore = {};
           folders.forEach(function (f) { effBefore[f.id] = folio252EffKeysBefore(f.id); });
           var ordered = folders.slice().sort(function (a, b) { return folio252Depth(a) - folio252Depth(b); });
@@ -89342,11 +89463,11 @@
           /* Verify before the registry of record stands. */
           var problems = [];
           if ((objStore.globals || []).length !== globalsBefore + created.length) problems.push('record count');
-          if (folio252StoredTotal(preIds) !== storedBefore) problems.push('stored memberships changed');
+          if (folio252StoredTotal(storedIds255) !== storedBefore) problems.push('stored memberships changed');
           folders.forEach(function (f) {
             var rec = folio252FolderRec(f.id);
             if (!rec) { problems.push('no record for “' + (f.name || 'Collection') + '”'); return; }
-            if (!folio252SetEq(effBefore[f.id], folio252EffKeysAfter(f, rec))) problems.push('member mismatch for “' + (f.name || 'Collection') + '”');
+            if (!preHealthy255[f.id] && !folio252SetEq(effBefore[f.id], folio252EffKeysAfter(f, rec))) problems.push('member mismatch for “' + (f.name || 'Collection') + '”');
           });
           if (problems.length) {
             objStore.globals = (objStore.globals || []).filter(function (r) { return created.indexOf(r.id) === -1; });
@@ -89423,13 +89544,32 @@
           if (folioIDBDegraded253) return;
           if (folio252Status !== 'done') return;
           (lib.folders || []).forEach(function (f) {
-            if (!folio252Set[f.id] && !folio252RecRaw(f.id)) {
-              /* A folder that arrived by sync since the
-                 migration: materialize it like the others. */
-              if (folio252MaterializeOne(f) === 'created') {
-                folio252SeedRecord(f);
-                folio252SaveMarker();
-                try { objSave(); } catch (e) {}
+            if (!folio252Healthy255(f.id)) {
+              /* Build -255: state-driven heal, not marker-
+                 driven. This covers both a folder that arrived
+                 by sync since the migration AND a folder whose
+                 materialized record was lost while the marker
+                 survived (the -254 device state): either way,
+                 if the record is not there and healthy, it is
+                 (re)materialized here. Gated on IndexedDB
+                 hydration having settled, so a pre-hydration
+                 legacy working set can never spawn records the
+                 unified store is about to disown; the boot's
+                 folio252TryMigrate runs the same heal through
+                 folio252Migrate once settling lands. */
+              var settled255 = true;
+              try { if (typeof folioIDBSettled242 !== 'undefined') settled255 = !!(folioIDBSettled242 || folioIDBUnavailable242); } catch (e) {}
+              if (settled255) {
+                var how255 = folio252MaterializeOne(f);
+                if (how255 === 'created') {
+                  folio252SeedRecord(f);
+                  folio252SaveMarker();
+                  folio252SaveSnap();
+                  try { objSave(); } catch (e) {}
+                } else if (how255 === 'adopted') {
+                  folio252SaveMarker();
+                  folio252SaveSnap();
+                }
               }
             }
           });
