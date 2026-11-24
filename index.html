@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261124-253" />
+    <meta name="folio-build" content="20261124-254" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24691,7 +24691,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261124-253', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261124-254', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25080,8 +25080,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-253', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-253', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-254', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-254', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25098,7 +25098,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261124-253', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261124-254', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25148,7 +25148,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261124-253', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261124-254', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25254,7 +25254,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261124-253', chunked: true, recordsSlim: true,
+            version: 3, build: '20261124-254', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25349,7 +25349,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-253'; } catch (e) { return '20261124-253'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-254'; } catch (e) { return '20261124-254'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -25502,6 +25502,344 @@
             return null;
           });
         }
+        /* ============================================================
+           Build -254: classification + recovery for the store the
+           -253 reader called "missing or unreadable".
+
+           DEVICE EVIDENCE (owner's iPad, -253, Sync details):
+           the banner reported an IndexedDB verdict while the
+           panel described a legacy state — backend "Local
+           storage — the IndexedDB move has not completed",
+           unified records "Migration pending", legacy counters
+           agreeing 62 docs / 9 collections with the server, and
+           the legacy localStorage stores FULLY POPULATED
+           (folio.library.v1 1.77 MB, folio-objects 0.63 MB,
+           folio.syncmeta.v1 1.96 MB; ~4.71 MB across 39 stores),
+           with ~2.15 MB of IndexedDB usage reported for the
+           origin and persistent storage NOT granted. The
+           degraded view nevertheless rendered a coherent
+           279-record library with correct collection counts.
+
+           (A) What the degraded view renders: the synchronous
+           load at the top of this script reads folio.library.v1
+           / folio-objects directly whenever the device is not
+           retired, so on THIS device the in-memory library IS
+           the intact legacy library (62 docs, 9 folders), and
+           the in-memory unified registry built from it is what
+           renders as 279 records. Every Sync-details row reads
+           those same in-memory state variables
+           (folioIDBActive242 false, folioRetired239 false,
+           folioMigrationState pending) because the failed
+           hydration never updated them — the panel describes
+           the legacy layer truthfully; only the banner carried
+           the IndexedDB verdict. Both were produced by one
+           boot: legacy load first (synchronous), IDB hydration
+           second (async, failed, degraded).
+
+           (B) What "missing or unreadable" covered in -253:
+           exactly one throw in folioBootIDB242, raised whenever
+           folioIDBReadStores242 returned null, which happens
+           when (1) the kv store holds no folio.records.manifest
+           key, (2) the manifest value is not a chunked manifest
+           (wrong shape / a JSON string / a pre-chunked payload),
+           or (3) BOTH the current manifest and the -253
+           previous-manifest fail assembly — any chunk missing,
+           any chunk failing its length+hash check with no
+           byte-identical donor elsewhere in the store, a chunk
+           that no longer parses, or a missing libmeta/objmeta
+           chunk. A database that opens fine and holds ~2.15 MB
+           of chunks lands in class (3) exactly as an empty one
+           lands in (1): one label for every class. This device
+           most plausibly hits (3): its last recorded save error
+           is the -252 writer's own "the written IndexedDB store
+           did not assemble" (Nov 24, 7:37 AM, attempt 3), i.e.
+           a manifest was committed whose chunks no longer
+           verify, and a pre--253 store carries no previous
+           manifest for the ladder's third rung.
+
+           REPAIR (this build): folioIDBDiagnose254 names the
+           class (and the exact missing / integrity-failed chunk
+           keys) in the banner and in Sync details.
+           folioIDBRecover254 then runs, in strict order:
+           (1) SCAVENGE — a tolerant assembly of the current
+           manifest, then the previous one, that keeps every
+           chunk which verifies (directly or by byte-identical
+           donor) and merges the result OVER the intact legacy
+           stores, chunk content winning by id. This is the
+           only rung that can hold a body written by the failed
+           save (the Parenting sentence), because that body
+           exists nowhere else; it is accepted only when it
+           recovers at least one document chunk carrying a doc
+           that differs from, or is absent from, the legacy
+           copy. The adopted stores are immediately heal-written
+           as a fresh -253 generation, whose own read-back
+           verification is the coherence proof.
+           (2) LEGACY RE-MIGRATION — when the legacy stores are
+           physically present and parse (folio.library.v1 with
+           a non-empty docs array), folioMigrateToIDB242 runs
+           its existing guarded pass from them into a fresh
+           generation-scoped store: registry built and verified
+           against the source totals (count, memberships,
+           checksum) before any write, the write verified by
+           read-back inside folioIDBWriteStores242, markers
+           written, and the legacy keys cleared ONLY after that
+           verification — with the torn store's orphan chunks
+           explicitly kept (folioIDBKeepOrphans254) so nothing
+           the scavenge might still need is cleaned up by the
+           heal. The Nov 23 known-good reference (288 unified
+           records, 219 stored memberships; Baking 7, Books 9,
+           Parenting 7, Cooking 1, Mindfulness 1, Work 2,
+           Musings 2, Jew Stuff 4) is reported against the
+           result in the console and Sync details, but is NOT a
+           hard gate: the hard gate is source == built ==
+           read-back, so a legitimate edit since Nov 23 can
+           never block recovery.
+           (3) Only when neither rung yields a store does the
+           -253 degraded read-only mode engage, unchanged.
+           ============================================================ */
+        var folioIDBLastDiag254 = null;
+        var folioIDBRecoveredVia254 = null;
+        var folioIDBKeepOrphans254 = false;
+        function folioIDBParseMaybe254(v) {
+          if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return null; } }
+          return (v && typeof v === 'object') ? v : null;
+        }
+        function folioIDBDiagnose254(raw, readErr) {
+          var diag = { cls: 'unknown', label: '', missing: [], bad: [], chunkKeys: 0, manifestChunks: 0 };
+          if (!raw) {
+            diag.cls = 'read-error';
+            diag.label = 'the IndexedDB store could not even be listed' + (readErr ? ' (' + String(readErr && readErr.message || readErr) + ')' : '');
+            return diag;
+          }
+          diag.chunkKeys = Object.keys(raw.chunks || {}).length;
+          var man = folioIDBParseMaybe254(raw.manifest);
+          var prev = folioIDBParseMaybe254(raw.prevManifest);
+          if (!man && !prev) {
+            if (!diag.chunkKeys && !raw.journal) {
+              diag.cls = 'idb-empty';
+              diag.label = 'the IndexedDB database holds no store keys at all — no manifest, no chunks (never committed on this device, or evicted by the browser; persistent storage is not granted here)';
+            } else {
+              diag.cls = 'manifest-missing';
+              diag.label = 'IndexedDB holds ' + diag.chunkKeys + ' chunk keys but no readable manifest, current or previous — the chunks cannot be addressed without one';
+            }
+            return diag;
+          }
+          var use = (man && man.chunked) ? man : prev;
+          if (!use || !use.chunked) {
+            diag.cls = 'manifest-not-chunked';
+            diag.label = 'the IndexedDB manifest is present but is not a chunked (v3+) manifest, so the chunked reader cannot use it';
+            return diag;
+          }
+          diag.manifestChunks = (use.chunks || []).length;
+          (use.chunks || []).forEach(function (d) {
+            var v = (raw.chunks || {})[d.k];
+            if (v === null || v === undefined) diag.missing.push(d.k);
+            else if (typeof v !== 'string' || v.length !== d.n || folioHashPrelude241(v) !== d.s) diag.bad.push(d.k);
+          });
+          diag.cls = 'assembly-failed';
+          diag.label = 'the IndexedDB manifest names ' + diag.manifestChunks + ' chunks: ' + diag.missing.length + ' missing' + (diag.missing.length ? ' (' + diag.missing.slice(0, 4).join(', ') + (diag.missing.length > 4 ? ', …' : '') + ')' : '') + ', ' + diag.bad.length + ' failing their integrity check' + (diag.bad.length ? ' (' + diag.bad.slice(0, 4).join(', ') + (diag.bad.length > 4 ? ', …' : '') + ')' : '') + ', and no byte-identical copy of the failed chunks survives elsewhere in the store';
+          return diag;
+        }
+        /* Tolerant assembly: like folioAssemblePrelude241, but a
+           descriptor whose chunk fails (and has no byte-identical
+           donor) is SKIPPED, not fatal. Meta chunks that fail
+           yield empty shells; the caller merges over the legacy
+           stores, which carry those fields. */
+        function folioIDBScavenge254(manifest, chunks) {
+          if (!manifest || !manifest.chunked) return null;
+          var bySig = {};
+          Object.keys(chunks || {}).forEach(function (k) {
+            var v = chunks[k];
+            if (typeof v !== 'string') return;
+            var sig = v.length + ':' + folioHashPrelude241(v);
+            if (!bySig[sig]) bySig[sig] = v;
+          });
+          var libDocs = [], libMeta = null, globals = [], gColls = [], docObjs = {}, docColls = {}, docProps = {}, objMeta = null;
+          var recovered = 0, failed = [], libdocChunks = 0;
+          (manifest.chunks || []).forEach(function (desc) {
+            var v = chunks ? chunks[desc.k] : undefined;
+            if (v === null || v === undefined || typeof v !== 'string' || v.length !== desc.n || folioHashPrelude241(v) !== desc.s) {
+              var alt = bySig[desc.n + ':' + desc.s];
+              if (alt !== undefined) v = alt; else { failed.push(desc.k); return; }
+            }
+            var p = null;
+            try { p = JSON.parse(v); } catch (e) { failed.push(desc.k); return; }
+            if (desc.t === 'libdocs') { libDocs = libDocs.concat(p); libdocChunks++; }
+            else if (desc.t === 'libmeta') libMeta = p;
+            else if (desc.t === 'objglobals') globals = globals.concat(p);
+            else if (desc.t === 'objgcolls') gColls = gColls.concat(p);
+            else if (desc.t === 'objdocobjs') { docObjs[desc.h] = (docObjs[desc.h] || []).concat(p.items || []); }
+            else if (desc.t === 'objdoccolls') { docColls[desc.h] = (docColls[desc.h] || []).concat(p.items || []); }
+            else if (desc.t === 'objdocprops') { var ents = p.entries || {}; Object.keys(ents).forEach(function (id) { docProps[id] = ents[id]; }); }
+            else if (desc.t === 'objmeta') objMeta = p;
+            else { failed.push(desc.k); return; }
+            recovered++;
+          });
+          if (!libMeta) libMeta = {};
+          if (!objMeta) objMeta = {};
+          libMeta.docs = libDocs;
+          objMeta.globals = globals;
+          objMeta.gColls = gColls;
+          objMeta.docObjs = docObjs;
+          objMeta.docColls = docColls;
+          objMeta.docProps = docProps;
+          return { stores: { library: libMeta, objects: objMeta }, recovered: recovered, failed: failed, libdocChunks: libdocChunks, docs: libDocs };
+        }
+        function folioIDBMergeOverLegacy254(scavStores, base) {
+          function dedupMerge(chunkArr, storedArr) {
+            var seen = {};
+            (chunkArr || []).forEach(function (r) { if (r && r.id) seen[r.id] = true; });
+            return (chunkArr || []).concat((storedArr || []).filter(function (r) { return !(r && seen[r.id]); }));
+          }
+          var mLib = JSON.parse(JSON.stringify(base.library));
+          var sLib = scavStores.library || {};
+          Object.keys(sLib).forEach(function (k) { if (k !== 'docs') mLib[k] = sLib[k]; });
+          mLib.docs = dedupMerge(scavStores.library.docs || [], base.library.docs || []);
+          if (!Array.isArray(mLib.folders)) mLib.folders = [];
+          var mObj = JSON.parse(JSON.stringify(base.objects));
+          var sObj = scavStores.objects || {};
+          Object.keys(sObj).forEach(function (k) {
+            if (k !== 'globals' && k !== 'gColls' && k !== 'docObjs' && k !== 'docColls' && k !== 'docProps') mObj[k] = sObj[k];
+          });
+          mObj.globals = dedupMerge(sObj.globals || [], base.objects.globals || []);
+          mObj.gColls = dedupMerge(sObj.gColls || [], base.objects.gColls || []);
+          var hosts = {};
+          Object.keys(sObj.docObjs || {}).forEach(function (h) { hosts[h] = true; });
+          Object.keys(base.objects.docObjs || {}).forEach(function (h) { hosts[h] = true; });
+          var mo = {};
+          Object.keys(hosts).forEach(function (h) { mo[h] = dedupMerge((sObj.docObjs || {})[h], (base.objects.docObjs || {})[h]); });
+          mObj.docObjs = mo;
+          var hostsC = {};
+          Object.keys(sObj.docColls || {}).forEach(function (h) { hostsC[h] = true; });
+          Object.keys(base.objects.docColls || {}).forEach(function (h) { hostsC[h] = true; });
+          var mc = {};
+          Object.keys(hostsC).forEach(function (h) { mc[h] = dedupMerge((sObj.docColls || {})[h], (base.objects.docColls || {})[h]); });
+          mObj.docColls = mc;
+          var dp = {};
+          Object.keys(base.objects.docProps || {}).forEach(function (id) { dp[id] = base.objects.docProps[id]; });
+          Object.keys(sObj.docProps || {}).forEach(function (id) { dp[id] = sObj.docProps[id]; });
+          mObj.docProps = dp;
+          return { library: mLib, objects: mObj };
+        }
+        function folioIDBLegacyPresent254() {
+          try {
+            var raw = localStorage.getItem(STORE_KEY);
+            if (!raw) return null;
+            var p = JSON.parse(raw);
+            if (p && Array.isArray(p.docs) && p.docs.length) return p;
+          } catch (e) {}
+          return null;
+        }
+        function folioIDBBaseStores254(legacyLib) {
+          var objs = null;
+          try { var oraw = localStorage.getItem(OBJ_KEY); if (oraw) objs = JSON.parse(oraw); } catch (e) {}
+          if (!objs || typeof objs !== 'object') objs = JSON.parse(JSON.stringify(objStore || {}));
+          return { library: legacyLib, objects: objNormalize(objs) };
+        }
+        function folioIDBAdoptRecovered254(stores, via, diag) {
+          lib = stores.library;
+          objStore = objNormalize(JSON.parse(JSON.stringify(stores.objects)));
+          if (!lib || !Array.isArray(lib.docs) || !lib.docs.length) return false;
+          if (!Array.isArray(lib.folders)) lib.folders = [];
+          if (!lib.currentId || !lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs[0].id;
+          folioRetired239 = true;
+          folioIDBActive242 = true;
+          folioIDBPending242 = false;
+          folioIDBSettled242 = true;
+          folioIDBRecoveredVia254 = via;
+          var t = folioTotalsOfStores241({ library: lib, objects: objStore });
+          try { folioRegistry = { version: 4, build: folioStamp242(), migratedAt: Date.now(), records: recBuildRegistry237().records, counts: { total: t.total, members: t.members }, checksum: t.checksum, stores: { library: lib, objects: objStore } }; } catch (e) {}
+          folioMigrationState = { status: 'already', detail: t.total + ' records recovered (' + via + ')' };
+          folioUnifyState241 = { status: 'retired', detail: t.total + ' records, ' + t.members + ' stored memberships in IndexedDB (recovered via ' + via + ')' };
+          folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
+          folioIDBState242 = { status: 'active', detail: folioUnifyState241.detail };
+          try { console.warn('[FolioDocs idb -254] store recovered via ' + via + ': ' + t.total + ' records, ' + t.members + ' memberships. Reference check (Nov 23 device report): 288 records / 219 memberships expected when nothing has legitimately changed since. Diagnosis was: ' + (diag ? diag.label : '')); } catch (e) {}
+          folioIDBSettleRender242();
+          /* Heal: a fresh verified generation replaces the torn
+             layout. The legacy keys are deliberately NOT removed
+             here — the heal write's own read-back verification
+             is what earns their retirement, and the retirement
+             residue sweep clears them on a later boot once the
+             IDB store is the committed authority. */
+          folioIDBDirty242 = false;
+          folioQueueIDBPersist242();
+          try { if (typeof folio252TryMigrate === 'function') folio252TryMigrate(0); } catch (e) {}
+          return true;
+        }
+        function folioIDBRecover254(origErr) {
+          return folioIDBReadRaw242().then(function (raw) { return { raw: raw, readErr: null }; }, function (e) { return { raw: null, readErr: e }; }).then(function (ctx) {
+            var diag = folioIDBDiagnose254(ctx.raw, ctx.readErr || origErr);
+            folioIDBLastDiag254 = diag;
+            try { console.error('[FolioDocs idb -254] store diagnosis [' + diag.cls + ']: ' + diag.label); } catch (e) {}
+            var legacyLib = folioIDBLegacyPresent254();
+            /* Rung 1 — scavenge the IDB store itself (current
+               manifest, then previous), merged over the intact
+               legacy stores. Only this rung can hold a body the
+               failed save wrote and legacy never saw. */
+            if (ctx.raw && legacyLib) {
+              var base = folioIDBBaseStores254(legacyLib);
+              var baseById = {};
+              (base.library.docs || []).forEach(function (d) { if (d && d.id) baseById[d.id] = JSON.stringify(d); });
+              var mans = [folioIDBParseMaybe254(ctx.raw.manifest), folioIDBParseMaybe254(ctx.raw.prevManifest)];
+              for (var mi = 0; mi < mans.length; mi++) {
+                var scav = folioIDBScavenge254(mans[mi], ctx.raw.chunks);
+                if (!scav || !scav.libdocChunks) continue;
+                var novel = false;
+                (scav.docs || []).forEach(function (d) {
+                  if (d && d.id && baseById[d.id] !== JSON.stringify(d)) novel = true;
+                });
+                if (!novel) {
+                  /* The failed save's payload may ride the object
+                     store instead (a materialized collection's
+                     record and body live there): any scavenged
+                     object record that differs from, or is absent
+                     from, the legacy copy is equally novel. */
+                  var baseObjById = {};
+                  var tallyBase = function (r) { if (r && r.id) baseObjById[r.id] = JSON.stringify(r); };
+                  (base.objects.globals || []).forEach(tallyBase);
+                  (base.objects.gColls || []).forEach(tallyBase);
+                  Object.keys(base.objects.docObjs || {}).forEach(function (h) { (base.objects.docObjs[h] || []).forEach(tallyBase); });
+                  Object.keys(base.objects.docColls || {}).forEach(function (h) { (base.objects.docColls[h] || []).forEach(tallyBase); });
+                  var tallyScav = function (r) { if (r && r.id && baseObjById[r.id] !== JSON.stringify(r)) novel = true; };
+                  (scav.stores.objects.globals || []).forEach(tallyScav);
+                  (scav.stores.objects.gColls || []).forEach(tallyScav);
+                  Object.keys(scav.stores.objects.docObjs || {}).forEach(function (h) { (scav.stores.objects.docObjs[h] || []).forEach(tallyScav); });
+                  Object.keys(scav.stores.objects.docColls || {}).forEach(function (h) { (scav.stores.objects.docColls[h] || []).forEach(tallyScav); });
+                  var basePropsJson = JSON.stringify(base.objects.docProps || {});
+                  if (JSON.stringify(scav.stores.objects.docProps || {}) !== basePropsJson) novel = true;
+                }
+                if (!novel) continue;
+                var merged = folioIDBMergeOverLegacy254(scav.stores, base);
+                if (folioIDBAdoptRecovered254(merged, mi === 0 ? 'idb-scavenge' : 'idb-scavenge-prev', diag)) {
+                  return { ok: true, via: folioIDBRecoveredVia254, diag: diag };
+                }
+              }
+            }
+            /* Rung 2 — re-run the guarded migration from the
+               intact legacy stores into a fresh generation. */
+            if (legacyLib) {
+              folioIDBKeepOrphans254 = true;
+              return folioMigrateToIDB242().then(function (ok) {
+                folioIDBKeepOrphans254 = false;
+                if (ok) {
+                  folioIDBRecoveredVia254 = 'legacy-migration';
+                  try {
+                    var t2 = recSourceTotals237();
+                    console.warn('[FolioDocs idb -254] recovered via legacy re-migration: ' + t2.total + ' records, ' + t2.members + ' memberships. Reference check (Nov 23 device report): 288 records / 219 memberships expected when nothing has legitimately changed since.');
+                  } catch (e) {}
+                  try { folioIDBSettleRender242(); } catch (e) {}
+                  try { if (typeof folio252TryMigrate === 'function') folio252TryMigrate(0); } catch (e) {}
+                  return { ok: true, via: 'legacy-migration', diag: diag };
+                }
+                return { ok: false, diag: diag };
+              });
+            }
+            return { ok: false, diag: diag };
+          }).catch(function (e) {
+            try { console.error('[FolioDocs idb -254] recovery attempt failed:', e); } catch (e2) {}
+            return { ok: false, diag: folioIDBLastDiag254 };
+          });
+        }
         function folioIDBReadAll242() {
           return folioIDBReadRaw242().then(function (raw) {
             if (!raw.manifest) return null;
@@ -25618,6 +25956,14 @@
                comparison describes this store (it stays
                advisory — see folioBootIDB242). */
             try { localStorage.setItem(IDB_DONE_KEY242, JSON.stringify({ done: true, at: Date.now(), build: folioStamp242(), total: base.counts.total, members: base.counts.members })); } catch (e) {}
+            /* Build -254: a recovery heal write (the legacy
+               re-migration rung) must not delete ANY pre-existing
+               chunk: the torn store's orphans are the only other
+               copy of whatever the failed save wrote, and they
+               stay until a later ordinary write's cleanup. */
+            if (folioIDBKeepOrphans254) {
+              return folioIDBPut242(IDB_JOURNAL242, { stage: 'committed', gen: gen253, checksum: base.checksum, counts: base.counts, at: Date.now() });
+            }
             /* Cleanup: delete chunk keys referenced by NEITHER
                the new manifest nor the preserved previous one
                (older generations and positional-era orphans).
@@ -25923,40 +26269,66 @@
                 try { console.info('[FolioDocs idb -242] hydrated from IndexedDB: ' + folioUnifyState241.detail); } catch (e) {}
                 return true;
               }).catch(function (err) {
-                folioIDBPending242 = false;
-                folioIDBSettled242 = true;
-                /* Build -253: DEGRADED BOOT. The store could
-                   not be read whole even after the recovery
-                   reader (current manifest, by-hash salvage,
-                   previous committed manifest). The session is
-                   now READ-ONLY and the store is PRESERVED:
-                   folioIDBDegraded253 stands down every write
-                   path (persist, objSave, the persist queue,
-                   the unify/retire passes, the -252 migration)
-                   and every sync path (syncCycle, pushAll,
-                   uniPush237), so this session cannot overwrite
-                   the store, push the placeholder library to
-                   unified sync, or tombstone anything. The
-                   in-memory placeholder is a viewing shell
-                   only — it is never saved. This replaces the
-                   old cascade (seed fallback that kept saving
-                   and "syncing" while the record count drifted
-                   287 → 280 → 279). */
-                folioIDBDegraded253 = true;
-                folioIDBState242 = { status: 'degraded-readonly', detail: String(err && err.message || err) };
-                try { document.documentElement.removeAttribute('data-idb-boot'); } catch (e) {}
-                try { console.error('[FolioDocs idb -253] IndexedDB hydration failed; degraded read-only boot, store preserved:', err); } catch (e) {}
-                try { var svEl253 = document.getElementById('saveState'); if (svEl253) svEl253.textContent = 'Read-only'; } catch (e) {}
-                folioStateBanner241('Your record store on this device could not be read, so FolioDocs opened in read-only mode. The stored library is preserved exactly as it is: nothing has been overwritten, and this session will not save or sync anything. A later update should be able to read the store again \u2014 or restore your latest backup file (Settings \u2192 Backup & restore) to bring your records back now. (Error: ' + String(err && err.message || err) + ')', 'Retry');
-                /* Build -248 (WS1): even on this path the tabs
-                   must not stay stood down — run the deferred
-                   restore against whatever library is in memory
-                   (it degrades to the current document, exactly
-                   the pre-248 landing). The saved payload itself
-                   was never overwritten, so a backup restore +
-                   reload still brings the full set back. */
-                try { if (typeof tabRestoreAfterIDB248 === 'function') tabRestoreAfterIDB248(); } catch (e) {}
-                return false;
+                /* Build -254: RECOVERY BEFORE DEGRADED. The
+                   -253 reader's single "missing or unreadable"
+                   verdict conflated every failure class, and on
+                   the owner's iPad it fired while the legacy
+                   localStorage stores sat fully populated beside
+                   ~2.15 MB of IndexedDB chunks. The boot now
+                   stays UNSETTLED (every write and sync path
+                   stood down, exactly as during hydration) while
+                   folioIDBRecover254 runs its ladder against
+                   what is actually on the device: diagnose the
+                   IDB store's exact failure class, scavenge its
+                   verifiable chunks merged over the intact
+                   legacy stores, then re-run the guarded legacy
+                   migration into a fresh generation. Only when
+                   every rung comes back empty does the -253
+                   degraded boot below engage. */
+                folioIDBState242 = { status: 'recovering', detail: String(err && err.message || err) };
+                return folioIDBRecover254(err).then(function (rec254) {
+                  if (rec254 && rec254.ok) {
+                    try { document.documentElement.removeAttribute('data-idb-boot'); } catch (e) {}
+                    return true;
+                  }
+                  var diag254 = (rec254 && rec254.diag) || folioIDBLastDiag254;
+                  var diagLabel254 = diag254 ? diag254.label : String(err && err.message || err);
+                  folioIDBPending242 = false;
+                  folioIDBSettled242 = true;
+                  /* Build -253: DEGRADED BOOT. The store could
+                     not be read whole even after the recovery
+                     reader (current manifest, by-hash salvage,
+                     previous committed manifest) — and, since
+                     -254, after the full recovery ladder above.
+                     The session is now READ-ONLY and the store
+                     is PRESERVED: folioIDBDegraded253 stands
+                     down every write path (persist, objSave, the
+                     persist queue, the unify/retire passes, the
+                     -252 migration) and every sync path
+                     (syncCycle, pushAll, uniPush237), so this
+                     session cannot overwrite the store, push the
+                     placeholder library to unified sync, or
+                     tombstone anything. The in-memory library
+                     is a viewing shell only — it is never saved.
+                     This replaces the old cascade (seed fallback
+                     that kept saving and "syncing" while the
+                     record count drifted 287 → 280 → 279). */
+                  folioIDBDegraded253 = true;
+                  folioIDBState242 = { status: 'degraded-readonly', detail: diagLabel254 };
+                  try { document.documentElement.removeAttribute('data-idb-boot'); } catch (e) {}
+                  try { console.error('[FolioDocs idb -254] IndexedDB hydration and recovery failed; degraded read-only boot, store preserved. Diagnosis:', diagLabel254, err); } catch (e) {}
+                  try { var svEl253 = document.getElementById('saveState'); if (svEl253) svEl253.textContent = 'Read-only'; } catch (e) {}
+                  folioStateBanner241('Your record store on this device could not be read, so FolioDocs opened in read-only mode. The stored library is preserved exactly as it is: nothing has been overwritten, and this session will not save or sync anything. A later update should be able to read the store again \u2014 or restore your latest backup file (Settings \u2192 Backup & restore) to bring your records back now. (Diagnosis: ' + diagLabel254 + ')', 'Retry');
+                  /* Build -248 (WS1): even on this path the tabs
+                     must not stay stood down — run the deferred
+                     restore against whatever library is in memory
+                     (it degrades to the current document, exactly
+                     the pre-248 landing). The saved payload itself
+                     was never overwritten, so a backup restore +
+                     reload still brings the full set back. */
+                  try { if (typeof tabRestoreAfterIDB248 === 'function') tabRestoreAfterIDB248(); } catch (e) {}
+                  return false;
+                });
               });
             }
             /* Build -253 (concurrency): two pages of the app
@@ -26016,7 +26388,7 @@
           return folioIDBBootPromise242;
         }
         function folioTotalsOfStores242Safe(stores) { return folioTotalsOfStores241(stores); }
-        try { window.__folioIDB242 = { active: function () { return folioIDBActive242; }, unavailable: function () { return folioIDBUnavailable242; }, settled: function () { return folioIDBSettled242; }, state: function () { return folioIDBState242; }, boot: folioBootIDB242, migrate: folioMigrateToIDB242, flush: folioIDBFlush242, readAll: folioIDBReadAll242, readStores: folioIDBReadStores242, writeStores: folioIDBWriteStores242, estimate: function () { return folioIDBEstimate242; }, persisted: function () { return folioPersisted242; }, localStorageReport: folioStorageReport241 }; } catch (e) {}
+        try { window.__folioIDB242 = { active: function () { return folioIDBActive242; }, unavailable: function () { return folioIDBUnavailable242; }, settled: function () { return folioIDBSettled242; }, state: function () { return folioIDBState242; }, boot: folioBootIDB242, migrate: folioMigrateToIDB242, flush: folioIDBFlush242, readAll: folioIDBReadAll242, readStores: folioIDBReadStores242, writeStores: folioIDBWriteStores242, estimate: function () { return folioIDBEstimate242; }, persisted: function () { return folioPersisted242; }, localStorageReport: folioStorageReport241, degraded: function () { return folioIDBDegraded253; }, diagnose: folioIDBDiagnose254, lastDiag: function () { return folioIDBLastDiag254; }, recoveredVia: function () { return folioIDBRecoveredVia254; }, recover: folioIDBRecover254, scavenge: folioIDBScavenge254, legacyPresent: folioIDBLegacyPresent254 }; } catch (e) {}
         setTimeout(function () { try { folioBootIDB242(false); } catch (e) {} }, 0);
         /* The boot veil is a courtesy, never a trap: if anything
            above hangs, the app underneath is still the legacy
@@ -69818,7 +70190,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-253', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-254', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -70031,11 +70403,11 @@
           row('Last pull', meta.lastPullAt ? sdFmtTime(meta.lastPullAt) : 'never');
           row('Records', 'This device ' + lib.docs.length + (haveInventory ? ' · Server (last pull) ' + serverDocCount : ''));
           row('Collections', 'This device ' + lib.folders.length + (haveInventory ? ' · Server (last pull) ' + serverFolderCount : ''));
-          row('Unified records', folioRetired239 ? (folioIDBActive242 ? 'Migrated & retired — records live in IndexedDB on this device; legacy local stores cleared' : 'Migrated & retired — legacy stores cleared on this device; records live in the unified store only')
+          row('Unified records', (typeof folioIDBDegraded253 !== 'undefined' && folioIDBDegraded253) ? 'Read-only — the IndexedDB store could not be read (' + ((typeof folioIDBState242 !== 'undefined' && folioIDBState242.detail) || 'unreadable') + '); the library shown is the preserved local copy, and the legacy stores below are untouched' : (folioRetired239 ? (folioIDBActive242 ? 'Migrated & retired — records live in IndexedDB on this device; legacy local stores cleared' : 'Migrated & retired — legacy stores cleared on this device; records live in the unified store only')
             : (typeof folioUnifyState241 !== 'undefined' && (folioUnifyState241.status === 'write-failed' || folioUnifyState241.status === 'failed' || folioUnifyState241.status === 'integrity-failed') ? 'MOVE HELD — ' + folioUnifyState241.detail + '; legacy stores still authoritative'
             : (typeof folioRetireState239 !== 'undefined' && folioRetireState239.status === 'integrity-failed' ? 'RETIREMENT HELD — registry integrity check failed (see banner); legacy stores still authoritative'
             : (typeof folioMigrationState !== 'undefined' && folioMigrationState.status === 'unpersisted' ? 'NOT SAVED ON THIS DEVICE — ' + folioMigrationState.detail
-            : (typeof folioMigrationState !== 'undefined' ? (folioMigrationState.status === 'done' || folioMigrationState.status === 'already' ? 'Migrated — ' + folioMigrationState.detail + (typeof folioRetireState239 !== 'undefined' && folioRetireState239.status && folioRetireState239.status !== 'pending' ? ' · Retirement so far: ' + folioRetireState239.status + (folioRetireState239.detail ? ' — ' + folioRetireState239.detail : '') : '') : folioMigrationState.status === 'failed' ? 'MIGRATION FAILED — legacy stores still authoritative (see banner)' : 'Migration pending') : 'Unknown')))));
+            : (typeof folioMigrationState !== 'undefined' ? (folioMigrationState.status === 'done' || folioMigrationState.status === 'already' ? 'Migrated — ' + folioMigrationState.detail + (typeof folioRetireState239 !== 'undefined' && folioRetireState239.status && folioRetireState239.status !== 'pending' ? ' · Retirement so far: ' + folioRetireState239.status + (folioRetireState239.detail ? ' — ' + folioRetireState239.detail : '') : '') : folioMigrationState.status === 'failed' ? 'MIGRATION FAILED — legacy stores still authoritative (see banner)' : 'Migration pending') : 'Unknown'))))));
           row('Unified sync', !sbUser ? 'This device only (not signed in)'
             : uniTablesOk237 === true ? 'Syncing (folio_records + folio_bodies)'
             : uniTablesOk237 === false ? (folioRetired239 ? 'Unified tables unreachable — records are local-only in the unified store until the one-paste SQL runs' : 'Waiting for the one-paste SQL — legacy sync carries records meanwhile')
@@ -70056,7 +70428,19 @@
              own usage estimate for this origin, and the note
              that the local storage measured above is now only
              the small remainder (settings, markers, sidecars). */
-          row('Storage backend', folioIDBActive242 ? 'IndexedDB — unified records live in IndexedDB on this device' : (folioIDBUnavailable242 ? 'Local storage — IndexedDB is unavailable on this device' : 'Local storage — the IndexedDB move has not completed on this device'));
+          row('Storage backend', (typeof folioIDBDegraded253 !== 'undefined' && folioIDBDegraded253) ? 'IndexedDB — the store could not be read; this session is read-only and the store is preserved' : (folioIDBActive242 ? 'IndexedDB — unified records live in IndexedDB on this device' : (folioIDBUnavailable242 ? 'Local storage — IndexedDB is unavailable on this device' : 'Local storage — the IndexedDB move has not completed on this device')));
+          /* Build -254: the store's own verdict, in the same
+             words the banner uses — on the -253 iPad run this
+             panel described only the legacy layer (backend /
+             migration pending) while the banner alone carried
+             the IndexedDB failure, and the two read as a
+             contradiction. The diagnosis names the exact
+             failure class the reader found. */
+          try {
+            if (typeof folioIDBRecoveredVia254 !== 'undefined' && folioIDBRecoveredVia254) row('IndexedDB recovery', 'Recovered at boot via ' + folioIDBRecoveredVia254 + ' — IndexedDB is authoritative again and saving has resumed');
+            if (typeof folioIDBLastDiag254 !== 'undefined' && folioIDBLastDiag254) row('Last store diagnosis', folioIDBLastDiag254.cls + ' — ' + folioIDBLastDiag254.label);
+            else if (typeof folioIDBState242 !== 'undefined' && folioIDBState242 && folioIDBState242.status === 'degraded-readonly') row('Last store diagnosis', folioIDBState242.detail || 'unreadable');
+          } catch (e) {}
           var idbLine242 = document.createElement('div');
           idbLine242.className = 'sd-line';
           idbLine242.textContent = 'IndexedDB usage: checking…';
@@ -70486,7 +70870,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261124-253', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261124-254', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -87868,7 +88252,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-253', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-254', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -88762,7 +89146,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-253', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-254', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
