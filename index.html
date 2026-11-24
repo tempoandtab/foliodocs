@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261123-252" />
+    <meta name="folio-build" content="20261124-253" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -10092,6 +10092,21 @@
         var folioIDBUnavailable242 = false;
         var folioIDBDirty242 = false;
         var folioPersisted242 = null;
+        /* Build -253: the storage-incident repair. When the
+           IndexedDB store cannot be read whole at boot (even
+           after the -253 recovery reader has tried the current
+           manifest, a by-hash salvage over every chunk present,
+           and the previous committed manifest), the boot is
+           DEGRADED: the store is preserved byte-for-byte and
+           the session is read-only — persist, objSave, the
+           unify/retire passes, the -252 migration and every
+           sync path stand down, so a degraded session can
+           never overwrite the store, push a partial library
+           to unified sync, or tombstone anything. The flag
+           clears only on a boot that hydrates whole. */
+        var folioIDBDegraded253 = false;
+        var folioIDBRecovered253 = null;
+        var folioIDBMigrateRetries253 = 0; /* 'salvage' | 'prev' when the recovery reader healed a torn store */
         function folioHashPrelude241(str) {
           var h = 5381;
           for (var i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
@@ -10154,7 +10169,16 @@
                   recParsed239.stores = asm239;
                   folioBootUnified239 = recParsed239;
                   folioRetired239 = true;
-                } else {
+                } else if (!folioIDBMarkerAtBoot242) {
+                  /* Build -253: on an IndexedDB device the
+                     localStorage manifest is absent BY DESIGN
+                     (it was removed at hydration) — that is
+                     not a broken unified store, and flagging
+                     it here is what turned an IndexedDB read
+                     failure into the misleading "legacy stores
+                     were already retired" cascade. The flag is
+                     only for devices whose unified store
+                     genuinely lives in localStorage. */
                   folioUnifiedBroken239 = true;
                 }
               } else if (recParsed239 && recParsed239.version >= 2 && recParsed239.stores &&
@@ -10167,8 +10191,13 @@
                    the retirement pass reports this loudly; the
                    legacy fallback below finds nothing (the keys
                    were cleared), so a backup restore is the way
-                   back — never a silent seed over real data. */
-                folioUnifiedBroken239 = true;
+                   back — never a silent seed over real data.
+                   Build -253: skipped on IndexedDB devices,
+                   where the absent localStorage manifest is
+                   the normal state (see the chunked branch
+                   above) and IndexedDB hydration is the only
+                   authority on the store's health. */
+                if (!folioIDBMarkerAtBoot242) folioUnifiedBroken239 = true;
               }
             }
           }
@@ -11150,6 +11179,13 @@
 
         var saveTimer = null;
         function persist(showState) {
+          /* Build -253: degraded read-only boot — no store
+             write, no sync scheduled from the placeholder
+             state (see folioIDBDegraded253). */
+          if (folioIDBDegraded253) {
+            if (showState) { var roEl = document.getElementById('saveState'); if (roEl) roEl.textContent = 'Read-only'; }
+            return;
+          }
           /* Build -239: once retired, the library's only local
              home is the unified store; before retirement the
              legacy key carries it exactly as it always has. */
@@ -24593,6 +24629,9 @@
           folioStateBanner241(msg, 'Retry migration');
         }
         function folioRunMigration237(force) {
+          /* Build -253: a degraded (read-only) boot runs no
+             migration (see folioIDBDegraded253). */
+          if (folioIDBDegraded253) return false;
           /* Build -242: while the IndexedDB boot is unsettled,
              the legacy migration stands down — IndexedDB decides
              which store is authoritative first. */
@@ -24652,7 +24691,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261123-252', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20261124-253', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -24894,11 +24933,22 @@
            verified, individually parseable chunks, each
            carrying the drain instruction for the legacy
            portion it replaces. ---- */
-        function folioBuildChunkSet241(libObj, objObj, base) {
+        function folioBuildChunkSet241(libObj, objObj, base, keyPrefix) {
           var chunks = [];
           var idx = 0;
+          /* Build -253: IndexedDB writes pass a per-write
+             generation prefix (REC_KEY + '.<gen>.k'), so a
+             write NEVER overwrites a chunk the live manifest
+             still references — the positional-key protocol it
+             replaces tore the store whenever a write was
+             interrupted mid-flight, and its cache-trusted
+             skip (see folioIDBWriteStores242) could commit a
+             manifest pointing at a chunk the stale-deletion
+             step had already removed. localStorage callers
+             keep the historical positional keys. */
+          var KP241 = keyPrefix || (REC_KEY + '.k');
           function push(kind, host, value, drain) {
-            var key = REC_KEY + '.k' + (idx++);
+            var key = KP241 + (idx++);
             chunks.push({ key: key, kind: kind, host: host || null, value: value, len: value.length, hash: recHash237(value), drain: drain || null });
           }
           function pushGroups(kind, arr, drainType) {
@@ -25030,8 +25080,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-252', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261123-252', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-253', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261124-253', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25048,7 +25098,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261123-252', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20261124-253', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25056,6 +25106,10 @@
           return true;
         }
         function folioChunkedUnify241(force) {
+          /* Build -253: a degraded (read-only) boot runs no
+             unify sequence — it writes stores (see
+             folioIDBDegraded253). */
+          if (folioIDBDegraded253) return false;
           /* Build -242: same stand-down as the migration — the
              localStorage unify never runs against a state whose
              authority IndexedDB has not yet decided. */
@@ -25094,7 +25148,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261123-252', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20261124-253', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25174,6 +25228,9 @@
         }
         try { window.__folioUnify241 = { state: function () { return folioUnifyState241; }, run: function () { return folioChunkedUnify241(true); }, storage: folioStorageReport241, readDisk: folioReadUnifiedDisk241, bannerCount: function () { return document.querySelectorAll('#folioStateBanner241, #migrationBanner237, #retireBanner239').length; } }; } catch (e) {}
         function folioPersistUnified239() {
+          /* Build -253: a degraded (read-only) boot never
+             writes any store — see folioIDBDegraded253. */
+          if (folioIDBDegraded253) return false;
           if (typeof REC_KEY !== 'string') return false;
           /* Build -242: on an IndexedDB device the unified store
              lives in IndexedDB — queue the async write-through
@@ -25197,7 +25254,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261123-252', chunked: true, recordsSlim: true,
+            version: 3, build: '20261124-253', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25265,6 +25322,21 @@
         var IDB_DB242 = 'folio-docs-idb';
         var IDB_MANIFEST242 = 'folio.records.manifest';
         var IDB_JOURNAL242 = 'folio.idb.journal';
+        /* Build -253: every committed write also leaves the
+           previous committed manifest under this key (its
+           chunks are kept too — see the cleanup rule in
+           folioIDBWriteStores242), so a store whose current
+           manifest can no longer assemble still has its last
+           whole generation readable. */
+        var IDB_PREV_MANIFEST253 = 'folio.records.manifest.prev';
+        var folioIDBGenCounter253 = 0;
+        function folioIDBGen253() {
+          folioIDBGenCounter253++;
+          return 'g' + Date.now().toString(36) + folioIDBGenCounter253.toString(36) + Math.floor(Math.random() * 1679616).toString(36);
+        }
+        function folioIDBIsChunkKey253(k) {
+          return typeof k === 'string' && (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0);
+        }
         var folioIDBPromise242 = null;
         var folioIDBCache242 = null;
         var folioIDBQueue242 = Promise.resolve();
@@ -25277,7 +25349,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261123-252'; } catch (e) { return '20261123-252'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261124-253'; } catch (e) { return '20261124-253'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -25357,20 +25429,77 @@
         function folioIDBReadRaw242() {
           return folioIDBGetAllMap242().then(function (map) {
             var chunks = {};
-            Object.keys(map).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) chunks[k] = map[k]; });
-            return { manifest: map[IDB_MANIFEST242] || null, journal: map[IDB_JOURNAL242] || null, chunks: chunks };
+            Object.keys(map).forEach(function (k) { if (folioIDBIsChunkKey253(k)) chunks[k] = map[k]; });
+            return { manifest: map[IDB_MANIFEST242] || null, prevManifest: map[IDB_PREV_MANIFEST253] || null, journal: map[IDB_JOURNAL242] || null, chunks: chunks };
           });
+        }
+        /* Build -253: assemble a manifest against the chunks
+           present, with one salvage pass — when a descriptor's
+           own key is missing or fails its length+hash check,
+           any other chunk IN THE STORE whose bytes match that
+           descriptor's length+hash exactly may stand in for
+           it. Chunk bytes are content-verified either way (the
+           assembler re-checks length + hash), so a salvage can
+           only ever substitute byte-identical content; it
+           recovers the tears the positional-key era left
+           behind (a chunk deleted or overwritten at one key
+           while its bytes survive under an orphan key from an
+           interrupted write or rollback). Returns
+           { stores, salvaged } or null. */
+        function folioIDBAssemble253(manifest, chunks) {
+          if (!manifest || !manifest.chunked) return null;
+          var stores = folioAssemblePrelude241(manifest, function (k) { return chunks[k]; }, false);
+          if (stores) return { stores: stores, salvaged: false };
+          var bySig = {};
+          Object.keys(chunks || {}).forEach(function (k) {
+            var v = chunks[k];
+            if (typeof v !== 'string') return;
+            var sig = v.length + ':' + folioHashPrelude241(v);
+            if (!bySig[sig]) bySig[sig] = v;
+          });
+          var patched = {};
+          Object.keys(chunks || {}).forEach(function (k) { patched[k] = chunks[k]; });
+          var missing = 0;
+          (manifest.chunks || []).forEach(function (d) {
+            var v = patched[d.k];
+            if (v === null || v === undefined || typeof v !== 'string' || v.length !== d.n || folioHashPrelude241(v) !== d.s) {
+              var alt = bySig[d.n + ':' + d.s];
+              if (alt !== undefined) patched[d.k] = alt; else missing++;
+            }
+          });
+          if (missing) return null;
+          stores = folioAssemblePrelude241(manifest, function (k) { return patched[k]; }, false);
+          return stores ? { stores: stores, salvaged: true } : null;
         }
         function folioIDBReadStores242() {
           return folioIDBReadRaw242().then(function (raw) {
             if (!raw.manifest || !raw.manifest.chunked) return null;
-            var stores = folioAssemblePrelude241(raw.manifest, function (k) { return raw.chunks[k]; }, false);
-            if (!stores) return null;
-            folioIDBCache242 = { manifest: raw.manifest, chunks: raw.chunks };
-            var out = {};
-            Object.keys(raw.manifest).forEach(function (k) { out[k] = raw.manifest[k]; });
-            out.stores = stores;
-            return out;
+            /* Build -253 recovery order: the current manifest
+               as addressed; the current manifest with by-hash
+               salvage; then the previous committed manifest
+               (kept by the -253 writer) the same two ways. A
+               store recovered by any rung is reported through
+               folioIDBRecovered253 so the boot can heal it with
+               a fresh-generation write once it is running. */
+            var tries = [
+              { manifest: raw.manifest, via: null },
+              { manifest: raw.prevManifest, via: 'prev' }
+            ];
+            for (var ti = 0; ti < tries.length; ti++) {
+              var t = tries[ti];
+              if (!t.manifest || !t.manifest.chunked) continue;
+              var res = folioIDBAssemble253(t.manifest, raw.chunks);
+              if (res) {
+                folioIDBRecovered253 = res.salvaged ? 'salvage' : t.via;
+                folioIDBCache242 = { manifest: t.manifest, chunks: raw.chunks };
+                var out = {};
+                Object.keys(t.manifest).forEach(function (k) { out[k] = t.manifest[k]; });
+                out.stores = res.stores;
+                if (folioIDBRecovered253) out.recoveredVia253 = folioIDBRecovered253;
+                return out;
+              }
+            }
+            return null;
           });
         }
         function folioIDBReadAll242() {
@@ -25379,13 +25508,39 @@
             return { manifest: raw.manifest, chunks: raw.chunks };
           });
         }
-        /* Write a whole working state into IndexedDB: chunks in
-           their own transactions (unchanged ones skipped), the
-           manifest LAST as the commit, then a full read-back
-           verification — counts, checksum, and the longest
-           document body byte-for-byte. Any failure restores the
-           previous whole copy (or clears a first attempt) and
-           rejects; the caller's stores are never half-written. */
+        /* Write a whole working state into IndexedDB.
+           Build -253 protocol (replaces the -242/-251 one):
+           the -252 incident's root cause lives here. The old
+           protocol addressed chunks POSITIONALLY (…records.v1
+           .k0, .k1, …) and skipped any put whose value matched
+           the in-memory cache — but the cache was snapshotted
+           from the read-back taken BEFORE the same write's
+           stale-chunk deletion, so it kept describing chunks
+           the deletion had just removed. A later write whose
+           chunk at such a key was byte-identical to the
+           phantom cache entry skipped its put, committed a
+           manifest referencing a chunk that does not exist,
+           and its own read-back assembly failed — "the written
+           IndexedDB store did not assemble" (reproduced
+           against the real chunk builder + assembler with a
+           shrink→regrow write history; a young store, like the
+           owner's phone, never builds the phantom). The same
+           positional addressing meant an interrupted write
+           overwrote chunks the live manifest still referenced,
+           tearing the store it was meant to protect.
+           Now: every write builds its chunk set under a fresh
+           GENERATION prefix, writes EVERY chunk (no skip is
+           ever trusted), snapshots the live manifest to the
+           prev-manifest key, verifies the new set by read-back
+           assembly (counts, checksum, longest body
+           byte-for-byte) BEFORE committing, and only then
+           writes the manifest — the single commit point.
+           Cleanup deletes only chunk keys referenced by
+           neither the new manifest nor the preserved previous
+           one. A failure at any step deletes only the new
+           generation's keys: the previously committed store is
+           untouched by construction, so there is no rollback
+           rewrite left to fail halfway. */
         function folioIDBWriteStores242(libObj, objObj) {
           var prevLib = lib, prevObj = objStore;
           var built = null, totals = null, memberSum = 0;
@@ -25402,41 +25557,42 @@
             counts: { total: built.records.length, members: memberSum },
             checksum: totals.checksum
           };
-          var set = folioBuildChunkSet241(libObj, objObj, base);
+          var gen253 = folioIDBGen253();
+          base.gen = gen253;
+          var set = folioBuildChunkSet241(libObj, objObj, base, REC_KEY + '.' + gen253 + '.k');
           var sample = null;
           (libObj.docs || []).forEach(function (d) {
             var s = '';
             try { s = JSON.stringify(d.content || null); } catch (e) {}
             if (!sample || s.length > sample.len) sample = { id: d.id, str: s, len: s.length };
           });
-          var oldCache = folioIDBCache242;
-          /* Build -251: track exactly what this attempt writes —
-             the rollback below restores only these keys, never
-             the whole cache. */
-          var written251 = [];
-          var manifestWritten251 = false;
-          var ops = folioIDBPut242(IDB_JOURNAL242, { stage: 'writing', checksum: base.checksum, counts: base.counts, at: Date.now() });
-          /* Build -251: with no in-session cache (a cold boot
-             whose hydration read was bypassed), snapshot the
-             on-disk copy BEFORE overwriting it — it is the
-             rollback source, and its absence must never turn a
-             failed write into a store clear (see the catch). */
+          var written253 = [];
+          var snapshot253 = null; /* the on-disk state at write start: { manifest, chunks } */
+          var verifyRaw253 = null;
+          var ops = folioIDBPut242(IDB_JOURNAL242, { stage: 'writing', gen: gen253, checksum: base.checksum, counts: base.counts, at: Date.now() });
+          /* Snapshot the committed state BEFORE writing
+             anything: its manifest becomes the preserved
+             previous generation, and its chunk keys bound the
+             post-commit cleanup. */
           ops = ops.then(function () {
-            if (oldCache) return null;
             return folioIDBReadRaw242().then(function (raw) {
-              if (raw && raw.manifest) oldCache = { manifest: raw.manifest, chunks: raw.chunks };
-              return null;
+              snapshot253 = raw;
+              if (raw && raw.manifest) return folioIDBPut242(IDB_PREV_MANIFEST253, raw.manifest);
+              return folioIDBDel242(IDB_PREV_MANIFEST253);
             }).catch(function () { return null; });
           });
+          /* EVERY chunk of the new generation is written —
+             no put is ever skipped on a cache's say-so (that
+             skip is the -252 incident's root cause). */
           set.chunks.forEach(function (c) {
-            if (oldCache && oldCache.chunks[c.key] === c.value) return;
-            ops = ops.then(function () { written251.push(c.key); return folioIDBPut242(c.key, c.value); });
+            ops = ops.then(function () { written253.push(c.key); return folioIDBPut242(c.key, c.value); });
           });
-          ops = ops.then(function () { manifestWritten251 = true; return folioIDBPut242(IDB_MANIFEST242, set.manifest); });
+          /* Verify BEFORE the commit: assemble the NEW
+             manifest against what is actually on disk now. */
           ops = ops.then(function () {
             return folioIDBReadRaw242().then(function (raw) {
-              if (!raw.manifest) throw new Error('the written IndexedDB store could not be read back');
-              var stores = folioAssemblePrelude241(raw.manifest, function (k) { return raw.chunks[k]; }, false);
+              verifyRaw253 = raw;
+              var stores = folioAssemblePrelude241(set.manifest, function (k) { return raw.chunks[k]; }, false);
               if (!stores) throw new Error('the written IndexedDB store did not assemble');
               var t = folioTotalsOfStores241(stores);
               if (t.total !== base.counts.total || t.members !== base.counts.members || t.checksum !== base.checksum) {
@@ -25449,54 +25605,68 @@
                 try { ss = JSON.stringify(sd ? (sd.content || null) : null); } catch (e) {}
                 if (ss !== sample.str) throw new Error('a sampled document body did not read back intact');
               }
-              folioIDBCache242 = { manifest: raw.manifest, chunks: raw.chunks };
             });
           });
+          /* The commit: one manifest write. Until it lands,
+             the previous manifest and its generation are the
+             store, untouched. */
+          ops = ops.then(function () { return folioIDBPut242(IDB_MANIFEST242, set.manifest); });
           ops = ops.then(function () {
-            var stale = [];
-            if (oldCache) Object.keys(oldCache.chunks).forEach(function (k) {
-              var still = false;
-              set.chunks.forEach(function (c) { if (c.key === k) still = true; });
-              if (!still) stale.push(k);
-            });
-            var delOps = Promise.resolve();
-            stale.forEach(function (k) { delOps = delOps.then(function () { return folioIDBDel242(k); }); });
-            return delOps.then(function () {
-              return folioIDBPut242(IDB_JOURNAL242, { stage: 'committed', checksum: base.checksum, counts: base.counts, at: Date.now() });
+            folioIDBCache242 = { manifest: set.manifest, chunks: verifyRaw253 ? verifyRaw253.chunks : {} };
+            /* Refresh the small completion marker with the
+               totals just committed, so the boot's marker
+               comparison describes this store (it stays
+               advisory — see folioBootIDB242). */
+            try { localStorage.setItem(IDB_DONE_KEY242, JSON.stringify({ done: true, at: Date.now(), build: folioStamp242(), total: base.counts.total, members: base.counts.members })); } catch (e) {}
+            /* Cleanup: delete chunk keys referenced by NEITHER
+               the new manifest nor the preserved previous one
+               (older generations and positional-era orphans).
+               Best-effort — an undeleted orphan is inert. */
+            var keep = {};
+            set.chunks.forEach(function (c) { keep[c.key] = true; });
+            if (snapshot253 && snapshot253.manifest && Array.isArray(snapshot253.manifest.chunks)) {
+              snapshot253.manifest.chunks.forEach(function (d) { keep[d.k] = true; });
+            }
+            /* Build -253 (concurrency): cleanup first re-reads
+               the store and ALSO keeps whatever the currently
+               committed manifest and its previous-manifest
+               pointer reference. If another open instance of
+               the app committed while this write was in flight,
+               its chunks are not this write's to delete. If the
+               re-read fails, cleanup is skipped entirely — it
+               is hygiene, and the next write retries it. */
+            return folioIDBReadRaw242().then(function (now253) {
+              if (now253) {
+                if (now253.manifest && Array.isArray(now253.manifest.chunks)) now253.manifest.chunks.forEach(function (d) { keep[d.k] = true; });
+                if (now253.prevManifest && Array.isArray(now253.prevManifest.chunks)) now253.prevManifest.chunks.forEach(function (d) { keep[d.k] = true; });
+              }
+              var present = {};
+              if (verifyRaw253 && verifyRaw253.chunks) Object.keys(verifyRaw253.chunks).forEach(function (k) { present[k] = true; });
+              if (snapshot253 && snapshot253.chunks) Object.keys(snapshot253.chunks).forEach(function (k) { present[k] = true; });
+              if (now253 && now253.chunks) Object.keys(now253.chunks).forEach(function (k) { present[k] = true; });
+              var delOps = Promise.resolve();
+              Object.keys(present).forEach(function (k) {
+                if (!keep[k]) delOps = delOps.then(function () { return folioIDBDel242(k); });
+              });
+              return delOps;
+            }, function () { /* cleanup skipped this write */ }).then(function () {
+              return folioIDBPut242(IDB_JOURNAL242, { stage: 'committed', gen: gen253, checksum: base.checksum, counts: base.counts, at: Date.now() });
             });
           });
           return ops.then(function () {
             return { manifest: set.manifest, totals: { total: base.counts.total, members: base.counts.members, checksum: base.checksum } };
           }).catch(function (err) {
-            /* Build -251: roll back ONLY what this attempt
-               actually wrote. The old rollback rewrote every
-               cached chunk — under the pressure/quota conditions
-               that cause failures, the rollback was the largest
-               write in the system and could itself fail halfway.
-               And the no-cache fallback CLEARED the whole store:
-               a transient abort on a session's first write could
-               destroy the last whole copy it was meant to
-               protect. Now: keys this attempt overwrote get
-               their previous values back (keys it created are
-               deleted), the manifest is restored if it was
-               replaced, and with no rollback source the store is
-               left exactly as it stands — the previous manifest
-               still points at its own chunk set, and any chunks
-               this attempt orphaned are unreferenced and
-               harmless. */
-            if (oldCache) {
-              var rops = Promise.resolve();
-              written251.forEach(function (k) {
-                rops = rops.then(function () {
-                  if (oldCache.chunks && Object.prototype.hasOwnProperty.call(oldCache.chunks, k)) return folioIDBPut242(k, oldCache.chunks[k]);
-                  return folioIDBDel242(k);
-                });
-              });
-              if (manifestWritten251) rops = rops.then(function () { return folioIDBPut242(IDB_MANIFEST242, oldCache.manifest); });
-              rops = rops.then(function () { return folioIDBPut242(IDB_JOURNAL242, { stage: 'committed', checksum: oldCache.manifest.checksum || '', counts: oldCache.manifest.counts || null, at: Date.now() }); });
-              return rops.then(function () { throw err; }, function () { throw err; });
-            }
-            throw err;
+            /* Rollback is deletion of the new generation's
+               keys only — the committed manifest and its
+               chunks were never written by this attempt, so
+               the store is still exactly the last whole state
+               even if every delete here is refused too. */
+            var rops = Promise.resolve();
+            written253.forEach(function (k) { rops = rops.then(function () { return folioIDBDel242(k); }); });
+            rops = rops.then(function () {
+              return folioIDBPut242(IDB_JOURNAL242, { stage: 'aborted', gen: gen253, checksum: base.checksum, counts: base.counts, at: Date.now() });
+            });
+            return rops.then(function () { throw err; }, function () { throw err; });
           });
         }
         function folioIDBMessage242() {
@@ -25558,7 +25728,7 @@
             try { localStorage.removeItem(JOURNAL241_KEY); } catch (e) {}
             try {
               var staleKeys = [];
-              for (var i = 0; i < localStorage.length; i++) { var kk = localStorage.key(i); if (kk && kk.indexOf(REC_KEY + '.k') === 0) staleKeys.push(kk); }
+              for (var i = 0; i < localStorage.length; i++) { var kk = localStorage.key(i); if (kk && (kk.indexOf(REC_KEY + '.k') === 0 || kk.indexOf(REC_KEY + '.g') === 0)) staleKeys.push(kk); }
               staleKeys.forEach(function (kk) { try { localStorage.removeItem(kk); } catch (e) {} });
             } catch (e) {}
             folioDrain241 = null;
@@ -25590,6 +25760,7 @@
            reads "Saved" only after the IndexedDB transactions
            commit, never when an edit is merely queued. */
         function folioQueueIDBPersist242() {
+          if (folioIDBDegraded253) return;
           if (!folioIDBActive242) return;
           if (folioIDBPersistInFlight242) { folioIDBDirty242 = true; return; }
           folioIDBPersistInFlight242 = true;
@@ -25702,13 +25873,38 @@
                 if (!payload || !payload.stores) throw new Error('the IndexedDB store is missing or unreadable');
                 var t = folioTotalsOfStores242Safe(payload.stores);
                 var mk = folioIDBMarkerParsed242();
-                if (mk && (t.total !== mk.total || t.members !== mk.members)) throw new Error('IndexedDB verification failed (' + t.total + ' records / ' + t.members + ' memberships against the marker\u2019s ' + mk.total + ' / ' + mk.members + ')');
+                /* Build -253: the completion marker is ADVISORY
+                   only. It was written at migration time and,
+                   until this build, never refreshed by runtime
+                   writes — so its counts describe an older
+                   library, and vetoing a self-consistent store
+                   over them turned a recoverable store into a
+                   "could not be read" boot. The store verifies
+                   against ITSELF (the manifest's own counts +
+                   checksum, checked next); a marker mismatch is
+                   worth a console note, never a refusal. */
+                if (mk && (t.total !== mk.total || t.members !== mk.members)) {
+                  try { console.warn('[FolioDocs idb -253] completion marker is stale (' + mk.total + ' records / ' + mk.members + ' memberships) against the store\u2019s ' + t.total + ' / ' + t.members + '; the store\u2019s own manifest governs.'); } catch (e) {}
+                }
                 if (payload.checksum && t.checksum !== payload.checksum) throw new Error('IndexedDB property checksum mismatch');
+                if (payload.recoveredVia253) {
+                  folioIDBRecovered253 = payload.recoveredVia253;
+                  /* Heal on the settle flush below: a fresh
+                     -253 generation replaces the torn layout
+                     the recovery reader just bridged. */
+                  folioIDBDirty242 = true;
+                  try { console.warn('[FolioDocs idb -253] store recovered via ' + payload.recoveredVia253 + '; a fresh verified write will heal the layout.'); } catch (e) {}
+                }
                 lib = payload.stores.library;
                 objStore = objNormalize(JSON.parse(JSON.stringify(payload.stores.objects)));
                 if (!lib || !Array.isArray(lib.docs)) throw new Error('the IndexedDB library is unreadable');
                 if (!Array.isArray(lib.folders)) lib.folders = [];
                 if (!lib.currentId || !lib.docs.some(function (d) { return d.id === lib.currentId; })) lib.currentId = lib.docs.length ? lib.docs[0].id : null;
+                /* Build -253: a whole hydration ends any
+                   degraded session (the banner Retry re-runs
+                   this boot) — writes and sync resume only
+                   from a store that read back whole. */
+                if (folioIDBDegraded253) { folioIDBDegraded253 = false; try { folioClearStateBanner241(); } catch (e) {} }
                 folioRetired239 = true;
                 folioIDBActive242 = true;
                 folioIDBPending242 = false;
@@ -25729,10 +25925,29 @@
               }).catch(function (err) {
                 folioIDBPending242 = false;
                 folioIDBSettled242 = true;
-                folioIDBState242 = { status: 'broken', detail: String(err && err.message || err) };
+                /* Build -253: DEGRADED BOOT. The store could
+                   not be read whole even after the recovery
+                   reader (current manifest, by-hash salvage,
+                   previous committed manifest). The session is
+                   now READ-ONLY and the store is PRESERVED:
+                   folioIDBDegraded253 stands down every write
+                   path (persist, objSave, the persist queue,
+                   the unify/retire passes, the -252 migration)
+                   and every sync path (syncCycle, pushAll,
+                   uniPush237), so this session cannot overwrite
+                   the store, push the placeholder library to
+                   unified sync, or tombstone anything. The
+                   in-memory placeholder is a viewing shell
+                   only — it is never saved. This replaces the
+                   old cascade (seed fallback that kept saving
+                   and "syncing" while the record count drifted
+                   287 → 280 → 279). */
+                folioIDBDegraded253 = true;
+                folioIDBState242 = { status: 'degraded-readonly', detail: String(err && err.message || err) };
                 try { document.documentElement.removeAttribute('data-idb-boot'); } catch (e) {}
-                try { console.error('[FolioDocs idb -242] IndexedDB hydration failed:', err); } catch (e) {}
-                folioStateBanner241('The IndexedDB record store could not be read on this device. Nothing was changed. Restore your latest backup file (Settings \u2192 Backup & restore) to bring your records back.', 'Retry');
+                try { console.error('[FolioDocs idb -253] IndexedDB hydration failed; degraded read-only boot, store preserved:', err); } catch (e) {}
+                try { var svEl253 = document.getElementById('saveState'); if (svEl253) svEl253.textContent = 'Read-only'; } catch (e) {}
+                folioStateBanner241('Your record store on this device could not be read, so FolioDocs opened in read-only mode. The stored library is preserved exactly as it is: nothing has been overwritten, and this session will not save or sync anything. A later update should be able to read the store again \u2014 or restore your latest backup file (Settings \u2192 Backup & restore) to bring your records back now. (Error: ' + String(err && err.message || err) + ')', 'Retry');
                 /* Build -248 (WS1): even on this path the tabs
                    must not stay stood down — run the deferred
                    restore against whatever library is in memory
@@ -25744,12 +25959,34 @@
                 return false;
               });
             }
+            /* Build -253 (concurrency): two pages of the app
+               open at once (two tabs, or a capture harness's
+               twin viewports) must not migrate concurrently —
+               interleaved store writes can tear the store each
+               is building. The migration is claimed through a
+               short-lived localStorage flag the other instance
+               can see synchronously; an instance that finds a
+               fresh claim waits and retries the boot, by which
+               time the completion marker exists and it takes
+               the ordinary hydration path. A stale claim (the
+               claiming instance died mid-migration) expires on
+               its own. */
+            var claim253 = 0;
+            try { claim253 = parseInt(localStorage.getItem('folio.idb.migrating242') || '0', 10) || 0; } catch (e) {}
+            if (claim253 && (Date.now() - claim253) < 20000 && folioIDBMigrateRetries253 < 12) {
+              folioIDBMigrateRetries253++;
+              setTimeout(function () { folioBootIDB242(false); }, 700);
+              return true;
+            }
+            try { localStorage.setItem('folio.idb.migrating242', String(Date.now())); } catch (e) {}
             return folioMigrateToIDB242().then(function (ok) {
+              try { localStorage.removeItem('folio.idb.migrating242'); } catch (e) {}
               folioIDBSettled242 = true;
               try { document.documentElement.removeAttribute('data-idb-boot'); } catch (e) {}
               return ok;
             });
           }).catch(function (err) {
+            try { localStorage.removeItem('folio.idb.migrating242'); } catch (e) {}
             folioIDBUnavailable242 = true;
             folioIDBPending242 = false;
             folioIDBSettled242 = true;
@@ -25844,6 +26081,12 @@
           return { ok: problems.length === 0, problems: problems, marker: marker, saved: saved };
         }
         function folioRetireLegacy239() {
+          /* Build -253: a degraded (read-only) boot runs no
+             retirement pass — not even its residue sweep,
+             which deletes legacy keys (see
+             folioIDBDegraded253). The degraded banner from
+             the boot owns the surface. */
+          if (folioIDBDegraded253) { folioRetireState239 = { status: 'degraded-readonly', detail: 'store preserved; retirement stood down' }; return false; }
           /* Build -242: stands down until the IndexedDB boot
              settles, like the migration above. */
           if (!folioIDBSettled242 && !folioIDBUnavailable242) return false;
@@ -25913,6 +26156,9 @@
 
         function objTouch() { objStore.updated = Date.now(); }
         function objSave() {
+          /* Build -253: degraded read-only boot — no write,
+             no push (see folioIDBDegraded253). */
+          if (folioIDBDegraded253) return;
           objTouch();
           fxInvalidate();
           /* Build -239: retired devices write the unified store only.
@@ -25936,6 +26182,9 @@
           } catch (e) {}
         }
         function objSaveSoon() {
+          /* Build -253: degraded read-only boot — no write,
+             no push (see folioIDBDegraded253). */
+          if (folioIDBDegraded253) return;
           objTouch();
           fxInvalidate();
           /* Build -239: retired devices write the unified store only.
@@ -68288,6 +68537,9 @@
         }
 
         function pushAll() {
+          /* Build -253: degraded read-only boot — nothing
+             pushes (see folioIDBDegraded253). */
+          if (folioIDBDegraded253) return Promise.resolve(false);
           if (!sb || !sbUser) return Promise.resolve(false);
           /* Build -239: once the legacy stores are retired,
              records no longer push to the documents/folders
@@ -69464,6 +69716,11 @@
         var reconcileNextPush = false;
         var manualReconcileOnce = false;
         function syncCycle() {
+          /* Build -253: a degraded (read-only) boot never
+             syncs — no push of the placeholder library, no
+             pull-merge over it, no tombstones (see
+             folioIDBDegraded253). */
+          if (folioIDBDegraded253) { try { setSyncState('Read-only \u2014 store preserved'); } catch (e) {} return Promise.resolve(false); }
           if (!sb || !sbUser) return Promise.resolve(false);
           if (syncCyclePromise) return syncCyclePromise;
           var wantReconcile = manualReconcileOnce;
@@ -69561,12 +69818,15 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261123-252', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261124-253', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
         }
         function uniPush237() {
+          /* Build -253: degraded read-only boot — unified
+             sync never pushes from it (see folioIDBDegraded253). */
+          if (folioIDBDegraded253) return Promise.resolve(false);
           if (!sb || !sbUser) return Promise.resolve(false);
           var all = (typeof folioAllRecords237 === 'function') ? folioAllRecords237() : null;
           if (!all) return Promise.resolve(false);
@@ -70226,9 +70486,9 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261123-252', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20261124-253', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
-                Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
+                Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
                 newStorage[REC_KEY] = JSON.stringify(setN241.manifest);
               } else {
@@ -70357,7 +70617,7 @@
               delete newStorage[STORE_KEY];
               delete newStorage[OBJ_KEY];
               delete newStorage[REC_KEY];
-              Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0) delete newStorage[k]; });
+              Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
               try { newStorage[IDB_DONE_KEY242] = JSON.stringify({ done: true, at: Date.now(), build: folioStamp242(), total: res242.totals.total, members: res242.totals.members }); } catch (e) {}
               try { newStorage[MIG_KEY] = JSON.stringify({ done: true, at: Date.now(), build: folioStamp242(), total: res242.totals.total, members: res242.totals.members }); } catch (e) {}
               try { newStorage[RET_KEY] = JSON.stringify({ done: true, at: Date.now(), build: folioStamp242(), total: res242.totals.total, members: res242.totals.members }); } catch (e) {}
@@ -87608,7 +87868,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261123-252', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261124-253', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -88502,7 +88762,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261123-252', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261124-253', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
@@ -88773,6 +89033,10 @@
         }
         function folio252ApplyToFolder(f, t) { f.name = t.n; f.icon = t.i; f.color = t.c; }
         function folio252Reconcile() {
+          /* Build -253: degraded read-only boot — no
+             materialize/reconcile, no marker writes (see
+             folioIDBDegraded253). */
+          if (folioIDBDegraded253) return;
           if (folio252Status !== 'done') return;
           (lib.folders || []).forEach(function (f) {
             if (!folio252Set[f.id] && !folio252RecRaw(f.id)) {
@@ -89022,6 +89286,10 @@
            owed, the migration stands down and retries). ----- */
         function rec252Init() { folio252TryMigrate(0); }
         function folio252TryMigrate(n) {
+          /* Build -253: a degraded (read-only) boot never runs
+             the materialization — it mutates the working set
+             and saves markers (see folioIDBDegraded253). */
+          if (folioIDBDegraded253) return;
           var ready = true;
           try {
             if (typeof folioIDBSettled242 !== 'undefined') ready = !!(folioIDBSettled242 || folioIDBUnavailable242);
