@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20251125-260" />
+    <meta name="folio-build" content="20251125-261" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24717,7 +24717,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20251125-260', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20251125-261', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25106,8 +25106,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-260', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-260', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-261', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-261', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25124,7 +25124,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20251125-260', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20251125-261', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25174,7 +25174,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20251125-260', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20251125-261', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25280,7 +25280,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20251125-260', chunked: true, recordsSlim: true,
+            version: 3, build: '20251125-261', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25375,7 +25375,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-260'; } catch (e) { return '20251125-260'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-261'; } catch (e) { return '20251125-261'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -70289,7 +70289,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-260', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-261', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -71027,8 +71027,13 @@
              from, not just its class. See the -260 block at
              folioBodyCanon260. */
           var verdicts = [];
-          function vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig) {
-            verdicts.push({ id: o.id, name: o.name || o.id, rule: rule, localMs: o.stamp || 0, localProvMs: o.provStamp || 0, localProvClaim: o.provClaim || 0, remoteMs: remoteMs || 0, remoteProvMs: remoteProv || 0, remoteProvClaim: remoteClaim || 0, localSig: o.sig || '', remoteSig: remoteSig || '' });
+          function vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig, remoteId) {
+            /* Build -261: the verdict also carries the cloud
+               row's record_id (remoteId) alongside the local
+               owner's id, so an id mismatch — the other standing
+               hypothesis for the self-echo symptom family — is
+               visible on sight in the panel, not inferred. */
+            verdicts.push({ id: o.id, remoteId: remoteId || '', name: o.name || o.id, rule: rule, localMs: o.stamp || 0, localProvMs: o.provStamp || 0, localProvClaim: o.provClaim || 0, remoteMs: remoteMs || 0, remoteProvMs: remoteProv || 0, remoteProvClaim: remoteClaim || 0, localSig: o.sig || '', remoteSig: remoteSig || '' });
           }
           (remoteRows || []).forEach(function (r) {
             if (!r || !r.record_id || !r.body) { reasons.orphan++; return; }
@@ -71040,7 +71045,7 @@
             var remoteSig = folioBodySig258(remoteBody);
             var remoteProv = (rst.prov && rst.prov.sig === remoteSig) ? rst.prov.stamp : 0;
             var remoteClaim = rst.prov ? rst.prov.stamp : 0;
-            if (o.body && remoteSig === o.sig) { reasons.same++; if (watchId && r.record_id === watchId) vMake260(o, 'same-content — the cloud body is identical to this device\u2019s', remoteMs, remoteProv, remoteClaim, remoteSig); return; }
+            if (o.body && remoteSig === o.sig) { reasons.same++; if (watchId && r.record_id === watchId) vMake260(o, 'same-content — the cloud body is identical to this device\u2019s', remoteMs, remoteProv, remoteClaim, remoteSig, r.record_id); return; }
             var localProv = o.provStamp || 0;
             var win = false, loseReason = 'notNewer', rule = '';
             if (!o.body) { win = true; rule = 'adopted — no local body to lose'; }
@@ -71057,12 +71062,12 @@
             if (!win) {
               if (loseReason === 'tieLost') { reasons.tieLost++; tieLostNames.push(o.name || r.record_id); }
               else { reasons.notNewer++; notNewerNames.push(o.name || r.record_id); }
-              vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig);
+              vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig, r.record_id);
               return;
             }
-            if (isBusy && isBusy(r.record_id)) { deferred[r.record_id] = true; vMake260(o, 'deferred — this body is being edited on this device', remoteMs, remoteProv, remoteClaim, remoteSig); return; }
+            if (isBusy && isBusy(r.record_id)) { deferred[r.record_id] = true; vMake260(o, 'deferred — this body is being edited on this device', remoteMs, remoteProv, remoteClaim, remoteSig, r.record_id); return; }
             adopt.push({ id: r.record_id, body: remoteBody, stamp: remoteProv || remoteMs, provStamp: remoteProv, sig: remoteSig });
-            vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig);
+            vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig, r.record_id);
           });
           return { adopt: adopt, deferred: deferred, reasons: reasons, notNewerNames: notNewerNames, tieLostNames: tieLostNames, verdicts: verdicts };
         }
@@ -71245,9 +71250,24 @@
              every body upsert outcome land in uniBodyDiag257
              with the backend's error NAMED, so Sync details
              shows the body leg's real verdict. */
-          var bodiesSkipped257 = uniBodyPullState257 === 'error';
+          /* Build -261: the bodies leg may only run when THIS
+             cycle's body SELECT completed first — the round
+             trip (uniBodyRoundTrip261) stamps uniRtPulled261
+             with its cycle number after a successful pull, and
+             a push that cannot show that stamp (a bare push, a
+             push racing ahead of its own cycle's pull, a push
+             from any other caller) sends NO bodies and says so.
+             This is the SELECT-before-push invariant enforced
+             mechanically, in this one place, rather than by
+             caller convention (see the -261 block at
+             uniBodyRoundTrip261). The -257 pull-error skip is
+             subsumed: an errored pull never earns the stamp. */
+          var pullCurrent261 = uniRtPulled261 !== 0 && uniRtPulled261 === uniRtCycle261;
+          var bodiesSkipped257 = uniBodyPullState257 === 'error' || !pullCurrent261;
           var bodies = bodiesSkipped257 ? [] : folioBodyRows256();
-          if (bodiesSkipped257) uniBodyDiag257.pushResult = 'skipped — the body pull failed, so no bodies were sent';
+          if (bodiesSkipped257) uniBodyDiag257.pushResult = uniBodyPullState257 === 'error'
+            ? 'skipped — the body pull failed, so no bodies were sent'
+            : 'skipped — no completed body pull in this sync cycle, so no bodies were sent (bodies move only inside the pull-then-push round trip)';
           function upChunks(table, list, conflict, errSink) {
             var chain = Promise.resolve(true);
             for (var i = 0; i < list.length; i += 100) {
@@ -71302,6 +71322,80 @@
             if (!uniBodyDiag257.pushAt) { uniBodyDiag257.pushAt = Date.now(); uniBodyDiag257.pushRows = 0; uniBodyDiag257.pushResult = 'failed — the push errored before the bodies leg finished'; }
             uniTablesOk237 = false; return false;
           });
+        }
+        /* ============================================================
+           Build -261: THE BODY ROUND TRIP — THE MECHANISM, THE
+           INVARIANT, AND THE ONE PLACE IT IS ENFORCED.
+
+           What the -260 device panels proved (Sync details,
+           2026-11-25, both devices on build -260): each pull
+           received 359 rows, adopted 0, and classified all 288
+           local bodies same-content — and the Parenting verdict
+           on EACH device showed remote stamp == local stamp (to
+           the millisecond) and remote sig == local sig, while
+           the two devices' Parenting bodies and sigs DIFFERED
+           from each other. One shared cloud row cannot match
+           two different local bodies; each pull was comparing
+           the device against its own write.
+
+           Where the pull's "remote" rows come from in the
+           shipped code: exactly one place — uniPull256's
+           sb.from('folio_bodies').select('record_id, body,
+           updated_at'), whose r.data folioBodyMerge256 consumes
+           directly. There is no local re-sourcing of remote
+           rows anywhere in the chain. And the leg order of a
+           unified cycle, per trigger, was: sign-in pass —
+           legacy pullMerge, legacy pushAll, then body pull,
+           body push; Sync now / foreground / interval / online
+           — legacy pushAll, legacy pullMerge, legacy pushAll,
+           then body pull, body push; an edit alone — no unified
+           legs at all (a debounced legacy pushAll only). So
+           inside uniSyncAfterCycle237 the order already read
+           pull-then-push — but it existed ONLY as a .then chain
+           in that one caller, while uniPull256 and uniPush237
+           remained separate, separately callable legs (both are
+           even exposed on window.__folioUnifiedSync). Nothing
+           in the code made it impossible for a push to write
+           folio_bodies ahead of a given cycle's SELECT — an
+           interleaved second chain, a stray caller, or a mixed
+           page/bundle session (the -204/-214 failure shape this
+           app already detects and banners about) running legs
+           from different builds — and once a device pushes
+           first, its pull reads its own write back as
+           "remote", classifies it same-content, and the
+           divergence becomes self-sealing: every later cycle
+           repeats the echo. The -260 harness convicted the
+           signature and provenance links because it drove the
+           legs in the intended order; it never modeled a push
+           landing before the pull, so the echo was invisible
+           to it. (-261's harness adds exactly that negative
+           control: a store that can only read its own writes
+           now fails loudly.)
+
+           THE INVARIANT, enforced here and nowhere else: a
+           unified body cycle is ONE fused round trip —
+           SELECT folio_bodies, merge exactly the rows that
+           SELECT returned, and only then push — round trips
+           are serialized (they never overlap), and the push's
+           bodies leg mechanically refuses to run unless this
+           cycle's SELECT completed successfully first (see the
+           -261 gate in uniPush237). No other code path writes
+           folio_bodies.
+           ============================================================ */
+        var uniRtCycle261 = 0;   /* round trips begun */
+        var uniRtPulled261 = 0;  /* the round trip whose body SELECT completed ok */
+        var uniRtChain261 = Promise.resolve(true); /* serializes round trips */
+        function uniBodyRoundTrip261() {
+          var run = function () {
+            var cyc = ++uniRtCycle261;
+            return uniPull256().then(function () {
+              if (uniBodyPullState257 === 'ok') uniRtPulled261 = cyc;
+              return uniPush237();
+            });
+          };
+          var p = uniRtChain261.then(run, run);
+          uniRtChain261 = p.then(function () {}, function () {});
+          return p;
         }
         function uniSyncAfterCycle237(ok) {
           if (!ok || !sb || !sbUser) return;
@@ -71361,8 +71455,13 @@
                and the push then settles the remote with the
                local winners — one cycle converges both
                directions. A failed pull never blocks the push:
-               uniPull256 resolves false and the chain runs on. */
-            uniPull256().then(function () { return uniPush237(); }).then(function (pushed) {
+               uniPull256 resolves false and the chain runs on.
+               Build -261: that ordering is no longer spelled
+               out here — it lives in uniBodyRoundTrip261, the
+               one fused, serialized round trip whose push leg
+               cannot run ahead of its own cycle's SELECT (see
+               the -261 block there). */
+            uniBodyRoundTrip261().then(function (pushed) {
               /* Build -257: a cycle whose BODY leg failed or
                  was skipped names that in the check line — the
                  unified verdict is never an unqualified
@@ -71395,7 +71494,7 @@
             }
           }).catch(function () { uniLastCheck237 = 'Unified check could not read the cloud marker'; });
         }
-        try { window.__folioUnifiedSync = { tablesOk: function () { return uniTablesOk237; }, markerSeen: function () { return uniMarkerSeen237; }, lastCheck: function () { return uniLastCheck237; }, sql: function () { return UNI_SQL_237; }, push: uniPush237, pull: uniPull256, bodyOwners: folioBodyOwners256, bodyRows: folioBodyRows256, bodyMerge: folioBodyMerge256, bodyDiag: function () { return uniBodyDiag257; }, bodyPullState: function () { return uniBodyPullState257; } }; } catch (e) {}
+        try { window.__folioUnifiedSync = { tablesOk: function () { return uniTablesOk237; }, markerSeen: function () { return uniMarkerSeen237; }, lastCheck: function () { return uniLastCheck237; }, sql: function () { return UNI_SQL_237; }, push: uniPush237, pull: uniPull256, roundTrip: uniBodyRoundTrip261, bodyOwners: folioBodyOwners256, bodyRows: folioBodyRows256, bodyMerge: folioBodyMerge256, bodyDiag: function () { return uniBodyDiag257; }, bodyPullState: function () { return uniBodyPullState257; } }; } catch (e) {}
 
         function syncNow() {
           if (!sb || !sbUser) {
@@ -71477,9 +71576,13 @@
           row('Account', sbUser ? (sbUser.email || 'Signed in') : 'Not signed in — this device only');
           row('Last sync cycle', lastCycleAt ? ((lastCycleOk ? 'Completed' : 'Failed') + ' · ' + sdFmtTime(lastCycleAt)) : 'No cycle yet this session');
           row('Last successful sync', lastSyncAt ? sdFmtTime(lastSyncAt) : 'never');
-          row('Last pull', meta.lastPullAt ? sdFmtTime(meta.lastPullAt) : 'never');
-          row('Records', 'This device ' + lib.docs.length + (haveInventory ? ' · Server (last pull) ' + serverDocCount : ''));
-          row('Collections', 'This device ' + lib.folders.length + (haveInventory ? ' · Server (last pull) ' + serverFolderCount : ''));
+          /* Build -261: the legacy layer's 'Last pull',
+             'Records' and 'Collections' rows no longer sit
+             here — frozen at the legacy layer's retirement,
+             they kept reading as current truth (the owner
+             flagged the stale 'Last pull' three times). They
+             are quarantined under a labeled retired section
+             below the unified rows, which carry the truth. */
           row('Unified records', (typeof folioIDBDegraded253 !== 'undefined' && folioIDBDegraded253) ? 'Read-only — the IndexedDB store could not be read (' + ((typeof folioIDBState242 !== 'undefined' && folioIDBState242.detail) || 'unreadable') + '); the library shown is the preserved local copy, and the legacy stores below are untouched' : (folioRetired239 ? (folioIDBActive242 ? 'Migrated & retired — records live in IndexedDB on this device; legacy local stores cleared' : 'Migrated & retired — legacy stores cleared on this device; records live in the unified store only')
             : (typeof folioUnifyState241 !== 'undefined' && (folioUnifyState241.status === 'write-failed' || folioUnifyState241.status === 'failed' || folioUnifyState241.status === 'integrity-failed') ? 'MOVE HELD — ' + folioUnifyState241.detail + '; legacy stores still authoritative'
             : (typeof folioRetireState239 !== 'undefined' && folioRetireState239.status === 'integrity-failed' ? 'RETIREMENT HELD — registry integrity check failed (see banner); legacy stores still authoritative'
@@ -71495,9 +71598,11 @@
              being edited), when it last pushed (rows sent and
              the result), and the last body-sync error NAMED.
              A body failure can no longer hide inside an
-             unqualified "Completed" cycle. The 'Last pull'
-             row above is the LEGACY documents pull only: on
-             a retired device it never advances, by design. */
+             unqualified "Completed" cycle. (The legacy 'Last
+             pull' row — the LEGACY documents pull only, frozen
+             on a retired device by design — is quarantined in
+             the retired section at the bottom of this panel;
+             see the -261 note there.) */
           if (sbUser) {
             row('Body pull (unified)', uniBodyDiag257.pullAt ? (sdFmtTime(uniBodyDiag257.pullAt) + ' · ' + uniBodyDiag257.pullRows + ' rows received · ' + uniBodyDiag257.pullAdopted + ' adopted' + (uniBodyDiag257.pullDeferred ? ' · ' + uniBodyDiag257.pullDeferred + ' deferred (being edited here)' : '') + ' · rejected: ' + (uniBodyDiag257.pullNotNewer || 0) + ' not-newer, ' + (uniBodyDiag257.pullTieLost || 0) + ' tie-lost, ' + (uniBodyDiag257.pullOrphan || 0) + ' orphan-row, ' + (uniBodyDiag257.pullSame || 0) + ' same-content') : (uniBodyPullState257 === 'error' ? 'Failed — see Body sync error below' : 'Not run yet this session'));
             /* Build -259: the contested bodies, NAMED — the
@@ -71529,7 +71634,13 @@
               return v.name + ' — ' + v.rule
                 + ' · local stamp ' + (v.localMs || 0) + ' · local prov ' + sdProv260(v.localProvClaim, v.localProvMs)
                 + ' · remote stamp ' + (v.remoteMs || 0) + ' · remote prov ' + sdProv260(v.remoteProvClaim, v.remoteProvMs)
-                + ' · sig local ' + (v.localSig || '(none)') + ' · sig remote ' + (v.remoteSig || '(none)');
+                + ' · sig local ' + (v.localSig || '(none)') + ' · sig remote ' + (v.remoteSig || '(none)')
+                /* Build -261: both ids on the line — the cloud
+                   row's record_id and this device's local record
+                   id. They are the match key, so on a healthy
+                   comparison they read identically; if they ever
+                   differ, the panel shows it on sight. */
+                + ' · row id ' + (v.remoteId || '(none)') + ' · local id ' + (v.id || '(none)');
             }
             if (uniBodyDiag257.pullAt && (uniBodyDiag257.pullVerdicts || []).length) {
               listHead('Body verdicts — last pull');
@@ -71542,6 +71653,20 @@
             row('Body push (unified)', uniBodyDiag257.pushAt ? (sdFmtTime(uniBodyDiag257.pushAt) + ' · ' + uniBodyDiag257.pushRows + ' rows sent · ' + (uniBodyDiag257.pushResult || 'ok')) : (uniBodyDiag257.pushTryAt ? ('Attempted ' + sdFmtTime(uniBodyDiag257.pushTryAt) + ' · ' + (uniBodyDiag257.pushResult || 'did not finish')) : (uniBodyDiag257.pushResult || 'Not run yet this session')));
             if (uniBodyDiag257.lastError) row('Body sync error', uniBodyDiag257.lastError);
           }
+          /* Build -261: the RETIRED LEGACY LAYER, quarantined.
+             These counters describe the pre-unified documents/
+             objects sync; they froze when the unified store
+             took over and will never advance again. They sit
+             below the unified rows — which are the current
+             truth — under their own label, so a frozen legacy
+             timestamp can no longer be mistaken for the state
+             of sync (the stale 'Last pull' was flagged three
+             times before this move). */
+          listHead('Retired legacy layer — frozen, no longer updated');
+          listLine('Kept for reference only. The unified rows above are the current truth; the values below stopped advancing when the unified store took over.');
+          row('Last pull (legacy)', meta.lastPullAt ? sdFmtTime(meta.lastPullAt) : 'never');
+          row('Records (legacy)', 'This device ' + lib.docs.length + (haveInventory ? ' · Server (last pull) ' + serverDocCount : ''));
+          row('Collections (legacy)', 'This device ' + lib.folders.length + (haveInventory ? ' · Server (last pull) ' + serverFolderCount : ''));
           /* Build -241: measured local storage — the numbers
              behind the unify sequence's arithmetic, straight
              from this device's keys (UTF-16 bytes). */
@@ -72000,7 +72125,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20251125-260', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20251125-261', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -89399,7 +89524,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-260', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-261', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -90348,7 +90473,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-260', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-261', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
