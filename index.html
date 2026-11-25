@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20251125-263" />
+    <meta name="folio-build" content="20251125-264" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -7368,7 +7368,14 @@
       :root[data-theme="abyss"] .folio-tab.active { background: var(--surface); }
       .tab-rail.slim { --tab-x: 14px; --tab-strip: 14px; width: 44px; flex-basis: 44px; }
       :root[data-focus="on"] .tab-rail { display: none; }
-      .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; }
+      .tab-scroll { flex: 1; position: relative; overflow: hidden; min-height: 0; touch-action: none; scrollbar-width: none; }
+      /* Build -264: the spine column is a scroll region with
+         no scrollbar chrome of its own — scrolling rides the
+         wheel / drag channels and the scroll-to-active
+         guarantee in tabLayout/tabEnsureVisible, and any
+         engine-native bar is suppressed so nothing breaks
+         the page-stack frame. */
+      .tab-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
       .tab-bands, .tab-strip { position: absolute; inset: 0; }
       /* Build -99: the bands layer is EMPTY, permanently.
          Build -96 gave every inactive tab a connector band
@@ -24782,7 +24789,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20251125-263', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20251125-264', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25171,8 +25178,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-263', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-263', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-264', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-264', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25189,7 +25196,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20251125-263', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20251125-264', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25241,7 +25248,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20251125-263', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20251125-264', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25347,7 +25354,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20251125-263', chunked: true, recordsSlim: true,
+            version: 3, build: '20251125-264', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25467,7 +25474,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-263'; } catch (e) { return '20251125-263'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-264'; } catch (e) { return '20251125-264'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -57198,7 +57205,25 @@
            hover strip, set as --tab-l by tabLayout. */
         function tabNaturalHeight(title) {
           var len = (title || 'Untitled').length;
-          return Math.max(64, Math.min(140, 34 + len * 7.4));
+          /* Build -264 (tabs overflow): this is now the spine's
+             FULL-LABEL floor, not a display size. The old cap
+             (140px) truncated any title past ~14 characters
+             whenever layout compressed — and at 6+ tabs layout
+             always compressed — so long real names ("Cinnamon
+             Sugar Pretzel Bites - Sourdough Discard", 48 chars)
+             could never show whole on their spine at any tab
+             count. The metrics are unchanged (34px of end
+             padding + 7.4px per character at the spine's
+             12.5px/600 register; the slim rail's 11.5px face
+             advances less per character, so this floor stays
+             sufficient there too); only the cap moves, to
+             480px — 60 characters whole. Every spine's layout
+             height (c.vh) is this floor: tabLayout renders the
+             visible window at vh unscaled, and compression
+             below the floor is now the edge-sliver fallback
+             for INACTIVE spines only — never the active one
+             (see tabLayout -264 and tabEnsureVisible). */
+          return Math.max(64, Math.min(480, 34 + len * 7.4));
         }
         function tabRender() {
           if (!tabStripEl || !tabBandsEl) return;
@@ -57704,32 +57729,94 @@
             var y = 0;
             tabLayoutCache.forEach(function (c, ci) { c.vtop = y; c.top = y; c.sh = c.vh; y += c.vh + (gaps[ci + 1] || 0); });
           } else {
-            var f = (H - gapsTotal) / sum;
-            if (minNat * f >= 56) {
-              tabView = { mode: 'fit', M: H, T: H, Z: 0 };
-              tabScrollPos = 0;
-              var y2 = 0;
-              tabLayoutCache.forEach(function (c, ci) { c.vh = c.vh * f; c.vtop = y2; c.top = y2; c.sh = c.vh; y2 += c.vh + (gaps[ci + 1] || 0); });
-            } else {
-              var f2 = 56 / minNat, T = 0;
-              tabLayoutCache.forEach(function (c, ci) { c.vh = c.vh * f2; c.vtop = T; T += c.vh + (gaps[ci + 1] || 0); });
+            /* Build -264 (tabs overflow): overflow SCROLLS —
+               the proportional-compression fit branch and the
+               scroll branch's f2 down-scale are both deleted.
+               The old fit branch squeezed EVERY spine (the
+               active one included) below its full-label floor
+               whenever the pile ran even slightly over the
+               zone, and the old scroll branch scaled vh by
+               56/minNat, so a spine inside the window still
+               rendered short of its label. Now vh is never
+               scaled: virtual tops accumulate at full height,
+               the window [s, s+M] renders 1:1, and only the
+               inactive spines beyond the window compress into
+               the Z edge zones as slivers — the pile-depth cue
+               the stack has always shown, and the sanctioned
+               fallback for inactive spines. The ACTIVE spine
+               is guaranteed whole by tabEnsureVisible, which
+               activation, tab open and boot restore all call:
+               it moves s the minimum amount that puts the
+               active spine's full [vtop, vtop+vh] inside the
+               window, where mapY renders it at full height
+               with its full label. */
+            {
+              var T = 0;
+              tabLayoutCache.forEach(function (c, ci) { c.vtop = T; T += c.vh + (gaps[ci + 1] || 0); });
               var Z = Math.max(30, Math.min(96, H * 0.22));
               var M = Math.max(60, H - 2 * Z);
+              /* A single spine taller than the window (a very
+                 long title in a short zone) widens the window
+                 at the edge zones' expense, so the active
+                 guarantee below can always be honoured when
+                 the spine fits the zone at all. */
+              var actC264 = null;
+              tabLayoutCache.forEach(function (c) { if ((c.rank || 0) === 0) actC264 = c; });
+              if (actC264 && actC264.vh > M && actC264.vh <= H - 36) {
+                Z = Math.max(18, Math.floor((H - actC264.vh) / 2));
+                M = H - 2 * Z;
+              }
               tabView = { mode: 'scroll', M: M, T: T, Z: Z };
               var maxScroll = Math.max(0, T - M);
               tabScrollPos = Math.max(0, Math.min(tabScrollPos, maxScroll));
               var s = tabScrollPos;
+              /* Build -264: the edge zones are ADAPTIVE — a
+                 zone exists only when virtual content lies
+                 beyond the window on that side, and the window
+                 grows by the absent zone's Z. The inherited
+                 mapY always offset the window by Z, so at
+                 s = 0 (the window scrolled to the pile's top —
+                 exactly where scroll-to-active puts the FIRST
+                 tab) the first spine's top mapped through the
+                 empty-zone branch (0) while its bottom mapped
+                 through the window branch (Z + vh): the spine
+                 rendered Z too tall, eating the window it was
+                 meant to share. With Zt/Zb zeroed on the
+                 exhausted sides and Mw widened to fill H, every
+                 window span maps 1:1 from its own top, at every
+                 scroll position. Mid-pile (both zones live)
+                 Mw = M and the mapping is the inherited one,
+                 unchanged. */
+              var Zt264 = s <= 0 ? 0 : Z;
+              var Zb264 = (T - (s + M)) <= 0 ? 0 : Z;
+              var Mw264 = Math.max(M, H - Zt264 - Zb264);
               function mapY(vy) {
-                if (vy <= s) return s === 0 ? vy : Z * (vy / s);
-                if (vy >= s + M) {
-                  var rem = T - (s + M);
-                  return rem <= 0 ? H - Z : (H - Z) + Z * ((vy - (s + M)) / rem);
+                if (vy <= s) return s <= 0 ? vy : Zt264 * (vy / s);
+                if (vy >= s + Mw264) {
+                  var rem = T - (s + Mw264);
+                  return rem <= 0 ? H - Zb264 : (H - Zb264) + Zb264 * ((vy - (s + Mw264)) / rem);
                 }
-                return Z + (vy - s);
+                return Zt264 + (vy - s);
               }
-              tabLayoutCache.forEach(function (c) {
-                c.top = mapY(c.vtop);
-                c.sh = Math.max(9, mapY(c.vtop + c.vh) - c.top - 2);
+              var mappedTops264 = tabLayoutCache.map(function (c) { return mapY(c.vtop); });
+              tabLayoutCache.forEach(function (c, ci) {
+                c.top = mappedTops264[ci];
+                var sh264 = mapY(c.vtop + c.vh) - c.top - 2;
+                /* Build -264: a spine may never overlap its
+                   successor. With unscaled full heights the
+                   virtual pile is tall, so in the far edge
+                   zones the compressed pitch between successive
+                   tops can fall below the old 9px sliver floor —
+                   the floor then painted one sliver over the
+                   next. The height is therefore capped at the
+                   pitch to the next spine's top (less the 2px
+                   separator): inside the window the pitch is
+                   vh + gap, so the cap never binds there and
+                   the window still renders 1:1; in the far
+                   zones a sliver thins toward a hairline
+                   instead of overlapping. */
+                if (ci + 1 < mappedTops264.length) sh264 = Math.min(sh264, mappedTops264[ci + 1] - c.top - 2);
+                c.sh = Math.max(1, sh264);
               });
             }
           }
@@ -58055,6 +58142,17 @@
           requestAnimationFrame(step);
         }
         function tabEnsureVisible(id) {
+          /* Build -264: the active-spine guarantee. In scroll
+             mode this moves the window the MINIMUM amount that
+             puts the named spine's full virtual span inside it
+             (anchored: no movement at all when it is already
+             whole in view), then re-lays out — inside the
+             window mapY renders the spine at its full-label
+             height, untruncated. Called on every activation,
+             every tab open, workspace switch, and (since -264)
+             both boot-restore paths, so a cold boot on a heavy
+             persisted tab set lands with its active spine
+             whole, wherever it sits in the stack. */
           if (tabView.mode !== 'scroll') return;
           for (var i = 0; i < tabLayoutCache.length; i++) {
             var c = tabLayoutCache[i];
@@ -59397,7 +59495,12 @@
           } catch (e) { folioBootError('tabs: restore open set', e); }
           try { if (!folioTabsRestoreOwed248) tabPersist(); } catch (e) { folioBootError('tabs: persist open set', e); }
           try { tabRender(); } catch (e) { folioBootError('tabs: first render', e); }
-          setTimeout(function () { try { tabSyncSlim(); tabLayout(); } catch (e) {} }, 60);
+          /* Build -264: cold-boot restore of the persisted tab
+             set must land with the ACTIVE spine whole — scroll
+             it into the window now, and again after the slim
+             re-measure below settles the zone height. */
+          try { if (tabActiveId) tabEnsureVisible(tabActiveId); } catch (e) {}
+          setTimeout(function () { try { tabSyncSlim(); tabLayout(); if (tabActiveId) tabEnsureVisible(tabActiveId); } catch (e) {} }, 60);
         })();
 
         /* ----- build -248 (WS1): the deferred open-set restore -----
@@ -59457,7 +59560,13 @@
             if (stage248 && (tabRecIsObj248(stage248) || stage248 !== lib.currentId)) {
               try { activateTab(stage248, false); } catch (e) {}
             }
-            setTimeout(function () { try { tabSyncSlim(); tabLayout(); } catch (e) {} }, 60);
+            /* Build -264: the document-stage landing (the
+               common cold boot) never passed through
+               activateTab, so nothing scrolled its spine into
+               the window — ensure it here, and again after
+               the slim re-measure settles. */
+            try { if (stage248) tabEnsureVisible(stage248); } catch (e) {}
+            setTimeout(function () { try { tabSyncSlim(); tabLayout(); if (stage248) tabEnsureVisible(stage248); } catch (e) {} }, 60);
           } catch (e) {
             /* Degrade to the pre-248 landing rather than a
                tab-less boot: the current document as sole tab. */
@@ -70420,7 +70529,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-263', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-264', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -72976,7 +73085,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20251125-263', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20251125-264', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -90375,7 +90484,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-263', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-264', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -91324,7 +91433,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-263', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-264', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
