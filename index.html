@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20251125-262" />
+    <meta name="folio-build" content="20251125-263" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24664,6 +24664,59 @@
              state; the latest message wins. */
           folioStateBanner241(msg, 'Retry migration');
         }
+        /* Build -263: the identity-faithfulness check that
+           replaces the -237-era totals trio (registry count /
+           member count / property checksum, each comparing
+           recBuildRegistry237's identity view against
+           recSourceTotals237's physical view). Those two
+           views legitimately diverge once an identity
+           redirect exists — the registry names a merged
+           collection once under its survivor; the stores
+           physically hold the folder and the survivor record,
+           or the loser record the surgery has not reached
+           yet — so the trio false-refused every refresh after
+           -262 and nulled the registry it was guarding. What
+           the guard actually needs to know is unchanged: the
+           registry build LOSES nothing and INVENTS nothing.
+           Every stored id must be represented in the registry
+           under itself or under the identity it resolves to;
+           every registry id must be a stored id or a folder's
+           resolved identity. Counts are the persist layer's
+           business, verified there against each save's own
+           serialized inventory (see folioIDBWriteStores242). */
+        function folioRegistryCoverage263(built) {
+          var problems = [];
+          if (!built || !built.byId) return ['the registry could not be built'];
+          var byId = built.byId;
+          var phys = {};
+          (lib.docs || []).forEach(function (d) { if (d && d.id) phys[d.id] = true; });
+          (lib.folders || []).forEach(function (f) { if (f && f.id) phys[f.id] = true; });
+          function scan263(list) { (list || []).forEach(function (r) { if (r && r.id) phys[r.id] = true; }); }
+          scan263(objStore.globals);
+          Object.keys(objStore.docObjs || {}).forEach(function (k) { scan263(objStore.docObjs[k]); });
+          scan263(objStore.gColls);
+          Object.keys(objStore.docColls || {}).forEach(function (k) { scan263(objStore.docColls[k]); });
+          Object.keys(phys).forEach(function (id) {
+            if (byId[id]) return;
+            var resolved = null;
+            try { resolved = (typeof folioIdRedirResolve262 === 'function') ? folioIdRedirResolve262(id) : null; } catch (e) {}
+            if (resolved && byId[resolved]) return;
+            problems.push('a stored record (' + id + ') is missing from the registry');
+          });
+          (built.records || []).forEach(function (r) {
+            if (!r || !r.id || phys[r.id]) return;
+            if (r.source === 'folder') {
+              var okF = (lib.folders || []).some(function (f) {
+                var rr = null;
+                try { rr = (typeof folioIdRedirResolve262 === 'function') ? folioIdRedirResolve262(f.id) : null; } catch (e) {}
+                return (rr || f.id) === r.id;
+              });
+              if (okF) return;
+            }
+            problems.push('the registry names a record (' + r.id + ') that is not in the stores');
+          });
+          return problems;
+        }
         function folioRunMigration237(force) {
           /* Build -253: a degraded (read-only) boot runs no
              migration (see folioIDBDegraded253). */
@@ -24717,9 +24770,11 @@
               if (r.source !== 'folder') parts.push((r.name || '') + '|' + JSON.stringify(r.props || []).length);
             });
             var problems = [];
-            if (built.records.length !== before.total) problems.push('record count ' + built.records.length + ' of ' + before.total);
-            if (memberSum !== before.members) problems.push('member count ' + memberSum + ' of ' + before.members);
-            if (recHash237(parts.join(';')) !== before.checksum) problems.push('property checksum mismatch');
+            /* Build -263: identity-faithfulness (folioRegistryCoverage263)
+               replaces the registry-vs-store totals trio — the two
+               inventories legitimately diverge under an identity
+               redirect, so the trio false-refused after -262. */
+            problems = problems.concat(folioRegistryCoverage263(built));
             if (problems.length) {
               folioRegistry = null;
               folioMigrationState = { status: 'failed', detail: problems.join('; ') };
@@ -24727,7 +24782,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20251125-262', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20251125-263', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25116,8 +25171,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-262', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-262', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-263', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-263', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25134,7 +25189,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20251125-262', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20251125-263', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25169,9 +25224,11 @@
               if (r.source !== 'folder') parts.push((r.name || '') + '|' + JSON.stringify(r.props || []).length);
             });
             var problems = [];
-            if (built.records.length !== before.total) problems.push('record count ' + built.records.length + ' of ' + before.total);
-            if (memberSum !== before.members) problems.push('member count ' + memberSum + ' of ' + before.members);
-            if (recHash237(parts.join(';')) !== before.checksum) problems.push('property checksum mismatch');
+            /* Build -263: identity-faithfulness (folioRegistryCoverage263)
+               replaces the registry-vs-store totals trio — the two
+               inventories legitimately diverge under an identity
+               redirect, so the trio false-refused after -262. */
+            problems = problems.concat(folioRegistryCoverage263(built));
             if (problems.length) {
               folioUnifyState241 = { status: 'verify-failed', detail: problems.join('; ') };
               return false;
@@ -25184,7 +25241,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20251125-262', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20251125-263', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25290,7 +25347,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20251125-262', chunked: true, recordsSlim: true,
+            version: 3, build: '20251125-263', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25378,6 +25435,31 @@
         var folioIDBQueue242 = Promise.resolve();
         var folioIDBPersistInFlight242 = false;
         var folioIDBPersistBannerShown242 = false;
+        /* Build -263: SINGLE OWNERSHIP of registry mutation.
+           A registry-mutating pass — the -262 identity
+           reconciliation, the -252 materialization heal, any
+           future pass of that family — holds this gate for its
+           whole duration (folioMutBegin263/folioMutEnd263).
+           While the gate is held, folioQueueIDBPersist242 does
+           not start a write: the request is recorded as
+           SUPERSEDED (folioIDBSuperseded263 — a log line for
+           Sync details, never an error, never a banner) and
+           the dirty flag stays set. When the last hold
+           releases, exactly one save of the settled store is
+           requested. Passes and the save pipeline therefore
+           never interleave: a save either snapshots the store
+           before a pass begins or writes the store the pass
+           settled — and per the -263 verify (see
+           folioIDBWriteStores242), both outcomes are whole. */
+        var folioMutHolds263 = 0;
+        var folioIDBSuperseded263 = { count: 0, at: 0 };
+        function folioMutBegin263() { folioMutHolds263++; }
+        function folioMutEnd263() {
+          if (folioMutHolds263 > 0) folioMutHolds263--;
+          if (folioMutHolds263 === 0 && folioIDBDirty242 && folioIDBActive242 && !folioIDBDegraded253 && !folioIDBPersistInFlight242) {
+            try { folioQueueIDBPersist242(); } catch (e) {}
+          }
+        }
         var folioIDBMigrating242 = false;
         var folioIDBBootStarted242 = false;
         var folioIDBBootPromise242 = null;
@@ -25385,7 +25467,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-262'; } catch (e) { return '20251125-262'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-263'; } catch (e) { return '20251125-263'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -25970,18 +26052,43 @@
            rewrite left to fail halfway. */
         function folioIDBWriteStores242(libObj, objObj) {
           var prevLib = lib, prevObj = objStore;
-          var built = null, totals = null, memberSum = 0;
+          var built = null, totals = null;
           try {
             lib = libObj; objStore = objObj;
             built = recBuildRegistry237();
             totals = recSourceTotals237();
-            built.records.forEach(function (r) { memberSum += recMembersCount237(r); });
           } finally { lib = prevLib; objStore = prevObj; }
+          /* Build -263: the manifest's counts are the totals
+             of THE STORES BEING SERIALIZED (recSourceTotals237
+             — the same inventory the checksum is taken from),
+             never the registry's identity-view counts
+             (recBuildRegistry237). The two views legitimately
+             diverge once an identity redirect exists: the
+             registry names a merged collection once, under its
+             survivor, while the stores still physically hold
+             the folder plus the survivor record (or, before
+             the merge's surgery lands on this device, the
+             folder resolved to the survivor plus the loser
+             record still present). -262 shipped that
+             divergence into this verify: base.counts came from
+             the registry while the read-back totals came from
+             the stores, so a byte-perfect write of the owner's
+             288/219 store "failed" against the registry's
+             292/219 on every save after the identity map was
+             learned. Verification now compares the written
+             store against the save's OWN serialized inventory
+             — the snapshot built synchronously above, from the
+             same stores the chunk set serializes — so a save
+             superseded by a newer mutation still verifies
+             (its snapshot was whole when written) and the next
+             save carries the settled state; a genuinely torn
+             write still fails assembly, counts, checksum, or
+             the body sample, exactly as -253 requires. */
           var base = {
             version: 4, build: folioStamp242(), chunked: true, idb: true, recordsSlim: true,
             migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
-            counts: { total: built.records.length, members: memberSum },
+            counts: { total: totals.total, members: totals.members },
             checksum: totals.checksum
           };
           var gen253 = folioIDBGen253();
@@ -26023,7 +26130,7 @@
               if (!stores) throw new Error('the written IndexedDB store did not assemble');
               var t = folioTotalsOfStores241(stores);
               if (t.total !== base.counts.total || t.members !== base.counts.members || t.checksum !== base.checksum) {
-                throw new Error('the written IndexedDB store does not match the live stores (' + t.total + '/' + t.members + ' against ' + base.counts.total + '/' + base.counts.members + ')');
+                throw new Error('the written IndexedDB store does not match the snapshot it was written from (' + t.total + '/' + t.members + ' against ' + base.counts.total + '/' + base.counts.members + ')');
               }
               if (sample) {
                 var sd = null;
@@ -26133,9 +26240,11 @@
             if (r.source !== 'folder') parts.push((r.name || '') + '|' + JSON.stringify(r.props || []).length);
           });
           var problems = [];
-          if (built.records.length !== before.total) problems.push('record count ' + built.records.length + ' of ' + before.total);
-          if (memberSum !== before.members) problems.push('member count ' + memberSum + ' of ' + before.members);
-          if (recHash237(parts.join(';')) !== before.checksum) problems.push('property checksum mismatch');
+          /* Build -263: identity-faithfulness (folioRegistryCoverage263)
+             replaces the registry-vs-store totals trio — the two
+             inventories legitimately diverge under an identity
+             redirect, so the trio false-refused after -262. */
+          problems = problems.concat(folioRegistryCoverage263(built));
           if (problems.length) {
             folioIDBState242 = { status: 'verify-failed', detail: problems.join('; ') };
             folioStateBanner241('Record unification did NOT complete (' + problems.join('; ') + '). Nothing was changed: your records are exactly as before, in their original stores, and the app keeps working from them. Tap Retry after the next update, and keep your latest backup file safe.', 'Retry migration');
@@ -26197,6 +26306,18 @@
         function folioQueueIDBPersist242() {
           if (folioIDBDegraded253) return;
           if (!folioIDBActive242) return;
+          /* Build -263: a registry-mutating pass owns the
+             stores right now — this save is superseded by the
+             settled save the pass requests when it releases
+             the gate (see folioMutEnd263). Not an error: the
+             dirty flag carries the obligation, and Sync
+             details logs the supersede as a supersede. */
+          if (folioMutHolds263 > 0) {
+            folioIDBDirty242 = true;
+            folioIDBSuperseded263.count++;
+            folioIDBSuperseded263.at = Date.now();
+            return;
+          }
           if (folioIDBPersistInFlight242) { folioIDBDirty242 = true; return; }
           folioIDBPersistInFlight242 = true;
           folioIDBDirty242 = false;
@@ -70299,7 +70420,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-262', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-263', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -71622,6 +71743,29 @@
           while (cur && uniIdRedir262[cur] && guard++ < 16) cur = uniIdRedir262[cur];
           return (cur && cur !== id) ? cur : null;
         }
+        /* Build -263: does a planned merge still need its
+           SURGERY on this device? -262's freshness test asked
+           only whether the redirect was already in the map —
+           but a redirect LEARNED from the cloud (the other
+           device ran the merge and published the map) enters
+           the map with no surgery here: the loser record is
+           still in the local stores under its own id and the
+           survivor record may not exist locally at all. That
+           test read "learned" as "done" and skipped the merge
+           forever, stranding the device in the split state
+           (and, via the registry's redirect resolution,
+           inflating every save's expected counts — the -263
+           banner). The surgery is outstanding whenever the
+           survivor record is absent locally or any loser
+           record is still present locally, whatever the map
+           says; it is complete only when the map records the
+           redirect AND the stores match it. */
+        function folioIdMergeNeeds263(m) {
+          if (!m || !m.survivor) return false;
+          var recorded = (m.losers || []).every(function (l) { return folioIdRedirResolve262(l) === m.survivor; });
+          if (recorded && folioIdFindRec262(m.survivor) && !(m.losers || []).some(function (l) { return !!folioIdFindRec262(l); })) return false;
+          return true;
+        }
         function folioIdNormName262(name) {
           return String(name == null ? '' : name).trim().replace(/\s+/g, ' ').toLowerCase();
         }
@@ -72021,6 +72165,15 @@
           if (folioIDBDegraded253) return Promise.resolve(false);
           if (!sb || !sbUser) return Promise.resolve(false);
           uniLoserBodyRows262 = [];
+          /* Build -263: this pass mutates the registry (learned
+             redirects re-point stored references; merges
+             materialize, splice, and re-point records) — it
+             holds the mutation gate from here to the end of
+             the chain, so no save snapshots a half-merged
+             store and the pass's own objSave() calls coalesce
+             into the one settled save at release
+             (folioMutEnd263). */
+          folioMutBegin263();
           return folioIdReadCloudRedir262().then(function () {
             /* A redirect LEARNED from the cloud (this device
                never ran the merge itself — the other device
@@ -72049,7 +72202,12 @@
               });
               var plan = folioIdReconPlan262(localDescs, cloudDescs, folioFolderCanon262());
               var fresh = plan.filter(function (m) {
-                if (!m.losers.some(function (l) { return folioIdRedirResolve262(l) !== m.survivor; })) return false;
+                /* Build -263: freshness is judged by the
+                   SURGERY's state in the stores, not by the
+                   redirect map alone (folioIdMergeNeeds263) —
+                   a learned redirect no longer masquerades as
+                   a completed merge. */
+                if (!folioIdMergeNeeds263(m)) return false;
                 /* A body under the caret defers its identity
                    merge like it defers adoption — retried next
                    cycle, never forced under the user's hands. */
@@ -72068,7 +72226,7 @@
               }
               return true;
             });
-          }).catch(function () { return false; });
+          }).catch(function () { return false; }).then(function (reconDone263) { folioMutEnd263(); return reconDone263; });
         }
 
         function uniSyncAfterCycle237(ok) {
@@ -72402,6 +72560,15 @@
             if (!lastErr251) { try { lastErr251 = JSON.parse(localStorage.getItem('folio.idb.lasterror') || 'null'); } catch (e) {} }
             if (lastErr251) row('Last IndexedDB save error', (lastErr251.name || 'Error') + ' — ' + (lastErr251.message || '') + ' · ' + sdFmtTime(lastErr251.at) + ' · attempt ' + (lastErr251.attempt || 1));
             else row('Last IndexedDB save error', 'None recorded');
+          } catch (e) {}
+          /* Build -263: saves a registry-mutating pass
+             superseded are logged as superseded — coalesced
+             into the pass's one settled save — never as
+             errors, so this line and the error row above can
+             never describe the same event two ways. */
+          try {
+            var sup263 = (typeof folioIDBSuperseded263 !== 'undefined' && folioIDBSuperseded263) ? folioIDBSuperseded263 : null;
+            if (sup263 && sup263.count) row('Saves superseded by a sync pass', sup263.count + (sup263.count === 1 ? ' save' : ' saves') + ' coalesced into the settled save · last ' + sdFmtTime(sup263.at) + ' · not an error');
           } catch (e) {}
           listHead('Unified sync setup (one paste)');
           listLine('Run this SQL once in the Supabase dashboard (SQL Editor), then upload this build, open it on the iPad first, and on the phone second:');
@@ -72809,7 +72976,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20251125-262', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20251125-263', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -90208,7 +90375,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-262', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-263', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -91157,7 +91324,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-262', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-263', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
@@ -91791,8 +91958,16 @@
           } catch (e) { ready = true; }
           if (!ready && n < 50) { setTimeout(function () { folio252TryMigrate(n + 1); }, 300); return; }
           if (!ready) return;
+          /* Build -263: the materialization heal mutates the
+             registry (it creates and adopts records and
+             re-points memberships) — it holds the mutation
+             gate across both passes, so the saves its own
+             objSave() calls request coalesce into the one
+             settled save at release (see folioMutEnd263). */
+          folioMutBegin263();
           try { folio252Migrate(); } catch (e) { try { console.error('[FolioDocs -252] migration error', e); } catch (e2) {} }
           try { folio252Reconcile(); } catch (e) {}
+          folioMutEnd263();
         }
 
         /* ---------------- init ----------------
