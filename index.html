@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20261125-259" />
+    <meta name="folio-build" content="20251125-260" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24717,7 +24717,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20261125-259', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20251125-260', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25106,8 +25106,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261125-259', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20261125-259', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-260', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-260', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25124,7 +25124,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20261125-259', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20251125-260', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25174,7 +25174,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20261125-259', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20251125-260', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25280,7 +25280,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20261125-259', chunked: true, recordsSlim: true,
+            version: 3, build: '20251125-260', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25375,7 +25375,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20261125-259'; } catch (e) { return '20261125-259'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-260'; } catch (e) { return '20251125-260'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -70289,7 +70289,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20261125-259', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-260', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -70733,15 +70733,128 @@
           h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
           return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
         }
+        /* ============================================================
+           Build -260: PROBED GROUND TRUTH — WHY -259 STILL DID
+           NOT CONVERGE, AND THE REPAIR. -256…-259 were each
+           harness-green and device-red because the harnesses
+           modeled a simpler system than the one on the owner's
+           devices. -260's harness extracts the SHIPPED functions
+           byte-for-byte into two store contexts, drives the
+           real rec250BodySessionFor onUpdate closure for edits,
+           and routes every push through a simulated Postgres
+           JSONB round trip. Three links convicted, in order:
+
+           (1) THE SIGNATURE WAS NOT A FUNCTION OF CONTENT.
+           folioBodySig258 hashed JSON.stringify(body) — whose
+           key order is whatever the constructing path happened
+           to emit (ProseMirror getJSON order, rec250TextToJson
+           order, IndexedDB-preserved order) — while a body
+           received from the cloud is measured in JSONB order
+           (Postgres sorts object keys by length, then bytes;
+           it does not preserve insertion order). Same content,
+           three serializations, three signatures (harness S5).
+           The tie-break therefore was not a total order over
+           content: when the text projections tied (same words,
+           different structure — a bold mark, a paragraph split
+           as hardBreak), each device compared ITS construction
+           order against the cloud's JSONB order, and the
+           orderings cross: 6 of 10 probed pairs were tie-lost
+           by BOTH sides (harness S6) — the exact device symptom
+           (iPad 1 tie-lost, phone 3 tie-lost, same records).
+           FIX: the signature now covers a CANONICAL form —
+           the text projection plus folioBodyCanon260, a
+           sorted-key serialization. Same content yields the
+           same signature however it was constructed (typed,
+           adopted, migrated, restored) and however the wire
+           reordered it, so the tie-break is a total order over
+           content alone, identical on every store, and mutual
+           tie-lost is impossible by construction.
+
+           (2) PROVENANCE DIED ON THE WIRE. A genuine edit made
+           through the real editor onUpdate paired its marker
+           correctly and the push embedded it with a matching
+           updated_at (harness S3 checkpoints 1–3 pass) — but
+           the receiver recomputed the OLD signature over the
+           JSONB-reordered payload, the JSON component differed,
+           the marker failed verification, and the genuine edit
+           degraded to the (broken) tie-break and lost it
+           (checkpoint 4 fails, 5 never fires). The canonical
+           signature repairs this link with no protocol change:
+           the marker's sig now verifies against the received
+           payload because both sides hash the same canonical
+           bytes. -259-era pairings, signed over the old
+           serialization, fail verification once and degrade to
+           unprovenanced — fail-soft, as designed — and settle
+           by the now-sound tie-break.
+
+           (3) SYNC READ A DIFFERENT BODY THAN THE USER EDITS.
+           The rec228 stage textarea (and the -231 text paths)
+           write the plain-text MIRROR only; every read path
+           follows the mirror when it disagrees with bodyDoc
+           (rec250EnsureBodyDoc's doctrine: the document
+           follows the text) — but folioBodyOwners256 read
+           bodyDoc unconditionally, so sync compared and pushed
+           a stale document the user was no longer looking at,
+           the textarea's provenance pairing self-voided against
+           the stale sig, and such edits NEVER left the device
+           (harness S4: three cycles, no propagation, perpetual
+           tie-lost against the cloud copy of its own stale
+           bodyDoc). FIX: the owner scan now reconciles exactly
+           as the read path does — when bodyDoc's projection
+           disagrees with the mirror, the effective body is the
+           mirror's lossless re-derivation. Sync, display, and
+           provenance now all measure the same body.
+
+           INSTRUMENTATION (the counts had hit their limit):
+           the pull now records a per-record VERDICT for every
+           contested or adopted body, plus the body currently
+           open on this device: local stamp, local provenance
+           (verified stamp, or a claim that failed its sig),
+           remote updated_at, remote provenance (same terms),
+           both content signatures, and the rule that fired —
+           rendered in Sync details under "Body verdicts", so
+           one screenshot per device shows the operative values
+           of the comparison itself.
+           ============================================================ */
+        /* Canonical serialization for the content signature:
+           object keys sorted, recursively; arrays in order;
+           primitives as JSON. Two bodies with the same content
+           serialize identically no matter which path built
+           them or how JSONB reordered them in transit. */
+        function folioBodyCanon260(v) {
+          if (v === null) return 'null';
+          var t = typeof v;
+          if (t === 'string' || t === 'number' || t === 'boolean') return JSON.stringify(v);
+          if (Array.isArray(v)) {
+            var parts = [];
+            for (var i = 0; i < v.length; i++) parts.push(folioBodyCanon260(v[i]));
+            return '[' + parts.join(',') + ']';
+          }
+          if (t === 'object') {
+            var keys = Object.keys(v).sort();
+            var out = [];
+            for (var j = 0; j < keys.length; j++) {
+              var val = v[keys[j]];
+              if (val === undefined || typeof val === 'function') continue;
+              out.push(JSON.stringify(keys[j]) + ':' + folioBodyCanon260(val));
+            }
+            return '{' + out.join(',') + '}';
+          }
+          return 'null';
+        }
         function folioBodySig258(body) {
           if (!body) return '';
           var text = '';
           try { text = rec250TextOfJson(body); } catch (e) {}
+          /* Build -260: the second component hashes the
+             CANONICAL serialization (folioBodyCanon260), not
+             JSON.stringify — see the -260 block above. The
+             'textHash/contentHash' shape is unchanged. */
           var json = '';
-          try { json = JSON.stringify(body); } catch (e) {}
+          try { json = folioBodyCanon260(body); } catch (e) {}
           return folioBodyHash258(text) + '/' + folioBodyHash258(json);
         }
-        var uniBodyDiag257 = { pullAt: 0, pullRows: 0, pullAdopted: 0, pullDeferred: 0, pullNotNewer: 0, pullTieLost: 0, pullOrphan: 0, pullSame: 0, pullNotNewerNames: [], pullTieLostNames: [], pushAt: 0, pushRows: 0, pushTryAt: 0, pushResult: '', lastError: '' };
+        var uniBodyDiag257 = { pullAt: 0, pullRows: 0, pullAdopted: 0, pullDeferred: 0, pullNotNewer: 0, pullTieLost: 0, pullOrphan: 0, pullSame: 0, pullNotNewerNames: [], pullTieLostNames: [], pullVerdicts: [], pushAt: 0, pushRows: 0, pushTryAt: 0, pushResult: '', lastError: '' };
         var uniBodyPullState257 = ''; /* '' = not run yet this session · 'ok' · 'error' */
         var uniBodyDeferred256 = {};
         function folioBodyOwners256() {
@@ -70759,13 +70872,41 @@
                it without editing the body. */
             var dst = folioBodyStrip259(d.content || null);
             var dsig = folioBodySig258(dst.body);
-            out.push({ id: d.id, kind: 'doc', doc: d, body: dst.body, stamp: d.updated || 0, cmp: d.updated || 0, sig: dsig, provStamp: folioBodyLocalProv259(d.bodyProvMs, d.bodyProvSig, dsig, dst.prov), name: d.title || 'Untitled document' });
+            out.push({ id: d.id, kind: 'doc', doc: d, body: dst.body, stamp: d.updated || 0, cmp: d.updated || 0, sig: dsig, provStamp: folioBodyLocalProv259(d.bodyProvMs, d.bodyProvSig, dsig, dst.prov), provClaim: (d.bodyProvMs || 0) || (dst.prov ? dst.prov.stamp : 0), name: d.title || 'Untitled document' });
           });
           function scan256(rec) {
             if (!rec || !rec.id || seen[rec.id]) return;
             seen[rec.id] = true;
             var body = rec.bodyDoc || null;
             if (!body && typeof rec.body === 'string' && rec.body !== '') { try { body = rec250TextToJson(rec.body); } catch (e) {} }
+            /* Build -260: reconcile with the MIRROR exactly as
+               the read path does (rec250EnsureBodyDoc's
+               doctrine: when bodyDoc's projection disagrees
+               with the text mirror, the text was rewritten
+               wholesale and the document follows the text).
+               The mirror-only writers (the rec228 stage
+               textarea, the -231 text paths) never touch
+               bodyDoc; before -260 this scan read the stale
+               bodyDoc anyway, so sync compared, pushed, and
+               provenance-checked a body the user was no
+               longer looking at, and mirror edits never left
+               the device (see the -260 block at
+               folioBodyCanon260). The re-derivation is used
+               only when it is provably lossless — the same
+               round-trip test rec250ConvertRecord applies —
+               and the record itself is not mutated here;
+               rec250EnsureBodyDoc performs the same repair
+               persistently at open time. */
+            if (body && typeof rec.body === 'string') {
+              try {
+                var proj260 = rec250TextOfJson(body);
+                var mir260 = rec.body.replace(/\r\n?/g, '\n');
+                if (proj260 !== mir260) {
+                  var der260 = rec250TextToJson(rec.body);
+                  if (rec250TextOfJson(der260) === mir260) body = der260;
+                }
+              } catch (e) {}
+            }
             /* Build -258: stamp/cmp are the body's OWN
                version only — bodyMs, set exclusively by a
                genuine edit or an adoption (see the -258
@@ -70797,7 +70938,7 @@
             var rname = '';
             try { rname = objHeadline(rec, null) || ''; } catch (e) {}
             if (!rname) rname = rec.name || rec.id;
-            out.push({ id: rec.id, kind: 'rec', rec: rec, body: rst.body, stamp: stamp, cmp: stamp, sig: rsig, provStamp: folioBodyLocalProv259(rec.bodyProvMs, rec.bodyProvSig, rsig, rst.prov), name: rname });
+            out.push({ id: rec.id, kind: 'rec', rec: rec, body: rst.body, stamp: stamp, cmp: stamp, sig: rsig, provStamp: folioBodyLocalProv259(rec.bodyProvMs, rec.bodyProvSig, rsig, rst.prov), provClaim: (rec.bodyProvMs || 0) || (rst.prov ? rst.prov.stamp : 0), name: rname });
           }
           (objStore.globals || []).forEach(scan256);
           (objStore.gColls || []).forEach(scan256);
@@ -70873,12 +71014,22 @@
            unprovenanced winner) so authority propagates with
            the content. A busy body defers before any adoption
            (and is reported so the push can skip it). */
-        function folioBodyMerge256(owners, remoteRows, isBusy) {
+        function folioBodyMerge256(owners, remoteRows, isBusy, watchId) {
           var byId = {};
           (owners || []).forEach(function (o) { if (o && o.id && !byId[o.id]) byId[o.id] = o; });
           var adopt = [], deferred = {};
           var reasons = { notNewer: 0, tieLost: 0, orphan: 0, same: 0 };
           var notNewerNames = [], tieLostNames = [];
+          /* Build -260: per-record VERDICTS — the operative
+             values of each contested comparison (and of the
+             body open on this device, adopted or not), so Sync
+             details shows the numbers the decision was made
+             from, not just its class. See the -260 block at
+             folioBodyCanon260. */
+          var verdicts = [];
+          function vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig) {
+            verdicts.push({ id: o.id, name: o.name || o.id, rule: rule, localMs: o.stamp || 0, localProvMs: o.provStamp || 0, localProvClaim: o.provClaim || 0, remoteMs: remoteMs || 0, remoteProvMs: remoteProv || 0, remoteProvClaim: remoteClaim || 0, localSig: o.sig || '', remoteSig: remoteSig || '' });
+          }
           (remoteRows || []).forEach(function (r) {
             if (!r || !r.record_id || !r.body) { reasons.orphan++; return; }
             var o = byId[r.record_id];
@@ -70888,29 +71039,47 @@
             var remoteBody = rst.body;
             var remoteSig = folioBodySig258(remoteBody);
             var remoteProv = (rst.prov && rst.prov.sig === remoteSig) ? rst.prov.stamp : 0;
-            if (o.body && remoteSig === o.sig) { reasons.same++; return; }
+            var remoteClaim = rst.prov ? rst.prov.stamp : 0;
+            if (o.body && remoteSig === o.sig) { reasons.same++; if (watchId && r.record_id === watchId) vMake260(o, 'same-content — the cloud body is identical to this device\u2019s', remoteMs, remoteProv, remoteClaim, remoteSig); return; }
             var localProv = o.provStamp || 0;
-            var win = false, loseReason = 'notNewer';
-            if (!o.body) win = true;
-            else if (remoteProv && !localProv) win = true;
-            else if (!remoteProv && localProv) { win = false; loseReason = 'notNewer'; }
+            var win = false, loseReason = 'notNewer', rule = '';
+            if (!o.body) { win = true; rule = 'adopted — no local body to lose'; }
+            else if (remoteProv && !localProv) { win = true; rule = 'adopted — remote provenance verified, local body unprovenanced'; }
+            else if (!remoteProv && localProv) { win = false; loseReason = 'notNewer'; rule = 'not-newer — local provenance verified, remote unprovenanced'; }
             else if (remoteProv && localProv) {
-              if (remoteProv > localProv) win = true;
-              else if (remoteProv < localProv) { win = false; loseReason = 'notNewer'; }
-              else if (remoteSig > o.sig) win = true;
-              else { win = false; loseReason = 'tieLost'; }
+              if (remoteProv > localProv) { win = true; rule = 'adopted — both provenanced, remote stamp newer'; }
+              else if (remoteProv < localProv) { win = false; loseReason = 'notNewer'; rule = 'not-newer — both provenanced, local stamp newer'; }
+              else if (remoteSig > o.sig) { win = true; rule = 'adopted — provenanced stamps equal, remote signature larger'; }
+              else { win = false; loseReason = 'tieLost'; rule = 'tie-lost — provenanced stamps equal, local signature larger'; }
             }
-            else if (remoteSig > o.sig) win = true;
-            else { win = false; loseReason = 'tieLost'; }
+            else if (remoteSig > o.sig) { win = true; rule = 'adopted — unprovenanced tie-break, remote signature larger'; }
+            else { win = false; loseReason = 'tieLost'; rule = 'tie-lost — unprovenanced tie-break, local signature larger'; }
             if (!win) {
               if (loseReason === 'tieLost') { reasons.tieLost++; tieLostNames.push(o.name || r.record_id); }
               else { reasons.notNewer++; notNewerNames.push(o.name || r.record_id); }
+              vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig);
               return;
             }
-            if (isBusy && isBusy(r.record_id)) { deferred[r.record_id] = true; return; }
+            if (isBusy && isBusy(r.record_id)) { deferred[r.record_id] = true; vMake260(o, 'deferred — this body is being edited on this device', remoteMs, remoteProv, remoteClaim, remoteSig); return; }
             adopt.push({ id: r.record_id, body: remoteBody, stamp: remoteProv || remoteMs, provStamp: remoteProv, sig: remoteSig });
+            vMake260(o, rule, remoteMs, remoteProv, remoteClaim, remoteSig);
           });
-          return { adopt: adopt, deferred: deferred, reasons: reasons, notNewerNames: notNewerNames, tieLostNames: tieLostNames };
+          return { adopt: adopt, deferred: deferred, reasons: reasons, notNewerNames: notNewerNames, tieLostNames: tieLostNames, verdicts: verdicts };
+        }
+        /* Build -260: the body record open on this device, if
+           any — a body session currently shown, else the open
+           document. The pull records a verdict for it even
+           when nothing about it was contested, so the panel
+           always carries one fully-valued comparison. */
+        function folioBodyWatchId260() {
+          try {
+            var keys = Object.keys(rec250BodySessions || {});
+            for (var i = 0; i < keys.length; i++) {
+              var s = rec250BodySessions[keys[i]];
+              if (s && s.mount && s.mount.style.display !== 'none') { var wid = s.mount.getAttribute('data-body-for'); if (wid) return wid; }
+            }
+          } catch (e) {}
+          try { return lib.currentId || null; } catch (e) { return null; }
         }
         function folioBodyBusy256(id) {
           try {
@@ -70972,7 +71141,7 @@
             var owners = folioBodyOwners256();
             var byId = {};
             owners.forEach(function (o) { byId[o.id] = o; });
-            var plan = folioBodyMerge256(owners, r.data, folioBodyBusy256);
+            var plan = folioBodyMerge256(owners, r.data, folioBodyBusy256, folioBodyWatchId260());
             uniBodyDeferred256 = plan.deferred;
             uniBodyDiag257.pullAt = Date.now();
             uniBodyDiag257.pullRows = r.data.length;
@@ -70990,6 +71159,11 @@
                pull kept local and why (see the -259 block). */
             uniBodyDiag257.pullNotNewerNames = plan.notNewerNames || [];
             uniBodyDiag257.pullTieLostNames = plan.tieLostNames || [];
+            /* Build -260: the per-record verdicts — the actual
+               stamps, provenance claims and signatures the
+               comparisons were decided from (see the -260
+               block at folioBodyCanon260). */
+            uniBodyDiag257.pullVerdicts = (plan.verdicts || []).slice(0, 12);
             var changedDoc = false, changedObj = false;
             plan.adopt.forEach(function (a) {
               var o = byId[a.id];
@@ -71339,6 +71513,28 @@
             }
             if (uniBodyDiag257.pullAt && (uniBodyDiag257.pullNotNewerNames || []).length) row('Contested — kept local (not-newer)', sdNames259(uniBodyDiag257.pullNotNewerNames));
             if (uniBodyDiag257.pullAt && (uniBodyDiag257.pullTieLostNames || []).length) row('Contested — kept local (tie-lost)', sdNames259(uniBodyDiag257.pullTieLostNames));
+            /* Build -260: the per-record verdicts — the actual
+               values each contested comparison was decided
+               from: both stamps, both provenance states
+               (verified, or a claim whose signature failed),
+               both content signatures, and the rule that
+               fired. One panel per device now shows the whole
+               comparison, not just its outcome class. */
+            function sdProv260(claim, verified) {
+              if (verified) return 'verified ' + verified;
+              if (claim) return 'claimed ' + claim + ' — signature mismatch, not trusted';
+              return 'none';
+            }
+            function sdVerdict260(v) {
+              return v.name + ' — ' + v.rule
+                + ' · local stamp ' + (v.localMs || 0) + ' · local prov ' + sdProv260(v.localProvClaim, v.localProvMs)
+                + ' · remote stamp ' + (v.remoteMs || 0) + ' · remote prov ' + sdProv260(v.remoteProvClaim, v.remoteProvMs)
+                + ' · sig local ' + (v.localSig || '(none)') + ' · sig remote ' + (v.remoteSig || '(none)');
+            }
+            if (uniBodyDiag257.pullAt && (uniBodyDiag257.pullVerdicts || []).length) {
+              listHead('Body verdicts — last pull');
+              uniBodyDiag257.pullVerdicts.slice(0, 10).forEach(function (v) { listLine(sdVerdict260(v)); });
+            }
             /* Build -259: an attempted-but-unfinished push
                names its gate (degraded boot, registry not
                ready, records leg rejected) instead of reading
@@ -71804,7 +72000,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20261125-259', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20251125-260', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -89203,7 +89399,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20261125-259', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-260', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -90152,7 +90348,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20261125-259', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-260', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
