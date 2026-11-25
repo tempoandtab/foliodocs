@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20251125-261" />
+    <meta name="folio-build" content="20251125-262" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24584,8 +24584,18 @@
             });
           });
           (lib.folders || []).forEach(function (f) {
+            /* Build -262: a folder whose materialized record
+               was merged into a survivor identity registers
+               under the SURVIVOR id (folioIdRedirResolve262) —
+               that is what makes both devices' registries name
+               the same record, at the same count: the record
+               entry below dedupes against this one by id,
+               exactly as it deduped against the folder's own
+               id before the merge. */
+            var regId262 = f.id;
+            try { var rr262 = (typeof folioIdRedirResolve262 === 'function') ? folioIdRedirResolve262(f.id) : null; if (rr262) regId262 = rr262; } catch (e) {}
             add({
-              id: f.id, name: f.name || 'Collection', kind: 'Collection',
+              id: regId262, name: f.name || 'Collection', kind: 'Collection',
               home: f.parentId || null, host: null, tags: [],
               favorite: false, icon: f.icon || null, color: f.color || null,
               created: 0, modified: 0, hasBody: false, isCollection: true, source: 'folder',
@@ -24717,7 +24727,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20251125-261', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20251125-262', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25106,8 +25116,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-261', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-261', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-262', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251125-262', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25124,7 +25134,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20251125-261', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20251125-262', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25174,7 +25184,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20251125-261', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20251125-262', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25280,7 +25290,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20251125-261', chunked: true, recordsSlim: true,
+            version: 3, build: '20251125-262', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -25375,7 +25385,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-261'; } catch (e) { return '20251125-261'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251125-262'; } catch (e) { return '20251125-262'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -70289,7 +70299,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-261', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251125-262', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -71146,7 +71156,18 @@
             var owners = folioBodyOwners256();
             var byId = {};
             owners.forEach(function (o) { byId[o.id] = o; });
-            var plan = folioBodyMerge256(owners, r.data, folioBodyBusy256, folioBodyWatchId260());
+            /* Build -262: rows are COLLAPSED through the
+               identity redirect map first (plus any loser
+               bodies this cycle's merges stashed): a merged
+               loser's cloud body row competes under the
+               survivor's id by the merge's own (provenance,
+               signature) order instead of counting as an
+               orphan, and a survivor never faces two rows
+               for one identity. With no redirects known this
+               is the identity map on r.data — the -261 pull,
+               unchanged. */
+            var plan = folioBodyMerge256(owners, folioIdCollapseRows262((r.data || []).concat(uniLoserBodyRows262)), folioBodyBusy256, folioBodyWatchId260());
+            uniLoserBodyRows262 = [];
             uniBodyDeferred256 = plan.deferred;
             uniBodyDiag257.pullAt = Date.now();
             uniBodyDiag257.pullRows = r.data.length;
@@ -71311,6 +71332,12 @@
               uniTablesOk237 = !!ok2;
               try { saveSyncMeta({ uniTablesOk: !!ok2 }); } catch (e) {}
               if (ok2) uniWriteMarker237();
+              /* Build -262: with the survivor's record and
+                 body safely upserted, tombstone the merged
+                 losers in the cloud (their rows are deleted,
+                 the redirect map published) so the split
+                 cannot re-form from the orphan pile. */
+              if (ok2) return folioIdCleanupLosers262().then(function () { return true; });
               return !!ok2;
             });
           }).catch(function () {
@@ -71388,7 +71415,14 @@
         function uniBodyRoundTrip261() {
           var run = function () {
             var cyc = ++uniRtCycle261;
-            return uniPull256().then(function () {
+            /* Build -262: identity reconciliation runs FIRST
+               inside the fused round trip — duplicate records
+               are merged and their redirects recorded before
+               the body SELECT, so the pull compares bodies
+               under the surviving identities (see the -262
+               block at uniReconStep262). Fail-soft: a recon
+               failure changes nothing about the -261 legs. */
+            return uniReconStep262().then(function () { return uniPull256(); }).then(function () {
               if (uniBodyPullState257 === 'ok') uniRtPulled261 = cyc;
               return uniPush237();
             });
@@ -71397,6 +71431,646 @@
           uniRtChain261 = p.then(function () {}, function () {});
           return p;
         }
+        /* ============================================================
+           Build -262: IDENTITY RECONCILIATION — THE LAST DEFECT
+           IS IDENTITY, NOT SYNC.
+
+           What the -261 verdict id pairs proved on the owner's
+           real devices (2026-11-25): iPad Parenting — row id
+           dmvns6on4457jkh · local id dmvns6on4457jkh, local
+           provenance VERIFIED, sigs identical local/remote.
+           Phone Parenting — row id eab2bae2-a0ba-59d4-a84e-
+           22bef55d13bf · local id the same, sig unchanged since
+           -259. Each device is in perfect sync with its OWN
+           Parenting. There are two records named Parenting,
+           and the copies never meet. Meanwhile the sync
+           machinery itself is proven on-device: the iPad's
+           Cinnamon Sugar Pretzel Bites verdict (provenanced
+           local beating an unprovenanced remote) is fully
+           correct, and Challah / Upcoming Bakes converged.
+
+           THE HIDING MECHANISM, NAMED FROM SOURCE:
+           1. Unified sync never READS folio_records. uniPush237
+              upserts it; nothing anywhere SELECTs it (the only
+              unified SELECT is folio_bodies, in uniPull256).
+              There is no records merge for unified rows at all,
+              so an incoming folio_records row — duplicate or
+              not — is never examined, let alone deduped.
+           2. The only inbound identity channel is the LEGACY
+              folders merge, and it keys strictly by id through
+              the idmap. The device that ORIGINATED a folder
+              holds it under a local uid() ('d' + base36 time +
+              random — dmvns6on4457jkh is exactly that shape);
+              a device that ADOPTED the folder fresh holds it
+              under the folder's remote id (the merge's adoption
+              branch creates the local folder as { id: rf.id },
+              and eab2bae2-… is deriveRemoteId's output shape:
+              the '5' and 'a' nibbles sit where deriveRemoteId
+              writes them). Both local ids map to the same
+              remote row, so the folder itself syncs perfectly
+              — under two different local identities.
+           3. -252 materialization keys the record to the LOCAL
+              folder id (folio252MaterializeOne creates the
+              record with id: f.id, always), so the two devices'
+              Parenting records were born with different ids,
+              each internally consistent, each the legitimate
+              materialization of its own device's folder.
+           4. Everywhere downstream, identity is id-keyed and
+              nothing groups by name+home: recBuildRegistry237
+              dedupes by id only (first writer wins); the body
+              pull finds no local owner for the foreign id and
+              classifies its body row orphan-row (one of the 71);
+              the sidebar and tabs resolve the folder node to
+              the LOCAL record through folio252FolderRec(f.id),
+              so the split has no visible surface. The folder-
+              driven UI was never lying — it was answering about
+              a different record on each device.
+           5. THE -255 HEAL CANNOT MINT. folio252MaterializeOne
+              / folio252Migrate / folio252Reconcile create
+              records with f.id verbatim and no other id source;
+              the -254 scavenge merge (folioIDBMergeOverLegacy254)
+              likewise preserves ids from chunks and legacy
+              stores and creates none. So the heal did carry
+              "the folder's id" — the iPad-LOCAL folder id. The
+              wrong belief was that the folder's id is one
+              thing; it is two (a local id per device, one
+              remote id above them). The split condition is
+              exactly "the two devices hold the same folder
+              under different local ids" — a property of each
+              folder's legacy-sync history (originator vs fresh
+              adopter), NOT of the heal, and NOT specific to
+              Parenting: any folder-collection whose folder id
+              differs across devices (Baking, Books, Cooking,
+              Mindfulness, Work, Musings, Jew Stuff, Rebuttals —
+              any of them) is split the same way. Parenting is
+              the proven case; the detection below enumerates
+              the true set on-device instead of assuming it,
+              and Sync details names what it merged.
+
+           THE REPAIR — identity reconciliation inside the
+           fused round trip, before the body pull:
+           - DETECT (folioIdReconPlan262, pure): descriptors of
+             the local registry and of the cloud's folio_records
+             rows are grouped by normalized name + home/folder
+             binding. A group holding two or more distinct ids
+             is a duplicate set. The folder binding of a
+             collection is its folder's CANONICAL identity —
+             remoteIdFor('folders', f.id), falling back to
+             deriveRemoteId('folders', f.id) — which both
+             devices compute identically for the same folder
+             (iPad: idmap dmvns… → eab2bae2-…; phone: the
+             folder IS eab2bae2-…, self-mapped at adoption).
+           - SURVIVOR: the candidate carrying the canonical
+             folder id (here eab2bae2-…); if none does, the
+             earlier-created wins (created_ms; unknown counts
+             as latest), ties broken by the smaller id — a pure
+             function of the two descriptor sets, so both
+             devices pick the same survivor from the same
+             cloud state, in either order.
+           - MERGE (folioIdApplyMerge262): a survivor that
+             exists only in the cloud is first materialized
+             locally (for a folder-collection, in the -252
+             materialized shape under the SURVIVOR id, bound
+             to the local folder). Properties union with
+             fill-blanks (folioIdMergeProps262 — a present
+             value is never overwritten; the template-merge
+             precedent): a loser property whose name+type the
+             survivor lacks is carried over whole; a matched
+             property fills only its blank fields; collection
+             properties UNION their member lists. Memberships
+             and references are re-pointed loser → survivor
+             across every record (folioIdRepointRefs262),
+             host-keyed record lists move to the survivor, and
+             open/saved tabs re-point. The loser's BODY is not
+             merged here: it is stashed as a candidate row
+             under the SURVIVOR id, so the body leg resolves it
+             by the EXISTING body rules (folioBodyMerge256) —
+             on the device evidence, the iPad's provenanced
+             Parenting body beats the phone's unprovenanced
+             claim, and the tie-break settles the neither-
+             provenanced case, exactly as for any other body.
+           - TOMBSTONE + REDIRECT: the loser id is recorded in
+             a redirect map (loser → survivor), persisted
+             locally (folio.idredir.v1) and published to the
+             cloud (theme_styles, same key) so every device
+             resolves it. The body pull COLLAPSES rows through
+             the map before merging (folioIdCollapseRows262):
+             a loser's cloud body row is compared under the
+             survivor id — competing by the same (provenance,
+             signature) order the merge uses — instead of
+             piling up as an orphan. After a successful push,
+             the loser's folio_records and folio_bodies rows
+             are DELETED (folioIdCleanupLosers262): its content
+             lives on under the survivor, and the orphan pile
+             cannot resurrect it. folio252RecRaw and the
+             registry's folder entry resolve through the map,
+             so the -255 heal finds the survivor when it looks
+             for the folder's record and can never re-mint the
+             loser. A merge is skipped for any cycle in which
+             either side's body is under the caret (the body
+             rules' deferral, applied to identity) and retried
+             on the next.
+           - IDEMPOTENT: after a merge, the loser exists
+             nowhere — not in the local stores, not in the
+             registry, not in the cloud — and the plan computed
+             from the resulting state finds no group. Both
+             devices running it against the same cloud state
+             converge on the same survivor and the same merged
+             record; a second run is a no-op.
+           - COUNTS, DERIVED FROM THE MECHANISM: each device
+             reports 287 records before the merge and 287
+             after. The split never double-counted WITHIN a
+             device (each registry holds Parenting once, under
+             its own id); the merge renames the loser's
+             identity to the survivor's — on the iPad the
+             folder's registry entry resolves through the
+             redirect to eab2bae2-… and the record entry
+             dedupes against it, one entry as today. What
+             changes is the CLOUD's distinct-id count for the
+             library: 288 folio_records ids (Parenting twice)
+             become 287 once the loser's rows are deleted, and
+             the two devices' Parenting verdict ids read THE
+             SAME. The 71 historical orphan body rows are
+             untouched (they belong to long-deleted records;
+             the -258 rule stands) — only the loser's own row
+             leaves the pile, by being resolved, then deleted.
+           ============================================================ */
+        var IDREDIR_KEY262 = 'folio.idredir.v1';
+        var uniIdRedir262 = {};        /* loserId -> survivorId */
+        var uniIdRedirPending262 = {}; /* loserId -> survivorId whose cloud rows are not yet deleted */
+        var uniLoserBodyRows262 = [];  /* loser bodies stashed by this cycle's merges, as rows under the survivor id */
+        var uniIdRedirLearned262 = []; /* [loser, survivor] pairs this device just learned from the cloud map */
+        var uniDupDiag262 = { at: 0, merged: [] };
+        try {
+          var savedRedir262 = JSON.parse(localStorage.getItem(IDREDIR_KEY262) || 'null');
+          if (savedRedir262 && typeof savedRedir262 === 'object') {
+            if (savedRedir262.map && typeof savedRedir262.map === 'object') uniIdRedir262 = savedRedir262.map;
+            if (savedRedir262.pending && typeof savedRedir262.pending === 'object') uniIdRedirPending262 = savedRedir262.pending;
+          }
+        } catch (e) {}
+        function folioIdRedirSave262() {
+          try { localStorage.setItem(IDREDIR_KEY262, JSON.stringify({ map: uniIdRedir262, pending: uniIdRedirPending262 })); } catch (e) {}
+        }
+        /* Resolve an id through the redirect map (transitively,
+           so a survivor that later lost a merge of its own still
+           lands on the final identity). Returns null when the id
+           is not redirected. Safe before the map's initializer
+           has run (var hoisting): reads as "no redirects". */
+        function folioIdRedirResolve262(id) {
+          if (typeof uniIdRedir262 === 'undefined' || !uniIdRedir262 || !id) return null;
+          var cur = id, guard = 0;
+          while (cur && uniIdRedir262[cur] && guard++ < 16) cur = uniIdRedir262[cur];
+          return (cur && cur !== id) ? cur : null;
+        }
+        function folioIdNormName262(name) {
+          return String(name == null ? '' : name).trim().replace(/\s+/g, ' ').toLowerCase();
+        }
+        /* Each local folder's canonical identity — the id both
+           devices agree on for the same folder: its remote id
+           (idmap), or the deterministic derivation of it. */
+        function folioFolderCanon262() {
+          var byLocal = {}, canonSet = {};
+          (lib.folders || []).forEach(function (f) {
+            if (!f || !f.id) return;
+            var canon = null;
+            try {
+              canon = (typeof remoteIdFor === 'function') ? remoteIdFor('folders', f.id) : null;
+              if (!canon && typeof deriveRemoteId === 'function' && typeof sbUser !== 'undefined' && sbUser) canon = deriveRemoteId('folders', f.id);
+            } catch (e) {}
+            if (!canon) canon = f.id;
+            byLocal[f.id] = canon;
+            canonSet[canon] = f.id;
+          });
+          return { byLocal: byLocal, canonSet: canonSet };
+        }
+        function folioIdLocalDescs262() {
+          var all = (typeof folioAllRecords237 === 'function') ? folioAllRecords237() : null;
+          if (!all) return null;
+          return all.map(function (r) {
+            return { id: r.id, name: r.name || '', kind: r.kind || null, home: r.home || null, host: r.host || null, created: r.created || 0, isCollection: !!r.isCollection, props: Array.isArray(r.props) ? r.props : [] };
+          });
+        }
+        function folioIdPickSurvivor262(members, canonId) {
+          if (canonId) {
+            for (var i = 0; i < members.length; i++) if (members[i].id === canonId) return canonId;
+          }
+          var best = null;
+          (members || []).forEach(function (m) {
+            var c = (typeof m.created === 'number' && m.created > 0) ? m.created : Infinity;
+            if (!best || c < best.c || (c === best.c && m.id < best.id)) best = { id: m.id, c: c };
+          });
+          return best ? best.id : null;
+        }
+        /* The duplicate plan, pure: local + cloud descriptors
+           in, merges out ([{ name, survivor, losers, canon }]).
+           Grouping: normalized name + home/folder binding,
+           collections only — a born record and a document can
+           share a name harmlessly; two COLLECTIONS with one
+           name in one home are one identity the filing model
+           cannot tell apart, which is exactly the split this
+           build heals. */
+        function folioIdReconPlan262(localDescs, cloudDescs, canon) {
+          canon = canon || { byLocal: {}, canonSet: {} };
+          var byKey = {}, order = [];
+          function bindOf(d) {
+            if (d.id && canon.byLocal[d.id]) return canon.byLocal[d.id];
+            if (d.id && canon.canonSet[d.id]) return d.id;
+            var props = d.props || [];
+            for (var i = 0; i < props.length; i++) {
+              var fid = props[i] && props[i].hyb && props[i].hyb.source && props[i].hyb.source.folderId;
+              if (fid && canon.byLocal[fid]) return canon.byLocal[fid];
+              if (fid && canon.canonSet[fid]) return fid;
+            }
+            return null;
+          }
+          function addDesc(d) {
+            if (!d || !d.id) return;
+            if (!(d.isCollection || d.kind === 'Collection')) return;
+            var homeKey = d.host || (d.home ? (canon.byLocal[d.home] || d.home) : '');
+            var key = folioIdNormName262(d.name) + '|' + homeKey;
+            if (!byKey[key]) { byKey[key] = { name: d.name || '', members: [], canon: null }; order.push(key); }
+            var g = byKey[key];
+            var b = bindOf(d);
+            if (b && !g.canon) g.canon = b;
+            if (!g.members.some(function (m) { return m.id === d.id; })) g.members.push({ id: d.id, created: d.created || 0 });
+          }
+          (localDescs || []).forEach(addDesc);
+          (cloudDescs || []).forEach(addDesc);
+          var merges = [];
+          order.forEach(function (key) {
+            var g = byKey[key];
+            if (g.members.length < 2) return;
+            var survivor = folioIdPickSurvivor262(g.members, g.canon);
+            if (!survivor) return;
+            var losers = g.members.filter(function (m) { return m.id !== survivor; }).map(function (m) { return m.id; });
+            if (losers.length) merges.push({ name: g.name, survivor: survivor, losers: losers, canon: g.canon || null });
+          });
+          return merges;
+        }
+        function folioIdBlank262(v) {
+          return v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
+        }
+        /* Properties union with fill-blanks, pure: the
+           survivor's props are never overwritten where they
+           hold a value; a loser property the survivor lacks
+           (by normalized name + type) is carried over whole;
+           a matched property fills only its blank fields, and
+           two collection properties UNION their member lists
+           (member refs to the loser re-point to the survivor,
+           and a record is never its own member). Returns the
+           merged props array; inputs are not mutated. */
+        function folioIdMergeProps262(survProps, loserProps, survivorId, loserId, idRemap) {
+          function clone(x) { return x == null ? x : JSON.parse(JSON.stringify(x)); }
+          var out = clone(survProps || []);
+          function unionMembers(dst, src) {
+            /* BOTH lists are normalized entry by entry: a ref
+               to the loser re-points to the survivor, and a ref
+               that re-points onto the record itself is dropped
+               (a record is never its own member). Normalizing
+               dst matters as much as src — the survivor's own
+               stored list can already point at the loser (a
+               parent listing the split child), and leaving that
+               ref in place would leave the merged record
+               pointing at a tombstoned identity. */
+            var out = [], seen = {};
+            function take(m0) {
+              if (!m0 || !m0.oid) return;
+              var m = clone(m0);
+              var wasLoser = m.oid === loserId;
+              if (wasLoser) m.oid = survivorId;
+              if (wasLoser && survivorId && m.oid === survivorId) return;
+              var k = m.oid + '|' + (m.s || '');
+              if (seen[k]) return;
+              seen[k] = true;
+              out.push(m);
+            }
+            (Array.isArray(dst) ? dst : []).forEach(take);
+            (src || []).forEach(take);
+            return out;
+          }
+          (loserProps || []).forEach(function (lp0) {
+            if (!lp0) return;
+            var lp = clone(lp0);
+            var sp = null;
+            for (var i = 0; i < out.length; i++) {
+              if (out[i].type === lp.type && folioIdNormName262(out[i].name) === folioIdNormName262(lp.name)) { sp = out[i]; break; }
+            }
+            if (!sp) {
+              if (lp.type === 'coll' && Array.isArray(lp.value)) lp.value = unionMembers([], lp.value);
+              var clash = out.some(function (p) { return p.id === lp.id; });
+              if (clash && lp.id) { var nid = lp.id + '~m262'; if (idRemap) idRemap[lp.id] = nid; lp.id = nid; }
+              out.push(lp);
+              return;
+            }
+            if (sp.type === 'coll') {
+              sp.value = unionMembers(Array.isArray(sp.value) ? sp.value : [], Array.isArray(lp.value) ? lp.value : []);
+              if (folioIdBlank262(sp.hyb) && !folioIdBlank262(lp.hyb)) sp.hyb = lp.hyb;
+              if (sp.smart === undefined && lp.smart !== undefined) sp.smart = lp.smart;
+              if (folioIdBlank262(sp.defaults) && !folioIdBlank262(lp.defaults)) sp.defaults = lp.defaults;
+            } else if (folioIdBlank262(sp.value) && !folioIdBlank262(lp.value)) {
+              sp.value = lp.value;
+            }
+            if (sp.show === undefined && lp.show !== undefined) sp.show = lp.show;
+            if (folioIdBlank262(sp.dress) && !folioIdBlank262(lp.dress)) sp.dress = lp.dress;
+          });
+          /* The survivor's own member lists may already point
+             at the loser (a parent listing the split child):
+             re-point those too, with the same union rules. */
+          out.forEach(function (p) {
+            if (p && p.type === 'coll' && Array.isArray(p.value)) p.value = unionMembers(p.value, []);
+          });
+          return out;
+        }
+        /* Re-point every reference to the loser across a whole
+           objects store: member refs in any record's collection
+           properties, object-reference property values, and
+           'obj:' homes. (Bare-id homes name FOLDERS in this
+           codebase — the filing home — so they are left alone:
+           the folder keeps its local id; only the record's
+           identity moves.) Returns true when anything changed. */
+        function folioIdRepointRefs262(store, loserId, survivorId) {
+          var changed = false;
+          function scanRec(rec) {
+            if (!rec) return;
+            (rec.props || []).forEach(function (p) {
+              if (!p) return;
+              if (p.type === 'coll' && Array.isArray(p.value)) {
+                var seen = {}, nv = [], touched = false;
+                p.value.forEach(function (m) {
+                  if (!m || !m.oid) { nv.push(m); return; }
+                  var nm = m;
+                  if (m.oid === loserId) { nm = { oid: survivorId, s: m.s }; touched = true; }
+                  if (nm.oid === rec.id) { if (touched) changed = true; return; }
+                  var k = nm.oid + '|' + (nm.s || '');
+                  if (seen[k]) { if (touched) changed = true; return; }
+                  seen[k] = true;
+                  nv.push(nm);
+                });
+                if (touched) { p.value = nv; changed = true; }
+              }
+              if (p.type === 'objref' && p.value && p.value.oid === loserId) { p.value.oid = survivorId; changed = true; }
+            });
+            if (typeof rec.home === 'string' && rec.home === 'obj:' + loserId) { rec.home = 'obj:' + survivorId; changed = true; }
+          }
+          (store.globals || []).forEach(scanRec);
+          (store.gColls || []).forEach(scanRec);
+          Object.keys(store.docObjs || {}).forEach(function (h) { (store.docObjs[h] || []).forEach(scanRec); });
+          Object.keys(store.docColls || {}).forEach(function (h) { (store.docColls[h] || []).forEach(scanRec); });
+          return changed;
+        }
+        function folioIdFindRec262(id) {
+          var found = null;
+          function scan(list, scope, host) {
+            (list || []).forEach(function (r, i) { if (!found && r && r.id === id) found = { rec: r, list: list, index: i, scope: scope, host: host || null }; });
+          }
+          scan(objStore.globals, 'global');
+          Object.keys(objStore.docObjs || {}).forEach(function (h) { scan(objStore.docObjs[h], 'doc', h); });
+          return found;
+        }
+        /* Materialize a survivor that exists only in the cloud:
+           for a folder-collection, the -252 materialized shape
+           under the SURVIVOR id, bound to the local folder (its
+           Members hybrid source names the local folder id, as
+           every materialization's does); otherwise, the cloud
+           row's own record, normalized, with a Members property
+           guaranteed for a collection. */
+        function folioIdCreateSurvivor262(row, canonFolderLocalId) {
+          var rec = null;
+          if (canonFolderLocalId) {
+            var f = null;
+            try { f = folderById(canonFolderLocalId); } catch (e) {}
+            if (f) {
+              var nameP = { id: objNewId('p'), name: 'Name', type: 'text', show: true, value: row.name || f.name || 'Collection' };
+              var memP = { id: objNewId('p'), name: 'Members', type: 'coll', show: true, value: [], hyb: { source: { folderId: f.id, includeSubfolders: false, tags: [], tagMatch: 'any', combine: 'either' }, propRules: [], excluded: [] } };
+              rec = { id: row.id, name: row.name || f.name || 'Collection', kind: 'Collection', emoji: f.icon || '📁', color: f.color || '', headline: nameP.id, art: null, props: [nameP, memP] };
+              if (f.parentId) rec.home = 'obj:' + f.parentId;
+            }
+          }
+          if (!rec) {
+            rec = objNormalizeRec({ id: row.id, name: row.name || 'Collection', kind: row.kind || 'Collection', emoji: row.icon || '', color: row.color || '', headline: null, art: null, props: Array.isArray(row.props) ? row.props : [] });
+            if (rec && !(rec.props || []).some(function (p) { return p.type === 'coll'; })) {
+              var np = { id: objNewId('p'), name: 'Name', type: 'text', show: true, value: rec.name };
+              var mp = { id: objNewId('p'), name: 'Members', type: 'coll', show: true, value: [] };
+              rec.props = [np, mp].concat(rec.props || []);
+              rec.headline = np.id;
+            }
+          }
+          if (rec) objStore.globals.push(rec);
+          return rec;
+        }
+        function folioIdRepointTabs262(loserId, survivorId) {
+          try {
+            if (typeof tabRecords === 'undefined' || !Array.isArray(tabRecords)) return;
+            var changed = false;
+            var loserTab = 'obj:g:' + loserId, survTab = 'obj:g:' + survivorId;
+            for (var i = tabRecords.length - 1; i >= 0; i--) {
+              var r = tabRecords[i];
+              if (!r || r.docId !== loserTab) continue;
+              if (tabIndexOf(survTab) === -1) { r.docId = survTab; if (r.nav) r.nav.stack = [survTab]; }
+              else tabRecords.splice(i, 1);
+              changed = true;
+            }
+            if (typeof tabActiveId === 'string' && tabActiveId === loserTab) { tabActiveId = survTab; changed = true; }
+            if (changed) { try { tabPersist(); } catch (e) {} try { tabRender(); } catch (e) {} }
+          } catch (e) {}
+        }
+        /* Apply one planned merge to the local stores. The
+           record surgery only: bodies are resolved by the body
+           leg (the loser's body is stashed as a candidate row
+           under the survivor id), and the redirect is recorded
+           for the pull, the push cleanup, and every future
+           lookup. Returns true when the merge was applied. */
+        function folioIdApplyMerge262(merge, cloudById) {
+          var survivorId = merge.survivor;
+          var sf = folioIdFindRec262(survivorId);
+          if (!sf) {
+            var row = cloudById[survivorId];
+            if (!row) return false;
+            var folderLocal = merge.canon ? folioFolderCanon262().canonSet[merge.canon] : null;
+            var rec = folioIdCreateSurvivor262({ id: row.id, name: row.name, kind: row.kind, icon: row.icon, color: row.color, props: row.props }, folderLocal);
+            if (!rec) return false;
+            sf = { rec: rec, list: objStore.globals, index: objStore.globals.length - 1, scope: 'global', host: null };
+          }
+          merge.losers.forEach(function (loserId) {
+            var lf = folioIdFindRec262(loserId);
+            if (lf) {
+              /* Stash the loser's body BEFORE the record goes:
+                 it competes for the survivor under the existing
+                 body rules in this cycle's pull. */
+              try {
+                var lo = null;
+                folioBodyOwners256().forEach(function (o) { if (o.id === loserId) lo = o; });
+                if (lo && lo.body) {
+                  var lbody = lo.body;
+                  if (lo.provStamp > 0 && lbody && typeof lbody === 'object' && !Array.isArray(lbody)) {
+                    var marked = {};
+                    Object.keys(lbody).forEach(function (k) { marked[k] = lbody[k]; });
+                    marked[FOLIO_PROV_KEY259] = { s: lo.provStamp, g: lo.sig };
+                    lbody = marked;
+                  }
+                  uniLoserBodyRows262.push({ record_id: survivorId, body: lbody, updated_at: new Date(lo.provStamp || lo.stamp || 0).toISOString() });
+                }
+              } catch (e) {}
+              var idRemap = {};
+              sf.rec.props = folioIdMergeProps262(sf.rec.props || [], lf.rec.props || [], survivorId, loserId, idRemap);
+              if (!sf.rec.emoji && lf.rec.emoji) sf.rec.emoji = lf.rec.emoji;
+              if (!sf.rec.color && lf.rec.color) sf.rec.color = lf.rec.color;
+              if (sf.rec.favorite !== true && lf.rec.favorite === true) sf.rec.favorite = true;
+              if (typeof sf.rec.home !== 'string' && typeof lf.rec.home === 'string') sf.rec.home = lf.rec.home;
+              var hlOk = (sf.rec.props || []).some(function (p) { return p.id === sf.rec.headline; });
+              if (!hlOk && lf.rec.headline) {
+                var lp2 = idRemap[lf.rec.headline] || lf.rec.headline;
+                if ((sf.rec.props || []).some(function (p) { return p.id === lp2; })) sf.rec.headline = lp2;
+              }
+              lf.list.splice(lf.index, 1);
+            }
+            try { folioIdRepointRefs262(objStore, loserId, survivorId); } catch (e) {}
+            ['docObjs', 'docColls'].forEach(function (bucket) {
+              var store = objStore[bucket];
+              if (store && store[loserId]) {
+                store[survivorId] = (store[survivorId] || []).concat(store[loserId]);
+                delete store[loserId];
+              }
+            });
+            folioIdRepointTabs262(loserId, survivorId);
+            uniIdRedir262[loserId] = survivorId;
+            uniIdRedirPending262[loserId] = survivorId;
+          });
+          folioIdRedirSave262();
+          return true;
+        }
+        function folioIdReadCloudRedir262() {
+          if (!sb || !sbUser) return Promise.resolve(false);
+          return Promise.resolve(sb.from('theme_styles').select('data').eq('key', IDREDIR_KEY262)).then(function (r) {
+            if (r && !r.error && Array.isArray(r.data) && r.data.length && r.data[0].data && r.data[0].data.map) {
+              var changed = false;
+              Object.keys(r.data[0].data.map).forEach(function (loser) {
+                var surv = r.data[0].data.map[loser];
+                if (surv && !uniIdRedir262[loser]) { uniIdRedir262[loser] = surv; uniIdRedirLearned262.push([loser, surv]); changed = true; }
+              });
+              if (changed) folioIdRedirSave262();
+              return true;
+            }
+            return false;
+          }).catch(function () { return false; });
+        }
+        function folioIdPublishRedir262() {
+          if (!sb || !sbUser) return Promise.resolve(false);
+          var row = { key: IDREDIR_KEY262, data: { map: uniIdRedir262, at: Date.now() }, updated_at: new Date().toISOString() };
+          return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
+            return !(r && r.error);
+          }).catch(function () { return false; });
+        }
+        /* Tombstone the losers in the cloud: delete their
+           folio_records and folio_bodies rows (their content
+           lives on under the survivor — the push that calls
+           this has just upserted it) and publish the redirect
+           map. Idempotent; a loser whose cleanup fails stays
+           in the pending map and is retried next cycle. */
+        function folioIdCleanupLosers262() {
+          var losers = Object.keys(uniIdRedirPending262);
+          if (!losers.length || !sb || !sbUser) return Promise.resolve(false);
+          var chain = Promise.resolve(true);
+          losers.forEach(function (loser) {
+            chain = chain.then(function () {
+              return Promise.resolve(sb.from('folio_records').delete().eq('owner', sbUser.id).eq('id', loser)).then(function () {
+                return Promise.resolve(sb.from('folio_bodies').delete().eq('owner', sbUser.id).eq('record_id', loser));
+              }).then(function () {
+                delete uniIdRedirPending262[loser];
+                folioIdRedirSave262();
+                return true;
+              }).catch(function () { return false; });
+            });
+          });
+          return chain.then(function () { return folioIdPublishRedir262(); });
+        }
+        /* The (provenance, signature) order folioBodyMerge256
+           decides by, as a comparable key over one row — used
+           to collapse several rows that name the same effective
+           record (a survivor's own row plus its losers' rows)
+           into the single row the merge should see. */
+        function folioIdRowKey262(row) {
+          var rst = folioBodyStrip259(row && row.body);
+          var sig = folioBodySig258(rst.body);
+          var prov = (rst.prov && rst.prov.sig === sig) ? rst.prov.stamp : 0;
+          return { prov: prov, sig: sig };
+        }
+        function folioIdCollapseRows262(rows) {
+          var byId = {}, seq = [];
+          (rows || []).forEach(function (r) {
+            if (!r || !r.record_id || !r.body) { seq.push(r); return; }
+            var eff = folioIdRedirResolve262(r.record_id) || r.record_id;
+            var row = eff === r.record_id ? r : { record_id: eff, body: r.body, updated_at: r.updated_at };
+            var cur = byId[eff];
+            if (!cur) { byId[eff] = { row: row, key: folioIdRowKey262(row) }; seq.push(eff); return; }
+            var k = folioIdRowKey262(row);
+            if (k.prov > cur.key.prov || (k.prov === cur.key.prov && k.sig > cur.key.sig)) byId[eff] = { row: row, key: k };
+          });
+          return seq.map(function (x) { return typeof x === 'string' ? byId[x].row : x; });
+        }
+        /* The records leg of the round trip: read the cloud's
+           redirects and its folio_records rows, plan the
+           duplicate merges against the local registry, and
+           apply them — before the body pull, so the pull's
+           owners already carry the survivor and the losers'
+           rows resolve through the fresh redirect. Fail-soft
+           throughout: any failure leaves the cycle exactly as
+           -261 ran it. */
+        function uniReconStep262() {
+          uniDupDiag262 = { at: Date.now(), merged: [] };
+          if (folioIDBDegraded253) return Promise.resolve(false);
+          if (!sb || !sbUser) return Promise.resolve(false);
+          uniLoserBodyRows262 = [];
+          return folioIdReadCloudRedir262().then(function () {
+            /* A redirect LEARNED from the cloud (this device
+               never ran the merge itself — the other device
+               did) still has work to do here: any stored
+               reference to the loser — a member ref, an obj:
+               home — re-points to the survivor, so nothing on
+               this device keeps naming a tombstoned identity.
+               Runs once per pair: a pair is "learned" only
+               when it was not already in the local map. */
+            if (uniIdRedirLearned262.length) {
+              var learnedChanged262 = false;
+              uniIdRedirLearned262.forEach(function (pair) {
+                try { if (folioIdRepointRefs262(objStore, pair[0], pair[1])) learnedChanged262 = true; } catch (e) {}
+              });
+              uniIdRedirLearned262 = [];
+              if (learnedChanged262) { try { objSave(); } catch (e) {} }
+            }
+            return Promise.resolve(sb.from('folio_records').select('id, name, kind, home_id, host_id, icon, color, props, is_collection, created_ms')).then(function (r) {
+              if (!r || r.error || !Array.isArray(r.data)) return false;
+              var localDescs = folioIdLocalDescs262();
+              if (!localDescs) return false;
+              var cloudById = {};
+              var cloudDescs = r.data.map(function (row) {
+                cloudById[row.id] = row;
+                return { id: row.id, name: row.name || '', kind: row.kind || null, home: row.home_id || null, host: row.host_id || null, created: row.created_ms || 0, isCollection: !!row.is_collection, props: Array.isArray(row.props) ? row.props : [] };
+              });
+              var plan = folioIdReconPlan262(localDescs, cloudDescs, folioFolderCanon262());
+              var fresh = plan.filter(function (m) {
+                if (!m.losers.some(function (l) { return folioIdRedirResolve262(l) !== m.survivor; })) return false;
+                /* A body under the caret defers its identity
+                   merge like it defers adoption — retried next
+                   cycle, never forced under the user's hands. */
+                if (folioBodyBusy256(m.survivor)) return false;
+                return !m.losers.some(function (l) { return folioBodyBusy256(l); });
+              });
+              if (!fresh.length) return true;
+              var applied = [];
+              fresh.forEach(function (m) { if (folioIdApplyMerge262(m, cloudById)) applied.push(m); });
+              if (applied.length) {
+                uniDupDiag262.merged = applied.map(function (m) { return { name: m.name, survivor: m.survivor, losers: m.losers.slice() }; });
+                try { objSave(); } catch (e) {}
+                try { folioRunMigration237(true); } catch (e) {}
+                try { renderDocList(); } catch (e) {}
+                try { renderObjWsList(); } catch (e) {}
+              }
+              return true;
+            });
+          }).catch(function () { return false; });
+        }
+
         function uniSyncAfterCycle237(ok) {
           if (!ok || !sb || !sbUser) return;
           /* Build -240: the unified check no longer rides on
@@ -71494,7 +72168,7 @@
             }
           }).catch(function () { uniLastCheck237 = 'Unified check could not read the cloud marker'; });
         }
-        try { window.__folioUnifiedSync = { tablesOk: function () { return uniTablesOk237; }, markerSeen: function () { return uniMarkerSeen237; }, lastCheck: function () { return uniLastCheck237; }, sql: function () { return UNI_SQL_237; }, push: uniPush237, pull: uniPull256, roundTrip: uniBodyRoundTrip261, bodyOwners: folioBodyOwners256, bodyRows: folioBodyRows256, bodyMerge: folioBodyMerge256, bodyDiag: function () { return uniBodyDiag257; }, bodyPullState: function () { return uniBodyPullState257; } }; } catch (e) {}
+        try { window.__folioUnifiedSync = { tablesOk: function () { return uniTablesOk237; }, markerSeen: function () { return uniMarkerSeen237; }, lastCheck: function () { return uniLastCheck237; }, sql: function () { return UNI_SQL_237; }, push: uniPush237, pull: uniPull256, roundTrip: uniBodyRoundTrip261, bodyOwners: folioBodyOwners256, bodyRows: folioBodyRows256, bodyMerge: folioBodyMerge256, bodyDiag: function () { return uniBodyDiag257; }, bodyPullState: function () { return uniBodyPullState257; }, reconPlan: folioIdReconPlan262, reconStep: uniReconStep262, idRedir: function () { return uniIdRedir262; }, dupDiag: function () { return uniDupDiag262; }, collapseRows: folioIdCollapseRows262, mergeProps: folioIdMergeProps262 }; } catch (e) {}
 
         function syncNow() {
           if (!sb || !sbUser) {
@@ -71618,6 +72292,16 @@
             }
             if (uniBodyDiag257.pullAt && (uniBodyDiag257.pullNotNewerNames || []).length) row('Contested — kept local (not-newer)', sdNames259(uniBodyDiag257.pullNotNewerNames));
             if (uniBodyDiag257.pullAt && (uniBodyDiag257.pullTieLostNames || []).length) row('Contested — kept local (tie-lost)', sdNames259(uniBodyDiag257.pullTieLostNames));
+            /* Build -262: identity reconciliation, stated —
+               the duplicate records merged in the last cycle
+               (names, the identities retired, the survivor),
+               and the redirect map now in force, so the full
+               affected set is visible on the device that
+               merged it, not just the one record the owner
+               happened to be watching. */
+            if ((uniDupDiag262.merged || []).length) row('Duplicates merged (identity)', sdFmtTime(uniDupDiag262.at) + ' · ' + uniDupDiag262.merged.map(function (m) { return m.name + ': ' + m.losers.join(', ') + ' → ' + m.survivor + ' (survivor)'; }).join(' · '));
+            var redirKeys262 = Object.keys(uniIdRedir262 || {});
+            if (redirKeys262.length) row('Identity redirects active', redirKeys262.slice(0, 6).map(function (l) { return l + ' → ' + uniIdRedir262[l]; }).join(' · ') + (redirKeys262.length > 6 ? ' · +' + (redirKeys262.length - 6) + ' more' : ''));
             /* Build -260: the per-record verdicts — the actual
                values each contested comparison was decided
                from: both stamps, both provenance states
@@ -72125,7 +72809,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20251125-261', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20251125-262', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -89524,7 +90208,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-261', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251125-262', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -90473,13 +91157,26 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-261', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251125-262', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
         }
         function folio252RecRaw(id) {
-          return (objStore.globals || []).find(function (r) { return r.id === id; }) || null;
+          var rec = (objStore.globals || []).find(function (r) { return r.id === id; }) || null;
+          if (!rec) {
+            /* Build -262: the folder's record may live under a
+               SURVIVOR identity after an identity merge (see
+               uniReconStep262) — resolve through the redirect
+               map instead of reporting it missing. A miss here
+               is what would re-materialize the loser under the
+               folder's local id and resurrect the split. */
+            try {
+              var surv262 = (typeof folioIdRedirResolve262 === 'function') ? folioIdRedirResolve262(id) : null;
+              if (surv262) rec = (objStore.globals || []).find(function (r) { return r.id === surv262; }) || null;
+            } catch (e) {}
+          }
+          return rec;
         }
         function folio252FolderRec(id) {
           if (!id) return null;
