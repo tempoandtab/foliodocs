@@ -25,7 +25,7 @@
          cached bundle can never ride along under fresh HTML
          — the menu stamp and the editor code can no longer
          silently disagree. Bump the ?v= value with this one. -->
-    <meta name="folio-build" content="20251128-292" />
+    <meta name="folio-build" content="20251128-294" />
     <title>FolioDocs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -25211,7 +25211,7 @@
               try { console.error('[FolioDocs migration -237] refused:', problems); } catch (e3) {}
               return false;
             }
-            var payload = { version: 3, build: '20251128-292', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var payload = { version: 3, build: '20251128-294', migratedAt: Date.now(), records: built.records, counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             /* Build -241: persistence IS the chunked unify
                sequence (folioChunkedUnify241, in the -241 block
                below). The -239/-240 single-key persist wrote
@@ -25600,8 +25600,8 @@
         }
         function folioCommitUnify241(built, before, memberSum, diskPayload) {
           try {
-            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251128-292', total: before.total, members: before.members }));
-            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251128-292', total: before.total, members: before.members }));
+            localStorage.setItem(MIG_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251128-294', total: before.total, members: before.members }));
+            localStorage.setItem(RET_KEY, JSON.stringify({ done: true, at: Date.now(), build: '20251128-294', total: before.total, members: before.members }));
           } catch (e) {
             folioUnifyState241 = { status: 'write-failed', detail: 'the unified store is whole on disk, but the completion markers could not be written — the next boot will finish the retirement from the saved store' };
             return false;
@@ -25618,7 +25618,7 @@
           } catch (e) {}
           folioDrain241 = null;
           folioRetired239 = true;
-          folioRegistry = { version: 3, build: '20251128-292', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
+          folioRegistry = { version: 3, build: '20251128-294', migratedAt: (diskPayload && diskPayload.migratedAt) || Date.now(), records: built.records, counts: { total: before.total, members: memberSum }, checksum: before.checksum, stores: { library: lib, objects: objStore } };
           folioUnifyState241 = { status: 'retired', detail: before.total + ' records, ' + memberSum + ' stored memberships' };
           folioRetireState239 = { status: 'retired', detail: folioUnifyState241.detail };
           folioClearStateBanner241();
@@ -25670,7 +25670,7 @@
             if (disk0 && disk0.version >= 3 && disk0.stores && disk0.counts && disk0.counts.total === before.total && disk0.counts.members === before.members && disk0.checksum === before.checksum) {
               return folioCommitUnify241(built, before, memberSum, disk0);
             }
-            var base = { version: 3, build: '20251128-292', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
+            var base = { version: 3, build: '20251128-294', chunked: true, recordsSlim: true, migratedAt: (folioRegistry && folioRegistry.migratedAt) || Date.now(), records: folioSlimRecords241(built.records), counts: { total: built.records.length, members: memberSum }, checksum: before.checksum };
             set = folioBuildChunkSet241(lib, objStore, base);
             journal = folioReadJournal241();
             if (!journal || journal.checksum !== before.checksum || !journal.done || typeof journal.done !== 'object') {
@@ -25776,7 +25776,7 @@
              restores the previous whole store rather than
              leaving a torn one. */
           var base = {
-            version: 3, build: '20251128-292', chunked: true, recordsSlim: true,
+            version: 3, build: '20251128-294', chunked: true, recordsSlim: true,
             migratedAt: (prev && prev.migratedAt) || Date.now(),
             records: folioSlimRecords241(built.records),
             counts: { total: built.records.length, members: memberSum },
@@ -26047,10 +26047,78 @@
           var folioCommitSaved268 = JSON.parse(localStorage.getItem('folio.commit268') || 'null');
           if (folioCommitSaved268 && typeof folioCommitSaved268 === 'object') folioCommitState268 = { lastVerifyAt: folioCommitSaved268.at || 0, ok: (folioCommitSaved268.ok === true), unverified: folioCommitSaved268.unverified || [], lastError: folioCommitSaved268.lastError || '' };
         } catch (e) {}
+        /* Build -294: BODY-LINK ATTRIBUTION for the verified
+           commit. A record whose body comes from a Body property
+           owns no body of its own — its effective body IS the
+           target's body (the -231 rule the editor, the record
+           stage and the body-source line all live by). The -268
+           enumeration nevertheless signed such a record under
+           its own bodyDoc — for Morning Star the Book, an empty
+           paragraph minted by the -250 migration — so the commit
+           pipeline held one expectation for the record's id
+           while every surface that touches the record works
+           with the target's body under the target's id. A
+           registration that reached the record through its
+           effective body (the live session for the target
+           document, a body-source flush) therefore expected a
+           signature no write could satisfy for that id, and the
+           record failed verification deterministically — the
+           failure then surfaced dressed as an IndexedDB write
+           error naming the record, not the body owner. The
+           repair: within the commit enumeration, a body-linked
+           record's expected signature IS its body owner's
+           signature — the target resolved from the record's own
+           props, through the identity-redirect closure
+           (folioIdRedirResolve262), following body-property
+           chains exactly as rec231BodyTarget does — computed
+           from the SAME owner scan the caller enumerated, so
+           the live side and folioVerifyReadBack268's read-back
+           side (which swaps the stores and re-runs this very
+           function) attribute identically by construction. The
+           target remains the body's one canonical owner; the
+           linked record's entry keeps its own name and stamps
+           and gains bodyOwner294 naming the owner, so a
+           mismatch report can name the record that actually
+           holds the body. Ordinary own-body records are
+           untouched: no Body property, no attribution, and the
+           -268 comparison is exactly as strong as before. */
+        function folioBodyLinkOwner294(rec, byId) {
+          if (!rec || !Array.isArray(rec.props)) return null;
+          var bp = null;
+          for (var i = 0; i < rec.props.length; i++) { if (rec.props[i] && rec.props[i].type === 'body') { bp = rec.props[i]; break; } }
+          if (!bp || !bp.value) return null;
+          var id = null;
+          if (typeof bp.value === 'string') id = bp.value;
+          else if (typeof bp.value === 'object' && bp.value.oid) id = bp.value.oid;
+          if (!id) return null;
+          try { var rr294 = (typeof folioIdRedirResolve262 === 'function') ? folioIdRedirResolve262(id) : null; if (rr294) id = rr294; } catch (e) {}
+          return byId[id] || null;
+        }
         function folioEditorSigs268() {
           var map = {};
+          var owners = [];
+          try { owners = folioBodyOwners256(); } catch (e) { owners = []; }
           try {
-            folioBodyOwners256().forEach(function (o) { if (o && o.id) map[o.id] = { sig: o.sig || '', name: o.name || o.id, stamp: o.stamp || 0, provStamp: o.provStamp || 0 }; });
+            owners.forEach(function (o) { if (o && o.id) map[o.id] = { sig: o.sig || '', name: o.name || o.id, stamp: o.stamp || 0, provStamp: o.provStamp || 0 }; });
+            var byId294 = {};
+            owners.forEach(function (o) { if (o && o.id) byId294[o.id] = o; });
+            owners.forEach(function (o) {
+              if (!o || o.kind !== 'rec' || !o.rec || !map[o.id]) return;
+              var seen294 = {}, cur294 = o, target294 = null, hops294 = 0;
+              while (cur294 && cur294.kind === 'rec' && cur294.rec && hops294++ < 12) {
+                if (seen294[cur294.id]) { target294 = null; break; }
+                seen294[cur294.id] = true;
+                var nx294 = folioBodyLinkOwner294(cur294.rec, byId294);
+                if (!nx294) break;
+                target294 = nx294;
+                cur294 = nx294;
+              }
+              if (target294 && target294.id !== o.id && map[target294.id]) {
+                map[o.id].sig = map[target294.id].sig;
+                map[o.id].bodyOwner294 = target294.id;
+                map[o.id].bodyOwnerName294 = map[target294.id].name || target294.id;
+              }
+            });
           } catch (e) {}
           return map;
         }
@@ -26065,7 +26133,7 @@
           var sigs = folioEditorSigs268();
           var un = [];
           Object.keys(sigs).forEach(function (id) {
-            if (folioVerifiedSig268[id] !== sigs[id].sig) un.push({ id: id, name: sigs[id].name, sig: sigs[id].sig, storedSig: folioVerifiedSig268[id] || '' });
+            if (folioVerifiedSig268[id] !== sigs[id].sig) un.push({ id: id, name: sigs[id].name + (sigs[id].bodyOwner294 ? ' (body owned by ' + (sigs[id].bodyOwnerName294 || sigs[id].bodyOwner294) + ')' : ''), sig: sigs[id].sig, storedSig: folioVerifiedSig268[id] || '' });
           });
           folioCommitState268.unverified = un;
           folioCommitState268.ok = un.length === 0;
@@ -27031,10 +27099,36 @@
             var s = sigs[id] || null;
             var useSig = '', useName = (s && s.name) || id, useStamp = (s && s.stamp) || 0, fromLive = false;
             if (id === idHint && liveSig) {
-              useSig = liveSig; fromLive = true;
               if (!useStamp) useStamp = Date.now();
-              if (s && s.sig && s.sig !== liveSig) {
-                folioEvent270('live', { route: route || 'edit', id: id, sig: liveSig, outcome: 'LIVE-DIVERGES-FROM-MEMORY', msg: 'live editor sig ' + liveSig + ' vs in-memory body sig ' + s.sig + ' — the LIVE signature is registered; if the pipeline writes the in-memory body, this edit will judge FAILED and say so' });
+              if (s && s.sig && s.sig !== liveSig && liveSig.split('/')[0] === s.sig.split('/')[0]) {
+                /* Build -294: the live editor's body and the
+                   in-memory body are the SAME body — their text
+                   hashes agree — in two serializations: the
+                   editor's schema writes attrs the store's form
+                   omits (Morning Star: calloutEmoji), and a
+                   body-linked record's live session holds its
+                   owner's body in the owner's form. The pipeline
+                   writes the IN-MEMORY body, so registering the
+                   live serialization minted an expectation no
+                   write could satisfy and the record failed
+                   verification deterministically. The divergence
+                   is still logged — it is the alarm that found
+                   Morning Star — but the registered expectation
+                   is now the signature of the body the pipeline
+                   will actually write. A live body whose TEXT
+                   differs from memory is a different case
+                   entirely — a genuine edit memory never
+                   adopted — and keeps the -270 rule below:
+                   the live signature is registered, and if the
+                   pipeline writes the in-memory body instead,
+                   the edit judges FAILED and says so. */
+                folioEvent270('live', { route: route || 'edit', id: id, sig: liveSig, outcome: 'LIVE-DIVERGES-FROM-MEMORY', msg: 'live editor sig ' + liveSig + ' vs in-memory body sig ' + s.sig + ' — same body text, different serialization: the IN-MEMORY signature is registered (build -294), since the pipeline writes the in-memory body and the live serialization is not an expectation any write could meet' });
+                useSig = s.sig;
+              } else {
+                useSig = liveSig; fromLive = true;
+                if (s && s.sig && s.sig !== liveSig) {
+                  folioEvent270('live', { route: route || 'edit', id: id, sig: liveSig, outcome: 'LIVE-DIVERGES-FROM-MEMORY', msg: 'live editor sig ' + liveSig + ' vs in-memory body sig ' + s.sig + ' — the LIVE signature is registered; if the pipeline writes the in-memory body, this edit will judge FAILED and say so' });
+                }
               }
             } else if (s && s.sig) {
               useSig = s.sig;
@@ -27241,7 +27335,7 @@
             lastReg: function () { return folioLastRegSig270; },
           };
         } catch (e) {}
-        folioEvent270('boot', { route: 'build-270', outcome: 'SESSION-START', msg: 'build 20251128-292 · ' + folioEventsRestored270 + ' earlier event(s) restored from the previous session' + (folioEventsRestored270 ? ' — events above this line predate the last reload' : '') + ' · IndexedDB ' + (folioIDBSettled242 ? 'already settled' : 'not yet settled') + ' · degraded ' + (folioIDBDegraded253 ? 'yes' : 'no') });
+        folioEvent270('boot', { route: 'build-270', outcome: 'SESSION-START', msg: 'build 20251128-294 · ' + folioEventsRestored270 + ' earlier event(s) restored from the previous session' + (folioEventsRestored270 ? ' — events above this line predate the last reload' : '') + ' · IndexedDB ' + (folioIDBSettled242 ? 'already settled' : 'not yet settled') + ' · degraded ' + (folioIDBDegraded253 ? 'yes' : 'no') });
         /* ============================================================
            BUILD -271 — SESSION BINDING BY IDENTITY.
            What -270's session log proved on the owner's iPad:
@@ -27402,7 +27496,7 @@
         var folioIDBState242 = { status: 'pending', detail: '' };
         var folioIDBEstimate242 = null;
         function folioStamp242() {
-          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251128-292'; } catch (e) { return '20251128-292'; }
+          try { return (typeof FOLIO_BUILD === 'string' && FOLIO_BUILD) ? FOLIO_BUILD : '20251128-294'; } catch (e) { return '20251128-294'; }
         }
         function folioIDBMarkerParsed242() {
           if (folioIDBMarkerParsed242Cache) return folioIDBMarkerParsed242Cache;
@@ -28301,7 +28395,22 @@
               return folioIDBWriteStores242(lib, objStore).then(function (res) {
                 return folioVerifyReadBack268(attemptSigs268).then(function (bad268) {
                   if (bad268 && bad268.length) {
-                    var names268 = bad268.map(function (id) { return (attemptSigs268[id] && attemptSigs268[id].name) || id; }).join(', ');
+                    /* Build -294: the report names the record
+                       that OWNS the body — for a body-linked
+                       record, its body owner, the record the
+                       committed body actually lives under — and
+                       shows the editor signature against the
+                       committed signature the read-back just
+                       established in the ledger, so the banner
+                       and Sync details diagnose the mismatch
+                       instead of naming whichever record
+                       happened to trigger the flush. */
+                    var names268 = bad268.slice(0, 3).map(function (id) {
+                      var a268 = attemptSigs268[id] || {};
+                      var nm268 = a268.name || id;
+                      if (a268.bodyOwner294) nm268 += ' (body owned by ' + (a268.bodyOwnerName294 || a268.bodyOwner294) + ')';
+                      return nm268 + ' — editor sig ' + (a268.sig || '?') + ' ≠ committed sig ' + (folioVerifiedSig268[id] || '?');
+                    }).join(', ') + (bad268.length > 3 ? ' +' + (bad268.length - 3) + ' more' : '');
                     var verr268 = new Error('read-back verification failed — the committed body does not match the editor for: ' + names268);
                     verr268.name = 'VerifyError';
                     throw verr268;
@@ -29208,18 +29317,119 @@
           } catch (e) {}
           return found;
         }
+        /* Build -293: THE SHARED SUBJECT IDENTITY TEST.
+           -290 built Morning Star's full identity set inside
+           rec231MembershipsOf — but that enumeration is only
+           reachable from the OBJECT face's pane. The document
+           face's surfaces (wsRenderDocMemberships226's stored
+           scan, wsDocCollTargets227's holds check, and the
+           rail glance rec228DocMemberships) each ran their own
+           narrow literal test — an entry counted only as a
+           synthetic file entry (s 's') whose parsed docId was
+           the opened id, literally — so the Saga's Books entry,
+           spelled with the object-store face id in object form
+           ({oid: <obj face>, s: 'g'}), was rejected by all
+           three before any identity logic ran, and only Books
+           Library's synthetic entry ever claimed. This helper
+           is the -290 identity-set construction, shared: the
+           seed ids, the identity-redirect closure in BOTH
+           directions (folioIdRedirResolve262 forward; every
+           loser whose resolution lands in the set, reverse),
+           and the Body-property linkage in string and {oid}
+           form plus the -250 effective-body linkage, mined
+           over the object store AND the unified registry,
+           closed together, cycle-safe and bounded. entryHit
+           then asks whether a stored entry names ANY id in
+           the set in ANY form: the raw oid, a synthetic
+           entry's parsed document id, or either normalized
+           through the redirect map. Read-only: no stored
+           entry, record id or redirect row is rewritten. */
+        function folioSubjectIdSet293(seedIds) {
+          var idSet293 = {};
+          function add293(id) {
+            if (!id || typeof id !== 'string' || idSet293[id]) return false;
+            if (Object.keys(idSet293).length >= 512) return false;
+            idSet293[id] = true;
+            return true;
+          }
+          (seedIds || []).forEach(add293);
+          var edges293 = {};
+          function link293(a, b) {
+            if (!a || !b || a === b) return;
+            (edges293[a] || (edges293[a] = {}))[b] = true;
+            (edges293[b] || (edges293[b] = {}))[a] = true;
+          }
+          function mine293(r) {
+            if (!r || !r.id) return;
+            (r.props || []).forEach(function (pp) {
+              if (!pp || pp.type !== 'body' || !pp.value) return;
+              if (typeof pp.value === 'string') link293(r.id, pp.value);
+              else if (typeof pp.value === 'object' && pp.value.oid) link293(r.id, pp.value.oid);
+            });
+            try {
+              var eff293 = rec250EffectiveBody(r);
+              if (eff293) {
+                if (eff293.kind === 'doc' && eff293.doc) link293(r.id, eff293.doc.id);
+                else if (eff293.kind === 'rec' && eff293.rec) link293(r.id, eff293.rec.id);
+              }
+            } catch (e) {}
+          }
+          try { (objStore.globals || []).forEach(mine293); } catch (e) {}
+          try { Object.keys(objStore.docObjs || {}).forEach(function (dk) { (objStore.docObjs[dk] || []).forEach(mine293); }); } catch (e) {}
+          var reg293 = [];
+          try { reg293 = folioAllRecords237() || []; } catch (e) { reg293 = []; }
+          try { reg293.forEach(mine293); } catch (e) {}
+          var redirMap293 = {};
+          try { if (typeof uniIdRedir262 !== 'undefined' && uniIdRedir262) redirMap293 = uniIdRedir262; } catch (e) {}
+          function resolve293(id) {
+            try { return folioIdRedirResolve262(id); } catch (e) { return null; }
+          }
+          var changed293 = true, rounds293 = 0;
+          while (changed293 && rounds293++ < 12) {
+            changed293 = false;
+            Object.keys(idSet293).forEach(function (id) {
+              var s293 = resolve293(id);
+              if (s293 && add293(s293)) changed293 = true;
+              var e293 = edges293[id];
+              if (e293) Object.keys(e293).forEach(function (o) { if (add293(o)) changed293 = true; });
+            });
+            Object.keys(redirMap293).forEach(function (loser) {
+              if (idSet293[loser]) return;
+              var s293 = resolve293(loser);
+              if (s293 && idSet293[s293] && add293(loser)) changed293 = true;
+            });
+          }
+          function idHit293(id) {
+            if (!id) return false;
+            if (idSet293[id]) return true;
+            var r293 = resolve293(id);
+            return !!(r293 && idSet293[r293]);
+          }
+          function entryHit293(m) {
+            if (!m || !m.oid) return false;
+            if (idHit293(m.oid)) return true;
+            var pr293 = null;
+            try { pr293 = smartParseOid(m.oid); } catch (e) {}
+            if (pr293 && idHit293(pr293.docId)) return true;
+            return false;
+          }
+          return { set: idSet293, resolve: resolve293, idHit: idHit293, entryHit: entryHit293 };
+        }
         function wsDocCollTargets227(docId) {
           var out = [];
           var ctxDoc = objWsCtx ? varDocById(objWsCtx.docId) : null;
+          /* Build -293: the holds check is the shared identity
+             test, so the picker never offers to re-file this
+             document into a host that already holds it in
+             another spelling or form. */
+          var idCtx293t = folioSubjectIdSet293([docId]);
           function scan(list, scope, homeKey) {
             (list || []).forEach(function (rec) {
               if (!rec || !Array.isArray(rec.props)) return;
               var collProps = rec.props.filter(function (p) { return p.type === 'coll' && p.smart !== true; });
               collProps.forEach(function (p) {
                 var holds = (Array.isArray(p.value) ? p.value : []).some(function (m) {
-                  if (!m || m.s !== 's') return false;
-                  var pr = smartParseOid(m.oid);
-                  return pr && pr.docId === docId;
+                  return idCtx293t.entryHit(m);
                 });
                 if (holds) return;
                 out.push({
@@ -29240,9 +29450,9 @@
           var rec = target.rec, prop = target.prop, scope = target.scope;
           if (!Array.isArray(prop.value)) prop.value = [];
           var already = prop.value.some(function (m) {
-            if (!m || m.s !== 's') return false;
-            var pr = smartParseOid(m.oid);
-            return pr && pr.docId === docId;
+            /* Build -293: same shared identity test as the
+               picker's holds check. */
+            return folioSubjectIdSet293([docId]).entryHit(m);
           });
           if (already) { folioToast('Already a member of “' + objHeadline(rec, null) + '”.'); return; }
           /* Owner values before the add, so the fills the
@@ -29388,21 +29598,31 @@
             scanSmartColls(collGlobalList(), 'global');
             lib.docs.forEach(function (d) { scanSmartColls(collDocList(d.id), 'doc'); });
           } catch (e) {}
-          /* Stored collections holding it as a file member. */
+          /* Stored collections holding it as a file member.
+             Build -293: the claim test is the shared identity
+             test (folioSubjectIdSet293) — the -290 identity set,
+             routed to this document-face pane at last — so an
+             entry in ANY form (a raw object-face id, a synthetic
+             file entry, a pre-merge spelling) claims its host
+             here. The row names the list as the -287 pane does:
+             "Collection · <list>" for a named list, a plain
+             "Collection" for the canonical Members list —
+             shown as stored, not by rule. */
           var storedSec = null;
+          var idCtx293m = folioSubjectIdSet293([docId]);
           function scanStored(list, scope) {
             (list || []).forEach(function (rec) {
+              if (!rec || idCtx293m.idHit(rec.id)) return;
               objWsCollProps(rec.props).forEach(function (p) {
                 if (p.smart === true || !Array.isArray(p.value)) return;
-                var holds = p.value.some(function (m) {
-                  if (!m || m.s !== 's') return false;
-                  var pr = smartParseOid(m.oid);
-                  return pr && pr.docId === docId;
-                });
+                var holds = p.value.some(function (m) { return idCtx293m.entryHit(m); });
                 if (!holds) return;
                 if (!storedSec) storedSec = sec('Collections — filed as a member');
                 any = true;
-                row(storedSec, rec.name, 'via “' + p.name + '”', 'Open in grid', function () {
+                var canon293 = null;
+                try { canon293 = collMembersPropOf(rec); } catch (e) {}
+                var sub293 = (canon293 && canon293.id === p.id) ? 'Collection' : ('Collection · ' + p.name);
+                row(storedSec, rec.name, sub293, 'Open in grid', function () {
                   var src = (collIsCollObj(rec) && collMembersPropOf(rec) === p)
                     ? { cid: rec.id, cs: scope === 'global' ? 'g' : 'd' }
                     : { oid: rec.id, os: scope === 'global' ? 'g' : 'd', pid: p.id };
@@ -74376,7 +74596,7 @@
         }
         function uniWriteMarker237() {
           if (!sb || !sbUser) return Promise.resolve(false);
-          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251128-292', at: Date.now() }, updated_at: new Date().toISOString() };
+          var row = { key: UNI_SYNC_KEY237, data: { unified: true, build: '20251128-294', at: Date.now() }, updated_at: new Date().toISOString() };
           return Promise.resolve(sb.from('theme_styles').upsert(row, { onConflict: 'key' })).then(function (r) {
             return !(r && r.error);
           }).catch(function () { return false; });
@@ -75049,6 +75269,17 @@
              untrusted, on any device. */
           var rows = [];
           uniBodyDiag257.pushUnverified268 = [];
+          /* Build -294: the -268 gate below compares the ledger
+             against the COMMIT enumeration's expected signature
+             (folioEditorSigs268 — body-linked records attributed
+             to their body owner), the same expectation the
+             read-back verify maintains in the ledger. Comparing
+             against the raw owner scan instead would hold a
+             body-linked record's row back forever: its ledger
+             entry tracks its effective body, never its own
+             empty bodyDoc. */
+          var expSigs294 = null;
+          try { expSigs294 = folioEditorSigs268(); } catch (e) { expSigs294 = null; }
           folioBodyOwners256().forEach(function (o) {
             if (!o.body) return;
             if (uniBodyDeferred256[o.id]) return;
@@ -75060,7 +75291,7 @@
                The held-back bodies are NAMED in the diag. On
                the legacy (non-IndexedDB) path the ledger is not
                kept and the gate stands down. */
-            if (folioIDBActive242 && folioVerifiedSig268[o.id] !== o.sig) { uniBodyDiag257.pushUnverified268.push(o.name || o.id); return; }
+            if (folioIDBActive242 && folioVerifiedSig268[o.id] !== ((expSigs294 && expSigs294[o.id]) ? expSigs294[o.id].sig : o.sig)) { uniBodyDiag257.pushUnverified268.push(o.name || o.id); return; }
             /* Build -259: a body whose provenance verified at
                owner-build time (provStamp > 0) is pushed as a
                shallow copy carrying the folioProv259 marker —
@@ -78489,7 +78720,7 @@
               if (nLib239.tagMeta && typeof nLib239.tagMeta === 'object') Object.keys(nLib239.tagMeta).forEach(function (k) { if (nLib239.tagMeta[k] && typeof nLib239.tagMeta[k] === 'object') nLib239.tagMeta[k].updated = now; });
               if (newRec239.stores.objects && typeof newRec239.stores.objects.updated === 'number') newRec239.stores.objects.updated = now;
               if (newRecChunked241) {
-                var baseN241 = { version: 3, build: newRec239.build || '20251128-292', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
+                var baseN241 = { version: 3, build: newRec239.build || '20251128-294', chunked: true, recordsSlim: true, migratedAt: newRec239.migratedAt || now, records: newRec239.records, counts: newRec239.counts, checksum: newRec239.checksum };
                 var setN241 = folioBuildChunkSet241(newRec239.stores.library, newRec239.stores.objects, baseN241);
                 Object.keys(newStorage).forEach(function (k) { if (k.indexOf(REC_KEY + '.k') === 0 || k.indexOf(REC_KEY + '.g') === 0) delete newStorage[k]; });
                 setN241.chunks.forEach(function (c) { newStorage[c.key] = c.value; });
@@ -93133,6 +93364,12 @@
         }
         function rec228DocMemberships(docId) {
           var out = [];
+          /* Build -293: the glance's stored test delegates to
+             the same shared identity test the main pane uses,
+             so the rail glance and the pane can never diverge
+             again. The smart and hybrid branches below are
+             untouched. */
+          var idCtx293g = folioSubjectIdSet293([docId]);
           function scan(rec, scope) {
             (rec.props || []).forEach(function (p) {
               if (p.type !== 'coll') return;
@@ -93141,11 +93378,7 @@
                 if (docs && docs.some(function (d) { return d.id === docId; })) out.push({ name: objHeadline(rec, null), byRule: true });
                 return;
               }
-              var hit = (p.value || []).some(function (m) {
-                if (!m || m.s !== 's') return false;
-                var pr = smartParseOid(m.oid);
-                return pr && pr.docId === docId && pr.collId === rec.id;
-              });
+              var hit = (p.value || []).some(function (m) { return idCtx293g.entryHit(m); });
               if (hit) out.push({ name: objHeadline(rec, null), byRule: false });
               if (p.hyb) {
                 var hd = hyb228Docs(p.hyb);
@@ -96941,7 +97174,7 @@
           rec250MigState.failed = failed.length;
           if (converted) { try { objSave(); } catch (e) {} }
           try {
-            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251128-292', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
+            localStorage.setItem('folio.bodymig.v250', JSON.stringify({ at: Date.now(), build: '20251128-294', runs: rec250MigState.runs, converted: rec250MigState.converted, failed: failed.length }));
           } catch (e) {}
           if (failed.length) rec250ShowBodyBanner(failed.length);
           else rec250HideBodyBanner();
@@ -97896,7 +98129,7 @@
         } catch (e) {}
         try { folio252Snap = JSON.parse(localStorage.getItem('folio252.syncsnap') || '{}') || {}; } catch (e) { folio252Snap = {}; }
         function folio252SaveMarker() {
-          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251128-292', folders: Object.keys(folio252Set) })); } catch (e) {}
+          try { localStorage.setItem('folio.migration.v252', JSON.stringify({ done: true, at: Date.now(), build: '20251128-294', folders: Object.keys(folio252Set) })); } catch (e) {}
         }
         function folio252SaveSnap() {
           try { localStorage.setItem('folio252.syncsnap', JSON.stringify(folio252Snap)); } catch (e) {}
